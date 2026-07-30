@@ -1,0 +1,263 @@
+/* Curated case sets. Each set groups cases that look alike on the trace but
+   diverge on one discriminating feature — which is the thing worth learning. */
+
+export const CASE_SETS = [
+  {
+    name: 'ST elevation',
+    teaches: 'Regional vs diffuse elevation, and the value of reciprocal change.',
+    cases: [
+      {
+        title: 'Crushing chest pain, ST elevation',
+        vignette: '58-year-old man. Crushing substernal chest pain for 2 hours, diaphoretic, radiating to the left arm.',
+        pathId: 'stemi_ant',
+        options: ['stemi_ant', 'pericarditis', 'early_repol', 'brugada1'],
+        findings: [
+          'ST elevation in a regional pattern (V1–V4 = LAD territory)',
+          'Reciprocal ST depression in II, III, aVF',
+          'Convex ("tombstone") ST morphology',
+          'Acute onset, crushing pain, diaphoresis',
+        ],
+        teaching: 'Regional ST elevation with reciprocal depression is STEMI until proven otherwise. Pericarditis is diffuse without reciprocals. Early repolarisation is concave and asymptomatic. Brugada sits in V1–V2 only, with a coved morphology.',
+      },
+      {
+        title: 'Pleuritic pain, widespread ST elevation',
+        vignette: '32-year-old woman. Sharp pleuritic chest pain, worse lying flat, better sitting forward. Flu-like illness last week.',
+        pathId: 'pericarditis',
+        options: ['stemi_ant', 'stemi_inf', 'pericarditis', 'early_repol'],
+        findings: [
+          'Diffuse ST elevation across most leads, crossing territories',
+          'ST depression in aVR — the classic sign',
+          'No reciprocal changes anywhere',
+          'Concave-up ST morphology',
+        ],
+        teaching: 'Diffuse elevation plus aVR depression plus no reciprocals is pericarditis. The giveaway is that the changes do not respect a coronary territory. The clinical picture (young, pleuritic, post-viral, positional) fits.',
+      },
+      {
+        title: 'Young athlete, screening ECG',
+        vignette: '22-year-old male college athlete. Routine pre-participation ECG. Entirely asymptomatic.',
+        pathId: 'early_repol',
+        options: ['stemi_ant', 'pericarditis', 'early_repol', 'brugada1'],
+        findings: [
+          'ST elevation V2–V5, concave-up',
+          'Prominent J-point notching ("fishhook")',
+          'No reciprocal change, no symptoms',
+          'Common in young, athletic, often male patients',
+        ],
+        teaching: 'Benign early repolarisation. The discriminators against STEMI are: no symptoms, concave morphology, no reciprocals, and J-point notching. It is stable over serial tracings.',
+      },
+    ],
+  },
+  {
+    name: 'Wide QRS',
+    teaches: 'The single most consequential call in emergency ECG reading.',
+    cases: [
+      {
+        title: 'Wide QRS, fast, unwell',
+        vignette: '65-year-old man. Palpitations and lightheadedness. BP 90/60, HR 150.',
+        pathId: 'vt',
+        options: ['vt', 'lbbb', 'rbbb', 'wpw_a'],
+        findings: [
+          'Wide QRS (>120 ms) with a rate of 150',
+          'No identifiable P waves',
+          'AV dissociation where visible',
+          'Haemodynamically compromised',
+          'Rule: wide complex tachycardia is VT until proven otherwise',
+        ],
+        teaching: 'A wide complex tachycardia in an older patient with haemodynamic compromise is VT. Bundle branch block would still show P waves at a normal rate. Watch the pressure trace here — filling time collapses and the atrial kick is lost, so cardiac output falls even though the rate has doubled.',
+      },
+      {
+        title: 'Wide QRS, normal rate, well',
+        vignette: '72-year-old woman. Routine ECG before hip surgery. Asymptomatic, HR 68.',
+        pathId: 'lbbb',
+        options: ['lbbb', 'rbbb', 'wpw_a', 'hyperk_mod'],
+        findings: [
+          'Wide QRS with an M-shaped notched R in V5, V6 and I',
+          'Deep S wave in V1',
+          'Discordant ST-T (opposite to the QRS)',
+          'Normal rate, P waves present',
+        ],
+        teaching: 'LBBB: wide QRS, M-shaped R laterally, deep S in V1, discordant ST/T. RBBB shows rsR′ in V1 instead. WPW has a short PR and a delta wave. Hyperkalaemia would peak the T waves first.',
+      },
+      {
+        title: 'Short PR with a slurred upstroke',
+        vignette: '28-year-old man. Episodes of rapid palpitations since his teens. Otherwise healthy.',
+        pathId: 'wpw_a',
+        options: ['wpw_a', 'lbbb', 'rbbb', 'lvh'],
+        findings: [
+          'Short PR interval (<120 ms)',
+          'Delta wave: slurred QRS upstroke',
+          'Wide QRS as a consequence of the delta wave',
+          'Young patient with episodic palpitations',
+        ],
+        teaching: 'Short PR + delta wave + wide QRS is Wolff–Parkinson–White. The accessory pathway conducts faster than the AV node, so it pre-excites the ventricle. The palpitations are re-entrant tachycardia around that circuit.',
+      },
+    ],
+  },
+  {
+    name: 'T wave changes',
+    teaches: 'Which T wave abnormalities mean an artery is about to close.',
+    cases: [
+      {
+        title: 'Deep T inversions, pain now resolved',
+        vignette: '55-year-old woman. Chest pain 6 hours ago, now completely resolved. Troponin mildly elevated.',
+        pathId: 'wellens',
+        options: ['wellens', 'nstemi', 'pe', 'lvh'],
+        findings: [
+          'Deep, symmetric T inversions in V2–V3 (± V4)',
+          'Pain-free at the time of the tracing',
+          'Minimal ST change',
+          'Preserved R wave progression',
+        ],
+        teaching: 'Wellens syndrome: deep symmetric T inversions in V2–V3 during a pain-free interval signal critical proximal LAD stenosis. This is a pre-infarction pattern. The patient needs catheterisation, not a stress test — stressing them can complete the infarct.',
+      },
+      {
+        title: 'ST depression with ongoing pain',
+        vignette: '68-year-old diabetic. Chest pressure for 4 hours, still present. Troponin rising.',
+        pathId: 'nstemi',
+        options: ['nstemi', 'wellens', 'stemi_ant', 'digitalis'],
+        findings: [
+          'ST depression across V3–V6',
+          'T wave inversion in the same leads',
+          'No ST elevation anywhere',
+          'Ongoing symptoms with a rising troponin',
+        ],
+        teaching: 'ST depression plus T inversion with ongoing ischaemia and a rising troponin is NSTEMI — the injury is subendocardial rather than transmural. Unlike Wellens, the patient is symptomatic now and the distribution is broader.',
+      },
+    ],
+  },
+  {
+    name: 'Bradycardia and block',
+    teaches: 'Where in the conduction system the fault sits, and whether it needs a pacemaker.',
+    cases: [
+      {
+        title: 'Dizzy spells, dropped beats',
+        vignette: '78-year-old man on a beta-blocker. Dizzy spells. HR varies between 45 and 60.',
+        pathId: 'wenckebach',
+        options: ['wenckebach', 'mobitz2', 'chb', 'af'],
+        findings: [
+          'P waves present with progressively lengthening PR',
+          'One QRS dropped after the longest PR',
+          'The pattern repeats — group beating',
+          'Usually benign; often drug-related',
+        ],
+        teaching: 'Wenckebach (Mobitz I): progressive PR prolongation then a dropped beat. The block is in the AV node itself, which is why it responds to atropine and to stopping the beta-blocker. Mobitz II has a constant PR and blocks below the node — that one needs a pacemaker.',
+      },
+      {
+        title: 'Syncope, P waves marching through',
+        vignette: '82-year-old. Syncope. HR 38. P waves visible but unrelated to the QRS complexes.',
+        pathId: 'chb',
+        options: ['chb', 'wenckebach', 'mobitz2', 'af'],
+        findings: [
+          'P waves at their own rate (~75/min)',
+          'QRS at a slow escape rate (~40/min)',
+          'No fixed relationship between P and QRS',
+          'Needs pacing',
+        ],
+        teaching: 'Complete heart block: the atria and ventricles are electrically divorced. The key finding is dissociation — P waves march through at a faster, independent rate. Watch the pressure trace: the long diastole overfills the ventricle, so each stroke volume is large, but at 40/min the cardiac output still falls.',
+      },
+    ],
+  },
+  {
+    name: 'Metabolic and drug effects',
+    teaches: 'The ECG as a chemistry report.',
+    cases: [
+      {
+        title: 'Missed dialysis, weak',
+        vignette: '70-year-old woman on haemodialysis, missed two sessions. Generalised weakness. K⁺ 7.1.',
+        pathId: 'hyperk_mod',
+        options: ['hyperk_mod', 'hyperk_mild', 'lqts', 'stemi_ant'],
+        findings: [
+          'Tall, peaked, narrow, symmetric T waves',
+          'QRS beginning to widen',
+          'P waves flattening, PR lengthening',
+          'Changes are diffuse, not territorial',
+        ],
+        teaching: 'Hyperkalaemia progresses in a fixed order: peaked T waves, then P wave flattening and PR prolongation, then QRS widening, then a sine wave and arrest. Try dragging the potassium slider on the Loop bench and watch the same sequence appear.',
+      },
+      {
+        title: 'Nausea on long-term digoxin',
+        vignette: '75-year-old woman on digoxin for atrial fibrillation. Nausea and visual disturbance.',
+        pathId: 'digitalis',
+        options: ['digitalis', 'nstemi', 'lvh', 'lqts'],
+        findings: [
+          'Scooped "reverse tick" ST depression',
+          'Shortened QT interval',
+          'T wave flattening',
+          'Changes are an effect of the drug, not a marker of toxicity',
+        ],
+        teaching: 'The digitalis effect is the sagging, scooped ST segment with a short QT — sometimes called the Salvador Dalí moustache. Note it is not the same as toxicity: the effect appears at therapeutic levels, whereas toxicity presents with arrhythmia.',
+      },
+    ],
+  },
+];
+
+/* Plausible differentials for the random-practice mode. */
+export const DIFFERENTIALS = {
+  stemi_ant: ['stemi_ant', 'pericarditis', 'early_repol', 'brugada1'],
+  stemi_inf: ['stemi_inf', 'pericarditis', 'early_repol', 'pe'],
+  stemi_lat: ['stemi_lat', 'pericarditis', 'nstemi', 'lvh'],
+  nstemi: ['nstemi', 'wellens', 'digitalis', 'lvh'],
+  pericarditis: ['pericarditis', 'stemi_ant', 'early_repol', 'stemi_inf'],
+  early_repol: ['early_repol', 'stemi_ant', 'pericarditis', 'brugada1'],
+  brugada1: ['brugada1', 'stemi_ant', 'early_repol', 'rvh'],
+  wpw_a: ['wpw_a', 'lbbb', 'rbbb', 'vt'],
+  lbbb: ['lbbb', 'rbbb', 'wpw_a', 'hyperk_mod'],
+  rbbb: ['rbbb', 'lbbb', 'wpw_a', 'rvh'],
+  af: ['af', 'aflutter', 'wenckebach', 'normal'],
+  aflutter: ['aflutter', 'af', 'wenckebach', 'normal'],
+  wenckebach: ['wenckebach', 'mobitz2', 'chb', 'af'],
+  mobitz2: ['mobitz2', 'wenckebach', 'chb', 'af'],
+  chb: ['chb', 'mobitz2', 'wenckebach', 'af'],
+  vt: ['vt', 'lbbb', 'wpw_a', 'hyperk_sev'],
+  lvh: ['lvh', 'rvh', 'lbbb', 'stemi_lat'],
+  rvh: ['rvh', 'lvh', 'rbbb', 'pe'],
+  wellens: ['wellens', 'nstemi', 'pe', 'lvh'],
+  pe: ['pe', 'stemi_inf', 'rvh', 'nstemi'],
+  hyperk_mild: ['hyperk_mild', 'normal', 'lqts', 'nstemi'],
+  hyperk_mod: ['hyperk_mod', 'hyperk_mild', 'hyperk_sev', 'lbbb'],
+  hyperk_sev: ['hyperk_sev', 'hyperk_mod', 'vt', 'chb'],
+  lqts: ['lqts', 'hyperk_mild', 'normal', 'digitalis'],
+  digitalis: ['digitalis', 'nstemi', 'lvh', 'lqts'],
+  p_mitrale: ['p_mitrale', 'p_pulmonale', 'normal', 'af'],
+  p_pulmonale: ['p_pulmonale', 'p_mitrale', 'rvh', 'normal'],
+};
+
+/* One-line presentations used by the random mode. */
+export const VIGNETTES = {
+  stemi_ant: '58M, crushing substernal chest pain for 2 hours, diaphoretic.',
+  stemi_inf: '65M, substernal pressure 1 hour, nausea, bradycardic.',
+  stemi_lat: '52F, left-sided chest pain 3 hours, breathless.',
+  nstemi: '68M, diabetic, intermittent chest pressure 6 h, troponin rising.',
+  wpw_a: '28M, episodic rapid palpitations since age 15.',
+  brugada1: '35M, family history of sudden death, syncopal episode.',
+  lqts: '22F, syncope during exercise, family history of drowning.',
+  af: '72M, irregular palpitations for 2 days, fatigue.',
+  aflutter: '60F, regular palpitations, HR around 150.',
+  wenckebach: '78M, on a beta-blocker, dizzy spells.',
+  mobitz2: '80F, near-syncope, heart rate drops abruptly.',
+  chb: '82M, syncope, HR 38.',
+  vt: '65M, palpitations, lightheaded, BP 90/60.',
+  vf: '55M, witnessed collapse, no pulse.',
+  lvh: '58M, long-standing hypertension, breathless on exertion.',
+  rvh: '45F, worsening breathlessness, pulmonary hypertension.',
+  pericarditis: '32F, sharp pleuritic pain, worse lying flat, recent flu.',
+  lbbb: '72F, routine pre-op ECG, known cardiomyopathy.',
+  rbbb: '55M, incidental finding, asymptomatic.',
+  hyperk_mild: '65M, chronic kidney disease, K⁺ 5.8.',
+  hyperk_mod: '70F, missed dialysis, K⁺ 7.1, weak.',
+  hyperk_sev: '68M, anuric renal failure, K⁺ 8.5.',
+  pe: '40F, sudden breathlessness after a long flight, tachycardic.',
+  wellens: '55F, chest pain 6 h ago, now resolved, troponin borderline.',
+  p_mitrale: '65F, worsening breathlessness, known mitral stenosis.',
+  p_pulmonale: '55M, COPD, worsening right heart failure.',
+  digitalis: '75F, on digoxin for AF, nauseated.',
+  early_repol: '22M, college athlete, routine ECG, asymptomatic.',
+};
+
+/* Coronary territories for the map. */
+export const TERRITORIES = [
+  { id: 'anterior', name: 'Anterior', artery: 'LAD', color: '#F0475A', leads: ['V1', 'V2', 'V3', 'V4'], reciprocal: ['II', 'III', 'aVF'], stemi: 'stemi_ant' },
+  { id: 'inferior', name: 'Inferior', artery: 'RCA', color: '#4C8DFF', leads: ['II', 'III', 'aVF'], reciprocal: ['I', 'aVL'], stemi: 'stemi_inf' },
+  { id: 'lateral', name: 'Lateral', artery: 'LCx', color: '#FFB020', leads: ['I', 'aVL', 'V5', 'V6'], reciprocal: ['V1', 'V2', 'V3'], stemi: 'stemi_lat' },
+  { id: 'septal', name: 'Septal', artery: 'LAD (septals)', color: '#9B7BF7', leads: ['V1', 'V2'], reciprocal: [], stemi: null },
+];
