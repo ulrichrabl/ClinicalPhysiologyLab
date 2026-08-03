@@ -1,5 +1,6 @@
 import { el, clear, Inspector, toast } from './core/ui/kit.js';
 import { installErrorHandlers, guard } from './core/diagnostics.js';
+import { installCapture } from './core/capture.js';
 import { invalidatePalette } from './core/ui/draw.js';
 import { Patient, CHANNELS, channelStatus } from './core/patient.js';
 import { PatientView } from './core/ui/patientview.js';
@@ -266,7 +267,7 @@ class Shell {
             'If a panel ever looks blank or wrong, that opens a diagnostic report you '
             + 'can copy — much more useful than a screenshot.')),
         el('p', { class: 'fr-keys' },
-          'Space play/pause · Tab switch domain · 1–9 workspaces · T theme'),
+          'Space play/pause · Tab switch domain · 1–9 workspaces · T theme · Shift+C ECG capture'),
         el('div', { class: 'btn-row' },
           el('button', { class: 'btn', onclick: close }, 'Start'))));
     document.body.appendChild(overlay);
@@ -311,6 +312,11 @@ class Shell {
 }
 
 installErrorHandlers();
+installCapture();
 document.documentElement.dataset.theme = 'monitor';
 const shell = new Shell(document.getElementById('app'));
-if (typeof globalThis !== 'undefined') globalThis.__shell = shell;
+if (typeof globalThis !== 'undefined') {
+  globalThis.__shell = shell;
+  /* Stamped by scripts/build.mjs — null in raw src / unbundled runs. */
+  if (globalThis.__BUILD_ID === undefined) globalThis.__BUILD_ID = null;
+}

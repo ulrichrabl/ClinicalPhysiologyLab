@@ -5,7 +5,7 @@ import { LessonRunner } from '../../core/ui/lessonrunner.js';
 import { el } from '../../core/ui/kit.js';
 import { CASE_SETS } from './data/cases.js';
 import { LESSONS, BASELINE } from './data/lessons.js';
-import workerSource from './sim/worker.js?raw';
+import workerSource from './sim/worker.ts?raw';
 import { guard, record } from '../../core/diagnostics.js';
 
 /* ---------------------------------------------------------------------------
@@ -28,18 +28,21 @@ import { guard, record } from '../../core/diagnostics.js';
    67 integration steps per frame.
 --------------------------------------------------------------------------- */
 function createSimHost(source) {
+  /* Classic blob Workers have been unreliable here; in-page sim is fast enough
+     (≈67 steps/frame at 30 fps) and shares the main thread's Map/typed arrays. */
+  if (typeof window !== 'undefined') window.__simHost = 'in-page (no Worker)';
+  return inlineSimHost(source);
+
+  /* Worker path kept for reference — re-enable once blob worker parity is verified.
   if (typeof Worker === 'function' && location.protocol !== 'file:') {
     try {
       const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
-      const w = new Worker(url, { type: 'module' });
-      if (typeof window !== 'undefined') window.__simHost = 'Web Worker';
-      return w;
-    } catch (e) {
-      console.warn('Worker unavailable, running the model in-page:', e.message);
-    }
+      const w = new Worker(url);
+      ...
+    } catch (e) { ... }
   }
-  if (typeof window !== 'undefined') window.__simHost = 'in-page (no Worker)';
   return inlineSimHost(source);
+  */
 }
 
 function inlineSimHost(source) {
@@ -55,9 +58,9 @@ function inlineSimHost(source) {
     terminate() {},
   };
   const emit = (m) => { if (host._onmessage) host._onmessage({ data: m }); else pending.push(m); };
-  const factory = new Function('postMessage', 'setInterval', 'clearInterval',
-    `${source}\n;return typeof onmessage !== 'undefined' ? onmessage : null;`);
-  const inner = factory(emit, setInterval.bind(globalThis), clearInterval.bind(globalThis));
+  const factory = new Function('postMessage', 'setInterval', 'clearInterval', 'self',
+    `${source}\n;return self.onmessage;`);
+  const inner = factory(emit, setInterval.bind(globalThis), clearInterval.bind(globalThis), globalThis);
   return host;
 }
 
@@ -111,7 +114,7 @@ export default function cardioDomain({ patient, shell }) {
   };
 
   const loop = new LoopView({ patient, send, onParam: setParam });
-  const ecg = new EcgView({ send, patient });
+  const ecg = new EcgView({ send, patient, getSnap: () => lastSnap });
 
   const lessons = new LessonRunner({
     lessons: LESSONS,
@@ -146,9 +149,10 @@ export default function cardioDomain({ patient, shell }) {
       if (m.defaults) defaults = m.defaults;
       if (typeof globalThis !== 'undefined') globalThis.__catalogSeen = m.pathologies;
       ecg.setCatalog(m.pathologies);
-      /* Case options are pathology ids until the catalog lands; re-render so
-         they read as names rather than slugs. */
       cases.render();
+      /* Worker is loaded — prime ECG buffers now that this handler exists. */
+      send({ type: 'prime' });
+      send({ type: 'play' });
       return;
     }
     if (m.type !== 'snapshot') return;
@@ -167,13 +171,8 @@ export default function cardioDomain({ patient, shell }) {
       }, 'cardio');
     }
     guard('shell.vitals', () => shell.updateVitals(s));
-    if (shell.activeWorkspace()?.startsWith('cardio.')) {
-      if (shell.activeWorkspace() === 'cardio.loop') loop.push(s);
-      else if (shell.activeWorkspace() === 'cardio.ecg') ecg.push(s);
-      else { loop.push(s); ecg.push(s); }
-    } else {
-      loop.push(s); ecg.push(s);
-    }
+    loop.push(s);
+    ecg.push(s);
     if (shell.activeWorkspace() === 'cardio.cases') casePanel.push(s);
   };
 
@@ -185,8 +184,6 @@ export default function cardioDomain({ patient, shell }) {
     if (ev.source === 'cardio') return;
     applyEffective();
   });
-
-  send({ type: 'play' });
 
   return {
     id: 'cardio',

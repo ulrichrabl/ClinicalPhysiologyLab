@@ -1,0 +1,13 @@
+# ECG capture snapshots (local calibration artifacts — regenerate via Capture / Shift+C)
+captures/
+
+# Build output (root copies of the bundle)
+dist/
+source/dist/
+
+# Dependencies
+source/node_modules/
+
+# OS / editor
+.DS_Store
+**/.DS_Store

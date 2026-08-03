@@ -14,8 +14,9 @@ const rawLoader = {
     }));
     build.onLoad({ filter: /.*/, namespace: 'raw' }, async (a) => {
       const bundled = await esbuild.build({
-        entryPoints: [a.path], bundle: true, write: false, format: 'esm',
+        entryPoints: [a.path], bundle: true, write: false, format: 'iife',
         target: 'es2022', platform: 'browser', minify: false,
+        loader: { '.ts': 'ts' },
       });
       return { contents: `export default ${JSON.stringify(bundled.outputFiles[0].text)};`, loader: 'js' };
     });
@@ -29,7 +30,8 @@ const out = await esbuild.build({
 });
 
 const css = readFileSync('src/styles.css', 'utf8');
-const js = out.outputFiles[0].text;
+const buildId = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+const js = `globalThis.__BUILD_ID=${JSON.stringify(buildId)};\n` + out.outputFiles[0].text;
 /* Replacement functions, not replacement strings.
 
    String.replace treats $&, $`, $', $1 ... specially *in the replacement*. The

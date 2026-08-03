@@ -1,13 +1,22 @@
 import { el, clear, card } from '../../../core/ui/kit.js';
-import { fit, paper, palette, label, sans, withAlpha, line } from '../../../core/ui/draw.js';
+import { fit, palette, label, sans, withAlpha } from '../../../core/ui/draw.js';
 import { TERRITORIES } from '../data/cases.js';
 import { guard } from '../../../core/diagnostics.js';
+import { captureEcg } from '../../../core/capture.js';
+import {
+  LEADS,
+  drawMonitorTwelveLead,
+  drawMonitorRhythm,
+  freezeBuffers,
+  openPaperEcg,
+} from './ecg-display.js';
 
-const LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
 /* Cabrera order puts the limb leads in anatomical sequence around the frontal
    plane instead of the historical accident of I, II, III, aVR, aVL, aVF. */
 const CABRERA = ['aVL', 'I', '-aVR', 'II', 'aVF', 'III'];
 const LEAD_ANGLE = { I: 0, II: 60, III: 120, aVR: -150, aVL: -30, aVF: 90, '-aVR': 30 };
+
+const BUF_CAP = 6000;
 
 const READING = [
   { t: 'Rate', q: 'Count the R waves in 6 seconds and multiply by 10, or 300 divided by the number of large squares between beats.' },
@@ -24,60 +33,29 @@ const READING = [
    ECG workspace draws — a case that asks you to read a tracing has to show one.
 --------------------------------------------------------------------------- */
 export function drawTwelveLead(canvas, buffers, gain = 1) {
-  const g = fit(canvas);
-  if (!g) return;
-  const { ctx, w, h } = g;
-  const p = palette();
-  paper(ctx, 0, 0, w, h, 5);
-  const cols = 4, rows = 3;
-  const cw = w / cols, ch = h / rows;
-  const order = [['I', 'aVR', 'V1', 'V4'], ['II', 'aVL', 'V2', 'V5'], ['III', 'aVF', 'V3', 'V6']];
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const lead = order[r][c];
-      const x0 = c * cw, y0 = r * ch, mid = y0 + ch / 2;
-      if (c > 0) {
-        ctx.strokeStyle = p.hairline; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(x0, y0 + 6); ctx.lineTo(x0, y0 + ch - 6); ctx.stroke();
-      }
-      label(ctx, lead, x0 + 8, y0 + 12, p.text2, 10.5, 'left', '700');
-      const buf = buffers[lead];
-      if (!buf || buf.length < 4) continue;
-      const n = Math.min(buf.length, 480);
-      const slice = buf.slice(buf.length - n);
-      const amp = (ch / 2 - 14) * gain;
-      line(ctx, slice.map((v, i) => [x0 + 6 + (i / (n - 1)) * (cw - 14), mid - v * amp]), p.ecg, 1.5);
-    }
-  }
-  const cal = h - 8;
-  ctx.strokeStyle = p.text2; ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  ctx.moveTo(6, cal); ctx.lineTo(12, cal); ctx.lineTo(12, cal - 22 * gain);
-  ctx.lineTo(22, cal - 22 * gain); ctx.lineTo(22, cal); ctx.lineTo(28, cal);
-  ctx.stroke();
-  label(ctx, `${(10 * gain).toFixed(0)} mm/mV`, 32, cal - 5, p.muted, 8.5, 'left');
+  drawMonitorTwelveLead(canvas, buffers, gain);
 }
 
 export function drawRhythm(canvas, buffers, gain = 1, lead = 'II') {
-  const g = fit(canvas);
-  if (!g) return;
-  const { ctx, w, h } = g;
-  const p = palette();
-  paper(ctx, 0, 0, w, h, 5);
-  const buf = buffers[lead];
-  if (!buf || buf.length < 8) return;
-  const n = Math.min(buf.length, 1800);
-  const slice = buf.slice(buf.length - n);
-  const mid = h / 2, amp = (h / 2 - 12) * gain;
-  line(ctx, slice.map((v, i) => [6 + (i / (n - 1)) * (w - 12), mid - v * amp]), p.ecg, 1.6);
-  label(ctx, lead, 8, 12, p.text2, 10.5, 'left', '700');
+  drawMonitorRhythm(canvas, buffers, gain, lead);
+}
+
+function appendLeads(buffers, leads) {
+  if (!leads) return;
+  for (const l of LEADS) {
+    const add = leads[l];
+    if (!add || !add.length) continue;
+    const b = buffers[l];
+    for (let i = 0; i < add.length; i++) b.push(add[i]);
+    if (b.length > BUF_CAP) b.splice(0, b.length - BUF_CAP);
+  }
 }
 
 /* A self-contained twelve-lead + rhythm strip that any workspace can embed. */
 export class LeadPanel {
   constructor({ height = 330, strip = true } = {}) {
     this.buffers = Object.fromEntries(LEADS.map((l) => [l, []]));
-    this.gain = 1.6;
+    this.gain = 1;
     this.grid = el('canvas', { style: { width: '100%', height: `${height}px`, display: 'block' } });
     this.strip = strip
       ? el('canvas', { style: { width: '100%', height: '110px', display: 'block', marginTop: '10px' } })
@@ -86,16 +64,7 @@ export class LeadPanel {
   }
   reset() { for (const l of LEADS) this.buffers[l].length = 0; }
   push(snap) {
-    const leads = snap.ecgLeads;
-    if (leads) {
-      for (const l of LEADS) {
-        const add = leads[l];
-        if (!add || !add.length) continue;
-        const b = this.buffers[l];
-        b.push(...add);
-        if (b.length > 4000) b.splice(0, b.length - 4000);
-      }
-    }
+    appendLeads(this.buffers, snap.ecgLeads);
     this.draw();
   }
   draw() {
@@ -106,13 +75,13 @@ export class LeadPanel {
 }
 
 export class EcgView {
-  constructor({ send, patient }) {
+  constructor({ send, patient, getSnap }) {
     this.send = send;
     this.patient = patient;
+    this.getSnap = getSnap;
     this.buffers = Object.fromEntries(LEADS.map((l) => [l, []]));
     this.catalog = [];
     this.pathology = 'normal';
-    this.sweep = 0;
     this.gain = 1;
 
     this.gridCanvas = el('canvas', { style: { width: '100%', height: '470px', display: 'block' } });
@@ -125,19 +94,33 @@ export class EcgView {
 
     this.node = el('div', { class: 'split ecg-split' },
       el('div', { class: 'stack' },
-        card('12-lead', '25 mm/s, 10 mm/mV — the standard calibration, so the squares mean what you expect.',
+        card('12-lead monitor', 'Live scroll at 25 mm/s — like a bedside monitor, not a beat snapshot.',
           el('div', { class: 'toolbar' },
             el('span', { class: 'eyebrow' }, 'Gain'),
             el('div', { class: 'chips' },
-              ...[['½', 0.8], ['1', 1.6], ['2', 3.2]].map(([lbl, g]) => el('button', {
-                class: 'chip' + (g === 1.6 ? ' on' : ''),
+              ...[['½', 0.5], ['1', 1], ['2', 2]].map(([lbl, g]) => el('button', {
+                class: 'chip' + (g === 1 ? ' on' : ''),
                 onclick: (e) => {
                   for (const b of e.currentTarget.parentElement.children) b.classList.remove('on');
                   e.currentTarget.classList.add('on'); this.gain = g;
                 },
-              }, lbl)))),
+              }, lbl))),
+            el('div', { class: 'rail-spacer' }),
+            el('button', {
+              class: 'chip on',
+              title: 'Freeze a classical paper 12-lead + rhythm strip',
+              onclick: () => this.takeEcg(),
+            }, 'Take ECG'),
+            el('button', {
+              class: 'chip',
+              title: 'Save AI-readable ECG snapshot + metadata (Shift+C)',
+              onclick: () => {
+                const note = prompt('Capture note (what just changed / what looks wrong)?') || '';
+                captureEcg({ note });
+              },
+            }, 'Capture')),
           this.gridCanvas),
-        card('Rhythm strip — lead II', 'A long look at one lead is how rhythm is actually read.',
+        card('Rhythm strip — lead II', 'Continuous scroll. The bright bar marks the newest sample.',
           this.stripCanvas),
         card('Systematic reading', 'The order matters: it stops you finding the dramatic thing and missing the diagnosis.',
           el('ol', { class: 'reading' },
@@ -153,6 +136,24 @@ export class EcgView {
     );
 
     this.renderTerritories();
+  }
+
+  takeEcg() {
+    const frozen = freezeBuffers(this.buffers);
+    const enough = (frozen.II || []).length >= SAMPLE_MIN;
+    if (!enough) {
+      /* Prime then try once more after a short settle — still open what we have. */
+      this.send({ type: 'prime' });
+    }
+    const p = this.catalog.find((x) => x.id === this.pathology);
+    const snap = this.getSnap?.() || this.snap;
+    openPaperEcg({
+      buffers: frozen,
+      gain: this.gain,
+      pathologyName: p?.name || this.pathology,
+      HR: snap?.HR ?? snap?.metrics?.HR,
+      axis: snap?.qrsAxis ?? snap?.metrics?.qrsAxis,
+    });
   }
 
   setCatalog(list) {
@@ -181,6 +182,7 @@ export class EcgView {
     for (const b of this.libNode.querySelectorAll('[data-path]')) {
       b.classList.toggle('on', b.dataset.path === id);
     }
+    for (const l of LEADS) this.buffers[l].length = 0;
     this.send({ type: 'setPathology', id });
     this.describe();
   }
@@ -210,18 +212,9 @@ export class EcgView {
   }
 
   push(snap) {
-    const leads = snap.ecgLeads;
-    if (leads) {
-      for (const l of LEADS) {
-        const add = leads[l];
-        if (!add || !add.length) continue;
-        const b = this.buffers[l];
-        b.push(...add);
-        if (b.length > 4000) b.splice(0, b.length - 4000);
-      }
-    }
+    appendLeads(this.buffers, snap.ecgLeads);
     this.snap = snap;
-    this.draw();
+    if (this.node.isConnected) this.draw();
   }
 
   draw() {
@@ -230,14 +223,9 @@ export class EcgView {
     guard('ecg.axis', () => this.drawAxis());
   }
 
-  /* ---- the 12-lead panel: 3 rows x 4 columns, as printed ----------------- */
   drawGrid() { drawTwelveLead(this.gridCanvas, this.buffers, this.gain); }
-
-
   drawStrip() { drawRhythm(this.stripCanvas, this.buffers, this.gain); }
 
-
-  /* ---- the axis wheel ---------------------------------------------------- */
   drawAxis() {
     const g = fit(this.axisCanvas);
     if (!g) return;
@@ -246,7 +234,6 @@ export class EcgView {
     const cx = w / 2, cy = h / 2 + 6;
     const R = Math.min(w, h) * 0.36;
 
-    // normal-axis sector, -30 to +90
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, R, (-30 * Math.PI) / 180, (90 * Math.PI) / 180);
@@ -276,5 +263,17 @@ export class EcgView {
     label(ctx, cls, cx, h - 8, axis < -30 || axis > 90 ? p.warn : p.good, 9.5, 'center', '600');
   }
 
-  resize() { this.draw(); }
+  resize() {
+    const ii = this.buffers.II;
+    if (ii.length < 200) {
+      this.send({ type: 'prime' });
+    } else {
+      const tail = ii.slice(-800);
+      const span = Math.max(...tail) - Math.min(...tail);
+      if (span < 0.06) this.send({ type: 'prime' });
+    }
+    this.draw();
+  }
 }
+
+const SAMPLE_MIN = 200;

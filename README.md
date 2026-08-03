@@ -96,31 +96,19 @@ intended, not a bug.
 
 Not a lookup table of ECG pictures. The engines are:
 
-**Circulation.** A Fenton–Karma excitable-medium model on a 33-node conduction
-network (SA → atria → AV → His → bundle branches → Purkinje), producing a
-a twelve-lead ECG computed from the muscle rather than drawn.
+**Circulation + ECG.** A closed-loop four-chamber Guyton-style model (RK4, blood
+volume conserved) coupled to a **deterministic hybrid ECG engine** written in
+TypeScript. The electrical model uses an event-driven conduction graph
+(SA → atria → AV node → His–Purkinje → 64 regional myocardial sources) and exact
+Einthoven/Wilson lead construction from electrode potentials — not memorised
+waveform templates.
 
-The morphology is derived. Roughly twenty myocardial segments are built from the
-left ventricular long axis, each with three transmural layers, and two
-mechanisms are superposed: a **wavefront dipole** proportional to how much the
-inner layer of each wall disagrees with the outer one, which writes the QRS and —
-because epicardium has the shorter action potential and repolarises first — a
-concordant T wave with no extra machinery; and a **regional injury current**,
-a lead field over each region's departure from what healthy muscle would be
-doing, which writes ST shifts and is identically zero in a normal heart.
-
-All twenty-nine pathologies are described as substrate — which territory is
-ischaemic, to what depth, what is scarred, which walls are hypertrophied, how
-fast the bundles conduct — and never as per-lead offsets. Things that used to be
-table entries are now consequences:
-
-- reciprocal ST depression is the same vector seen from the opposite side;
-- transmural injury elevates and subendocardial injury depresses, because they
-  are the same lesion at different depth rather than two separate rules;
-- inferior infarction elevates III more than II, the right-coronary sign;
-- scar loses its R wave and has a flat ST, because dead muscle carries no
-  injury current — which is exactly what separates an old infarct from an acute
-  one.
+Regional depolarisation and repolarisation kernels write the QRS and T wave;
+**injury current** from ischaemic territories writes ST shifts. All 29 pathologies
+are **mechanism modules** that modify conduction delays, regional APD, electrical
+mass, accessory pathways, and circulation parameters (e.g. pulmonary embolism
+raises PVR first; P pulmonale appears only if right-atrial state crosses a
+threshold).
 
 Mechanically it is a **closed loop**: eight compartments in a ring — LV → aorta →
 systemic veins → RA → RV → pulmonary arteries → pulmonary veins → LA — with all

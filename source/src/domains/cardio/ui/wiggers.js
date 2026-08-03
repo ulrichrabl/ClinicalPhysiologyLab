@@ -1,7 +1,9 @@
-import { fit, paper, line, label, sans, palette, withAlpha, rotateBeat } from '../../../core/ui/draw.js';
+import { fit, paper, line, label, palette, withAlpha, rotateBeat } from '../../../core/ui/draw.js';
+import { takeTail, drawMonitorStripInRect } from './ecg-display.js';
 
 const PHASE_COLOR = { ivc: 'lv', eject: 'aortic', ivr: 'flow', fill: 'la' };
 const PHASE_NAME = { ivc: 'Isovolumic contraction', eject: 'Ejection', ivr: 'Isovolumic relaxation', fill: 'Filling' };
+const LIVE_II_CAP = 3000;
 
 /* Walk one beat and label every sample with the phase it belongs to. */
 function classify(samples) {
@@ -31,6 +33,7 @@ export class Wiggers {
     this.showGhost = false;
     this.ghost = null;
     this.geom = null;
+    this.liveII = [];
 
     const move = (e) => {
       const r = canvas.getBoundingClientRect();
@@ -58,6 +61,11 @@ export class Wiggers {
   release() { this.cursor = null; this.onCursor(null); }
 
   push(snap) {
+    const add = snap.ecgLeads?.II;
+    if (add?.length) {
+      for (let i = 0; i < add.length; i++) this.liveII.push(add[i]);
+      if (this.liveII.length > LIVE_II_CAP) this.liveII.splice(0, this.liveII.length - LIVE_II_CAP);
+    }
     if (snap.beat && snap.beat.samples.length > 30) {
       this.beat = snap.beat;
       this.rot = rotateBeat(this.beat.samples, 0.22);
@@ -121,14 +129,15 @@ export class Wiggers {
 
     const X = (i) => px + (i / (n - 1)) * pw;
 
-    // --- phase bands --------------------------------------------------------
+    // --- phase bands (haemodynamic rows only — ECG scrolls live below) ------
+    const phaseBottom = rows[2].y + rows[2].h;
     let runStart = 0;
     for (let i = 1; i <= n; i++) {
       if (i === n || this.rotPhases[i] !== this.rotPhases[runStart]) {
         const id = this.rotPhases[runStart];
         const x0 = X(runStart), x1 = X(i - 1);
         ctx.fillStyle = withAlpha(p[PHASE_COLOR[id]], 0.07);
-        ctx.fillRect(x0, py, Math.max(1, x1 - x0), ph);
+        ctx.fillRect(x0, py, Math.max(1, x1 - x0), phaseBottom - py);
         if (x1 - x0 > 44) {
           label(ctx, PHASE_NAME[id].length > 14 && x1 - x0 < 110 ? id.toUpperCase() : PHASE_NAME[id],
             (x0 + x1) / 2, py + 7, withAlpha(p[PHASE_COLOR[id]], 0.85), 9, 'center', '600');
@@ -191,17 +200,23 @@ export class Wiggers {
     label(ctx, 'mL/s', px - 6, r2.y - 2, p.muted, 8.5, 'right');
     label(ctx, String(Math.round(qmax)), px - 6, QY(qmax) + 4, p.muted, 9, 'right');
 
-    // --- row 4: ECG ---------------------------------------------------------
+    // --- row 4: live ECG (scrolls; not beat-gated) --------------------------
     const r3 = rows[3];
-    let emin = -0.4, emax = 1.2;
-    for (const s of rot) { emin = Math.min(emin, s.ecg); emax = Math.max(emax, s.ecg); }
-    const EY = (v) => r3.y + r3.h - ((v - emin) / (emax - emin || 1)) * r3.h;
+    const EY = (v) => {
+      const lo = -0.6, hi = 1.4;
+      return r3.y + r3.h - ((v - lo) / (hi - lo)) * r3.h;
+    };
     ctx.save(); ctx.beginPath(); ctx.rect(px, r3.y - 1, pw, r3.h + 2); ctx.clip();
-    line(ctx, rot.map((s, i) => [X(i), EY(s.ecg)]), p.ecg, 1.6);
+    const liveSlice = takeTail(this.liveII, 5);
+    if (liveSlice) drawMonitorStripInRect(ctx, liveSlice, px, r3.y, pw, r3.h, 1, p.ecg);
+    else line(ctx, rot.map((s, i) => [X(i), EY(s.ecg)]), p.ecg, 1.4);
+    /* Newest-sample marker. */
+    ctx.fillStyle = p.rose;
+    ctx.fillRect(px + pw - 2, r3.y + 2, 2, r3.h - 4);
     ctx.restore();
     label(ctx, 'II', px - 6, r3.y + r3.h / 2, p.muted, 9, 'right');
 
-    // --- valve events -------------------------------------------------------
+    // --- valve events (pressures only) --------------------------------------
     const cut = Math.floor(this.beat.samples.length * 0.78);
     const remap = (i) => (i == null ? null : (i - cut + this.beat.samples.length) % this.beat.samples.length);
     const ev = this.beat.events;
@@ -217,10 +232,9 @@ export class Wiggers {
       ctx.save();
       ctx.setLineDash([2, 3]);
       ctx.strokeStyle = withAlpha(m.c, 0.5); ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x + 0.5, py); ctx.lineTo(x + 0.5, py + ph); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 0.5, py); ctx.lineTo(x + 0.5, phaseBottom); ctx.stroke();
       ctx.restore();
-      const boxW = ctx.measureText(m.text).width;
-      label(ctx, m.text, x + 3, py + ph - 6, m.c, 9, 'left', '700');
+      label(ctx, m.text, x + 3, phaseBottom - 6, m.c, 9, 'left', '700');
     }
 
     // --- cursor -------------------------------------------------------------
@@ -228,9 +242,9 @@ export class Wiggers {
     if (cs) {
       const x = X(cs.index);
       ctx.strokeStyle = p.text; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x + 0.5, py); ctx.lineTo(x + 0.5, py + ph); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 0.5, py); ctx.lineTo(x + 0.5, phaseBottom); ctx.stroke();
       const s = cs.sample;
-      const dots = [[PY(s.Pa), p.aortic], [PY(s.Pv), p.lv], [PY(s.Pla), p.la], [VY(s.V), p.volume], [EY(s.ecg), p.ecg]];
+      const dots = [[PY(s.Pa), p.aortic], [PY(s.Pv), p.lv], [PY(s.Pla), p.la], [VY(s.V), p.volume]];
       for (const [yy, cc] of dots) {
         ctx.fillStyle = cc; ctx.beginPath(); ctx.arc(x, yy, 3, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = p.panel; ctx.lineWidth = 1.5; ctx.stroke();
@@ -238,13 +252,11 @@ export class Wiggers {
       const t = ((cs.index / (n - 1)) * this.beat.dur - this.beat.dur * 0.22 + this.beat.dur) % this.beat.dur;
       label(ctx, `${Math.round(t)} ms`, x + 5, py + 7, p.text, 9, 'left', '600');
     } else if (live) {
-      // Live mode: a moving tick showing where in the cycle we are.
-      const frac = live.beat ? null : null;
       label(ctx, 'live', px + pw - 4, py + 7, withAlpha(p.rose, 0.9), 9, 'right', '600');
     }
 
-    // baseline time axis
+    // baseline time axis — cycle duration for pressures; ECG is continuous
     label(ctx, '0', px, py + ph + 9, p.muted, 9, 'center');
-    label(ctx, `${Math.round(this.beat.dur)} ms`, px + pw, py + ph + 9, p.muted, 9, 'right');
+    label(ctx, `${Math.round(this.beat.dur)} ms · ECG live`, px + pw, py + ph + 9, p.muted, 9, 'right');
   }
 }

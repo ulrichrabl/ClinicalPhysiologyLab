@@ -46,7 +46,7 @@ export class LoopView {
     this.node = el('div', { class: 'loop-grid' },
       el('div', { class: 'loop-main' },
         card('Cardiac cycle',
-          'Drag the cursor. Everything else on this screen follows it. Double-click to release.',
+          'Pressures and volumes are one beat; the ECG row scrolls live like a monitor. Drag the cursor on the haemodynamics. Double-click to release.',
           this.wCanvas,
           this.phaseNode,
           this.phaseWhy,

@@ -927,6 +927,31 @@ p:last-child { margin-bottom: 0; }
 .lead-panel { display: block; }
 .case-stim { min-width: 0; }
 
+/* --- paper ECG recording overlay ------------------------------------------ */
+.paper-ecg-overlay {
+  position: fixed; inset: 0; z-index: 520; display: grid; place-items: center;
+  padding: 16px; background: color-mix(in srgb, var(--ink) 78%, transparent);
+  backdrop-filter: blur(5px);
+}
+.paper-ecg-card {
+  width: min(1100px, 100%); max-height: min(92vh, 1100px);
+  display: flex; flex-direction: column; gap: 0;
+  background: #F7F1E8; color: #1A2330;
+  border: 1px solid color-mix(in srgb, #1A2330 18%, transparent);
+  border-radius: var(--r-lg); box-shadow: var(--shadow); overflow: hidden;
+}
+.paper-ecg-bar {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; background: #fff; border-bottom: 1px solid #e0d6c8;
+}
+.paper-ecg-title { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; color: #1A2330; }
+.paper-ecg-sub { font-size: 12px; color: #556677; margin-top: 2px; }
+.paper-ecg-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.paper-ecg-actions .chip { background: #f0ebe3; color: #1A2330; border-color: #d5cbbd; }
+.paper-ecg-actions .chip.on { background: #1A2330; color: #F7F1E8; border-color: #1A2330; }
+.paper-ecg-scroll { overflow: auto; padding: 8px; background: #EDE6DA; }
+.paper-ecg-canvas { display: block; width: 100%; height: auto; background: #F7F1E8; border-radius: 4px; }
+
 /* --- first run ------------------------------------------------------------ */
 .first-run {
   position: fixed; inset: 0; z-index: 500; display: grid; place-items: center;

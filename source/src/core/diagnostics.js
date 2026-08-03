@@ -116,6 +116,8 @@ export function report() {
   lines.push(`  protocol        ${location.protocol}`);
   lines.push(`  theme           ${document.documentElement.dataset.theme}`);
   lines.push(`  sim host        ${window.__simHost || 'unknown'}`);
+  lines.push(`  build           ${window.__BUILD_ID || 'unknown'}`);
+  lines.push(`  last capture    ${window.__lastCapture?.()?.id || 'none'}  (Shift+C)`);
   lines.push('');
   lines.push('FEATURES');
   for (const [k, v] of Object.entries(features())) lines.push(`  ${v ? 'yes' : 'NO '}  ${k}`);
