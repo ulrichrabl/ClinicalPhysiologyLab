@@ -58,7 +58,7 @@ function effect(
 }
 
 /**
- * Channel-driven mechanisms formerly hard-coded in Patient.COUPLINGS.
+ * Channel-driven mechanisms (chemistry, ICP, drugs).
  * They emit typed physiological effects — never private solver parameters.
  */
 export const CHANNEL_MECHANISMS: ChannelMechanism[] = [
