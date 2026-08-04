@@ -34,6 +34,8 @@ export interface PatientStateProjection {
 export interface ObservationContext {
   authority?: string;
   clinicalMode?: boolean;
+  /** When true (default in clinical mode), withhold latent diagnosis labels. */
+  hideDiagnoses?: boolean;
 }
 
 export interface ObservationPlan<TResult> {

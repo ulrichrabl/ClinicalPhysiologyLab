@@ -64,7 +64,11 @@ export const twelveLeadEcgObservation: ObservationModel<TwelveLeadEcgRequest, Tw
 
     const hr = ep.effectiveHeartRate;
     const axis = ep.qrsAxis;
-    const pathology = ep.pathology ?? 'normal';
+    // Clinical observations must not leak latent pathology IDs (authority/visibility).
+    const hideDiagnosis = input.context.clinicalMode !== false
+      && input.context.hideDiagnoses !== false;
+    const latentPathology = ep.pathology ?? 'normal';
+    const pathology = hideDiagnosis ? null : latentPathology;
     const report = buildReport(hr, axis, pathology);
 
     return {
@@ -92,7 +96,7 @@ export const twelveLeadEcgObservation: ObservationModel<TwelveLeadEcgRequest, Tw
         },
         interpretation: pathology && pathology !== 'normal'
           ? [{ id: `pathology:${pathology}`, label: pathology }]
-          : [{ id: 'sinus', label: 'Sinus rhythm (educational)' }],
+          : [{ id: 'rate-axis', label: 'Rate and axis reported from measured features' }],
       }),
     };
   },
@@ -101,10 +105,13 @@ export const twelveLeadEcgObservation: ObservationModel<TwelveLeadEcgRequest, Tw
 function buildReport(
   hr: number | null,
   axis: number | null,
-  pathology: string,
+  pathology: string | null,
 ): string {
   const rate = hr != null ? `${Math.round(hr)} bpm` : 'rate unavailable';
   const ax = axis != null ? `QRS axis ${Math.round(axis)}°` : 'axis unavailable';
+  const mech = pathology
+    ? `mechanism label “${pathology}”`
+    : 'no latent diagnosis disclosed';
   return `Twelve-lead ECG (ideal educational acquisition): ${rate}; ${ax}; `
-    + `mechanism label “${pathology}”. Not a clinical diagnostic report.`;
+    + `${mech}. Not a clinical diagnostic report.`;
 }

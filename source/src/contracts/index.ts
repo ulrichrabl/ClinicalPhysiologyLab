@@ -42,3 +42,5 @@ export * from './commands.ts';
 export * from './queries.ts';
 export * from './models.ts';
 export * from './scenarios.ts';
+export * from './authority.ts';
+export * from './model-plugin.ts';
