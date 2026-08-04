@@ -50,9 +50,30 @@ export interface AdvanceTimePayload {
   durationMs: number;
 }
 
+export interface ChemistrySetPayload {
+  /** Lab-panel keys (K, Ca, lactate, …) and/or chemistry field names. */
+  values: Record<string, number>;
+  /** Pin written keys so haemodynamic derivation cannot overwrite them. */
+  pin?: boolean;
+}
+
+export interface ChemistryUnpinPayload {
+  /** Lab or chemistry keys to unpin; omit to unpin all. */
+  keys?: string[];
+}
+
+export interface CirculationParamPayload {
+  key: string;
+  value: number | boolean;
+}
+
 export type KnownCommandType =
   | 'condition.activate'
   | 'condition.resolve'
+  | 'chemistry.set'
+  | 'chemistry.unpin'
+  | 'chemistry.reset'
+  | 'experimental.circulation-param'
   | 'runtime.advance'
   | 'runtime.pause'
   | 'runtime.resume'

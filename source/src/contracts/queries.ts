@@ -106,6 +106,7 @@ export interface AdvanceResult {
 export interface PublicPhysiologyView {
   cardiovascular: import('../models/cardiovascular/public-state.ts').CardiovascularPublicState;
   electrophysiology: import('../models/cardiovascular/public-state.ts').ElectrophysiologyPublicState;
+  chemistry: import('../models/chemistry/public-state.ts').ChemistryPublicState;
   neurological: {
     cordLesionLevel: string | null;
     lesionCompleteness: number | null;
@@ -178,6 +179,7 @@ export type ObservationRequest =
   | { type: 'observe.general-appearance' }
   | { type: 'observe.physiology'; paths?: string[] }
   | { type: 'observe.twelve-lead-ecg'; leads?: string[] }
+  | { type: 'observe.laboratory-panel'; panel?: 'all' | 'abg' | 'chem' | 'fbc' | 'cardiac'; includeInterpretation?: boolean }
   | { type: 'perform.examination'; exam: string; region?: string };
 
 export type ObservationResult<R extends ObservationRequest> =
@@ -185,6 +187,7 @@ export type ObservationResult<R extends ObservationRequest> =
   : R['type'] extends 'observe.general-appearance' ? Observation<GeneralAppearanceValue>
   : R['type'] extends 'observe.physiology' ? Observation<Record<string, unknown>>
   : R['type'] extends 'observe.twelve-lead-ecg' ? Observation<TwelveLeadEcgValue>
+  : R['type'] extends 'observe.laboratory-panel' ? Observation<LaboratoryPanelValue>
   : R['type'] extends 'perform.examination' ? Observation<ExaminationValue>
   : Observation<unknown>;
 
@@ -204,6 +207,33 @@ export interface TwelveLeadEcgValue {
     pathology: string | null;
   };
   report: string;
+}
+
+export interface LaboratoryPanelValue {
+  panel: string;
+  results: Record<string, number>;
+  lines: {
+    key: string;
+    label: string;
+    value: number;
+    unit: string;
+    flag: string;
+    reference: [number, number];
+    source: 'chemistry' | 'physiology-derived' | 'pinned';
+  }[];
+  derived: {
+    anionGap: number;
+    anionGapCorrected: number;
+    deltaRatio: number | null;
+    osmolality: number;
+    ureaCreatRatio: number | null;
+  };
+  interpretation?: {
+    steps: { step: string; finding: string; note: string }[];
+    primary: string;
+    gapRaised: boolean;
+  };
+  activeDerivations: { id: string; name: string; text: string; why: string }[];
 }
 
 export interface GeneralAppearanceValue {

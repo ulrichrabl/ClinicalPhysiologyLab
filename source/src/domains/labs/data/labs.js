@@ -172,86 +172,53 @@ export function interpretABG(v) {
 }
 
 /* ---------------------------------------------------------------------------
-   Cross-domain rules: what the circulation implies about the labs, and what
-   the labs imply about the rest of the patient. This is the point of putting
-   labs in the same framework rather than in a separate app.
+   Educational copy for physiology→chemistry links (display / docs only).
+
+   Live derivation is owned by
+   `models/chemistry/derive-from-haemodynamics.ts` and applied by the Patient
+   Runtime. These entries are no longer an authority that mutates lab state
+   or writes potassium/calcium back into Patient channels.
 --------------------------------------------------------------------------- */
 export const LAB_LINKS = [
   {
     id: 'hypoperfusion-lactate',
     name: 'Hypoperfusion → lactate',
-    when: (labs, pt) => pt.MAP < 65 || pt.CO < 3.5,
-    text: (labs, pt) => `MAP ${Math.round(pt.MAP)} mmHg, cardiac output ${pt.CO?.toFixed(1)} L/min — `
-      + 'oxygen delivery has fallen far enough that tissues are respiring anaerobically.',
     why: 'Lactate is produced whenever oxygen delivery fails to meet demand. It is the most useful single number for '
        + 'deciding whether a low blood pressure is actually harming the patient, because a young person can hold a '
        + 'normal pressure while already in shock — and their lactate will already be climbing.',
-    apply: (labs, pt) => {
-      const deficit = Math.max(0, (68 - (pt.MAP ?? 95)) / 22) + Math.max(0, (3.8 - (pt.CO ?? 5.2)) / 2.2);
-      return { lactate: Math.min(18, 1.0 + deficit * 4.2), pH: 7.40 - Math.min(0.32, deficit * 0.12),
-        HCO3: Math.max(6, 24 - deficit * 8) };
-    },
   },
   {
     id: 'haemorrhage-hb',
     name: 'Haemorrhage → haemoglobin',
-    when: (labs, pt) => (pt.bloodVolume ?? 5000) < 4600,
-    text: (labs, pt) => `Circulating volume ${Math.round(pt.bloodVolume)} mL — `
-      + `${Math.round(5000 - pt.bloodVolume)} mL below normal.`,
     why: 'Haemoglobin is a concentration, not an amount. In acute haemorrhage the patient loses red cells and plasma '
        + 'together, so the concentration barely moves until fluid shifts in to replace the lost volume. A normal '
        + 'haemoglobin in the first hour after a bleed is reassuring only to the inexperienced.',
-    apply: (labs, pt) => {
-      const lost = 5000 - (pt.bloodVolume ?? 5000);
-      /* Dilution lags the loss; this is the partial refill, not the whole. */
-      return { Hb: Math.max(35, 150 * (1 - (lost / 5000) * 0.55)) };
-    },
   },
   {
     id: 'renal-perfusion',
     name: 'Renal hypoperfusion → urea and creatinine',
-    when: (labs, pt) => pt.MAP < 70,
-    text: (labs, pt) => `MAP ${Math.round(pt.MAP)} mmHg — below the autoregulatory range of the kidney.`,
     why: 'A prerenal kidney is a working kidney that is not being perfused. It reabsorbs sodium and water avidly, and '
        + 'urea follows water while creatinine does not — so the urea rises out of proportion. A urea-to-creatinine '
        + 'ratio above about 100 (SI units) points prerenal rather than intrinsic.',
-    apply: (labs, pt) => {
-      const d = Math.max(0, (72 - (pt.MAP ?? 95)) / 30);
-      return { urea: 5.0 + d * 16, creat: 80 + d * 65 };
-    },
   },
   {
     id: 'heart-failure-bnp',
     name: 'Wall stress → natriuretic peptide',
-    when: (labs, pt) => (pt.LAP ?? 6) > 15 || (pt.EF ?? 55) < 40,
-    text: (labs, pt) => `Left atrial pressure ${pt.LAP?.toFixed(0)} mmHg, ejection fraction ${Math.round(pt.EF ?? 55)}%.`,
     why: 'Natriuretic peptides are released by stretched myocardium, so they measure filling pressure rather than '
        + 'ejection fraction. That is why they are raised in HFpEF, where the ejection fraction is normal and the '
        + 'ventricle is stiff — and why a normal level is so useful for ruling heart failure out.',
-    apply: (labs, pt) => {
-      const stretch = Math.max(0, ((pt.LAP ?? 6) - 10) / 14) + Math.max(0, (45 - (pt.EF ?? 55)) / 30);
-      return { BNP: Math.min(11000, 40 + stretch * 2600) };
-    },
   },
   {
-    id: 'potassium-back',
+    id: 'potassium-ecg',
     name: 'Potassium → the ECG',
-    when: (labs) => labs.K < 3.3 || labs.K > 5.3,
-    text: (labs) => `K⁺ ${labs.K.toFixed(1)} mmol/L.`,
-    why: 'This link runs the other way: the number you set here is the number the cardiac model uses. Change it and '
-       + 'the T waves change shape in the ECG workspace, because it is the same potassium.',
-    apply: () => ({}),
-    toPatient: (labs) => ({ K: labs.K }),
+    why: 'Extracellular potassium is chemistry ground truth on the Patient Runtime. Changing it updates the '
+       + 'channel mechanism the cardiac adapter reads, so T waves change shape in the ECG workspace.',
   },
   {
-    id: 'calcium-back',
+    id: 'calcium-ecg',
     name: 'Calcium → the QT interval',
-    when: (labs) => labs.Ca < 2.15 || labs.Ca > 2.65,
-    text: (labs) => `Adjusted calcium ${labs.Ca.toFixed(2)} mmol/L.`,
     why: 'Calcium carries the plateau of the ventricular action potential, so it sets the length of the ST segment. '
-       + 'The cardiac model reads this value directly.',
-    apply: () => ({}),
-    toPatient: (labs) => ({ Ca: labs.Ca }),
+       + 'The runtime projects chemistry calcium into the electrophysiology adapter.',
   },
 ];
 

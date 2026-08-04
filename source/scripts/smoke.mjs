@@ -161,7 +161,7 @@ try {
   console.error('CASES FAILED:', e.message);
 }
 
-/* --- 8c. cross-domain: circulation must write the labs ------------------ */
+/* --- 8c. cross-domain: circulation must write chemistry via the runtime --- */
 try {
   const cardio = shell.byId.get('cardio');
   const labsDom = shell.byId.get('labs');
@@ -182,19 +182,19 @@ try {
   const before = labsDom.values();
   if (before.lactate > 1.6) throw new Error('baseline lactate already abnormal');
 
-  // bleed the patient and let the model settle
-  /* Drive the simulation host directly. `push` delivers *to* the UI; settling
-     the model means talking to the sim. */
+  // Bleed via the runtime experimental command — not a labs→cardio reach-through.
+  const rt = shell.runtime;
+  rt.dispatch({
+    id: `smoke_bv_${Date.now()}`,
+    type: 'experimental.circulation-param',
+    payload: { key: 'bloodVolume', value: 3700 },
+    source: { type: 'test', id: 'smoke' },
+  });
   const simHost = globalThis.__sim || globalThis.__worker;
-  simHost.postMessage({ type: 'setParam', key: 'bloodVolume', value: 3700 });
   for (let i = 0; i < 6; i++) simHost.postMessage({ type: 'settle', seconds: 4 });
   const snap2 = cardio.snapshot();
   if (!snap2 || snap2.Pmean == null) throw new Error('no snapshot after settling');
-  shell.patient.setMany({
-    MAP: Math.round(snap2.Pmean), CO: +(snap2.CO || 0).toFixed(1),
-    bloodVolume: Math.round(snap2.bloodVolume), LAP: +(snap2.Pla ?? 6).toFixed(1),
-    EF: Math.round(snap2.EF ?? 55),
-  }, 'cardio');
+  // Snapshot ingest on the cardio host already updated chemistry; refresh the view.
   labsDom.refresh();
   const after = labsDom.values();
 
@@ -204,7 +204,12 @@ try {
   if (!(snap2.Pmean > 40)) throw new Error(`circulation collapsed at 3700 mL: MAP ${snap2.Pmean}`);
   console.log(`✓ cross-domain: haemorrhage → MAP ${Math.round(snap2.Pmean)}, CO ${snap2.CO.toFixed(1)}, `
     + `lactate ${after.lactate.toFixed(1)}, Hb ${Math.round(after.Hb)}, urea ${after.urea.toFixed(1)}`);
-  simHost.postMessage({ type: 'setParam', key: 'bloodVolume', value: 5000 });
+  rt.dispatch({
+    id: `smoke_bv_restore_${Date.now()}`,
+    type: 'experimental.circulation-param',
+    payload: { key: 'bloodVolume', value: 5000 },
+    source: { type: 'test', id: 'smoke' },
+  });
   } else {
     console.log('  cross-domain: skipped (Worker path — model runs out of process)');
   }

@@ -20,6 +20,9 @@ import type {
 } from '../contracts/queries.ts';
 import type {
   ActivateConditionPayload,
+  ChemistrySetPayload,
+  ChemistryUnpinPayload,
+  CirculationParamPayload,
   CommandResult,
   PatientCommand,
   ResolveConditionPayload,
@@ -69,7 +72,17 @@ import {
 } from '../models/cardiovascular/manifest.ts';
 import { vitalSignsObservation } from '../observations/vitals.ts';
 import { twelveLeadEcgObservation } from '../observations/ecg.ts';
+import { laboratoryPanelObservation } from '../observations/laboratory.ts';
 import type { PatientStateProjection } from '../observations/types.ts';
+import {
+  CHEMISTRY_DEFAULTS,
+  chemistryToLabBag,
+  labBagToChemistryPatch,
+  type ChemistryPublicState,
+} from '../models/chemistry/public-state.ts';
+import { deriveChemistryFromHaemodynamics } from '../models/chemistry/derive-from-haemodynamics.ts';
+import { CHEMISTRY_MODEL_MANIFEST } from '../models/chemistry/manifest.ts';
+import type { ChemistryDerivation } from '../models/chemistry/derive-from-haemodynamics.ts';
 
 const RUNTIME_VERSION = '0.1.0';
 
@@ -83,6 +96,18 @@ const DEFAULT_CHANNELS: ChannelState = {
   atropine: 0,
   vasopressor: 0,
 };
+
+/** Learner / lesson circulation knobs that may be set via experimental command. */
+const EXPERIMENTAL_CIRCULATION_KEYS = new Set([
+  'bloodVolume',
+  'Rsys',
+  'HR',
+  'V0sv',
+  'Emax',
+  'Csa',
+  'Csv',
+  'Rpul',
+]);
 
 export interface PatientRuntimeOptions {
   seed?: string;
@@ -134,6 +159,10 @@ export class DefaultPatientRuntime implements PatientRuntime {
   private channels: ChannelState = { ...DEFAULT_CHANNELS };
   private cardiovascular: CardiovascularPublicState = { ...EMPTY_CARDIOVASCULAR_PUBLIC };
   private electrophysiology: ElectrophysiologyPublicState = { ...EMPTY_ELECTROPHYSIOLOGY_PUBLIC };
+  private chemistry: ChemistryPublicState = { ...CHEMISTRY_DEFAULTS };
+  private chemistryPins = new Set<string>();
+  private chemistryBaseline: ChemistryPublicState = { ...CHEMISTRY_DEFAULTS };
+  private activeChemistryDerivations: ChemistryDerivation[] = [];
 
   constructor(opts: PatientRuntimeOptions = {}) {
     this.opts = opts;
@@ -153,6 +182,12 @@ export class DefaultPatientRuntime implements PatientRuntime {
           version: ELECTROPHYSIOLOGY_MODEL_MANIFEST.version,
           stateSchemaVersion: ELECTROPHYSIOLOGY_MODEL_MANIFEST.stateSchemaVersion,
           configurationHash: 'hybrid-ecg-v0.1',
+        },
+        {
+          id: CHEMISTRY_MODEL_MANIFEST.id,
+          version: CHEMISTRY_MODEL_MANIFEST.version,
+          stateSchemaVersion: CHEMISTRY_MODEL_MANIFEST.stateSchemaVersion,
+          configurationHash: 'chemistry-educational-v1',
         },
       ],
       seed: opts.seed ?? 'cpl-default-seed',
@@ -194,6 +229,16 @@ export class DefaultPatientRuntime implements PatientRuntime {
       case 'runtime.reset':
         this.resetAll();
         return this.accept(command, { changedPaths: ['*'] });
+      case 'chemistry.set':
+        return this.chemistrySet(command);
+      case 'chemistry.unpin':
+        return this.chemistryUnpin(command);
+      case 'chemistry.reset':
+        this.resetChemistry();
+        this.recomputeCardio();
+        return this.accept(command, { changedPaths: ['chemistry.*'] });
+      case 'experimental.circulation-param':
+        return this.experimentalCirculationParam(command);
       case 'checkpoint.restore': {
         const ref = (command.payload as { ref?: string })?.ref;
         if (!ref) {
@@ -211,6 +256,10 @@ export class DefaultPatientRuntime implements PatientRuntime {
           alternatives: [
             'condition.activate',
             'condition.resolve',
+            'chemistry.set',
+            'chemistry.unpin',
+            'chemistry.reset',
+            'experimental.circulation-param',
             'runtime.advance',
             'runtime.pause',
             'runtime.resume',
@@ -331,6 +380,27 @@ export class DefaultPatientRuntime implements PatientRuntime {
     if (request.type === 'observe.twelve-lead-ecg') {
       const plan = twelveLeadEcgObservation.observe({
         patient: projection,
+        request,
+        context: { clinicalMode: true },
+        observationId: id,
+      });
+      return plan.immediate as ObservationResult<R>;
+    }
+
+    if (request.type === 'observe.laboratory-panel') {
+      const plan = laboratoryPanelObservation.observe({
+        patient: {
+          ...projection,
+          chemistry: this.chemistry,
+          chemistryPins: this.chemistryPins,
+          activeChemistryDerivations: this.activeChemistryDerivations.map((d) => ({
+            id: d.id,
+            name: d.name,
+            text: d.text,
+            why: d.why,
+            patch: d.patch as Record<string, number>,
+          })),
+        },
         request,
         context: { clinicalMode: true },
         observationId: id,
@@ -512,6 +582,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
         'general-appearance',
         'vital-signs',
         'twelve-lead-ecg',
+        'laboratory-panel',
         'neurological-examination',
         'cardiovascular-examination',
       ],
@@ -519,12 +590,15 @@ export class DefaultPatientRuntime implements PatientRuntime {
         'autonomic.sympatheticOutflow',
         'vascular.venousTone',
         'cardiovascular.baroreflex',
+        'experimental.circulation-param',
       ],
       capabilities: [
         ...CIRCULATION_MODEL_MANIFEST.capabilities,
         ...ELECTROPHYSIOLOGY_MODEL_MANIFEST.capabilities,
+        ...CHEMISTRY_MODEL_MANIFEST.capabilities,
         'observation.vital-signs',
         'observation.twelve-lead-ecg',
+        'observation.laboratory-panel',
         'neurology.pathway-localisation',
       ],
     };
@@ -540,7 +614,8 @@ export class DefaultPatientRuntime implements PatientRuntime {
     this.lastSnap = snap as Record<string, number>;
     this.cardiovascular = snapshotToCardiovascularPublic(snap);
     this.electrophysiology = snapshotToElectrophysiologyPublic(snap);
-    // Project derived haemodynamic channels for labs / Patient workspace.
+    this.applyHaemodynamicChemistry();
+    // Project derived haemodynamic channels for Patient workspace.
     // These are projections of canonical public state — not an alternate authority.
     const projection = cardiovascularToChannelProjection(this.cardiovascular);
     if (Object.keys(projection).length) {
@@ -552,6 +627,56 @@ export class DefaultPatientRuntime implements PatientRuntime {
       simTime: this.simTime,
       detail: { system: 'cardiovascular' },
     });
+  }
+
+  /**
+   * Mutate latent chemistry. Prefer `dispatch({ type: 'chemistry.set' })` from UI;
+   * this method is the shared implementation and for tests.
+   */
+  setChemistry(
+    patch: Partial<ChemistryPublicState>,
+    opts: { pin?: boolean } = {},
+  ): void {
+    Object.assign(this.chemistry, patch);
+    if (opts.pin) {
+      for (const k of Object.keys(patch) as (keyof ChemistryPublicState)[]) {
+        this.chemistryPins.add(k);
+      }
+    }
+    // Learner-edited potassium/calcium become channel mechanism inputs.
+    if (patch.potassium != null || patch.calcium != null) {
+      this.channels.K = this.chemistry.potassium;
+      this.channels.Ca = this.chemistry.calcium;
+      this.recomputeCardio();
+    }
+    this.projectChemistryChannels();
+    this.emit({
+      type: 'chemistry.updated',
+      revision: this.revision,
+      simTime: this.simTime,
+      detail: { keys: Object.keys(patch) },
+    });
+  }
+
+  /** Convenience: accept legacy lab-panel keys (K, Ca, HCO3, …). */
+  setChemistryFromLabBag(bag: Record<string, number>, opts: { pin?: boolean } = {}): void {
+    this.setChemistry(labBagToChemistryPatch(bag), opts);
+  }
+
+  chemistryBag(): Record<string, number> {
+    return chemistryToLabBag(this.chemistry);
+  }
+
+  chemistryState(): ChemistryPublicState {
+    return { ...this.chemistry };
+  }
+
+  chemistryPinKeys(): string[] {
+    return [...this.chemistryPins];
+  }
+
+  activeChemistryLinks(): { id: string; name: string; text: string; why: string }[] {
+    return this.activeChemistryDerivations.map(({ id, name, text, why }) => ({ id, name, text, why }));
   }
 
   /** Monitor-facing snapshot built from canonical public state (no private names). */
@@ -593,6 +718,15 @@ export class DefaultPatientRuntime implements PatientRuntime {
   /** Sync learner-editable channels (chemistry, drugs, ICP) into mechanism resolution. */
   syncChannels(partial: Partial<ChannelState>): void {
     Object.assign(this.channels, partial);
+    // Keep chemistry authority in sync when Patient workspace edits K/Ca.
+    if (partial.K != null && partial.K !== this.chemistry.potassium) {
+      this.chemistry.potassium = partial.K;
+      this.chemistryPins.add('potassium');
+    }
+    if (partial.Ca != null && partial.Ca !== this.chemistry.calcium) {
+      this.chemistry.calcium = partial.Ca;
+      this.chemistryPins.add('calcium');
+    }
     this.recomputeCardio();
     this.emit({ type: 'channels.synced', revision: this.revision, simTime: this.simTime });
   }
@@ -817,6 +951,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
         pathology: this.electrophysiology.pathology,
         effectiveHeartRate: this.electrophysiology.effectiveHeartRate,
       },
+      chemistry: { ...this.chemistry },
       neurological: {
         cordLesionLevel: cord,
         lesionCompleteness: cond ? Number(cond.parameters.completeness) : null,
@@ -842,6 +977,15 @@ export class DefaultPatientRuntime implements PatientRuntime {
       cardiovascular: phys.cardiovascular,
       electrophysiology: phys.electrophysiology,
       neurological: phys.neurological,
+      chemistry: this.chemistry,
+      chemistryPins: this.chemistryPins,
+      activeChemistryDerivations: this.activeChemistryDerivations.map((d) => ({
+        id: d.id,
+        name: d.name,
+        text: d.text,
+        why: d.why,
+        patch: d.patch as Record<string, number>,
+      })),
       simTime: this.simTime,
     };
   }
@@ -874,11 +1018,108 @@ export class DefaultPatientRuntime implements PatientRuntime {
     this.cardiovascular = { ...EMPTY_CARDIOVASCULAR_PUBLIC };
     this.electrophysiology = { ...EMPTY_ELECTROPHYSIOLOGY_PUBLIC };
     this.channels = { ...DEFAULT_CHANNELS };
+    this.resetChemistry();
     this.prevCardioDriven = new Set();
     this.opts.cardioHost?.postMessage({ type: 'reset' });
     this.recomputeCardio();
     this.projectCordLevel();
     this.revision += 1;
+  }
+
+  private resetChemistry() {
+    this.chemistry = { ...CHEMISTRY_DEFAULTS };
+    this.chemistryBaseline = { ...CHEMISTRY_DEFAULTS };
+    this.chemistryPins.clear();
+    this.activeChemistryDerivations = [];
+    this.channels.K = this.chemistry.potassium;
+    this.channels.Ca = this.chemistry.calcium;
+    this.projectChemistryChannels();
+  }
+
+  private chemistrySet(command: PatientCommand): CommandResult {
+    const payload = (command.payload ?? {}) as ChemistrySetPayload;
+    if (!payload.values || typeof payload.values !== 'object') {
+      return this.reject(command, runtimeError('INVALID_PARAMETER', 'values required', {
+        path: 'payload.values',
+      }));
+    }
+    const patch = labBagToChemistryPatch(payload.values);
+    // Also accept chemistry field names directly.
+    for (const [k, v] of Object.entries(payload.values)) {
+      if (typeof v === 'number' && k in CHEMISTRY_DEFAULTS) {
+        (patch as Record<string, number>)[k] = v;
+      }
+    }
+    if (!Object.keys(patch).length) {
+      return this.reject(command, runtimeError('INVALID_PARAMETER', 'no recognised chemistry keys', {
+        received: Object.keys(payload.values),
+      }));
+    }
+    this.setChemistry(patch, { pin: payload.pin !== false });
+    return this.accept(command, {
+      changedPaths: Object.keys(patch).map((k) => `chemistry.${k}`),
+    });
+  }
+
+  private chemistryUnpin(command: PatientCommand): CommandResult {
+    const payload = (command.payload ?? {}) as ChemistryUnpinPayload;
+    if (!payload.keys?.length) {
+      this.chemistryPins.clear();
+    } else {
+      for (const k of payload.keys) {
+        this.chemistryPins.delete(k);
+        const patch = labBagToChemistryPatch({ [k]: 0 });
+        for (const ck of Object.keys(patch)) this.chemistryPins.delete(ck);
+      }
+    }
+    this.applyHaemodynamicChemistry();
+    return this.accept(command, { changedPaths: ['chemistry.*'] });
+  }
+
+  private experimentalCirculationParam(command: PatientCommand): CommandResult {
+    if (this.opts.authority && this.opts.authority.mayUseExperimentalControls === false) {
+      return this.reject(command, runtimeError('UNAUTHORISED_COMMAND', 'experimental circulation controls not permitted'));
+    }
+    const payload = (command.payload ?? {}) as CirculationParamPayload;
+    if (!payload.key || !EXPERIMENTAL_CIRCULATION_KEYS.has(payload.key)) {
+      return this.reject(command, runtimeError('INVALID_PARAMETER', `unsupported circulation param: ${payload?.key}`, {
+        path: 'payload.key',
+        received: payload?.key,
+        alternatives: [...EXPERIMENTAL_CIRCULATION_KEYS],
+      }));
+    }
+    if (typeof payload.value !== 'number' && typeof payload.value !== 'boolean') {
+      return this.reject(command, runtimeError('INVALID_PARAMETER', 'value must be number or boolean', {
+        path: 'payload.value',
+        received: payload.value,
+      }));
+    }
+    this.opts.cardioHost?.postMessage({ type: 'setParam', key: payload.key, value: payload.value });
+    this.pushTimeline('experimental.circulation-param', `${payload.key}=${payload.value}`);
+    return this.accept(command, {
+      changedPaths: [`experimental.circulation.${payload.key}`],
+    });
+  }
+
+  private applyHaemodynamicChemistry() {
+    const { statePatch, active } = deriveChemistryFromHaemodynamics(
+      this.cardiovascular,
+      this.chemistryBaseline,
+    );
+    this.activeChemistryDerivations = active;
+    for (const [k, v] of Object.entries(statePatch) as [keyof ChemistryPublicState, number][]) {
+      if (this.chemistryPins.has(k)) continue;
+      this.chemistry[k] = v;
+    }
+    this.projectChemistryChannels();
+  }
+
+  private projectChemistryChannels() {
+    this.opts.projectChannels?.({
+      K: this.chemistry.potassium,
+      Ca: this.chemistry.calcium,
+      pH: this.chemistry.arterialPH,
+    });
   }
 
   private accept(

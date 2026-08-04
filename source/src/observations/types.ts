@@ -8,6 +8,7 @@ import type {
   CardiovascularPublicState,
   ElectrophysiologyPublicState,
 } from '../models/cardiovascular/public-state.ts';
+import type { ChemistryPublicState } from '../models/chemistry/public-state.ts';
 
 export interface ObservationManifest {
   id: string;
@@ -24,6 +25,9 @@ export interface PatientStateProjection {
     cordLesionLevel: string | null;
     lesionCompleteness: number | null;
   };
+  chemistry?: ChemistryPublicState;
+  chemistryPins?: Set<string>;
+  activeChemistryDerivations?: { id: string; name: string; text: string; why: string }[];
   simTime: SimTime;
 }
 
