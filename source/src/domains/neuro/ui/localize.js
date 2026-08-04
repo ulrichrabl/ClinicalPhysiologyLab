@@ -1,3 +1,4 @@
+import { createCommandId } from '../../../runtime/patient-runtime.ts';
 import { el, clear, card, fmt } from '../../../core/ui/kit.js';
 import { AnatomyGraph, FILTERS } from './graph.js';
 import { guard } from '../../../core/diagnostics.js';
@@ -50,7 +51,9 @@ export class LocalizeView {
         onclick: (e) => {
           for (const b of this.severity.children) b.classList.remove('on');
           e.currentTarget.classList.add('on');
-          this.complete = v; this.refresh();
+          this.complete = v;
+          this.resyncRuntimeCondition();
+          this.refresh();
         },
       }, lbl)));
 
@@ -62,6 +65,7 @@ export class LocalizeView {
           e.currentTarget.classList.add('on');
           this.side = s;
           if (this.syndrome) this.applySyndrome(this.syndrome);
+          else this.resyncRuntimeCondition();
         },
       }, s === 'L' ? 'Left' : 'Right')));
 
@@ -155,28 +159,38 @@ export class LocalizeView {
     if (!syndrome) for (const b of this.synList?.children || []) b.classList.remove('on');
     if (this.nodes.length === 1) this.siteSelect.value = this.nodes[0];
     this.refresh();
+    this.resyncRuntimeCondition();
+    this.onLesion({ nodes: this.nodes, syndrome, cordLevel: cordLevelOf(this.nodes) });
+  }
+
+  /** One authoring state → one runtime condition dispatch. */
+  resyncRuntimeCondition() {
+    if (!this.runtime?.dispatch) return;
     const cord = cordLevelOf(this.nodes);
-    if (this.runtime) {
-      if (cord) {
-        this.runtime.dispatch({
-          id: `neuro_${Date.now().toString(36)}`,
-          type: 'condition.activate',
-          payload: {
-            condition: 'cervical-spinal-cord-injury',
-            parameters: { level: cord, completeness: this.complete ? 1 : 0.5, side: 'bilateral' },
+    const side = this.side === 'L' ? 'left' : this.side === 'R' ? 'right' : 'bilateral';
+    const cmdId = createCommandId('neuro');
+    if (cord) {
+      this.runtime.dispatch({
+        id: cmdId,
+        type: 'condition.activate',
+        payload: {
+          condition: 'cervical-spinal-cord-injury',
+          parameters: {
+            level: cord,
+            completeness: this.complete ? 1 : 0.5,
+            side,
           },
-          source: { type: 'ui', surface: 'neuro.localise' },
-        });
-      } else {
-        this.runtime.dispatch({
-          id: `neuro_${Date.now().toString(36)}`,
-          type: 'condition.resolve',
-          payload: { condition: 'cervical-spinal-cord-injury' },
-          source: { type: 'ui', surface: 'neuro.localise' },
-        });
-      }
+        },
+        source: { type: 'ui', surface: 'neuro.localise' },
+      });
+      return;
     }
-    this.onLesion({ nodes: this.nodes, syndrome, cordLevel: cord });
+    this.runtime.dispatch({
+      id: cmdId,
+      type: 'condition.resolve',
+      payload: { condition: 'cervical-spinal-cord-injury' },
+      source: { type: 'ui', surface: 'neuro.localise' },
+    });
   }
 
   refresh() {

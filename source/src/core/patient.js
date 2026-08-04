@@ -83,7 +83,7 @@ export class Patient {
     this.recompute();
     if (this.runtime) {
       this.runtime.dispatch({
-        id: `reset_${Date.now()}`,
+        id: `reset_${this.runtime.fingerprint?.seed || 'sys'}`,
         type: 'runtime.reset',
         payload: {},
         source: { type: 'system' },

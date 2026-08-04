@@ -17,11 +17,13 @@ export const CIRCULATION_BASELINE = {
   stFactor: 1,
 } as const;
 
-/** Validated complete bilateral neurogenic-shock private targets. */
+/** Validated complete bilateral neurogenic-shock private targets.
+ *  V0sv rises with loss of venous tone (pooling / ↑ unstressed volume).
+ *  The previous 2900 mL target was physiologically reversed. */
 export const NEUROGENIC_COMPLETE_TARGETS = {
   Rsys: 0.52,
   HR: 52,
-  V0sv: 2900,
+  V0sv: 3500,
   baroEnabled: false,
   ports: NEUROGENIC_COMPLETE_PORTS,
 } as const;
@@ -43,7 +45,8 @@ function portNumber(
  *   HR   = baseline.HR   × cardiacAcceleratorDrive
  *   Emax = baseline.Emax × contractility
  *   av   = baseline.av   × avConduction
- * Venous tone maps unstressed venous volume so complete neurogenic → 2900 mL.
+ * Venous tone maps unstressed venous volume: loss of tone → V0sv rises
+ * (pooling). Complete neurogenic → 3500 mL.
  */
 export function adaptCardioPrivateParams(
   resolved: Map<string, ResolvedPortValue>,

@@ -442,6 +442,8 @@ class Shell {
   togglePlay() {
     this.playing = !this.playing;
     this.playBtn.textContent = this.playing ? '❚❚' : '▶';
+    if (this.playing) this.runtime.play();
+    else this.runtime.pause();
     for (const d of this.lenses) (this.playing ? d.control?.play : d.control?.pause)?.();
   }
 

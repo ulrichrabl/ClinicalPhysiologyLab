@@ -36,7 +36,14 @@ const DEFAULTS = {
 
 /** Run the existing Circulation model with adapter-translated private params. */
 export function settleWithCirculation(
-  params: { Rsys: number; HR: number; V0sv: number; baroEnabled: boolean },
+  params: {
+    Rsys: number;
+    HR: number;
+    V0sv: number;
+    baroEnabled: boolean;
+    bloodVolume?: number;
+    Emax?: number;
+  },
   seconds: number,
 ): Record<string, number> {
   const engine = new EcgEngine();
@@ -53,6 +60,8 @@ export function settleWithCirculation(
   sim.setParam('Rsys', params.Rsys);
   sim.setParam('HR', params.HR);
   sim.setParam('V0sv', params.V0sv);
+  if (params.Emax != null) sim.setParam('Emax', params.Emax);
+  if (params.bloodVolume != null) sim.setParam('bloodVolume', params.bloodVolume);
   if (sim.baroEnabled !== params.baroEnabled) sim.toggleBaro();
   const steps = Math.max(1, Math.round(seconds / sim.dt));
   sim.advance(steps);

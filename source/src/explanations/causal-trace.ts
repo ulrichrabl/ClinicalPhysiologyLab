@@ -14,14 +14,51 @@ export function buildNeurogenicShockExplanation(input: {
   resolved: Map<string, ResolvedPortValue>;
   privateParams: CardioPrivateParams;
   physiology: PublicPhysiologyView;
+  /** When false, omit private adapter evidence and soften claims. */
+  mayReadLatentState?: boolean;
 }): ExplanationTrace {
+  const sympathetic = Number(
+    input.resolved.get('autonomic.sympatheticOutflow')?.value ?? 1,
+  );
+  const hasNeurogenic =
+    !!input.condition
+    || (input.physiology.neurological.cordLesionLevel != null && sympathetic < 0.5);
+
+  if (!hasNeurogenic) {
+    return {
+      subject: { kind: 'observation', id: input.observationId },
+      summary: 'Insufficient causal evidence for a neurogenic-shock explanation.',
+      nodes: [{
+        id: 'obs',
+        kind: 'observation',
+        label: summariseVitals(
+          input.physiology.cardiovascular.meanArterialPressure,
+          input.physiology.cardiovascular.heartRate,
+        ),
+      }],
+      edges: [],
+      evidence: [
+        { path: 'cardiovascular.meanArterialPressure', value: input.physiology.cardiovascular.meanArterialPressure, unit: 'mmHg' },
+        { path: 'cardiovascular.heartRate', value: input.physiology.cardiovascular.heartRate, unit: '/min' },
+      ],
+    };
+  }
+
   const level = input.condition
     ? String(input.condition.parameters.level)
     : input.physiology.neurological.cordLesionLevel ?? 'unknown';
+  const completeness = input.condition
+    ? Number(input.condition.parameters.completeness ?? 1)
+    : 1;
+  const completeLabel = completeness >= 0.99 ? 'Complete' : 'Partial';
 
   const map = input.physiology.cardiovascular.meanArterialPressure;
   const hr = input.physiology.cardiovascular.heartRate;
   const co = input.physiology.cardiovascular.cardiacOutput;
+  const pmsf = input.physiology.cardiovascular.meanFillingPressure;
+
+  const coFell = co != null && co < 4.5;
+  const fillingFell = pmsf != null && pmsf < 5.5;
 
   const nodes: CausalNode[] = [
     {
@@ -30,25 +67,33 @@ export function buildNeurogenicShockExplanation(input: {
       label: summariseVitals(map, hr),
       detail: 'Clinical vital-sign observation',
     },
-    {
+  ];
+
+  if (coFell) {
+    nodes.push({
       id: 'co',
       kind: 'physiology',
       label: 'Cardiac output fell',
-      detail: co != null ? `CO ≈ ${co.toFixed(1)} L/min` : undefined,
+      detail: `CO ≈ ${co!.toFixed(1)} L/min`,
       refs: [{ kind: 'state', path: 'cardiovascular.cardiacOutput' }],
-    },
-    {
+    });
+  }
+
+  if (fillingFell) {
+    nodes.push({
       id: 'fill',
       kind: 'physiology',
-      label: 'Ventricular filling fell',
-      detail: 'Loss of venous tone lowers mean filling pressure',
+      label: 'Mean filling pressure fell',
+      detail: pmsf != null ? `Pmsf ≈ ${pmsf.toFixed(1)} mmHg` : 'Loss of venous tone',
       refs: [{ kind: 'state', path: 'cardiovascular.meanFillingPressure' }],
-    },
+    });
+  }
+
+  nodes.push(
     {
       id: 'tone',
       kind: 'mechanism',
       label: 'Venous tone and sympathetic drive were lost',
-      detail: `arteriolar tone → Rsys ${input.privateParams.Rsys.toFixed(2)}; HR driven to ${input.privateParams.HR.toFixed(0)}`,
       refs: [{ kind: 'mechanism', id: 'loss-of-sympathetic-outflow' }],
     },
     {
@@ -60,64 +105,70 @@ export function buildNeurogenicShockExplanation(input: {
     {
       id: 'injury',
       kind: 'condition',
-      label: `Complete ${level} spinal cord injury was activated`,
+      label: `${completeLabel} ${level} spinal cord injury was activated`,
       refs: input.condition
         ? [{ kind: 'condition', id: input.condition.conditionId, version: input.condition.version }]
         : undefined,
     },
-  ];
+  );
 
   const edges: CausalEdge[] = [
     { from: 'injury', to: 'pathways', relation: 'causes' },
     { from: 'pathways', to: 'tone', relation: 'causes' },
-    { from: 'tone', to: 'fill', relation: 'causes' },
-    { from: 'fill', to: 'co', relation: 'causes' },
-    { from: 'co', to: 'obs', relation: 'causes' },
-    { from: 'tone', to: 'obs', relation: 'contributes' },
   ];
+  if (fillingFell) {
+    edges.push({ from: 'tone', to: 'fill', relation: 'causes' });
+    if (coFell) edges.push({ from: 'fill', to: 'co', relation: 'causes' });
+  }
+  if (coFell) edges.push({ from: 'co', to: 'obs', relation: 'causes' });
+  edges.push({ from: 'tone', to: 'obs', relation: 'contributes' });
 
   const evidence: StateEvidence[] = [
     { path: 'neurological.cordLesionLevel', value: level },
     { path: 'vascular.systemicArteriolarTone', value: input.resolved.get('vascular.systemicArteriolarTone')?.value },
     { path: 'vascular.venousTone', value: input.resolved.get('vascular.venousTone')?.value },
     { path: 'autonomic.cardiacAcceleratorDrive', value: input.resolved.get('autonomic.cardiacAcceleratorDrive')?.value },
-    { path: 'adapter.Rsys', value: input.privateParams.Rsys, unit: 'mmHg·s/mL' },
-    { path: 'adapter.HR', value: input.privateParams.HR, unit: '/min' },
-    { path: 'adapter.V0sv', value: input.privateParams.V0sv, unit: 'mL' },
-    { path: 'adapter.baroEnabled', value: input.privateParams.baroEnabled },
     { path: 'cardiovascular.meanArterialPressure', value: map, unit: 'mmHg' },
     { path: 'cardiovascular.heartRate', value: hr, unit: '/min' },
     { path: 'cardiovascular.cardiacOutput', value: co, unit: 'L/min' },
+    { path: 'cardiovascular.meanFillingPressure', value: pmsf, unit: 'mmHg' },
   ];
+
+  if (input.mayReadLatentState !== false) {
+    evidence.push(
+      { path: 'adapter.Rsys', value: input.privateParams.Rsys, unit: 'mmHg·s/mL' },
+      { path: 'adapter.HR', value: input.privateParams.HR, unit: '/min' },
+      { path: 'adapter.V0sv', value: input.privateParams.V0sv, unit: 'mL' },
+      { path: 'adapter.baroEnabled', value: input.privateParams.baroEnabled },
+    );
+  }
+
+  const summaryParts = [
+    `Blood pressure ${fmtBp(input.physiology)}`,
+    coFell ? 'because cardiac output fell' : null,
+    fillingFell ? 'because mean filling pressure fell' : null,
+    'because venous tone and sympathetic drive were lost',
+    'because descending autonomic pathways were interrupted',
+    `because a ${completeLabel.toLowerCase()} ${level} spinal cord injury was activated.`,
+  ].filter(Boolean);
 
   return {
     subject: { kind: 'observation', id: input.observationId },
-    summary:
-      `Blood pressure ${fmtBp(input.physiology)} `
-      + `because cardiac output fell because ventricular filling fell `
-      + `because venous tone and sympathetic drive were lost `
-      + `because descending autonomic pathways were interrupted `
-      + `because a complete ${level} spinal cord injury was activated.`,
+    summary: summaryParts.join(' '),
     nodes,
     edges,
     evidence,
-    authoredNotes: [
-      'Hypotension with relative bradycardia distinguishes neurogenic from haemorrhagic shock.',
-    ],
   };
 }
 
 function summariseVitals(map: number | null, hr: number | null): string {
-  const bp = map != null ? `MAP ${Math.round(map)} mmHg` : 'hypotension';
-  const pulse = hr != null ? `HR ${Math.round(hr)} /min` : 'relative bradycardia';
-  return `${bp}, ${pulse}`;
+  const bits = [];
+  if (map != null) bits.push(`MAP ${Math.round(map)} mmHg`);
+  if (hr != null) bits.push(`HR ${Math.round(hr)}`);
+  return bits.length ? bits.join(', ') : 'Vital signs';
 }
 
-function fmtBp(p: PublicPhysiologyView): string {
-  const s = p.cardiovascular.systolicPressure;
-  const d = p.cardiovascular.diastolicPressure;
-  if (s != null && d != null) return `${Math.round(s)}/${Math.round(d)} mmHg`;
-  const m = p.cardiovascular.meanArterialPressure;
-  if (m != null) return `MAP ${Math.round(m)} mmHg`;
-  return 'is low';
+function fmtBp(phys: PublicPhysiologyView): string {
+  const map = phys.cardiovascular.meanArterialPressure;
+  return map != null ? `fell (MAP ${Math.round(map)} mmHg)` : 'changed';
 }

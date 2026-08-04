@@ -45,9 +45,14 @@ function effect(
   source: EffectSource,
   provenance: CausalReference[],
   prefix: string,
+  mechanismId = 'channel',
 ): PhysiologicalEffect {
   return {
-    id: createEffectId(prefix),
+    id: createEffectId({
+      mechanismId,
+      port: target,
+      slot: prefix,
+    }),
     source,
     target: target as PhysiologicalEffect['target'],
     operation,

@@ -47,11 +47,19 @@ import type { SimDuration, SimTime } from '../contracts/brands.ts';
 import {
   asSimDuration,
   asSimTime,
+  bindIdFactory,
   createCheckpointId,
   createCommandId,
   createObservationId,
+  RuntimeIdFactory,
 } from '../contracts/brands.ts';
 import { runtimeError } from '../contracts/errors.ts';
+import {
+  authorizeCommand,
+  authorizeObservation,
+  authorizeQuery,
+  defaultAuthority,
+} from '../contracts/authority.ts';
 import {
   CONDITION_REGISTRY,
   getCondition,
@@ -70,7 +78,10 @@ import {
   activeChannelDisplays,
   type ChannelState,
 } from '../physiology/mechanisms/channel-mechanisms.ts';
-import { NEUROGENIC_DISPLAY } from '../physiology/mechanisms/neurogenic-shock.ts';
+import {
+  NEUROGENIC_DISPLAY,
+  lesionInterruptsSympathetic,
+} from '../physiology/mechanisms/neurogenic-shock.ts';
 import {
   snapshotToCardiovascularPublic,
   snapshotToElectrophysiologyPublic,
@@ -131,7 +142,10 @@ export interface PatientRuntimeOptions {
   cardioDefaults?: Record<string, number | boolean>;
   /** Headless settle function for tests — receives private params, returns snapshot. */
   settlePhysiology?: (
-    params: ReturnType<typeof adaptCardioPrivateParams>,
+    params: ReturnType<typeof adaptCardioPrivateParams> & {
+      bloodVolume?: number;
+      [key: string]: number | boolean | string[] | undefined;
+    },
     seconds: number,
   ) => Record<string, number> | null;
   /** Optional channel projection writer (updates Patient.cordLevel etc.). */
@@ -154,6 +168,22 @@ interface CheckpointSnapshot {
   commandLog: PatientCommand[];
   lastSnap: Record<string, number> | null;
   randomState: number;
+  idSeq: number;
+  channels: ChannelState;
+  chemistry: ChemistryPublicState;
+  chemistryPins: string[];
+  chemistryBaseline: ChemistryPublicState;
+  cardiovascular: CardiovascularPublicState;
+  electrophysiology: ElectrophysiologyPublicState;
+  learnerBloodVolume: number;
+  experimentalControls: Record<string, number | boolean>;
+  scenarioId: string | null;
+  scenarioVersion: string | null;
+  scenarioAuthority: ScenarioAuthority | null;
+  scenarioAnnotations: { id: string; label: string; detail?: unknown; atMs: number }[];
+  timeline: TimelineEntry[];
+  lastModelTimeSec: number | null;
+  playing: boolean;
 }
 
 export class DefaultPatientRuntime implements PatientRuntime {
@@ -182,10 +212,16 @@ export class DefaultPatientRuntime implements PatientRuntime {
   private triggerRunner: ScenarioTriggerRunner | null = null;
   private scenarioAnnotations: { id: string; label: string; detail?: unknown; atMs: number }[] = [];
   private learnerBloodVolume = 5000;
+  private experimentalControls: Record<string, number | boolean> = {};
+  private ids: RuntimeIdFactory;
+  private lastModelTimeSec: number | null = null;
+  private pendingSettle: { durationMs: number; from: SimTime } | null = null;
 
   constructor(opts: PatientRuntimeOptions = {}) {
     this.opts = opts;
     this.randomState = hashSeed(opts.seed ?? 'cpl-default-seed');
+    this.ids = new RuntimeIdFactory(this.randomState.toString(36));
+    bindIdFactory(this.ids);
     this.fingerprint = {
       runtimeVersion: RUNTIME_VERSION,
       scenario: opts.scenario ?? { id: 'ad-hoc', version: '0.0.0' },
@@ -222,6 +258,9 @@ export class DefaultPatientRuntime implements PatientRuntime {
         `expected revision ${command.expectedRevision}, current is ${this.revision}`,
       ));
     }
+
+    const authErr = authorizeCommand(command, this.authorityContext());
+    if (authErr) return this.reject(command, authErr);
 
     switch (command.type) {
       case 'condition.activate':
@@ -302,8 +341,11 @@ export class DefaultPatientRuntime implements PatientRuntime {
   }
 
   query<Q extends RuntimeQuery>(query: Q): QueryResult<Q> {
+    const denied = authorizeQuery(query, this.authorityContext());
+    if (denied) return null as QueryResult<Q>;
+
     const resolved = this.resolvedEffects();
-    const privateParams = adaptCardioPrivateParams(resolved);
+    const privateParams = this.mergedPrivateParams(resolved);
 
     switch (query.type) {
       case 'runtime.capabilities':
@@ -387,6 +429,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
           resolved,
           privateParams,
           physiology: this.publicPhysiology(),
+          mayReadLatentState: this.authorityContext().authority.mayReadLatentState,
         }) as QueryResult<Q>;
       }
       default:
@@ -396,13 +439,30 @@ export class DefaultPatientRuntime implements PatientRuntime {
 
   observe<R extends ObservationRequest>(request: R): ObservationResult<R> {
     const id = createObservationId(request.type.replace(/\./g, '_'));
+    const denied = authorizeObservation(request, this.authorityContext());
+    if (denied) {
+      const t = this.simTime;
+      return {
+        id,
+        type: request.type,
+        requestedAt: t,
+        acquiredAt: t,
+        availableAt: t,
+        value: {},
+        quality: { ideal: false, artefact: 'unauthorised' },
+        provenance: { modelId: 'authority.denied', latentPaths: [] },
+      } as ObservationResult<R>;
+    }
+
+    const hideDiagnoses = this.compiledScenario?.definition.visibility?.diagnoses === 'hidden';
     const projection = this.observationProjection();
+    const obsContext = { clinicalMode: true, hideDiagnoses };
 
     if (request.type === 'observe.vital-signs') {
       const plan = vitalSignsObservation.observe({
         patient: projection,
         request,
-        context: { clinicalMode: true },
+        context: obsContext,
         observationId: id,
       });
       return plan.immediate as ObservationResult<R>;
@@ -412,7 +472,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
       const plan = twelveLeadEcgObservation.observe({
         patient: projection,
         request,
-        context: { clinicalMode: true },
+        context: obsContext,
         observationId: id,
       });
       return plan.immediate as ObservationResult<R>;
@@ -474,17 +534,28 @@ export class DefaultPatientRuntime implements PatientRuntime {
 
     if (request.type === 'perform.examination') {
       const findings: string[] = [];
-      const cord = this.cardiovascular && this.getActiveCordLevel();
+      const cord = this.getActiveCordLevel();
+      const sympathetic = Number(
+        this.resolvedEffects().get('autonomic.sympatheticOutflow')?.value
+        ?? PHYSIOLOGICAL_PORTS['autonomic.sympatheticOutflow'].baseline,
+      );
+      const lossOfTone = (cord != null && lesionInterruptsSympathetic(cord)) || sympathetic < 0.5;
       const v = vitalSignsObservation.observe({
         patient: projection,
         request: { type: 'observe.vital-signs' },
-        context: {},
+        context: obsContext,
         observationId: createObservationId('exam_vitals'),
       }).immediate!.value;
       if (request.exam === 'pulse' || request.exam === 'cardiovascular') {
         if (v.heartRate != null && v.heartRate < 60) findings.push('Bradycardic pulse');
         if (v.bloodPressure.mean != null && v.bloodPressure.mean < 70) findings.push('Hypotension');
-        findings.push('Warm, dry peripheries (loss of sympathetic vasoconstriction)');
+        if (lossOfTone) {
+          findings.push('Warm, dry peripheries (loss of sympathetic vasoconstriction)');
+        } else if (v.bloodPressure.mean != null && v.bloodPressure.mean < 70) {
+          findings.push('Cool peripheries possible with low output');
+        } else {
+          findings.push('Warm, well-perfused peripheries');
+        }
       }
       if (request.exam === 'neurological' && cord) {
         findings.push(`Motor and sensory level consistent with ${cord}`);
@@ -506,18 +577,36 @@ export class DefaultPatientRuntime implements PatientRuntime {
   advance(duration: SimDuration): AdvanceResult {
     const from = this.simTime;
     const seconds = Number(duration) / 1000;
-    const privateParams = adaptCardioPrivateParams(this.resolvedEffects());
+    const privateParams = this.mergedPrivateParams(this.resolvedEffects());
     this.pushCardioParams(privateParams);
 
+    const events: TimelineEntry[] = [];
+
     if (this.opts.settlePhysiology) {
-      this.lastSnap = this.opts.settlePhysiology(privateParams, Math.max(seconds, 0.001));
-      if (this.lastSnap) this.ingestCardioSnapshot(this.lastSnap);
+      const settleArgs = {
+        ...privateParams,
+        bloodVolume: this.learnerBloodVolume,
+        ...this.experimentalControls,
+      };
+      this.lastSnap = this.opts.settlePhysiology(
+        settleArgs as Parameters<NonNullable<PatientRuntimeOptions['settlePhysiology']>>[0],
+        Math.max(seconds, 0.001),
+      );
+      if (this.lastSnap) {
+        this.ingestCardioSnapshot(this.lastSnap, { advanceMs: Number(duration) });
+      } else {
+        this.simTime = asSimTime(Number(from) + Number(duration));
+        this.triggerRunner?.tick();
+      }
     } else if (this.opts.cardioHost && seconds > 0) {
+      this.pendingSettle = { durationMs: Number(duration), from };
       this.opts.cardioHost.postMessage({ type: 'settle', seconds });
+      // Clock advances when the resulting snapshot is ingested.
+    } else {
+      this.simTime = asSimTime(Number(from) + Number(duration));
+      this.triggerRunner?.tick();
     }
 
-    this.simTime = asSimTime(Number(from) + Number(duration));
-    const events: TimelineEntry[] = [];
     if (seconds > 0) {
       events.push({
         id: `adv_${this.revision}`,
@@ -527,7 +616,6 @@ export class DefaultPatientRuntime implements PatientRuntime {
       });
       this.timeline.push(...events);
     }
-    this.triggerRunner?.tick();
     this.emit({ type: 'runtime.advanced', revision: this.revision, simTime: this.simTime });
     return {
       from,
@@ -561,6 +649,22 @@ export class DefaultPatientRuntime implements PatientRuntime {
       commandLog: structuredClone(this.commandLog),
       lastSnap: this.lastSnap ? { ...this.lastSnap } : null,
       randomState: this.randomState,
+      idSeq: this.ids.peek(),
+      channels: { ...this.channels },
+      chemistry: { ...this.chemistry },
+      chemistryPins: [...this.chemistryPins],
+      chemistryBaseline: { ...this.chemistryBaseline },
+      cardiovascular: { ...this.cardiovascular },
+      electrophysiology: { ...this.electrophysiology },
+      learnerBloodVolume: this.learnerBloodVolume,
+      experimentalControls: { ...this.experimentalControls },
+      scenarioId: this.compiledScenario?.definition.id ?? null,
+      scenarioVersion: this.compiledScenario?.definition.version ?? null,
+      scenarioAuthority: this.scenarioAuthority ? { ...this.scenarioAuthority } : null,
+      scenarioAnnotations: structuredClone(this.scenarioAnnotations),
+      timeline: structuredClone(this.timeline),
+      lastModelTimeSec: this.lastModelTimeSec,
+      playing: this.playing,
     };
     this.checkpoints.set(id, snap);
     this.pushTimeline('checkpoint.created', label ?? id);
@@ -579,9 +683,43 @@ export class DefaultPatientRuntime implements PatientRuntime {
     this.commandLog = structuredClone(snap.commandLog);
     this.lastSnap = snap.lastSnap ? { ...snap.lastSnap } : null;
     this.randomState = snap.randomState;
+    this.ids.restore(snap.idSeq ?? 0);
+    bindIdFactory(this.ids);
+    this.channels = { ...snap.channels };
+    this.chemistry = { ...snap.chemistry };
+    this.chemistryPins = new Set(snap.chemistryPins);
+    this.chemistryBaseline = { ...snap.chemistryBaseline };
+    this.cardiovascular = { ...snap.cardiovascular };
+    this.electrophysiology = { ...snap.electrophysiology };
+    this.learnerBloodVolume = snap.learnerBloodVolume;
+    this.experimentalControls = { ...snap.experimentalControls };
+    this.scenarioAnnotations = structuredClone(snap.scenarioAnnotations);
+    this.timeline = structuredClone(snap.timeline);
+    this.lastModelTimeSec = snap.lastModelTimeSec;
+    this.playing = snap.playing;
+    this.scenarioAuthority = snap.scenarioAuthority ? { ...snap.scenarioAuthority } : null;
+    if (snap.scenarioId) {
+      const def = getScenario(snap.scenarioId);
+      if (def) {
+        const compiled = compileScenario(def, {
+          availableCapabilities: this.describeCapabilities().capabilities,
+        });
+        if (compiled.ok) {
+          this.compiledScenario = compiled.compiled;
+          this.triggerRunner = new ScenarioTriggerRunner(this);
+          this.triggerRunner.arm(compiled.compiled);
+        }
+      }
+    } else {
+      this.compiledScenario = null;
+      this.triggerRunner?.disarm();
+      this.triggerRunner = null;
+    }
     this.prevCardioDriven = new Set();
+    this.pendingSettle = null;
     this.recomputeCardio();
     this.projectCordLevel();
+    this.projectChemistryChannels();
     this.pushTimeline('checkpoint.restored', id);
     this.emit({ type: 'checkpoint.restored', revision: this.revision, simTime: this.simTime, detail: { id } });
     return { accepted: true, revision: this.revision };
@@ -642,17 +780,39 @@ export class DefaultPatientRuntime implements PatientRuntime {
   }
 
   /** Ingest a Circulation snapshot into canonical public physiological state. */
-  ingestCardioSnapshot(snap: Record<string, unknown>): void {
+  ingestCardioSnapshot(snap: Record<string, unknown>, opts?: { advanceMs?: number }): void {
     this.lastSnap = snap as Record<string, number>;
     this.cardiovascular = snapshotToCardiovascularPublic(snap);
     this.electrophysiology = snapshotToElectrophysiologyPublic(snap);
+
+    // Keep mechanism channels aligned with canonical haemodynamics.
+    if (this.cardiovascular.meanArterialPressure != null) {
+      this.channels.MAP = this.cardiovascular.meanArterialPressure;
+      this.channels.CPP = this.cardiovascular.meanArterialPressure - this.channels.ICP;
+    }
+
     this.applyHaemodynamicChemistry();
-    // Project derived haemodynamic channels for Patient workspace.
-    // These are projections of canonical public state — not an alternate authority.
+
+    const modelT = typeof snap.t === 'number' ? snap.t : null;
+    if (opts?.advanceMs != null) {
+      this.simTime = asSimTime(Number(this.simTime) + opts.advanceMs);
+      this.pendingSettle = null;
+    } else if (this.pendingSettle) {
+      this.simTime = asSimTime(Number(this.pendingSettle.from) + this.pendingSettle.durationMs);
+      this.pendingSettle = null;
+    } else if (this.playing && modelT != null && this.lastModelTimeSec != null) {
+      const deltaMs = (modelT - this.lastModelTimeSec) * 1000;
+      if (deltaMs > 0 && deltaMs < 120_000) {
+        this.simTime = asSimTime(Number(this.simTime) + deltaMs);
+      }
+    }
+    if (modelT != null && Number.isFinite(modelT)) this.lastModelTimeSec = modelT;
+
     const projection = cardiovascularToChannelProjection(this.cardiovascular);
     if (Object.keys(projection).length) {
       this.opts.projectChannels?.(projection);
     }
+    this.triggerRunner?.tick();
     this.emit({
       type: 'physiology.updated',
       revision: this.revision,
@@ -787,8 +947,8 @@ export class DefaultPatientRuntime implements PatientRuntime {
   /** UI display list for the Patient workspace and rail badges. */
   activeMechanismDisplays() {
     const displays = activeChannelDisplays(this.channels);
-    if (this.getActiveCordLevel() && lesionIsNeurogenic()) {
-      const level = this.getActiveCordLevel();
+    const level = this.getActiveCordLevel();
+    if (level && lesionInterruptsSympathetic(level)) {
       displays.push({
         id: NEUROGENIC_DISPLAY.id,
         name: NEUROGENIC_DISPLAY.name,
@@ -801,10 +961,6 @@ export class DefaultPatientRuntime implements PatientRuntime {
       });
     }
     return displays;
-
-    function lesionIsNeurogenic() {
-      return true; // presence of active SCI condition already gated above
-    }
   }
 
   explainPrivateParam(paramKey: string) {
@@ -947,11 +1103,23 @@ export class DefaultPatientRuntime implements PatientRuntime {
   }
 
   private recomputeCardio() {
-    this.pushCardioParams(adaptCardioPrivateParams(this.resolvedEffects()));
+    this.pushCardioParams(this.mergedPrivateParams(this.resolvedEffects()));
   }
 
   private projectCordLevel() {
     this.opts.projectChannels?.({ cordLevel: this.getActiveCordLevel() });
+  }
+
+  private mergedPrivateParams(resolved: Map<string, import('../contracts/effects.ts').ResolvedPortValue>) {
+    const base = adaptCardioPrivateParams(resolved) as CardioPrivateParams & Record<string, number | boolean | undefined>;
+    const driven = new Set(base.drivenKeys);
+    for (const [k, v] of Object.entries(this.experimentalControls)) {
+      if (k === 'bloodVolume') continue;
+      (base as Record<string, number | boolean>)[k] = v;
+      driven.add(k);
+    }
+    base.drivenKeys = [...driven];
+    return base as ReturnType<typeof adaptCardioPrivateParams>;
   }
 
   private pushCardioParams(params: ReturnType<typeof adaptCardioPrivateParams>) {
@@ -960,14 +1128,33 @@ export class DefaultPatientRuntime implements PatientRuntime {
         this.opts.cardioHost,
         params,
         this.prevCardioDriven,
-        this.opts.cardioDefaults ?? CIRCULATION_BASELINE,
+        {
+          ...CIRCULATION_BASELINE,
+          ...this.experimentalControls,
+        },
       );
       this.prevCardioDriven = driven;
+      this.opts.cardioHost.postMessage({
+        type: 'setParam',
+        key: 'bloodVolume',
+        value: this.learnerBloodVolume,
+      });
     } else if (!params.drivenKeys.length) {
       this.prevCardioDriven = new Set();
     } else {
       this.prevCardioDriven = new Set(params.drivenKeys);
     }
+  }
+
+  private authorityContext() {
+    const authority = this.scenarioAuthority ?? defaultAuthority();
+    const clinical = !!this.compiledScenario
+      && this.compiledScenario.definition.visibility?.diagnoses === 'hidden';
+    return {
+      mode: (clinical ? 'clinical' : 'exploration') as 'clinical' | 'exploration',
+      authority,
+      diagnosticSession: !this.compiledScenario && this.opts.authority?.mayReadLatentState !== false,
+    };
   }
 
   private publicPhysiology(): PublicPhysiologyView {
@@ -1111,12 +1298,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
   }
 
   private experimentalCirculationParam(command: PatientCommand): CommandResult {
-    const auth = this.effectiveAuthority();
-    const src = command.source?.type;
-    const bypassAuthority = src === 'test' || src === 'lesson';
-    if (!bypassAuthority && auth.mayUseExperimentalControls === false) {
-      return this.reject(command, runtimeError('UNAUTHORISED_COMMAND', 'experimental circulation controls not permitted'));
-    }
+    // Authority is enforced centrally in dispatch via authorizeCommand.
     const payload = (command.payload ?? {}) as CirculationParamPayload;
     if (!payload.key || !EXPERIMENTAL_CIRCULATION_KEYS.has(payload.key)) {
       return this.reject(command, runtimeError('INVALID_PARAMETER', `unsupported circulation param: ${payload?.key}`, {
@@ -1131,10 +1313,11 @@ export class DefaultPatientRuntime implements PatientRuntime {
         received: payload.value,
       }));
     }
+    this.experimentalControls[payload.key] = payload.value;
     if (payload.key === 'bloodVolume' && typeof payload.value === 'number') {
       this.learnerBloodVolume = payload.value;
     }
-    this.opts.cardioHost?.postMessage({ type: 'setParam', key: payload.key, value: payload.value });
+    this.recomputeCardio();
     this.pushTimeline('experimental.circulation-param', `${payload.key}=${payload.value}`);
     return this.accept(command, {
       changedPaths: [`experimental.circulation.${payload.key}`],
@@ -1229,6 +1412,9 @@ export class DefaultPatientRuntime implements PatientRuntime {
       };
     }
 
+    // Transactional: checkpoint current state; roll back if any seed fails.
+    const rollback = this.createCheckpoint(`pre-scenario-${recheck.compiled.definition.id}`);
+
     this.clearScenario(true);
     this.compiledScenario = recheck.compiled;
     this.scenarioAuthority = { ...recheck.compiled.authority };
@@ -1243,9 +1429,22 @@ export class DefaultPatientRuntime implements PatientRuntime {
       return { type: cmd.type, accepted: result.accepted };
     });
 
+    if (seedResults.some((r) => !r.accepted)) {
+      this.restoreCheckpoint(rollback);
+      this.checkpoints.delete(rollback.id);
+      return {
+        accepted: false,
+        scenarioId: recheck.compiled.definition.id,
+        version: recheck.compiled.definition.version,
+        seedResults,
+        error: runtimeError('INVARIANT_VIOLATION', 'scenario seed command failed; state rolled back'),
+      };
+    }
+
     this.triggerRunner = new ScenarioTriggerRunner(this);
     this.triggerRunner.arm(recheck.compiled);
     this.triggerRunner.tick();
+    this.checkpoints.delete(rollback.id);
 
     this.emit({
       type: 'scenario.loaded',
@@ -1255,7 +1454,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
     });
 
     return {
-      accepted: seedResults.every((r) => r.accepted),
+      accepted: true,
       scenarioId: recheck.compiled.definition.id,
       version: recheck.compiled.definition.version,
       seedResults,
@@ -1372,7 +1571,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
   }
 
   private reject(command: PatientCommand, error: ReturnType<typeof runtimeError>): CommandResult {
-    this.revision += 1;
+    // Do not bump revision on rejection — rejected commands are not state transitions.
     const result: CommandResult = {
       accepted: false,
       revision: this.revision,

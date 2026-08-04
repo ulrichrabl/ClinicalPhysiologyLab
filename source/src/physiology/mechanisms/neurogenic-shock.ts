@@ -30,7 +30,8 @@ export function lesionInterruptsSympathetic(level: string): boolean {
  * Adapter maps these with simple scaling onto Circulation private params:
  *   Rsys = 1.05 * arteriolarTone  → 0.52
  *   HR   = 72   * cardiacDrive    → 52
- *   V0sv from venousTone via dedicated capacitance mapping → 2900
+ *   V0sv from venousTone via dedicated capacitance mapping → 3500
+ *     (loss of tone raises unstressed volume — venous pooling)
  */
 export const NEUROGENIC_COMPLETE_PORTS = {
   'autonomic.sympatheticOutflow': 0.15,
@@ -72,12 +73,17 @@ export function neurogenicShockMechanisms(input: {
       displayName: 'Interruption of descending sympathetic pathways',
       provenance,
       effects: [
-        mk(input.source, 'autonomic.sympatheticOutflow', sympatheticOutflow, input.onset, provenance, 'sym'),
-        mk(input.source, 'autonomic.cardiacAcceleratorDrive', cardiacAccelerator, input.onset, provenance, 'acc'),
-        mk(input.source, 'vascular.venousTone', venousTone, input.onset, provenance, 'ven'),
-        mk(input.source, 'vascular.systemicArteriolarTone', arteriolarTone, input.onset, provenance, 'art'),
+        mk(input.source, 'autonomic.sympatheticOutflow', sympatheticOutflow, input.onset, provenance, 'sym', input.conditionId),
+        mk(input.source, 'autonomic.cardiacAcceleratorDrive', cardiacAccelerator, input.onset, provenance, 'acc', input.conditionId),
+        mk(input.source, 'vascular.venousTone', venousTone, input.onset, provenance, 'ven', input.conditionId),
+        mk(input.source, 'vascular.systemicArteriolarTone', arteriolarTone, input.onset, provenance, 'art', input.conditionId),
         {
-          id: createEffectId('baro'),
+          id: createEffectId({
+            conditionId: input.conditionId,
+            mechanismId: 'loss-of-sympathetic-outflow',
+            port: 'cardiovascular.baroreflexEnabled',
+            slot: 'baro',
+          }),
           source: input.source,
           target: 'cardiovascular.baroreflexEnabled' as never,
           operation: 'minimum' as const,
@@ -97,9 +103,15 @@ function mk(
   onset: SimTime,
   provenance: CausalReference[],
   prefix: string,
+  conditionId: string,
 ) {
   return {
-    id: createEffectId(prefix),
+    id: createEffectId({
+      conditionId,
+      mechanismId: 'loss-of-sympathetic-outflow',
+      port: target,
+      slot: prefix,
+    }),
     source,
     target: target as never,
     operation: 'multiply' as const,
