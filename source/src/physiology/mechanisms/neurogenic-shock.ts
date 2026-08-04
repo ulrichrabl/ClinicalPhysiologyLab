@@ -26,10 +26,20 @@ export function lesionInterruptsSympathetic(level: string): boolean {
 }
 
 /**
- * Loss of descending sympathetic drive after a high cord lesion.
- * Effect magnitudes match the educational neurogenic-shock profile used by
- * the validated circulation coupling (complete lesion → Rsys 0.52, HR 52, …).
+ * Complete bilateral targets as public port multipliers against baseline 1.
+ * Adapter maps these with simple scaling onto Circulation private params:
+ *   Rsys = 1.05 * arteriolarTone  → 0.52
+ *   HR   = 72   * cardiacDrive    → 52
+ *   V0sv from venousTone via dedicated capacitance mapping → 2900
  */
+export const NEUROGENIC_COMPLETE_PORTS = {
+  'autonomic.sympatheticOutflow': 0.15,
+  'autonomic.cardiacAcceleratorDrive': 52 / 72,
+  'vascular.venousTone': 0.25,
+  'vascular.systemicArteriolarTone': 0.52 / 1.05,
+  'cardiovascular.baroreflexEnabled': 0,
+} as const;
+
 export function neurogenicShockMechanisms(input: {
   level: string;
   completeness: number;
@@ -41,7 +51,6 @@ export function neurogenicShockMechanisms(input: {
   if (!lesionInterruptsSympathetic(input.level)) return [];
 
   const c = clamp01(input.completeness);
-  // Unilateral lesions spare contralateral outflow; treat as half the bilateral effect.
   const laterality = input.side === 'bilateral' ? 1 : 0.5;
   const severity = c * laterality;
 
@@ -51,11 +60,10 @@ export function neurogenicShockMechanisms(input: {
     { kind: 'state', path: `neurological.cordLesionLevel=${input.level}` },
   ];
 
-  // Interpolate toward the complete bilateral targets documented in the legacy coupling.
-  const sympatheticOutflow = lerp(1, 0.15, severity);
-  const cardiacAccelerator = lerp(1, 0.0, severity);
-  const venousTone = lerp(1, 0.25, severity);
-  const arteriolarTone = lerp(1, 0.45, severity);
+  const sympatheticOutflow = lerp(1, NEUROGENIC_COMPLETE_PORTS['autonomic.sympatheticOutflow'], severity);
+  const cardiacAccelerator = lerp(1, NEUROGENIC_COMPLETE_PORTS['autonomic.cardiacAcceleratorDrive'], severity);
+  const venousTone = lerp(1, NEUROGENIC_COMPLETE_PORTS['vascular.venousTone'], severity);
+  const arteriolarTone = lerp(1, NEUROGENIC_COMPLETE_PORTS['vascular.systemicArteriolarTone'], severity);
   const baroreflex = severity >= 0.5 ? 0 : 1;
 
   return [
@@ -64,47 +72,15 @@ export function neurogenicShockMechanisms(input: {
       displayName: 'Interruption of descending sympathetic pathways',
       provenance,
       effects: [
-        {
-          id: createEffectId('sym'),
-          source: input.source,
-          target: 'autonomic.sympatheticOutflow' as never,
-          operation: 'multiply',
-          value: sympatheticOutflow,
-          onset: input.onset,
-          provenance,
-        },
-        {
-          id: createEffectId('acc'),
-          source: input.source,
-          target: 'autonomic.cardiacAcceleratorDrive' as never,
-          operation: 'multiply',
-          value: cardiacAccelerator,
-          onset: input.onset,
-          provenance,
-        },
-        {
-          id: createEffectId('ven'),
-          source: input.source,
-          target: 'vascular.venousTone' as never,
-          operation: 'multiply',
-          value: venousTone,
-          onset: input.onset,
-          provenance,
-        },
-        {
-          id: createEffectId('art'),
-          source: input.source,
-          target: 'vascular.systemicArteriolarTone' as never,
-          operation: 'multiply',
-          value: arteriolarTone,
-          onset: input.onset,
-          provenance,
-        },
+        mk(input.source, 'autonomic.sympatheticOutflow', sympatheticOutflow, input.onset, provenance, 'sym'),
+        mk(input.source, 'autonomic.cardiacAcceleratorDrive', cardiacAccelerator, input.onset, provenance, 'acc'),
+        mk(input.source, 'vascular.venousTone', venousTone, input.onset, provenance, 'ven'),
+        mk(input.source, 'vascular.systemicArteriolarTone', arteriolarTone, input.onset, provenance, 'art'),
         {
           id: createEffectId('baro'),
           source: input.source,
           target: 'cardiovascular.baroreflexEnabled' as never,
-          operation: 'minimum',
+          operation: 'minimum' as const,
           value: baroreflex,
           onset: input.onset,
           provenance,
@@ -112,6 +88,25 @@ export function neurogenicShockMechanisms(input: {
       ],
     },
   ];
+}
+
+function mk(
+  source: EffectSource,
+  target: string,
+  value: number,
+  onset: SimTime,
+  provenance: CausalReference[],
+  prefix: string,
+) {
+  return {
+    id: createEffectId(prefix),
+    source,
+    target: target as never,
+    operation: 'multiply' as const,
+    value,
+    onset,
+    provenance,
+  };
 }
 
 function clamp01(n: number): number {
@@ -122,3 +117,18 @@ function clamp01(n: number): number {
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
+
+/** Display metadata for the active-mechanisms UI. */
+export const NEUROGENIC_DISPLAY = {
+  id: 'loss-of-sympathetic-outflow',
+  name: 'Neurogenic shock',
+  short: 'A cord lesion above T6 cuts sympathetic outflow to the vessels and heart',
+  why: 'Sympathetic preganglionic neurons leave the cord between T1 and L2. A lesion '
+    + 'above T6 disconnects most of that outflow from the brainstem: arterioles lose '
+    + 'their tone and the cardiac accelerator fibres (T1–T4) are lost too. The result '
+    + 'is hypotension with a *slow* heart — which is what distinguishes it from '
+    + 'haemorrhagic shock, where the heart races.',
+  to: 'cardio',
+  from: 'cordLevel',
+  level: 'danger' as const,
+};

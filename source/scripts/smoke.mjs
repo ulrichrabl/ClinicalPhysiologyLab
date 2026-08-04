@@ -96,22 +96,34 @@ for (const d of shell.domains) {
 }
 console.log(`✓ workspaces: ${visited} visited`);
 
-/* --- 6. exercise the couplings ------------------------------------------ */
+/* --- 6. exercise the runtime mechanisms --------------------------------- */
 try {
   const p = shell.patient;
+  const rt = shell.runtime;
   p.set('K', 7.2);
-  if (!p.activeCouplings().some((c) => c.id === 'k-ecg')) throw new Error('K coupling did not fire');
+  if (!p.activeCouplings().some((c) => c.id === 'k-ecg')) throw new Error('K mechanism did not fire');
   p.set('ICP', 34);
   if (!p.activeCouplings().some((c) => c.id === 'cushing')) throw new Error('Cushing did not fire');
-  const ov = p.overridesFor('cardio');
-  if (ov.HR == null) throw new Error('Cushing produced no cardiac override');
-  p.set('cordLevel', 'C5');
-  const ov2 = p.overridesFor('cardio');
-  if (ov2.Rsys !== 0.52) throw new Error('neurogenic shock override missing');
-  console.log(`✓ couplings: ${p.activeCouplings().length} active, cardiac overrides ${JSON.stringify(ov2)}`);
+  const cushing = rt.cardioOverrides();
+  if (cushing.HR == null && cushing.Rsys == null) throw new Error('Cushing produced no cardiac override');
+  p.set('ICP', 10); // clear Cushing before isolating neurogenic shock
+  p.set('K', 4.0);
+  rt.dispatch({
+    id: 'smoke_c5',
+    type: 'condition.activate',
+    payload: {
+      condition: 'cervical-spinal-cord-injury',
+      parameters: { level: 'C5', completeness: 1, side: 'bilateral' },
+    },
+    source: { type: 'test', id: 'smoke' },
+  });
+  const ov2 = rt.cardioOverrides();
+  if (Math.abs(ov2.Rsys - 0.52) > 1e-6) throw new Error(`neurogenic shock override missing: Rsys ${ov2.Rsys}`);
+  if (Math.abs(ov2.HR - 52) > 1e-6) throw new Error(`neurogenic HR missing: ${ov2.HR}`);
+  console.log(`✓ mechanisms: ${p.activeCouplings().length} active, cardiac overrides ${JSON.stringify(ov2)}`);
   p.reset();
 } catch (e) {
-  console.error('COUPLING FAILED:', e.stack || e.message);
+  console.error('MECHANISM FAILED:', e.stack || e.message);
 }
 
 /* --- 7. neuro localiser through the UI ----------------------------------- */
@@ -119,8 +131,9 @@ try {
   const neuro = shell.byId.get('neuro');
   neuro.applyLesion({ syndrome: 'wallenberg', side: 'R' });
   neuro.applyLesion({ nodes: ['L_cst_C5', 'R_cst_C5', 'L_ahn_C5', 'R_ahn_C5'] });
-  if (shell.patient.get('cordLevel') !== 'C5') throw new Error('cord level not published to patient');
-  console.log('✓ neuro: lesions applied, cord level published to shared patient');
+  if (shell.runtime.getActiveCordLevel() !== 'C5') throw new Error('cord level not activated on runtime');
+  if (shell.patient.get('cordLevel') !== 'C5') throw new Error('cord level not projected to channels');
+  console.log('✓ neuro: lesions applied, C5 injury activated via runtime');
 } catch (e) {
   console.error('NEURO FAILED:', e.stack || e.message);
 }
@@ -162,9 +175,9 @@ try {
   const simHost0 = globalThis.__sim || globalThis.__worker;
   for (let i = 0; i < 3; i++) simHost0.postMessage({ type: 'settle', seconds: 3 });
   const restored = cardio.snapshot();
-  if (restored.baroEnabled !== true) throw new Error('coupling override was not undone: baroreflex still off');
-  if (Math.abs(restored.Rsys - 1.05) > 0.01) throw new Error(`coupling override was not undone: Rsys ${restored.Rsys}`);
-  console.log('✓ coupling undo: clearing the lesion restored baroreflex and resistance');
+  if (restored.baroEnabled !== true) throw new Error('mechanism override was not undone: baroreflex still off');
+  if (Math.abs(restored.Rsys - 1.05) > 0.01) throw new Error(`mechanism override was not undone: Rsys ${restored.Rsys}`);
+  console.log('✓ mechanism undo: clearing the lesion restored baroreflex and resistance');
 
   const before = labsDom.values();
   if (before.lactate > 1.6) throw new Error('baseline lactate already abnormal');

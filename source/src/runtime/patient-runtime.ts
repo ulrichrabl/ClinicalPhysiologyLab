@@ -1,5 +1,6 @@
 import type {
   AdvanceResult,
+  CardioPrivateParams,
   CheckpointRef,
   Observation,
   ObservationRequest,
@@ -47,8 +48,25 @@ import {
   applyCardioAdapterToHost,
 } from '../models/cardiovascular/current-model-adapter.ts';
 import { buildNeurogenicShockExplanation } from '../explanations/causal-trace.ts';
+import {
+  resolveChannelMechanisms,
+  activeChannelDisplays,
+  type ChannelState,
+} from '../physiology/mechanisms/channel-mechanisms.ts';
+import { NEUROGENIC_DISPLAY } from '../physiology/mechanisms/neurogenic-shock.ts';
 
 const RUNTIME_VERSION = '0.1.0';
+
+const DEFAULT_CHANNELS: ChannelState = {
+  K: 4.0,
+  Ca: 2.4,
+  ICP: 10,
+  MAP: 95,
+  CPP: 85,
+  betaBlocker: 0,
+  atropine: 0,
+  vasopressor: 0,
+};
 
 export interface PatientRuntimeOptions {
   seed?: string;
@@ -61,6 +79,8 @@ export interface PatientRuntimeOptions {
     params: ReturnType<typeof adaptCardioPrivateParams>,
     seconds: number,
   ) => Record<string, number> | null;
+  /** Optional channel projection writer (updates Patient.cordLevel etc.). */
+  projectChannels?: (patch: Record<string, unknown>) => void;
   authority?: {
     mayAuthorConditions?: boolean;
     mayUseExperimentalControls?: boolean;
@@ -95,6 +115,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
   private prevCardioDriven = new Set<string>();
   private randomState: number;
   private readonly opts: PatientRuntimeOptions;
+  private channels: ChannelState = { ...DEFAULT_CHANNELS };
 
   constructor(opts: PatientRuntimeOptions = {}) {
     this.opts = opts;
@@ -427,7 +448,8 @@ export class DefaultPatientRuntime implements PatientRuntime {
     this.lastSnap = snap.lastSnap ? { ...snap.lastSnap } : null;
     this.randomState = snap.randomState;
     this.prevCardioDriven = new Set();
-    this.pushCardioParams(adaptCardioPrivateParams(this.resolvedEffects()));
+    this.recomputeCardio();
+    this.projectCordLevel();
     this.pushTimeline('checkpoint.restored', id);
     this.emit({ type: 'checkpoint.restored', revision: this.revision, simTime: this.simTime, detail: { id } });
     return { accepted: true, revision: this.revision };
@@ -493,18 +515,25 @@ export class DefaultPatientRuntime implements PatientRuntime {
   ): void {
     this.opts.cardioHost = host;
     if (defaults) this.opts.cardioDefaults = defaults;
-    this.pushCardioParams(adaptCardioPrivateParams(this.resolvedEffects()));
+    this.recomputeCardio();
   }
 
-  /** Cardio private params for the legacy overridesFor bridge. */
+  /** Sync learner-editable channels (chemistry, drugs, ICP) into mechanism resolution. */
+  syncChannels(partial: Partial<ChannelState>): void {
+    Object.assign(this.channels, partial);
+    this.recomputeCardio();
+    this.emit({ type: 'channels.synced', revision: this.revision, simTime: this.simTime });
+  }
+
+  /** Private params for the cardiovascular model — the only path into Circulation. */
   cardioOverrides(): Record<string, number | boolean> {
-    const p = adaptCardioPrivateParams(this.resolvedEffects());
+    const p = adaptCardioPrivateParams(this.resolvedEffects()) as CardioPrivateParams & Record<string, number | boolean | undefined>;
     if (!p.drivenKeys.length) return {};
     const out: Record<string, number | boolean> = {};
-    if (p.drivenKeys.includes('Rsys')) out.Rsys = p.Rsys;
-    if (p.drivenKeys.includes('HR')) out.HR = p.HR;
-    if (p.drivenKeys.includes('V0sv')) out.V0sv = p.V0sv;
-    if (p.drivenKeys.includes('baroEnabled')) out.baroEnabled = p.baroEnabled;
+    for (const key of p.drivenKeys) {
+      const v = p[key];
+      if (v != null) out[key] = v;
+    }
     return out;
   }
 
@@ -515,6 +544,54 @@ export class DefaultPatientRuntime implements PatientRuntime {
       }
     }
     return null;
+  }
+
+  /** UI display list for the Patient workspace and rail badges. */
+  activeMechanismDisplays() {
+    const displays = activeChannelDisplays(this.channels);
+    if (this.getActiveCordLevel() && lesionIsNeurogenic()) {
+      const level = this.getActiveCordLevel();
+      displays.push({
+        id: NEUROGENIC_DISPLAY.id,
+        name: NEUROGENIC_DISPLAY.name,
+        short: NEUROGENIC_DISPLAY.short,
+        why: NEUROGENIC_DISPLAY.why,
+        to: NEUROGENIC_DISPLAY.to,
+        from: NEUROGENIC_DISPLAY.from,
+        level: NEUROGENIC_DISPLAY.level,
+        status: `Cord lesion at ${level} — sympathetic outflow lost`,
+      });
+    }
+    return displays;
+
+    function lesionIsNeurogenic() {
+      return true; // presence of active SCI condition already gated above
+    }
+  }
+
+  explainPrivateParam(paramKey: string) {
+    const resolved = this.resolvedEffects();
+    const hits = [];
+    for (const [portId, val] of resolved) {
+      for (const c of val.contributions) {
+        // Rough educational link: show mechanisms that touch ports the adapter uses for this key
+        const related =
+          (paramKey === 'Rsys' && portId.includes('Arteriolar'))
+          || (paramKey === 'HR' && portId.includes('cardiacAccelerator'))
+          || (paramKey === 'V0sv' && portId.includes('venous'))
+          || (paramKey === 'baroEnabled' && portId.includes('baroreflex'))
+          || (paramKey === 'Emax' && portId.includes('contractility'))
+          || (paramKey === 'K' && portId.includes('Potassium'))
+          || (paramKey === 'stFactor' && portId.includes('stDuration'));
+        if (related) {
+          hits.push({
+            coupling: { id: c.source, name: portId },
+            value: c.value,
+          });
+        }
+      }
+    }
+    return hits;
   }
 
   /* ---- internals ------------------------------------------------------ */
@@ -549,7 +626,8 @@ export class DefaultPatientRuntime implements PatientRuntime {
     this.conditions.set(instanceId, instance);
 
     const mechanisms = def.resolve(instance, this.simTime);
-    this.pushCardioParams(adaptCardioPrivateParams(this.resolvedEffects()));
+    this.recomputeCardio();
+    this.projectCordLevel();
     this.pushTimeline('condition.activated', def.displayName, {
       conditionId: def.id,
       parameters: instance.parameters,
@@ -595,14 +673,16 @@ export class DefaultPatientRuntime implements PatientRuntime {
     if (!removed) {
       // Resolving "all" with nothing active is a no-op success (e.g. patient.reset).
       if (!payload.instanceId && !payload.condition) {
-        this.pushCardioParams(adaptCardioPrivateParams(this.resolvedEffects()));
+        this.recomputeCardio();
+        this.projectCordLevel();
         return this.accept(command, { changedPaths: ['conditions'] });
       }
       return this.reject(command, runtimeError('INVALID_PARAMETER', 'No matching active condition', {
         received: payload,
       }));
     }
-    this.pushCardioParams(adaptCardioPrivateParams(this.resolvedEffects()));
+    this.recomputeCardio();
+    this.projectCordLevel();
     this.pushTimeline('condition.resolved', payload.condition ?? payload.instanceId ?? 'all');
     return this.accept(command, {
       changedPaths: ['conditions', 'mechanisms', 'autonomic.*', 'vascular.*'],
@@ -616,6 +696,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
       if (!def) continue;
       out.push(...def.resolve(inst, this.simTime));
     }
+    out.push(...resolveChannelMechanisms(this.channels, this.simTime));
     return out;
   }
 
@@ -625,6 +706,14 @@ export class DefaultPatientRuntime implements PatientRuntime {
 
   private resolvedEffects() {
     return composeEffects(this.allEffects(), this.simTime);
+  }
+
+  private recomputeCardio() {
+    this.pushCardioParams(adaptCardioPrivateParams(this.resolvedEffects()));
+  }
+
+  private projectCordLevel() {
+    this.opts.projectChannels?.({ cordLevel: this.getActiveCordLevel() });
   }
 
   private pushCardioParams(params: ReturnType<typeof adaptCardioPrivateParams>) {
@@ -713,8 +802,11 @@ export class DefaultPatientRuntime implements PatientRuntime {
     this.timeline = [];
     this.simTime = asSimTime(0);
     this.lastSnap = null;
+    this.channels = { ...DEFAULT_CHANNELS };
     this.prevCardioDriven = new Set();
     this.opts.cardioHost?.postMessage({ type: 'reset' });
+    this.recomputeCardio();
+    this.projectCordLevel();
     this.revision += 1;
   }
 

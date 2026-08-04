@@ -33,9 +33,9 @@ export class PatientView {
           el('div', { class: 'btn-row' },
             el('button', { class: 'btn ghost sm', onclick: () => this.patient.reset() }, 'Reset patient')))),
       el('div', { class: 'stack' },
-        card('Active couplings',
-          'Explicit links between domains. Each one is a mechanism, not a fudge factor — '
-          + 'open one to read why it exists.',
+        card('Active mechanisms',
+          'Typed physiological mechanisms resolved by the Patient Runtime — '
+          + 'open one to read why it is firing.',
           this.couplingNode)),
     );
 
@@ -113,7 +113,7 @@ export class PatientView {
     const active = this.patient.activeCouplings();
     if (!active.length) {
       this.couplingNode.append(el('p', { class: 'empty' },
-        'Nothing is currently coupled — the patient is within normal limits and on no drugs. '
+        'No mechanisms are currently active — the patient is within normal limits and on no drugs. '
         + 'Move potassium out of range, raise the intracranial pressure, or place a cervical cord '
         + 'lesion in Neurology, and the links will appear here.'));
       return;

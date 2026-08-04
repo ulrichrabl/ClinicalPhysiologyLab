@@ -8,7 +8,7 @@ function port(
   return { id: id as PhysiologicalPortId, ...def };
 }
 
-/** Public physiological ports used by the first rebuild slice. */
+/** Public physiological ports. Models adapt these; clients never see private params. */
 export const PHYSIOLOGICAL_PORTS: Record<string, PortDefinition> = {
   'autonomic.sympatheticOutflow': port('autonomic.sympatheticOutflow', {
     unit: 'fraction',
@@ -22,7 +22,7 @@ export const PHYSIOLOGICAL_PORTS: Record<string, PortDefinition> = {
     physiologicalMeaning: 'T1–T4 cardiac accelerator fibre drive to the SA node and myocardium',
     baseline: 1,
     composition: 'multiply',
-    range: { min: 0, max: 2 },
+    range: { min: 0, max: 3 },
   }),
   'vascular.venousTone': port('vascular.venousTone', {
     unit: 'fraction',
@@ -44,6 +44,34 @@ export const PHYSIOLOGICAL_PORTS: Record<string, PortDefinition> = {
     baseline: 1,
     composition: 'minimum',
     range: { min: 0, max: 1 },
+  }),
+  'cardiovascular.contractility': port('cardiovascular.contractility', {
+    unit: 'fraction',
+    physiologicalMeaning: 'Left-ventricular end-systolic elastance scale',
+    baseline: 1,
+    composition: 'multiply',
+    range: { min: 0.2, max: 2 },
+  }),
+  'cardiovascular.avConduction': port('cardiovascular.avConduction', {
+    unit: 'fraction',
+    physiologicalMeaning: 'AV nodal conduction scale',
+    baseline: 1,
+    composition: 'multiply',
+    range: { min: 0.2, max: 2 },
+  }),
+  'chemistry.extracellularPotassium': port('chemistry.extracellularPotassium', {
+    unit: 'mmol/L',
+    physiologicalMeaning: 'Extracellular potassium concentration',
+    baseline: 4.0,
+    composition: 'exclusive',
+    range: { min: 1.5, max: 9 },
+  }),
+  'electrophysiology.stDurationFactor': port('electrophysiology.stDurationFactor', {
+    unit: 'fraction',
+    physiologicalMeaning: 'Action-potential plateau / ST-segment duration scale',
+    baseline: 1,
+    composition: 'exclusive',
+    range: { min: 0.3, max: 2.5 },
   }),
 };
 

@@ -13,10 +13,11 @@ import { NODES } from './data/anatomy.js';
    is what lets a C5 injury turn into neurogenic shock in the cardiovascular
    model without either domain knowing about the other.
 --------------------------------------------------------------------------- */
-export default function neuroDomain({ patient }) {
+export default function neuroDomain({ patient, runtime }) {
   let exam;
   const localize = new LocalizeView({
     patient,
+    runtime,
     onLesion: ({ nodes, syndrome }) => {
       // Keep the open-book examination in step with whatever is lesioned.
       if (exam && !exam.blind) {
@@ -73,7 +74,7 @@ export default function neuroDomain({ patient }) {
     id: 'neuro',
     name: 'Neurology',
     tagline: 'Localise the lesion from the pattern of deficits',
-    produces: ['cordLevel'],
+    produces: [], // cord level is a runtime condition projection, not a channel write
     consumes: ['MAP', 'ICP', 'CPP'],
     transport: false,
     workspaces: [

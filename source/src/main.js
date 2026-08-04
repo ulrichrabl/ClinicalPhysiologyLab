@@ -8,17 +8,14 @@ import cardioDomain from './domains/cardio/index.js';
 import neuroDomain from './domains/neuro/index.js';
 import labsDomain from './domains/labs/index.js';
 import { VITALS } from './domains/cardio/data/reference.js';
-import { attachRuntimeToPatient } from './runtime/compatibility-facade.ts';
+import { createPatientRuntime } from './runtime/patient-runtime.ts';
 import { neurogenicShockDemo } from './scenarios/definitions/neurogenic-shock-demo.ts';
 
 /* ---------------------------------------------------------------------------
    Shell.
 
-   Holds the patient, mounts the domains, and owns the two things that must be
-   true across all of them: one set of vitals at the top of the screen, and one
-   transport control. Everything else belongs to a domain.
-
-   Adding a domain is one import and one entry in DOMAIN_FACTORIES.
+   Owns the Patient Runtime (canonical state authority), mounts experience
+   domains as runtime clients, and provides shared chrome (vitals, transport).
 --------------------------------------------------------------------------- */
 
 const DOMAIN_FACTORIES = [cardioDomain, neuroDomain, labsDomain];
@@ -27,13 +24,13 @@ class Shell {
   constructor(root) {
     this.root = root;
     this.patient = new Patient();
-    /* Patient Runtime owns condition → mechanism → effect → adapter for the
-       C5 neurogenic-shock proof slice. Legacy Patient remains the shared
-       channel the existing UI reads; the facade keeps them in sync. */
-    this.runtime = attachRuntimeToPatient(this.patient, {
+    this.runtime = createPatientRuntime({
       seed: 'cpl-main-session',
       scenario: { id: neurogenicShockDemo.id, version: neurogenicShockDemo.version },
+      projectChannels: (patch) => this.patient.setMany(patch, 'runtime'),
     });
+    this.patient.runtime = this.runtime;
+    this.runtime.syncChannels(this.patient.channelSnapshot());
     this.domains = [];
     this.byId = new Map();
     this.active = null;
@@ -50,9 +47,7 @@ class Shell {
       this.byId.set(d.id, d);
     }
 
-    /* Once domains are mounted, cardio has created its sim host. */
-    const cardio = this.byId.get('cardio');
-    if (cardio && typeof window !== 'undefined' && window.__sim) {
+    if (typeof window !== 'undefined' && window.__sim) {
       this.runtime.bindCardioHost(window.__sim);
     }
     if (typeof window !== 'undefined') {
@@ -62,13 +57,14 @@ class Shell {
 
     this.patientView = new PatientView({
       patient: this.patient,
+      runtime: this.runtime,
       onNavigate: (domainId) => {
         const d = this.byId.get(domainId);
         if (d) this.go(`${d.id}.${d.workspaces[0].id}`);
       },
     });
     this.patientDomain = {
-      id: 'patient', name: 'Patient', tagline: 'The shared state both domains read',
+      id: 'patient', name: 'Patient', tagline: 'Shared channels and active mechanisms',
       transport: false,
       workspaces: [{ id: 'shared', label: 'Shared state', node: this.patientView.node, view: this.patientView }],
     };
@@ -99,6 +95,7 @@ class Shell {
     }
     window.addEventListener('keydown', (e) => this.onKey(e));
     this.patient.on(() => this.renderRailBadges());
+    this.runtime.subscribe(() => this.renderRailBadges());
   }
 
   /* ---- chrome ----------------------------------------------------------- */

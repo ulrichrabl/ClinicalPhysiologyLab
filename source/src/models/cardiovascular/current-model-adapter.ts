@@ -1,34 +1,29 @@
 import type { ResolvedPortValue } from '../../contracts/effects.ts';
 import type { CardioPrivateParams } from '../../contracts/queries.ts';
+import { NEUROGENIC_COMPLETE_PORTS } from '../../physiology/mechanisms/neurogenic-shock.ts';
 
 /**
  * Baseline private parameters of the current circulation implementation.
- * The adapter is the only place that knows these names.
+ * Only this adapter may mention these names.
  */
 export const CIRCULATION_BASELINE = {
   Rsys: 1.05,
   HR: 72,
   V0sv: 3200,
+  Emax: 2.7,
+  avConduction: 1,
   baroEnabled: true,
+  K: 4.0,
+  stFactor: 1,
 } as const;
 
-/**
- * Validated complete bilateral neurogenic-shock private targets
- * (preserved from the legacy `neurogenic-shock` coupling).
- */
+/** Validated complete bilateral neurogenic-shock private targets. */
 export const NEUROGENIC_COMPLETE_TARGETS = {
   Rsys: 0.52,
   HR: 52,
   V0sv: 2900,
   baroEnabled: false,
-  /** Public port values that produce these private targets when severity = 1. */
-  ports: {
-    'autonomic.sympatheticOutflow': 0.15,
-    'autonomic.cardiacAcceleratorDrive': 0,
-    'vascular.venousTone': 0.25,
-    'vascular.systemicArteriolarTone': 0.45,
-    'cardiovascular.baroreflexEnabled': 0,
-  },
+  ports: NEUROGENIC_COMPLETE_PORTS,
 } as const;
 
 function portNumber(
@@ -41,12 +36,14 @@ function portNumber(
 }
 
 /**
- * Translate public physiological port values into the private parameter set
- * understood by the existing Circulation model.
+ * Translate public physiological port values into Circulation private params.
  *
- * Calibration: when the neurogenic-shock mechanism emits its complete-bilateral
- * port values, private params match the legacy coupling exactly (Rsys 0.52, …).
- * Intermediate severities interpolate linearly in public-port space, then map.
+ * Scaling is intentional and simple:
+ *   Rsys = baseline.Rsys × arteriolarTone
+ *   HR   = baseline.HR   × cardiacAcceleratorDrive
+ *   Emax = baseline.Emax × contractility
+ *   av   = baseline.av   × avConduction
+ * Venous tone maps unstressed venous volume so complete neurogenic → 2900 mL.
  */
 export function adaptCardioPrivateParams(
   resolved: Map<string, ResolvedPortValue>,
@@ -55,21 +52,16 @@ export function adaptCardioPrivateParams(
   const venous = portNumber(resolved, 'vascular.venousTone', 1);
   const cardiac = portNumber(resolved, 'autonomic.cardiacAcceleratorDrive', 1);
   const baroGate = portNumber(resolved, 'cardiovascular.baroreflexEnabled', 1);
+  const contractility = portNumber(resolved, 'cardiovascular.contractility', 1);
+  const avConduction = portNumber(resolved, 'cardiovascular.avConduction', 1);
+  const K = portNumber(resolved, 'chemistry.extracellularPotassium', CIRCULATION_BASELINE.K);
+  const stFactor = portNumber(resolved, 'electrophysiology.stDurationFactor', 1);
 
-  const artTarget = NEUROGENIC_COMPLETE_TARGETS.ports['vascular.systemicArteriolarTone'];
-  const venTarget = NEUROGENIC_COMPLETE_TARGETS.ports['vascular.venousTone'];
-  const cardTarget = NEUROGENIC_COMPLETE_TARGETS.ports['autonomic.cardiacAcceleratorDrive'];
+  const Rsys = CIRCULATION_BASELINE.Rsys * arteriolar;
+  const HR = CIRCULATION_BASELINE.HR * cardiac;
+  const Emax = CIRCULATION_BASELINE.Emax * contractility;
 
-  // Map arteriolar tone → Rsys so tone=0.45 → 0.52 and tone=1 → 1.05
-  const Rsys = mapLinear(
-    arteriolar,
-    1,
-    artTarget,
-    CIRCULATION_BASELINE.Rsys,
-    NEUROGENIC_COMPLETE_TARGETS.Rsys,
-  );
-
-  // Map venous tone → V0sv so tone=0.25 → 2900 and tone=1 → 3200
+  const venTarget = NEUROGENIC_COMPLETE_PORTS['vascular.venousTone'];
   const V0sv = mapLinear(
     venous,
     1,
@@ -78,28 +70,17 @@ export function adaptCardioPrivateParams(
     NEUROGENIC_COMPLETE_TARGETS.V0sv,
   );
 
-  // Map cardiac accelerator → HR so drive=0 → 52 and drive=1 → 72
-  const HR = mapLinear(
-    cardiac,
-    1,
-    cardTarget,
-    CIRCULATION_BASELINE.HR,
-    NEUROGENIC_COMPLETE_TARGETS.HR,
-  );
-
   const baroEnabled = baroGate >= 0.5;
 
   const driven = new Set<string>();
   if (Math.abs(Rsys - CIRCULATION_BASELINE.Rsys) > 1e-9) driven.add('Rsys');
   if (Math.abs(HR - CIRCULATION_BASELINE.HR) > 1e-9) driven.add('HR');
   if (Math.abs(V0sv - CIRCULATION_BASELINE.V0sv) > 1e-9) driven.add('V0sv');
+  if (Math.abs(Emax - CIRCULATION_BASELINE.Emax) > 1e-9) driven.add('Emax');
+  if (Math.abs(avConduction - CIRCULATION_BASELINE.avConduction) > 1e-9) driven.add('avConduction');
   if (baroEnabled !== CIRCULATION_BASELINE.baroEnabled) driven.add('baroEnabled');
-
-  const provenance = [...resolved.entries()].map(([portId, v]) => ({
-    portId,
-    value: v.value,
-    contributions: v.contributions.length,
-  }));
+  if (Math.abs(K - CIRCULATION_BASELINE.K) > 1e-9) driven.add('K');
+  if (Math.abs(stFactor - 1) > 1e-9) driven.add('stFactor');
 
   return {
     Rsys,
@@ -107,7 +88,21 @@ export function adaptCardioPrivateParams(
     V0sv,
     baroEnabled,
     drivenKeys: [...driven],
-    provenance,
+    provenance: [...resolved.entries()].map(([portId, v]) => ({
+      portId,
+      value: v.value,
+      contributions: v.contributions.length,
+    })),
+    // Extended fields consumed by applyCardioAdapterToHost
+    Emax,
+    avConduction,
+    K,
+    stFactor,
+  } as CardioPrivateParams & {
+    Emax: number;
+    avConduction: number;
+    K: number;
+    stFactor: number;
   };
 }
 
@@ -120,21 +115,12 @@ function mapLinear(
 ): number {
   if (Math.abs(x1 - x0) < 1e-12) return y0;
   const t = (x - x0) / (x1 - x0);
-  // Clamp extrapolation for safety; composition should keep x in [min(x0,x1), max].
   const tc = Math.max(0, Math.min(1, t));
   return y0 + (y1 - y0) * tc;
 }
 
-export interface CirculationModelHandle {
-  setParams(values: Record<string, number | boolean>): void;
-  settle(seconds: number): Record<string, number> | null;
-  snapshot(): Record<string, number> | null;
-  reset(): void;
-}
-
 /**
- * Apply adapted private params to a live circulation host (worker or in-page).
- * Returns the parameter bag that was sent — useful for tests and undo tracking.
+ * Apply adapted private params to a live circulation host.
  */
 export function applyCardioAdapterToHost(
   host: { postMessage: (m: unknown) => void },
@@ -144,27 +130,31 @@ export function applyCardioAdapterToHost(
 ): { sent: Record<string, number | boolean>; driven: Set<string> } {
   const sent: Record<string, number | boolean> = {};
   const driven = new Set(params.drivenKeys);
+  const bag = params as CardioPrivateParams & Record<string, number | boolean | undefined>;
 
   for (const key of previousDriven) {
     if (driven.has(key)) continue;
     if (key === 'baroEnabled') {
       host.postMessage({ type: 'setBaro', value: defaults.baroEnabled ?? true });
+    } else if (key === 'stFactor') {
+      host.postMessage({ type: 'setParam', key: 'stFactor', value: 1 });
     } else if (key in defaults) {
       sent[key] = defaults[key] as number;
     }
   }
 
-  if (driven.has('Rsys')) sent.Rsys = params.Rsys;
-  if (driven.has('HR')) sent.HR = params.HR;
-  if (driven.has('V0sv')) sent.V0sv = params.V0sv;
+  for (const key of ['Rsys', 'HR', 'V0sv', 'Emax', 'avConduction', 'K'] as const) {
+    if (driven.has(key) && bag[key] != null) sent[key] = bag[key] as number;
+  }
 
   if (Object.keys(sent).length) {
     host.postMessage({ type: 'setParams', values: sent });
   }
+  if (driven.has('stFactor') && bag.stFactor != null) {
+    host.postMessage({ type: 'setParam', key: 'stFactor', value: bag.stFactor as number });
+  }
   if (driven.has('baroEnabled')) {
     host.postMessage({ type: 'setBaro', value: params.baroEnabled });
-  } else if (previousDriven.has('baroEnabled') && !driven.has('baroEnabled')) {
-    // already restored above
   }
 
   return { sent, driven };

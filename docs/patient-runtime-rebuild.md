@@ -1,38 +1,48 @@
-# Patient Runtime rebuild (Phases 1–3)
+# Patient Runtime rebuild
 
-This tree introduces the patient-first runtime specified in the rebuild document
-(4 August 2026), without a big-bang rewrite of the existing UI.
+Clean production cut of the patient-first architecture (Phases 1–3).
 
-## What landed
+There is **no compatibility facade** and **no dual path** for neurogenic shock
+or channel-driven mechanisms. The Patient Runtime is the sole authority that
+resolves mechanisms, composes effects, and drives the circulation adapter.
 
-| Area | Location |
+## Layout
+
+| Area | Path |
 |---|---|
-| Contracts (commands, queries, effects, …) | `src/contracts/` |
-| Physiological ports + composition | `src/physiology/` |
-| C5 / SCI condition | `src/conditions/cervical-spinal-cord-injury.ts` |
-| Circulation adapter (public → private) | `src/models/cardiovascular/current-model-adapter.ts` |
-| Patient Runtime | `src/runtime/patient-runtime.ts` |
-| Legacy bridge | `src/runtime/compatibility-facade.ts` |
-| Proof-slice scenario | `src/scenarios/definitions/neurogenic-shock-demo.ts` |
-| Causal explanation | `src/explanations/causal-trace.ts` |
-| ADRs 001–010 | `docs/adr/` |
+| Contracts | `source/src/contracts/` |
+| Ports + composition | `source/src/physiology/` |
+| Channel + SCI mechanisms | `source/src/physiology/mechanisms/` |
+| Conditions | `source/src/conditions/` |
+| Circulation adapter | `source/src/models/cardiovascular/` |
+| Runtime | `source/src/runtime/patient-runtime.ts` |
+| Scenario seed | `source/src/scenarios/definitions/` |
+| ADRs | `docs/adr/` |
+
+## Authority
+
+```text
+UI / scenario / test / tool
+        │
+        ▼
+ PatientRuntime.dispatch / syncChannels / observe
+        │
+        ▼
+ Conditions + channel mechanisms → typed effects
+        │
+        ▼
+ Deterministic port composition
+        │
+        ▼
+ Cardiovascular adapter → Circulation host
+```
+
+`Patient` holds shared channels for the UI (chemistry, drugs, projected vitals).
+Edits to input channels call `runtime.syncChannels`. Cord level is a projection
+from active conditions, not a write path into physiology.
 
 ## Proof slice
 
 ```bash
 cd source && node scripts/runtime-slice.test.mjs
 ```
-
-Activating `cervical-spinal-cord-injury` at C5 (complete, bilateral) goes through
-`runtime.dispatch` → mechanisms → composed effects → cardiovascular adapter →
-existing `Circulation` model. The same command schema is used by the scenario
-definition, the UI bridge (`patient.set('cordLevel', …)`), tests, and a
-generic tool-client source.
-
-## Compatibility
-
-- Existing specialty navigation and domains remain operational.
-- `Patient.overridesFor('cardio')` skips the hard-coded neurogenic coupling when
-  a runtime is attached and uses adapter-translated private params instead.
-- Cushing, electrolytes, and drug couplings still use the legacy path until
-  later migration phases.

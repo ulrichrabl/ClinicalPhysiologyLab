@@ -87,6 +87,10 @@ export interface CardioPrivateParams {
   HR: number;
   V0sv: number;
   baroEnabled: boolean;
+  Emax?: number;
+  avConduction?: number;
+  K?: number;
+  stFactor?: number;
   drivenKeys: string[];
   /** Provenance for educational display — not for clients to mutate. */
   provenance: { portId: string; value: unknown; contributions: number }[];
