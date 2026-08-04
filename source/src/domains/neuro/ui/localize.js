@@ -154,9 +154,16 @@ export class LocalizeView {
     if (!syndrome) for (const b of this.synList?.children || []) b.classList.remove('on');
     if (this.nodes.length === 1) this.siteSelect.value = this.nodes[0];
     this.refresh();
-    // Publish to the shared patient so cardio can react (neurogenic shock).
+    // Publish via the Patient Runtime when available (condition.activate),
+    // otherwise fall back to the legacy shared channel.
     const cord = cordLevelOf(this.nodes);
-    this.patient.set('cordLevel', cord);
+    if (this.patient.runtime) {
+      // patient.set('cordLevel') is intercepted by the compatibility facade
+      // and dispatched as condition.activate / condition.resolve.
+      this.patient.set('cordLevel', cord, 'neuro');
+    } else {
+      this.patient.set('cordLevel', cord);
+    }
     this.onLesion({ nodes: this.nodes, syndrome, cordLevel: cord });
   }
 

@@ -214,7 +214,19 @@ export class Patient {
     this.emit({ keys: Object.keys(obj), source });
   }
 
-  reset() { this.state = { ...PATIENT_DEFAULTS }; this.recompute(); this.emit({ source: 'reset' }); }
+  reset() {
+    this.state = { ...PATIENT_DEFAULTS };
+    if (this.runtime) {
+      this.runtime.dispatch({
+        id: `reset_${Date.now()}`,
+        type: 'condition.resolve',
+        payload: {},
+        source: { type: 'system' },
+      });
+    }
+    this.recompute();
+    this.emit({ source: 'reset' });
+  }
 
   /* Derived channels that are pure functions of the others. */
   recompute() {
@@ -229,18 +241,29 @@ export class Patient {
       ...c,
       level: c.severity ? c.severity(this.state) : 'info',
       status: c.state ? c.state(this.state) : '',
+      viaRuntime: !!(this.runtime && c.id === 'neurogenic-shock'),
     }));
   }
 
-  /* Merge every active coupling that targets `domain` into one override set. */
+  /* Merge every active coupling that targets `domain` into one override set.
+
+     Neurogenic shock is owned by the Patient Runtime when attached: its typed
+     effects are composed and translated by the cardiovascular adapter, so this
+     method must not re-apply the legacy hard-coded private-parameter bag. */
   overridesFor(domain) {
     const out = {};
+    const runtimeOwnsNeurogenic = domain === 'cardio' && this.runtime;
     for (const c of COUPLINGS) {
       if (c.to !== domain) continue;
+      if (runtimeOwnsNeurogenic && c.id === 'neurogenic-shock') continue;
       let live = false;
       try { live = c.when(this.state); } catch { live = false; }
       if (!live) continue;
       Object.assign(out, c.apply(this.state));
+    }
+    if (runtimeOwnsNeurogenic) {
+      const fromRuntime = this.runtime.cardioOverrides();
+      Object.assign(out, fromRuntime);
     }
     return out;
   }

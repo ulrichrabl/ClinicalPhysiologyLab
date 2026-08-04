@@ -6,7 +6,11 @@
   "main": "index.js",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node scripts/physiology.test.mjs && node scripts/circulation.test.mjs && node scripts/runtime-slice.test.mjs",
+    "test:runtime": "node scripts/runtime-slice.test.mjs",
+    "test:physiology": "node scripts/physiology.test.mjs",
+    "test:circulation": "node scripts/circulation.test.mjs",
+    "build": "node scripts/build.mjs"
   },
   "keywords": [],
   "author": "",

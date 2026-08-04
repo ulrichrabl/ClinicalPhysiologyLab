@@ -20,7 +20,7 @@ const rawLoader = {
     }));
     build.onLoad({ filter: /.*/, namespace: 'raw' }, async (a) => {
       const b = await esbuild.build({ entryPoints: [a.path], bundle: true, write: false,
-        format: 'esm', target: 'es2022', platform: 'browser' });
+        format: 'iife', target: 'es2022', platform: 'browser' });
       return { contents: `export default ${JSON.stringify(b.outputFiles[0].text)};`, loader: 'js' };
     });
   },

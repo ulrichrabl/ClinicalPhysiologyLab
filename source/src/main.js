@@ -8,6 +8,8 @@ import cardioDomain from './domains/cardio/index.js';
 import neuroDomain from './domains/neuro/index.js';
 import labsDomain from './domains/labs/index.js';
 import { VITALS } from './domains/cardio/data/reference.js';
+import { attachRuntimeToPatient } from './runtime/compatibility-facade.ts';
+import { neurogenicShockDemo } from './scenarios/definitions/neurogenic-shock-demo.ts';
 
 /* ---------------------------------------------------------------------------
    Shell.
@@ -25,6 +27,13 @@ class Shell {
   constructor(root) {
     this.root = root;
     this.patient = new Patient();
+    /* Patient Runtime owns condition → mechanism → effect → adapter for the
+       C5 neurogenic-shock proof slice. Legacy Patient remains the shared
+       channel the existing UI reads; the facade keeps them in sync. */
+    this.runtime = attachRuntimeToPatient(this.patient, {
+      seed: 'cpl-main-session',
+      scenario: { id: neurogenicShockDemo.id, version: neurogenicShockDemo.version },
+    });
     this.domains = [];
     this.byId = new Map();
     this.active = null;
@@ -36,9 +45,19 @@ class Shell {
     this.inspector = new Inspector(document.body);
 
     for (const factory of DOMAIN_FACTORIES) {
-      const d = factory({ patient: this.patient, shell: this });
+      const d = factory({ patient: this.patient, shell: this, runtime: this.runtime });
       this.domains.push(d);
       this.byId.set(d.id, d);
+    }
+
+    /* Once domains are mounted, cardio has created its sim host. */
+    const cardio = this.byId.get('cardio');
+    if (cardio && typeof window !== 'undefined' && window.__sim) {
+      this.runtime.bindCardioHost(window.__sim);
+    }
+    if (typeof window !== 'undefined') {
+      window.__runtime = this.runtime;
+      window.__scenario = neurogenicShockDemo;
     }
 
     this.patientView = new PatientView({

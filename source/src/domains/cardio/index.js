@@ -64,7 +64,7 @@ function inlineSimHost(source) {
   return host;
 }
 
-export default function cardioDomain({ patient, shell }) {
+export default function cardioDomain({ patient, shell, runtime }) {
   const worker = createSimHost(workerSource);
   /* Exposed for the diagnostic report and the offline render harness. */
   if (typeof window !== 'undefined') window.__sim = worker;
@@ -74,6 +74,10 @@ export default function cardioDomain({ patient, shell }) {
   let lastSnap = null;
   let defaults = {};      // the model's own defaults, for undoing overrides
   let prevOverride = new Set();
+
+  if (runtime && typeof runtime.bindCardioHost === 'function') {
+    runtime.bindCardioHost(worker);
+  }
 
   /* Apply every coupling that targets this domain — and, just as importantly,
      *un*-apply the ones that have stopped firing. Without the second half an
@@ -146,7 +150,12 @@ export default function cardioDomain({ patient, shell }) {
     const m = e.data;
     if (m.type === 'catalog') {
       catalog = m.pathologies;
-      if (m.defaults) defaults = m.defaults;
+      if (m.defaults) {
+        defaults = m.defaults;
+        if (runtime && typeof runtime.bindCardioHost === 'function') {
+          runtime.bindCardioHost(worker, defaults);
+        }
+      }
       if (typeof globalThis !== 'undefined') globalThis.__catalogSeen = m.pathologies;
       ecg.setCatalog(m.pathologies);
       cases.render();
@@ -158,6 +167,9 @@ export default function cardioDomain({ patient, shell }) {
     if (m.type !== 'snapshot') return;
     const s = m.data;
     lastSnap = s;
+    if (runtime && typeof runtime.ingestCardioSnapshot === 'function') {
+      runtime.ingestCardioSnapshot(s);
+    }
 
     // publish into the shared patient
     if (s.Pmean != null) {
