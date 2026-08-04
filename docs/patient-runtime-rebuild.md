@@ -1,10 +1,10 @@
 # Patient Runtime rebuild
 
-Clean production cut of the patient-first architecture (Phases 1–3).
+Clean production cut of the patient-first architecture (Phases 1–4).
 
-There is **no compatibility facade** and **no dual path** for neurogenic shock
-or channel-driven mechanisms. The Patient Runtime is the sole authority that
-resolves mechanisms, composes effects, and drives the circulation adapter.
+The Patient Runtime is the sole authority that resolves mechanisms, composes
+effects, owns canonical cardiovascular public state, and exposes clinical
+findings as observation plugins.
 
 ## Layout
 
@@ -14,7 +14,8 @@ resolves mechanisms, composes effects, and drives the circulation adapter.
 | Ports + composition | `source/src/physiology/` |
 | Channel + SCI mechanisms | `source/src/physiology/mechanisms/` |
 | Conditions | `source/src/conditions/` |
-| Circulation adapter | `source/src/models/cardiovascular/` |
+| Circulation adapter + public state | `source/src/models/cardiovascular/` |
+| Observation plugins | `source/src/observations/` |
 | Runtime | `source/src/runtime/patient-runtime.ts` |
 | Scenario seed | `source/src/scenarios/definitions/` |
 | ADRs | `docs/adr/` |
@@ -35,14 +36,24 @@ UI / scenario / test / tool
         │
         ▼
  Cardiovascular adapter → Circulation host
+        │
+        ▼
+ Canonical public state (CV + electrophysiology)
+        │
+        ├── observe.vital-signs
+        ├── observe.twelve-lead-ecg
+        └── channel projections (labs / Patient workspace)
 ```
 
-`Patient` holds shared channels for the UI (chemistry, drugs, projected vitals).
-Edits to input channels call `runtime.syncChannels`. Cord level is a projection
-from active conditions, not a write path into physiology.
+Haemodynamic ground truth is runtime public state. The monitor reads
+`runtime.monitorSnapshot()` / vitals observations. Labs still consume
+projected channels derived from that public state — not domain `setMany`
+writes.
 
-## Proof slice
+## Tests
 
 ```bash
-cd source && node scripts/runtime-slice.test.mjs
+cd source
+node scripts/runtime-slice.test.mjs          # C5 proof slice VS-1…VS-10
+node scripts/phase4-observations.test.mjs    # canonical state + observations
 ```
