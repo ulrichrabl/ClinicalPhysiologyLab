@@ -131,8 +131,11 @@ export function report() {
         + `EF ${Math.round(snap.EF)}% CO ${snap.CO?.toFixed(1)}`
       : '  haemodynamics   no snapshot yet  ← the simulation is not running');
     const p = shell.patient;
-    lines.push(`  couplings       ${p.activeCouplings().map((c) => c.id).join(', ') || 'none active'}`);
-    lines.push(`  cord lesion     ${p.get('cordLevel') || 'none'}`);
+    lines.push(`  mechanisms      ${p.activeCouplings().map((c) => c.id).join(', ') || 'none active'}`);
+    lines.push(`  cord lesion     ${shell.runtime?.getActiveCordLevel?.() || p.get('cordLevel') || 'none'}`);
+    if (shell.runtime) {
+      lines.push(`  runtime         ${shell.runtime.fingerprint.runtimeVersion}  seed ${shell.runtime.fingerprint.seed}`);
+    }
   } else {
     lines.push('  shell           NOT CONSTRUCTED  ← boot failed');
   }

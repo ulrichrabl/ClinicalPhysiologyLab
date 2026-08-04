@@ -55,7 +55,7 @@ function settle() {
   postMessage({ type: 'snapshot', data: sim.snapshot() });
 }
 
-declare var self: WorkerGlobalScope & typeof globalThis;
+declare var self: typeof globalThis;
 
 postMessage({
   type: 'catalog',

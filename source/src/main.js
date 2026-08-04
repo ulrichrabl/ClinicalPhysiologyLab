@@ -8,26 +8,43 @@ import cardioDomain from './domains/cardio/index.js';
 import neuroDomain from './domains/neuro/index.js';
 import labsDomain from './domains/labs/index.js';
 import { VITALS } from './domains/cardio/data/reference.js';
+import { createPatientRuntime } from './runtime/patient-runtime.ts';
+import { neurogenicShockDemo, compileScenario } from './scenarios/index.ts';
+import {
+  createExamineLayer,
+  createInvestigateLayer,
+  createTreatLayer,
+} from './shell/layers.js';
 
 /* ---------------------------------------------------------------------------
-   Shell.
+   Shell (ADR-009).
 
-   Holds the patient, mounts the domains, and owns the two things that must be
-   true across all of them: one set of vitals at the top of the screen, and one
-   transport control. Everything else belongs to a domain.
-
-   Adding a domain is one import and one entry in DOMAIN_FACTORIES.
+   Top-level information architecture: Patient / Examine / Investigate /
+   Treat / Explore. Specialty domains remain Explore lenses. The Patient
+   Runtime is the sole canonical-state authority.
 --------------------------------------------------------------------------- */
 
-const DOMAIN_FACTORIES = [cardioDomain, neuroDomain, labsDomain];
+const SPECIALTY_FACTORIES = [cardioDomain, neuroDomain, labsDomain];
 
 class Shell {
   constructor(root) {
     this.root = root;
     this.patient = new Patient();
+    this.runtime = createPatientRuntime({
+      seed: 'cpl-main-session',
+      scenario: { id: neurogenicShockDemo.id, version: neurogenicShockDemo.version },
+      projectChannels: (patch) => this.patient.setMany(patch, 'runtime'),
+    });
+    this.patient.runtime = this.runtime;
+    this.runtime.syncChannels(this.patient.channelSnapshot());
+
+    /** Top-level ADR-009 layers shown in the primary rail. */
     this.domains = [];
+    /** Specialty lenses (Circulation / Neurology / Labs), nested under Explore. */
+    this.lenses = [];
     this.byId = new Map();
     this.active = null;
+    this.exploreLensId = null;
     this.playing = true;
     this.speed = 1;
     this.lastSnap = null;
@@ -35,35 +52,74 @@ class Shell {
     this.buildChrome();
     this.inspector = new Inspector(document.body);
 
-    for (const factory of DOMAIN_FACTORIES) {
-      const d = factory({ patient: this.patient, shell: this });
-      this.domains.push(d);
+    for (const factory of SPECIALTY_FACTORIES) {
+      const d = factory({ patient: this.patient, shell: this, runtime: this.runtime });
+      d.lens = true;
+      this.lenses.push(d);
       this.byId.set(d.id, d);
+    }
+
+    if (typeof window !== 'undefined' && window.__sim) {
+      this.runtime.bindCardioHost(window.__sim);
+    }
+
+    const compiled = compileScenario(neurogenicShockDemo, {
+      availableCapabilities: this.runtime.describeCapabilities().capabilities,
+    });
+    if (typeof window !== 'undefined') {
+      window.__runtime = this.runtime;
+      window.__scenario = neurogenicShockDemo;
+      window.__compiledScenario = compiled.ok ? compiled.compiled : null;
     }
 
     this.patientView = new PatientView({
       patient: this.patient,
-      onNavigate: (domainId) => {
-        const d = this.byId.get(domainId);
-        if (d) this.go(`${d.id}.${d.workspaces[0].id}`);
-      },
+      runtime: this.runtime,
+      onNavigate: (id) => this.navigateLayerOrLens(id),
     });
-    this.patientDomain = {
-      id: 'patient', name: 'Patient', tagline: 'The shared state both domains read',
+
+    const patientLayer = {
+      id: 'patient',
+      name: 'Patient',
+      tagline: 'Clinical summary, scenario, and shared state',
       transport: false,
-      workspaces: [{ id: 'shared', label: 'Shared state', node: this.patientView.node, view: this.patientView }],
+      layer: true,
+      workspaces: [
+        { id: 'summary', label: 'Summary', node: this.patientView.node, view: this.patientView },
+      ],
     };
-    this.domains.push(this.patientDomain);
-    this.byId.set('patient', this.patientDomain);
+
+    const examineLayer = createExamineLayer({ runtime: this.runtime });
+    const investigateLayer = createInvestigateLayer({
+      runtime: this.runtime,
+      onExplore: (lensId, spaceId) => this.go(`${lensId}.${spaceId}`),
+    });
+    const treatLayer = createTreatLayer({ runtime: this.runtime });
+
+    const exploreLayer = {
+      id: 'explore',
+      name: 'Explore',
+      tagline: 'Specialty lenses — Circulation, Neurology, Labs',
+      transport: false,
+      layer: true,
+      workspaces: this.lenses.map((lens) => ({
+        id: lens.id,
+        label: lens.name,
+        node: el('div', { class: 'explore-lens-placeholder' },
+          el('p', {}, `Opening ${lens.name}…`)),
+        view: { resize() {} },
+        lensId: lens.id,
+      })),
+    };
+
+    this.domains = [patientLayer, examineLayer, investigateLayer, treatLayer, exploreLayer];
+    for (const d of this.domains) this.byId.set(d.id, d);
 
     this.renderRail();
-    this.go('cardio.loop');
+    this.go('patient.summary');
     this.firstRun();
 
     window.addEventListener('resize', () => this.resizeActive());
-    /* Redraw when the pane is actually laid out, rather than hoping a single
-       animation frame was enough. This is what makes the canvases fill in on a
-       slow first paint, on a font load, and after the first-run card closes. */
     if (typeof ResizeObserver === 'function') {
       let last = 0;
       this._ro = new ResizeObserver(() => {
@@ -72,7 +128,6 @@ class Shell {
       });
       this._ro.observe(this.pane);
     }
-    // and once more after layout and webfonts have settled
     setTimeout(() => this.resizeActive(), 60);
     setTimeout(() => this.resizeActive(), 400);
     if (document.fonts && document.fonts.ready) {
@@ -80,6 +135,19 @@ class Shell {
     }
     window.addEventListener('keydown', (e) => this.onKey(e));
     this.patient.on(() => this.renderRailBadges());
+    this.runtime.subscribe(() => this.renderRailBadges());
+  }
+
+  navigateLayerOrLens(id) {
+    if (this.byId.has(id) && this.domains.includes(this.byId.get(id))) {
+      const d = this.byId.get(id);
+      this.go(`${d.id}.${d.workspaces[0].id}`);
+      return;
+    }
+    const lens = this.lenses.find((l) => l.id === id);
+    if (lens) {
+      this.go(`${lens.id}.${lens.workspaces[0].id}`);
+    }
   }
 
   /* ---- chrome ----------------------------------------------------------- */
@@ -96,7 +164,7 @@ class Shell {
           for (const b of this.speedSel.children) b.classList.remove('on');
           e.currentTarget.classList.add('on');
           this.speed = v;
-          for (const d of this.domains) d.control?.speed?.(v);
+          for (const d of this.lenses) d.control?.speed?.(v);
         },
       }, `${v}×`)));
     this.resetBtn = el('button', { class: 'tbtn', title: 'Reset', onclick: () => this.resetAll() }, '⟲');
@@ -106,7 +174,6 @@ class Shell {
       onclick: () => this.toggleTheme() }, '◐');
 
     this.monitor = el('div', { class: 'monitor' });
-
     this.pane = el('main', { class: 'pane' });
 
     this.root.append(
@@ -128,7 +195,14 @@ class Shell {
     clear(this.domainTabs);
     for (const d of this.domains) {
       const b = el('button', { class: 'tab', data: { domain: d.id },
-        onclick: () => this.go(`${d.id}.${this.lastSpace(d) || d.workspaces[0].id}`) },
+        onclick: () => {
+          if (d.id === 'explore') {
+            const lens = this.lenses.find((l) => l.id === this.exploreLensId) || this.lenses[0];
+            this.go(`${lens.id}.${this.lastSpace(lens) || lens.workspaces[0].id}`);
+            return;
+          }
+          this.go(`${d.id}.${this.lastSpace(d) || d.workspaces[0].id}`);
+        } },
         el('span', {}, d.name),
         el('span', { class: 'tab-badge', hidden: true }));
       this.domainTabs.appendChild(b);
@@ -140,32 +214,91 @@ class Shell {
     const active = this.patient.activeCouplings();
     for (const b of this.domainTabs.children) {
       const id = b.dataset.domain;
-      const hits = active.filter((c) => c.to === id || (id === 'patient' && active.length));
       const badge = b.querySelector('.tab-badge');
-      const n = id === 'patient' ? active.length : hits.length;
+      let n = 0;
+      let danger = false;
+      if (id === 'patient' || id === 'examine') {
+        n = active.length;
+        danger = active.some((c) => c.level === 'danger');
+      } else if (id === 'explore') {
+        const hits = active.filter((c) => this.lenses.some((l) => l.id === c.to));
+        n = hits.length;
+        danger = hits.some((c) => c.level === 'danger');
+      }
       badge.hidden = n === 0;
       badge.textContent = String(n);
-      badge.className = 'tab-badge' + (hits.some((c) => c.level === 'danger') ? ' danger' : '');
+      badge.className = 'tab-badge' + (danger ? ' danger' : '');
     }
   }
 
   lastSpace(d) { return this._lastSpace?.[d.id]; }
 
+  isLensId(id) {
+    return this.lenses.some((l) => l.id === id);
+  }
+
   go(path) {
     const [domainId, spaceId] = path.split('.');
+    const asLens = this.isLensId(domainId);
     const d = this.byId.get(domainId);
     if (!d) return;
+
+    if (asLens) {
+      this.exploreLensId = domainId;
+      const space = d.workspaces.find((w) => w.id === spaceId) || d.workspaces[0];
+      this.active = { domain: d, space, layer: 'explore' };
+      (this._lastSpace ??= {})[d.id] = space.id;
+
+      for (const b of this.domainTabs.children) {
+        b.classList.toggle('on', b.dataset.domain === 'explore');
+      }
+
+      clear(this.spaceTabs);
+      // Lens picker
+      for (const lens of this.lenses) {
+        this.spaceTabs.appendChild(el('button', {
+          class: 'tab sm' + (lens.id === d.id ? ' on' : ''),
+          onclick: () => this.go(`${lens.id}.${this.lastSpace(lens) || lens.workspaces[0].id}`),
+        }, lens.name));
+      }
+      this.spaceTabs.appendChild(el('span', { class: 'space-sep' }, '·'));
+      for (const w of d.workspaces) {
+        this.spaceTabs.appendChild(el('button', {
+          class: 'tab sm' + (w.id === space.id ? ' on' : ''),
+          onclick: () => this.go(`${d.id}.${w.id}`),
+        }, w.label));
+      }
+      this.spaceTabs.appendChild(el('div', { class: 'rail-spacer' }));
+      this.spaceTabs.appendChild(el('div', { class: 'space-tagline' }, d.tagline || ''));
+
+      this.transport.style.visibility = d.transport ? 'visible' : 'hidden';
+      clear(this.pane);
+      this.pane.appendChild(space.node);
+      requestAnimationFrame(() => this.resizeActive());
+      return;
+    }
+
+    // Top-level layer
     const space = d.workspaces.find((w) => w.id === spaceId) || d.workspaces[0];
-    this.active = { domain: d, space };
+    this.active = { domain: d, space, layer: d.id };
     (this._lastSpace ??= {})[d.id] = space.id;
 
-    for (const b of this.domainTabs.children) b.classList.toggle('on', b.dataset.domain === d.id);
+    for (const b of this.domainTabs.children) {
+      b.classList.toggle('on', b.dataset.domain === d.id);
+    }
 
     clear(this.spaceTabs);
     for (const w of d.workspaces) {
       this.spaceTabs.appendChild(el('button', {
         class: 'tab sm' + (w.id === space.id ? ' on' : ''),
-        onclick: () => this.go(`${d.id}.${w.id}`),
+        onclick: () => {
+          if (d.id === 'explore' && w.lensId) {
+            const lens = this.byId.get(w.lensId);
+            this.go(`${lens.id}.${this.lastSpace(lens) || lens.workspaces[0].id}`);
+            return;
+          }
+          this.go(`${d.id}.${w.id}`);
+        },
       }, w.label));
     }
     this.spaceTabs.appendChild(el('div', { class: 'rail-spacer' }));
@@ -173,17 +306,39 @@ class Shell {
 
     this.transport.style.visibility = d.transport ? 'visible' : 'hidden';
 
+    // Explore workspace tiles jump straight into the lens.
+    if (d.id === 'explore' && space.lensId) {
+      const lens = this.byId.get(space.lensId);
+      this.go(`${lens.id}.${this.lastSpace(lens) || lens.workspaces[0].id}`);
+      return;
+    }
+
     clear(this.pane);
     this.pane.appendChild(space.node);
     requestAnimationFrame(() => this.resizeActive());
   }
 
-  activeWorkspace() { return this.active ? `${this.active.domain.id}.${this.active.space.id}` : null; }
+  activeWorkspace() {
+    return this.active ? `${this.active.domain.id}.${this.active.space.id}` : null;
+  }
   resizeActive() { guard('shell.resize', () => this.active?.space.view?.resize?.()); }
 
   /* ---- vitals strip ----------------------------------------------------- */
+  updateVitalsFromRuntime() {
+    if (!this.runtime) return;
+    const snap = this.runtime.monitorSnapshot();
+    this.lastSnap = snap;
+    this.renderVitals(snap);
+    const obs = this.runtime.observe({ type: 'observe.vital-signs' });
+    this._lastVitalsObservation = obs;
+  }
+
   updateVitals(snap) {
     this.lastSnap = snap;
+    this.renderVitals(snap);
+  }
+
+  renderVitals(snap) {
     if (this.monitor.children.length === 0) this.buildVitals();
     const st = this.patient.all();
     for (const v of VITALS) {
@@ -197,7 +352,6 @@ class Shell {
       const bad = v.normal && num != null && (num < v.normal[0] || num > v.normal[1]);
       cell.node.classList.toggle('warn', !!bad);
     }
-    // shared-state chips that are out of range
     const chips = [];
     for (const [k, ch] of Object.entries(CHANNELS)) {
       if (ch.derived && k !== 'CPP') continue;
@@ -205,26 +359,42 @@ class Shell {
       if (s === 'normal') continue;
       chips.push({ k, ch, v: st[k], s });
     }
+    const interp = this._lastVitalsObservation?.interpretation;
+    if (interp?.length) {
+      for (const i of interp) {
+        chips.push({ k: i.id, ch: { label: i.label }, v: '', s: i.id.includes('shock') ? 'danger' : 'warn' });
+      }
+    }
     clear(this._alertCell);
     if (chips.length) {
       this._alertCell.append(...chips.map((c) => el('span', { class: `vflag ${c.s}` },
-        `${c.ch.label.split(' ')[0]} ${typeof c.v === 'number' ? c.v.toFixed(c.ch.step < 1 ? 1 : 0) : c.v}`)));
+        c.v === '' || c.v == null
+          ? c.ch.label
+          : `${c.ch.label.split(' ')[0]} ${typeof c.v === 'number' ? c.v.toFixed(c.ch.step < 1 ? 1 : 0) : c.v}`)));
     }
   }
 
   buildVitals() {
     this._vitalCells = {};
+    this._lastVitalsObservation = null;
     for (const v of VITALS) {
       const value = el('span', { class: 'vital-v' }, '—');
       const node = el('button', { class: 'vital', data: { inspect: v.key },
-        onclick: (e) => this.inspector.show(e.currentTarget, {
-          title: v.title || v.label, value: value.textContent + (v.unit ? ` ${v.unit}` : ''),
-          body: v.body,
-          detail: typeof v.detail === 'function'
-            ? (v.detail(this.lastSnap) || []).map(([k, val]) => `${k}: ${val}`).join('   ·   ')
-            : v.detail,
-          links: this.patient.explain(v.key).map((h) => ({ name: h.coupling.name, text: h.coupling.short })),
-        }) },
+        onclick: (e) => {
+          const obs = this.runtime?.observe?.({ type: 'observe.vital-signs' });
+          const explain = this.runtime?.query?.({ type: 'explanation.vitals' });
+          this.inspector.show(e.currentTarget, {
+            title: v.title || v.label, value: value.textContent + (v.unit ? ` ${v.unit}` : ''),
+            body: v.body,
+            detail: typeof v.detail === 'function'
+              ? (v.detail(this.lastSnap) || []).map(([k, val]) => `${k}: ${val}`).join('   ·   ')
+              : v.detail,
+            links: [
+              ...(obs?.interpretation || []).map((i) => ({ name: i.label, text: 'Observation interpretation' })),
+              ...(explain?.nodes || []).slice(0, 3).map((n) => ({ name: n.label, text: n.detail || n.kind })),
+            ],
+          });
+        } },
         el('span', { class: 'vital-k' }, v.label),
         value,
         v.unit && el('span', { class: 'vital-u' }, v.unit),
@@ -236,9 +406,6 @@ class Shell {
     this.monitor.append(el('div', { class: 'rail-spacer' }), this._alertCell);
   }
 
-  /* A short orientation, dismissed for good on first close. Three things only:
-     the one interaction that is not discoverable, the one that shows the
-     framework off, and where to get help. */
   firstRun() {
     let seen = false;
     try { seen = localStorage.getItem('cpl.seen') === '1'; } catch {}
@@ -254,20 +421,18 @@ class Shell {
         el('h2', {}, 'Clinical Physiology Lab'),
         el('ol', { class: 'fr-list' },
           el('li', {},
-            el('strong', {}, 'Drag the cardiac cycle strip. '),
-            'The pressure–volume loop, the heart schematic and every number follow the '
-            + 'cursor. Double-click to release it and go back to live.'),
+            el('strong', {}, 'Work the patient, not the specialty. '),
+            'Patient → Examine → Investigate → Treat. Specialty simulators live under Explore.'),
           el('li', {},
-            el('strong', {}, 'The patient is shared. '),
-            'Place a cervical cord lesion in Neurology, then come back here — the '
-            + 'circulation will have changed, because the sympathetic outflow is cut. '
-            + 'The Patient tab lists every link that is currently firing.'),
+            el('strong', {}, 'Start the C5 scenario from Patient. '),
+            'It compiles to runtime commands — the same path tests and tools use — and the '
+            + 'circulation changes because sympathetic outflow is cut.'),
           el('li', {},
             el('strong', {}, 'Press D at any time. '),
             'If a panel ever looks blank or wrong, that opens a diagnostic report you '
             + 'can copy — much more useful than a screenshot.')),
         el('p', { class: 'fr-keys' },
-          'Space play/pause · Tab switch domain · 1–9 workspaces · T theme · Shift+C ECG capture'),
+          'Space play/pause · Tab switch layer · 1–9 workspaces · T theme · Shift+C ECG capture'),
         el('div', { class: 'btn-row' },
           el('button', { class: 'btn', onclick: close }, 'Start'))));
     document.body.appendChild(overlay);
@@ -277,12 +442,12 @@ class Shell {
   togglePlay() {
     this.playing = !this.playing;
     this.playBtn.textContent = this.playing ? '❚❚' : '▶';
-    for (const d of this.domains) (this.playing ? d.control?.play : d.control?.pause)?.();
+    for (const d of this.lenses) (this.playing ? d.control?.play : d.control?.pause)?.();
   }
 
   resetAll() {
     this.patient.reset();
-    for (const d of this.domains) d.control?.reset?.();
+    for (const d of this.lenses) d.control?.reset?.();
     toast('Patient and all models reset');
   }
 
@@ -300,13 +465,28 @@ class Shell {
     else if (e.key.toLowerCase() === 't') this.toggleTheme();
     else if (e.key >= '1' && e.key <= '9') {
       const i = +e.key - 1;
+      if (this.active?.layer === 'explore' || this.isLensId(this.active?.domain?.id)) {
+        const lens = this.byId.get(this.exploreLensId) || this.lenses[0];
+        const w = lens.workspaces[i];
+        if (w) this.go(`${lens.id}.${w.id}`);
+        return;
+      }
       const w = this.active?.domain.workspaces[i];
       if (w) this.go(`${this.active.domain.id}.${w.id}`);
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      const idx = this.domains.indexOf(this.active.domain);
+      const idx = this.domains.indexOf(
+        this.active?.layer === 'explore'
+          ? this.byId.get('explore')
+          : this.active?.domain,
+      );
       const next = this.domains[(idx + (e.shiftKey ? -1 : 1) + this.domains.length) % this.domains.length];
-      this.go(`${next.id}.${this.lastSpace(next) || next.workspaces[0].id}`);
+      if (next.id === 'explore') {
+        const lens = this.lenses.find((l) => l.id === this.exploreLensId) || this.lenses[0];
+        this.go(`${lens.id}.${this.lastSpace(lens) || lens.workspaces[0].id}`);
+      } else {
+        this.go(`${next.id}.${this.lastSpace(next) || next.workspaces[0].id}`);
+      }
     }
   }
 }
@@ -317,6 +497,5 @@ document.documentElement.dataset.theme = 'monitor';
 const shell = new Shell(document.getElementById('app'));
 if (typeof globalThis !== 'undefined') {
   globalThis.__shell = shell;
-  /* Stamped by scripts/build.mjs — null in raw src / unbundled runs. */
   if (globalThis.__BUILD_ID === undefined) globalThis.__BUILD_ID = null;
 }

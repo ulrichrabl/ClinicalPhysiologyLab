@@ -1,5 +1,5 @@
 import { el, clear, card, slider } from '../../../core/ui/kit.js';
-import { ANALYTES, PANELS, LAB_DEFAULTS, derived, interpretABG, LAB_LINKS } from '../data/labs.js';
+import { ANALYTES, PANELS, LAB_DEFAULTS, derived, interpretABG } from '../data/labs.js';
 
 const flagOf = (key, v) => {
   const a = ANALYTES[key];
@@ -13,16 +13,21 @@ const flagOf = (key, v) => {
 
 const ARROW = { low: '↓', low2: '↓↓', high: '↑', high2: '↑↑', normal: '' };
 
+const CHEM_EFFECT_KEYS = {
+  'hypoperfusion-lactate': ['lactate', 'pH', 'HCO3'],
+  'haemorrhage-hb': ['Hb'],
+  'renal-perfusion': ['urea', 'creat'],
+  'heart-failure-bnp': ['BNP'],
+};
+
 /* A read-only results card. Cases render their own panel with this rather than
-   writing into the patient's results — a worked example is not the patient in
-   front of you, and letting it overwrite them meant the simulation could never
-   write a lab value again once you had opened a case. */
+   writing into the patient's chemistry — a worked example is not the patient in
+   front of you. */
 export function renderResults(host, labs, opts = {}) {
   clear(host);
   for (const panel of PANELS) {
     const keys = panel.keys.filter((k) => labs[k] != null);
     if (opts.onlyAbnormal) {
-      // keep the panel if anything in it is flagged
       if (!keys.some((k) => flagOf(k, labs[k]) !== 'normal')) continue;
     }
     if (!keys.length) continue;
@@ -56,10 +61,15 @@ export function renderResults(host, labs, opts = {}) {
 }
 
 export class LabsView {
-  constructor({ patient, getLabs, setLab, onNavigate }) {
+  constructor({ patient, runtime, getLabs, setLab, resetLabs, getObservation, onNavigate }) {
     this.patient = patient;
+    this.runtime = runtime || null;
     this.getLabs = getLabs;
     this.setLab = setLab;
+    this.resetLabs = resetLabs || (() => {
+      for (const [k, v] of Object.entries(LAB_DEFAULTS)) this.setLab(k, v);
+    });
+    this.getObservation = getObservation || (() => null);
     this.onNavigate = onNavigate || (() => {});
     this.sliders = new Map();
     this.editing = false;
@@ -97,7 +107,7 @@ export class LabsView {
     this.editNode.hidden = !this.editing;
   }
 
-  reset() { for (const [k, v] of Object.entries(LAB_DEFAULTS)) this.setLab(k, v); }
+  reset() { this.resetLabs(); }
 
   buildEditors() {
     clear(this.editNode);
@@ -120,10 +130,11 @@ export class LabsView {
 
   refresh() {
     const labs = this.getLabs();
-    this.renderPanels(labs);
-    this.renderDerived(labs);
-    this.renderABG(labs);
-    this.renderLinks(labs);
+    const obs = this.getObservation();
+    this.renderPanels(labs, obs);
+    this.renderDerived(labs, obs);
+    this.renderABG(labs, obs);
+    this.renderLinks(obs);
     for (const [k, s] of this.sliders) {
       const input = s.node.querySelector('input');
       if (input && document.activeElement === input) continue;
@@ -131,18 +142,19 @@ export class LabsView {
     }
   }
 
-  renderPanels(labs) {
+  renderPanels(labs, obs) {
     clear(this.panelsNode);
+    const lineByKey = new Map((obs?.value?.lines || []).map((l) => [l.key, l]));
     for (const panel of PANELS) {
       const rows = panel.keys.map((k) => {
         const a = ANALYTES[k];
         const v = labs[k];
-        const flag = flagOf(k, v);
-        const driven = this.drivenBy(k, labs);
+        const flag = lineByKey.get(k)?.flag || flagOf(k, v);
+        const driven = this.drivenBy(k, obs);
         return el('div', { class: `lab-line ${flag}` },
           el('span', { class: 'll-n' }, a.label),
           el('span', { class: 'll-v' }, v == null ? '—' : v.toFixed(a.dp)),
-          el('span', { class: 'll-f' }, ARROW[flag]),
+          el('span', { class: 'll-f' }, ARROW[flag] || ''),
           el('span', { class: 'll-u' }, a.unit),
           el('span', { class: 'll-r' }, `${a.normal[0]}–${a.normal[1]}`),
           driven && el('span', { class: 'll-d', title: driven }, 'sim'));
@@ -154,22 +166,22 @@ export class LabsView {
     }
   }
 
-  drivenBy(key, labs) {
-    const pt = this.patient.all();
-    for (const l of LAB_LINKS) {
-      let live = false;
-      try { live = l.when(labs, pt); } catch { live = false; }
-      if (!live) continue;
-      let eff = {};
-      try { eff = l.apply(labs, pt) || {}; } catch { eff = {}; }
-      if (key in eff) return l.name;
+  drivenBy(key, obs) {
+    const line = (obs?.value?.lines || []).find((l) => l.key === key);
+    if (line?.source === 'physiology-derived') {
+      const hit = (obs.value.activeDerivations || []).find((d) =>
+        (CHEM_EFFECT_KEYS[d.id] || []).includes(key));
+      return hit?.name || 'Physiology-derived';
+    }
+    for (const d of obs?.value?.activeDerivations || []) {
+      if ((CHEM_EFFECT_KEYS[d.id] || []).includes(key)) return d.name;
     }
     return null;
   }
 
-  renderDerived(labs) {
+  renderDerived(labs, obs) {
     clear(this.derivedNode);
-    const d = derived(labs);
+    const d = obs?.value?.derived || derived(labs);
     const items = [
       ['Anion gap', d.anionGap.toFixed(0), 'mmol/L', '8–16',
         'Na⁺ − (Cl⁻ + HCO₃⁻). The unmeasured anions.'],
@@ -193,9 +205,9 @@ export class LabsView {
     }
   }
 
-  renderABG(labs) {
+  renderABG(labs, obs) {
     clear(this.abgNode);
-    const r = interpretABG(labs);
+    const r = obs?.value?.interpretation || interpretABG(labs);
     r.steps.forEach((s, i) => {
       this.abgNode.append(el('div', { class: 'abg-step' },
         el('div', { class: 'abg-i' }, String(i + 1)),
@@ -206,24 +218,44 @@ export class LabsView {
     });
   }
 
-  renderLinks(labs) {
+  renderLinks(obs) {
     clear(this.linksNode);
-    const pt = this.patient.all();
-    const live = LAB_LINKS.filter((l) => { try { return l.when(labs, pt); } catch { return false; } });
-    if (!live.length) {
+    const live = obs?.value?.activeDerivations || this.runtime?.activeChemistryLinks?.() || [];
+    const labs = this.getLabs();
+    const extras = [];
+    if (labs.K < 3.3 || labs.K > 5.3) {
+      extras.push({
+        id: 'potassium-ecg',
+        name: 'Potassium → the ECG',
+        text: `K⁺ ${labs.K.toFixed(1)} mmol/L — channel mechanisms shape the ECG.`,
+        why: 'Extracellular potassium is chemistry ground truth. Changing it here updates the '
+          + 'runtime channel that the cardiac adapter reads, so T waves change in the ECG workspace.',
+      });
+    }
+    if (labs.Ca < 2.15 || labs.Ca > 2.65) {
+      extras.push({
+        id: 'calcium-ecg',
+        name: 'Calcium → the QT interval',
+        text: `Adjusted calcium ${labs.Ca.toFixed(2)} mmol/L.`,
+        why: 'Calcium carries the plateau of the ventricular action potential. The runtime '
+          + 'projects this chemistry value into the electrophysiology adapter.',
+      });
+    }
+    const all = [...live, ...extras];
+    if (!all.length) {
       this.linksNode.append(el('p', { class: 'empty' },
         'Nothing in the rest of the patient is currently driving these results. Cause some hypotension in the '
         + 'Circulation workspace, or take away a litre of blood, and the lactate, urea and haemoglobin here will '
         + 'answer for it.'));
       return;
     }
-    for (const l of live) {
+    for (const l of all) {
       const why = el('p', { class: 'cpl-why', hidden: true }, l.why);
       const head = el('button', { class: 'cpl-head', onclick: () => { why.hidden = !why.hidden; } },
         el('span', { class: 'cpl-dot warn' }),
         el('span', { class: 'cpl-b' },
           el('span', { class: 'cpl-n' }, l.name),
-          el('span', { class: 'cpl-s' }, (() => { try { return l.text(labs, pt); } catch { return ''; } })())));
+          el('span', { class: 'cpl-s' }, l.text || '')));
       this.linksNode.append(el('div', { class: 'cpl warn' }, head, why,
         el('div', { class: 'btn-row' },
           el('button', { class: 'btn ghost sm', onclick: () => this.onNavigate('cardio') }, 'Open circulation →'))));

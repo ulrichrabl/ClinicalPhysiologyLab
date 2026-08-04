@@ -16,8 +16,9 @@ import { findingsFor, findingsForNodes, sparedForNodes, groupFindings, SYNDROMES
    lesion and read the findings, or pick a named syndrome and see where it sits.
 --------------------------------------------------------------------------- */
 export class LocalizeView {
-  constructor({ patient, onLesion }) {
+  constructor({ patient, runtime, onLesion }) {
     this.patient = patient;
+    this.runtime = runtime;
     this.onLesion = onLesion || (() => {});
     this.complete = true;
     this.nodes = [];
@@ -154,9 +155,27 @@ export class LocalizeView {
     if (!syndrome) for (const b of this.synList?.children || []) b.classList.remove('on');
     if (this.nodes.length === 1) this.siteSelect.value = this.nodes[0];
     this.refresh();
-    // Publish to the shared patient so cardio can react (neurogenic shock).
     const cord = cordLevelOf(this.nodes);
-    this.patient.set('cordLevel', cord);
+    if (this.runtime) {
+      if (cord) {
+        this.runtime.dispatch({
+          id: `neuro_${Date.now().toString(36)}`,
+          type: 'condition.activate',
+          payload: {
+            condition: 'cervical-spinal-cord-injury',
+            parameters: { level: cord, completeness: this.complete ? 1 : 0.5, side: 'bilateral' },
+          },
+          source: { type: 'ui', surface: 'neuro.localise' },
+        });
+      } else {
+        this.runtime.dispatch({
+          id: `neuro_${Date.now().toString(36)}`,
+          type: 'condition.resolve',
+          payload: { condition: 'cervical-spinal-cord-injury' },
+          source: { type: 'ui', surface: 'neuro.localise' },
+        });
+      }
+    }
     this.onLesion({ nodes: this.nodes, syndrome, cordLevel: cord });
   }
 

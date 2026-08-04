@@ -20,7 +20,7 @@ const rawLoader = {
     }));
     build.onLoad({ filter: /.*/, namespace: 'raw' }, async (a) => {
       const b = await esbuild.build({ entryPoints: [a.path], bundle: true, write: false,
-        format: 'esm', target: 'es2022', platform: 'browser' });
+        format: 'iife', target: 'es2022', platform: 'browser' });
       return { contents: `export default ${JSON.stringify(b.outputFiles[0].text)};`, loader: 'js' };
     });
   },
@@ -83,7 +83,7 @@ try {
 const shell = globalThis.__shell;
 if (!shell) { console.error('shell was not exposed for testing'); process.exit(1); }
 let visited = 0;
-for (const d of shell.domains) {
+const visitDomain = (d) => {
   for (const ws of d.workspaces) {
     try {
       shell.go(`${d.id}.${ws.id}`);
@@ -93,25 +93,46 @@ for (const d of shell.domains) {
       console.error(`WORKSPACE ${d.id}.${ws.id} FAILED:`, e.stack || e.message);
     }
   }
-}
+};
+for (const d of shell.domains) visitDomain(d);
+for (const d of (shell.lenses || [])) visitDomain(d);
 console.log(`✓ workspaces: ${visited} visited`);
 
-/* --- 6. exercise the couplings ------------------------------------------ */
+const layerIds = (shell.domains || []).map((d) => d.id);
+if (!['patient', 'examine', 'investigate', 'treat', 'explore'].every((id) => layerIds.includes(id))) {
+  console.error('IA FAILED: missing ADR-009 layers', layerIds);
+} else {
+  console.log('✓ IA: Patient / Examine / Investigate / Treat / Explore layers present');
+}
+
+/* --- 6. exercise the runtime mechanisms --------------------------------- */
 try {
   const p = shell.patient;
+  const rt = shell.runtime;
   p.set('K', 7.2);
-  if (!p.activeCouplings().some((c) => c.id === 'k-ecg')) throw new Error('K coupling did not fire');
+  if (!p.activeCouplings().some((c) => c.id === 'k-ecg')) throw new Error('K mechanism did not fire');
   p.set('ICP', 34);
   if (!p.activeCouplings().some((c) => c.id === 'cushing')) throw new Error('Cushing did not fire');
-  const ov = p.overridesFor('cardio');
-  if (ov.HR == null) throw new Error('Cushing produced no cardiac override');
-  p.set('cordLevel', 'C5');
-  const ov2 = p.overridesFor('cardio');
-  if (ov2.Rsys !== 0.52) throw new Error('neurogenic shock override missing');
-  console.log(`✓ couplings: ${p.activeCouplings().length} active, cardiac overrides ${JSON.stringify(ov2)}`);
+  const cushing = rt.cardioOverrides();
+  if (cushing.HR == null && cushing.Rsys == null) throw new Error('Cushing produced no cardiac override');
+  p.set('ICP', 10); // clear Cushing before isolating neurogenic shock
+  p.set('K', 4.0);
+  rt.dispatch({
+    id: 'smoke_c5',
+    type: 'condition.activate',
+    payload: {
+      condition: 'cervical-spinal-cord-injury',
+      parameters: { level: 'C5', completeness: 1, side: 'bilateral' },
+    },
+    source: { type: 'test', id: 'smoke' },
+  });
+  const ov2 = rt.cardioOverrides();
+  if (Math.abs(ov2.Rsys - 0.52) > 1e-6) throw new Error(`neurogenic shock override missing: Rsys ${ov2.Rsys}`);
+  if (Math.abs(ov2.HR - 52) > 1e-6) throw new Error(`neurogenic HR missing: ${ov2.HR}`);
+  console.log(`✓ mechanisms: ${p.activeCouplings().length} active, cardiac overrides ${JSON.stringify(ov2)}`);
   p.reset();
 } catch (e) {
-  console.error('COUPLING FAILED:', e.stack || e.message);
+  console.error('MECHANISM FAILED:', e.stack || e.message);
 }
 
 /* --- 7. neuro localiser through the UI ----------------------------------- */
@@ -119,8 +140,9 @@ try {
   const neuro = shell.byId.get('neuro');
   neuro.applyLesion({ syndrome: 'wallenberg', side: 'R' });
   neuro.applyLesion({ nodes: ['L_cst_C5', 'R_cst_C5', 'L_ahn_C5', 'R_ahn_C5'] });
-  if (shell.patient.get('cordLevel') !== 'C5') throw new Error('cord level not published to patient');
-  console.log('✓ neuro: lesions applied, cord level published to shared patient');
+  if (shell.runtime.getActiveCordLevel() !== 'C5') throw new Error('cord level not activated on runtime');
+  if (shell.patient.get('cordLevel') !== 'C5') throw new Error('cord level not projected to channels');
+  console.log('✓ neuro: lesions applied, C5 injury activated via runtime');
 } catch (e) {
   console.error('NEURO FAILED:', e.stack || e.message);
 }
@@ -148,7 +170,7 @@ try {
   console.error('CASES FAILED:', e.message);
 }
 
-/* --- 8c. cross-domain: circulation must write the labs ------------------ */
+/* --- 8c. cross-domain: circulation must write chemistry via the runtime --- */
 try {
   const cardio = shell.byId.get('cardio');
   const labsDom = shell.byId.get('labs');
@@ -162,26 +184,26 @@ try {
   const simHost0 = globalThis.__sim || globalThis.__worker;
   for (let i = 0; i < 3; i++) simHost0.postMessage({ type: 'settle', seconds: 3 });
   const restored = cardio.snapshot();
-  if (restored.baroEnabled !== true) throw new Error('coupling override was not undone: baroreflex still off');
-  if (Math.abs(restored.Rsys - 1.05) > 0.01) throw new Error(`coupling override was not undone: Rsys ${restored.Rsys}`);
-  console.log('✓ coupling undo: clearing the lesion restored baroreflex and resistance');
+  if (restored.baroEnabled !== true) throw new Error('mechanism override was not undone: baroreflex still off');
+  if (Math.abs(restored.Rsys - 1.05) > 0.01) throw new Error(`mechanism override was not undone: Rsys ${restored.Rsys}`);
+  console.log('✓ mechanism undo: clearing the lesion restored baroreflex and resistance');
 
   const before = labsDom.values();
   if (before.lactate > 1.6) throw new Error('baseline lactate already abnormal');
 
-  // bleed the patient and let the model settle
-  /* Drive the simulation host directly. `push` delivers *to* the UI; settling
-     the model means talking to the sim. */
+  // Bleed via the runtime experimental command — not a labs→cardio reach-through.
+  const rt = shell.runtime;
+  rt.dispatch({
+    id: `smoke_bv_${Date.now()}`,
+    type: 'experimental.circulation-param',
+    payload: { key: 'bloodVolume', value: 3700 },
+    source: { type: 'test', id: 'smoke' },
+  });
   const simHost = globalThis.__sim || globalThis.__worker;
-  simHost.postMessage({ type: 'setParam', key: 'bloodVolume', value: 3700 });
   for (let i = 0; i < 6; i++) simHost.postMessage({ type: 'settle', seconds: 4 });
   const snap2 = cardio.snapshot();
   if (!snap2 || snap2.Pmean == null) throw new Error('no snapshot after settling');
-  shell.patient.setMany({
-    MAP: Math.round(snap2.Pmean), CO: +(snap2.CO || 0).toFixed(1),
-    bloodVolume: Math.round(snap2.bloodVolume), LAP: +(snap2.Pla ?? 6).toFixed(1),
-    EF: Math.round(snap2.EF ?? 55),
-  }, 'cardio');
+  // Snapshot ingest on the cardio host already updated chemistry; refresh the view.
   labsDom.refresh();
   const after = labsDom.values();
 
@@ -191,7 +213,12 @@ try {
   if (!(snap2.Pmean > 40)) throw new Error(`circulation collapsed at 3700 mL: MAP ${snap2.Pmean}`);
   console.log(`✓ cross-domain: haemorrhage → MAP ${Math.round(snap2.Pmean)}, CO ${snap2.CO.toFixed(1)}, `
     + `lactate ${after.lactate.toFixed(1)}, Hb ${Math.round(after.Hb)}, urea ${after.urea.toFixed(1)}`);
-  simHost.postMessage({ type: 'setParam', key: 'bloodVolume', value: 5000 });
+  rt.dispatch({
+    id: `smoke_bv_restore_${Date.now()}`,
+    type: 'experimental.circulation-param',
+    payload: { key: 'bloodVolume', value: 5000 },
+    source: { type: 'test', id: 'smoke' },
+  });
   } else {
     console.log('  cross-domain: skipped (Worker path — model runs out of process)');
   }

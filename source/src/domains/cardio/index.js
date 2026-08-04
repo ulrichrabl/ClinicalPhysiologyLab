@@ -64,7 +64,7 @@ function inlineSimHost(source) {
   return host;
 }
 
-export default function cardioDomain({ patient, shell }) {
+export default function cardioDomain({ patient, shell, runtime }) {
   const worker = createSimHost(workerSource);
   /* Exposed for the diagnostic report and the offline render harness. */
   if (typeof window !== 'undefined') window.__sim = worker;
@@ -73,44 +73,20 @@ export default function cardioDomain({ patient, shell }) {
   let base = {};          // what the learner set with the sliders
   let lastSnap = null;
   let defaults = {};      // the model's own defaults, for undoing overrides
-  let prevOverride = new Set();
 
-  /* Apply every coupling that targets this domain — and, just as importantly,
-     *un*-apply the ones that have stopped firing. Without the second half an
-     override is permanent: clear a cervical cord lesion and the circulation
-     stays in neurogenic shock forever, because nothing ever restores the
-     baroreflex the lesion switched off. */
-  const applyEffective = () => {
-    const ov = patient.overridesFor('cardio');
-    const eff = { ...base };
-
-    for (const k of prevOverride) {
-      if (k in ov || k === 'stFactor') continue;
-      // no longer driven: hand the parameter back to the learner's value
-      eff[k] = (k in base) ? base[k] : defaults[k];
-    }
-    for (const [k, v] of Object.entries(ov)) {
-      if (k === 'stFactor') continue;
-      eff[k] = v;
-    }
-
-    const send_keys = Object.keys(eff).filter((k) => eff[k] !== undefined);
-    if (send_keys.length) {
-      send({ type: 'setParams', values: Object.fromEntries(send_keys.map((k) => [k, eff[k]])) });
-    }
-    if ('baroEnabled' in ov) send({ type: 'setBaro', value: ov.baroEnabled });
-    else if (prevOverride.has('baroEnabled')) {
-      send({ type: 'setBaro', value: base.baroEnabled ?? defaults.baroEnabled ?? true });
-    }
-
-    prevOverride = new Set(Object.keys(ov));
-    loop?.markDriven(prevOverride);
-  };
+  if (runtime && typeof runtime.bindCardioHost === 'function') {
+    runtime.bindCardioHost(worker);
+  }
 
   const setParam = (k, v) => {
     base[k] = v;
     if (k === 'K') patient.set('K', v, 'cardio');
     send({ type: 'setParam', key: k, value: v });
+    // Learner slider changes are the baseline; re-sync channels so runtime
+    // mechanisms still compose on top when relevant.
+    if (runtime && k !== 'K') {
+      /* non-channel sim params stay on the host directly */
+    }
   };
 
   const loop = new LoopView({ patient, send, onParam: setParam });
@@ -146,11 +122,15 @@ export default function cardioDomain({ patient, shell }) {
     const m = e.data;
     if (m.type === 'catalog') {
       catalog = m.pathologies;
-      if (m.defaults) defaults = m.defaults;
+      if (m.defaults) {
+        defaults = m.defaults;
+        if (runtime && typeof runtime.bindCardioHost === 'function') {
+          runtime.bindCardioHost(worker, defaults);
+        }
+      }
       if (typeof globalThis !== 'undefined') globalThis.__catalogSeen = m.pathologies;
       ecg.setCatalog(m.pathologies);
       cases.render();
-      /* Worker is loaded — prime ECG buffers now that this handler exists. */
       send({ type: 'prime' });
       send({ type: 'play' });
       return;
@@ -158,19 +138,12 @@ export default function cardioDomain({ patient, shell }) {
     if (m.type !== 'snapshot') return;
     const s = m.data;
     lastSnap = s;
-
-    // publish into the shared patient
-    if (s.Pmean != null) {
-      patient.setMany({
-        MAP: Math.round(s.Pmean), HR: Math.round(s.HR || 0), CO: +(s.CO || 0).toFixed(1),
-        // consumed by the labs domain
-        bloodVolume: Math.round(s.bloodVolume ?? 5000),
-        LAP: +(s.Pla ?? 6).toFixed(1),
-        EF: Math.round(s.EF ?? 55),
-        CVP: +(s.CVP ?? 4).toFixed(1),
-      }, 'cardio');
+    // Canonical public state lives on the runtime — cardio does not publish
+    // haemodynamics into shared channels as ground truth.
+    if (runtime && typeof runtime.ingestCardioSnapshot === 'function') {
+      runtime.ingestCardioSnapshot(s);
     }
-    guard('shell.vitals', () => shell.updateVitals(s));
+    guard('shell.vitals', () => shell.updateVitalsFromRuntime?.() ?? shell.updateVitals(s));
     loop.push(s);
     ecg.push(s);
     if (shell.activeWorkspace() === 'cardio.cases') casePanel.push(s);
@@ -180,17 +153,23 @@ export default function cardioDomain({ patient, shell }) {
   const rawHandler = worker.onmessage;
   worker.onmessage = (e) => guard('cardio.snapshot', () => rawHandler(e));
 
-  patient.on((ev) => {
-    if (ev.source === 'cardio') return;
-    applyEffective();
-  });
+  /* Channel edits flow Patient → runtime.syncChannels → adapter → host.
+     Cardio publishes haemodynamic snapshots back into channels. */
+  if (runtime) {
+    runtime.subscribe((ev) => {
+      if (ev.type === 'command.accepted' || ev.type === 'channels.synced' || ev.type === 'checkpoint.restored') {
+        const driven = new Set(Object.keys(runtime.cardioOverrides()));
+        loop?.markDriven(driven);
+      }
+    });
+  }
 
   return {
     id: 'cardio',
     name: 'Circulation',
     tagline: 'Pressures, volumes and the electrical trace that drives them',
-    produces: ['MAP', 'HR', 'CO'],
-    consumes: ['K', 'Ca', 'ICP', 'cordLevel', 'betaBlocker', 'atropine', 'vasopressor'],
+    produces: [], // haemodynamics are runtime public state, not domain channel writes
+    consumes: ['K', 'Ca', 'ICP', 'betaBlocker', 'atropine', 'vasopressor'],
     transport: true,
     workspaces: [
       { id: 'loop', label: 'Loop', node: loop.node, view: loop },

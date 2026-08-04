@@ -170,6 +170,14 @@ export class EcgEngine {
     this.physiology.metabolism.calciumEffect = (ca - 2.4) * 0.55;
   }
 
+  /** Drive sinus-cycle length from a haemodynamic HR set-point (e.g. neurogenic shock). */
+  setHeartRate(hr: number): void {
+    const clamped = Math.max(30, Math.min(220, hr));
+    this.physiology.autonomic.sympatheticDrive = clamped / 100;
+    this.conduction.setRhythm(this.conduction.getRhythmMode() || 'sinus', clamped);
+    this.lastMetrics = { ...this.lastMetrics, HR: Math.round(clamped) };
+  }
+
   snapshot(): SimulatorSnapshot {
     return {
       version: ENGINE_VERSION,

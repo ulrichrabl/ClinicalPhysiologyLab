@@ -215,6 +215,12 @@ export class Circulation {
   setParam(key, value) {
     if (key === 'bloodVolume') { this.setBloodVolume(value); return; }
     if (key === 'K') { this.K = value; this.engine?.setPotassium(value); return; }
+    if (key === 'HR') {
+      this.HR = value;
+      this.HReff = value;
+      this.engine?.setHeartRate?.(value);
+      return;
+    }
     if (key === 'avConduction') { this.avConduction = value; return; }
     if (key === 'lbbConduction') { this.lbbConduction = value; return; }
     if (key === 'rbbConduction') { this.rbbConduction = value; return; }

@@ -1,14 +1,10 @@
 /* ---------------------------------------------------------------------------
-   The Patient.
+   Shared patient channels.
 
-   Every domain in this framework reads from and writes to one shared patient.
-   That is the whole point: potassium is not a cardiology slider, it is a
-   property of the person, and it shows up in the ECG *and* in the reflexes.
-
-   Channels are declared here with units and reference ranges. Domains declare
-   what they produce and what they consume. Couplings are declared explicitly
-   rather than hidden in each domain's update loop, so the app can *show the
-   learner why* something changed — which is the reason this layer exists.
+   Numerical / categorical values the UI and observation layer read. Canonical
+   physiological evolution is owned by the Patient Runtime; these channels are
+   projections and learner-editable inputs (chemistry, drugs, ICP), not a
+   parallel solver.
 --------------------------------------------------------------------------- */
 
 export const CHANNELS = {
@@ -19,7 +15,7 @@ export const CHANNELS = {
   glucose:  { label: 'Glucose',     unit: 'mmol/L', normal: [3.9, 5.6], lo: 0.8, hi: 30,  step: 0.1, group: 'Chemistry' },
   pH:       { label: 'Arterial pH', unit: '',       normal: [7.35, 7.45], lo: 6.9, hi: 7.7, step: 0.01, group: 'Chemistry' },
 
-  // --- haemodynamics (produced by cardio) ---------------------------------
+  // --- haemodynamics (produced by cardio via runtime snapshots) -----------
   MAP:      { label: 'Mean arterial pressure', unit: 'mmHg', normal: [70, 105], derived: true, group: 'Haemodynamics' },
   HR:       { label: 'Heart rate',   unit: '/min', normal: [60, 100], derived: true, group: 'Haemodynamics' },
   CO:       { label: 'Cardiac output', unit: 'L/min', normal: [4, 8], derived: true, group: 'Haemodynamics' },
@@ -46,152 +42,13 @@ export const PATIENT_DEFAULTS = {
   betaBlocker: 0, atropine: 0, vasopressor: 0,
 };
 
-/* ---------------------------------------------------------------------------
-   Couplings.
-
-   Each one is a small, named, explainable rule with a `when` guard so the UI
-   can list only the links that are currently live. `apply` returns partial
-   overrides that the owning domain merges into its own parameters.
---------------------------------------------------------------------------- */
-export const COUPLINGS = [
-  {
-    id: 'k-ecg',
-    from: 'K', to: 'cardio',
-    name: 'Potassium → repolarisation',
-    short: 'K⁺ shapes the T wave and QRS width',
-    why: 'Extracellular K⁺ sets the resting membrane potential. Raising it makes '
-       + 'repolarisation faster and steeper (tall, peaked T waves), then slows phase-0 '
-       + 'upstroke as sodium channels inactivate — the QRS widens and P waves flatten. '
-       + 'Low K⁺ does the opposite: prolonged repolarisation, flat T, prominent U wave.',
-    when: (p) => p.K < 3.3 || p.K > 5.3,
-    severity: (p) => (p.K > 6.5 || p.K < 2.6 ? 'danger' : 'warn'),
-    state: (p) => (p.K > 5.3 ? `K⁺ ${p.K.toFixed(1)} — hyperkalaemic` : `K⁺ ${p.K.toFixed(1)} — hypokalaemic`),
-    apply: (p) => ({ K: p.K }),
-  },
-  {
-    id: 'ca-qt',
-    from: 'Ca', to: 'cardio',
-    name: 'Calcium → plateau duration',
-    short: 'Ca²⁺ sets the ST segment length',
-    why: 'The plateau of the ventricular action potential is carried by L-type Ca²⁺ '
-       + 'current. Hypocalcaemia lengthens it — a long, flat ST segment and prolonged QT '
-       + 'without changing the T wave itself. Hypercalcaemia shortens the ST until the T '
-       + 'wave sits almost on the QRS.',
-    when: (p) => p.Ca < 2.15 || p.Ca > 2.65,
-    severity: (p) => (p.Ca < 1.8 || p.Ca > 3.0 ? 'danger' : 'warn'),
-    state: (p) => `Ca²⁺ ${p.Ca.toFixed(2)} — QT ${p.Ca < 2.2 ? 'prolonged' : 'shortened'}`,
-    apply: (p) => ({ stFactor: 1 + (2.4 - p.Ca) * 0.55 }),
-  },
-  {
-    id: 'cushing',
-    from: 'ICP', to: 'cardio',
-    name: 'Cushing reflex',
-    short: 'Rising ICP drives hypertension and reflex bradycardia',
-    why: 'When intracranial pressure approaches arterial pressure the brainstem is '
-       + 'hypoperfused. The sympathetic response raises systemic pressure to restore '
-       + 'cerebral perfusion; baroreceptors then answer that hypertension with vagal '
-       + 'bradycardia. Hypertension + bradycardia + irregular breathing is the triad — '
-       + 'it is a late and ominous sign.',
-    when: (p) => p.ICP > 20,
-    severity: (p) => (p.ICP > 35 ? 'danger' : 'warn'),
-    state: (p) => `ICP ${Math.round(p.ICP)} mmHg — CPP ${Math.round(p.CPP)}`,
-    apply: (p) => {
-      const drive = Math.min(1, (p.ICP - 20) / 25);
-      return { Rsys: 1.05 * (1 + drive * 0.55), HR: 72 * (1 - drive * 0.42) };
-    },
-  },
-  {
-    id: 'neurogenic-shock',
-    from: 'cordLevel', to: 'cardio',
-    name: 'Neurogenic shock',
-    short: 'A cord lesion above T6 cuts sympathetic outflow to the vessels and heart',
-    why: 'Sympathetic preganglionic neurons leave the cord between T1 and L2. A lesion '
-       + 'above T6 disconnects most of that outflow from the brainstem: arterioles lose '
-       + 'their tone and the cardiac accelerator fibres (T1–T4) are lost too. The result '
-       + 'is hypotension with a *slow* heart — which is what distinguishes it from '
-       + 'haemorrhagic shock, where the heart races.',
-    when: (p) => p.cordLevel && CORD_RANK[p.cordLevel] != null && CORD_RANK[p.cordLevel] <= CORD_RANK.T6,
-    severity: () => 'danger',
-    state: (p) => `Cord lesion at ${p.cordLevel} — sympathetic outflow lost`,
-    /* Losing sympathetic outflow means losing arteriolar tone, the cardiac
-       accelerator *and* venoconstriction. In a closed loop the venous limb
-       matters most: the reservoir dilates, mean filling pressure falls, and the
-       heart has less to pump even before resistance is considered. */
-    apply: () => ({ Rsys: 0.52, HR: 52, V0sv: 2900, baroEnabled: false }),
-  },
-  {
-    id: 'cpp',
-    from: 'MAP', to: 'neuro',
-    name: 'Cerebral perfusion',
-    short: 'CPP = MAP − ICP',
-    why: 'The brain is perfused by the difference between what pushes blood in and what '
-       + 'presses on it from outside. Below about 50 mmHg autoregulation fails and flow '
-       + 'follows pressure passively — which is why a hypotensive episode is so much more '
-       + 'dangerous in a swollen brain than in a healthy one.',
-    when: (p) => p.CPP < 60,
-    severity: (p) => (p.CPP < 45 ? 'danger' : 'warn'),
-    state: (p) => `CPP ${Math.round(p.CPP)} mmHg — autoregulation ${p.CPP < 50 ? 'failed' : 'strained'}`,
-    apply: (p) => ({ ischaemia: Math.max(0, Math.min(1, (60 - p.CPP) / 35)) }),
-  },
-  {
-    id: 'beta-block',
-    from: 'betaBlocker', to: 'cardio',
-    name: 'Beta blockade',
-    short: 'β₁ blockade slows the node and weakens the beat',
-    why: 'Blocking β₁ receptors removes the sympathetic contribution to sinus rate, AV '
-       + 'conduction and contractility at once. Rate falls, the PR interval lengthens, and '
-       + 'the ventricle contracts less forcefully — which lowers cardiac output but also '
-       + 'lowers myocardial oxygen demand. That trade is the whole therapeutic point.',
-    when: (p) => p.betaBlocker > 0.02,
-    severity: (p) => (p.betaBlocker > 0.7 ? 'warn' : 'info'),
-    state: (p) => `β-blockade ${Math.round(p.betaBlocker * 100)}%`,
-    apply: (p) => ({
-      HR: 72 * (1 - p.betaBlocker * 0.38),
-      Emax: 2.7 * (1 - p.betaBlocker * 0.34),
-      avConduction: 1 - p.betaBlocker * 0.45,
-    }),
-  },
-  {
-    id: 'atropine',
-    from: 'atropine', to: 'cardio',
-    name: 'Vagolysis',
-    short: 'Atropine removes vagal brake on the SA and AV nodes',
-    why: 'Atropine is a muscarinic antagonist. It cannot make the heart contract harder — '
-       + 'ventricular myocardium has almost no vagal supply — but it releases the nodes '
-       + 'from parasympathetic restraint, so rate rises and AV conduction improves. This '
-       + 'is why it works for sinus bradycardia and nodal block, and fails in infranodal '
-       + 'block where the lesion is below the vagally innervated tissue.',
-    when: (p) => p.atropine > 0.02,
-    severity: () => 'info',
-    state: (p) => `Atropine ${Math.round(p.atropine * 100)}%`,
-    apply: (p) => ({ HR: 72 * (1 + p.atropine * 0.62), avConduction: 1 + p.atropine * 0.35 }),
-  },
-  {
-    id: 'pressor',
-    from: 'vasopressor', to: 'cardio',
-    name: 'Vasopressor support',
-    short: 'α₁ agonism raises systemic vascular resistance',
-    why: 'Constricting arterioles raises resistance and therefore mean pressure at any '
-       + 'given cardiac output. It buys perfusion pressure, but it also raises the load '
-       + 'the ventricle ejects against — in a failing heart that can lower stroke volume '
-       + 'even as the blood pressure number looks better.',
-    when: (p) => p.vasopressor > 0.02,
-    severity: () => 'info',
-    state: (p) => `Vasopressor ${Math.round(p.vasopressor * 100)}%`,
-    apply: (p) => ({ Rsys: 1.05 * (1 + p.vasopressor * 0.9) }),
-  },
-];
-
-const CORD_ORDER = ['C1','C2','C3','C4','C5','C6','C7','C8','T1','T2','T3','T4','T5','T6',
-  'T7','T8','T9','T10','T11','T12','L1','L2','L3','L4','L5','S1','S2','S3','S4'];
-export const CORD_RANK = Object.fromEntries(CORD_ORDER.map((l, i) => [l, i]));
-
-/* ------------------------------------------------------------------------- */
 export class Patient {
   constructor() {
     this.state = { ...PATIENT_DEFAULTS };
     this.listeners = new Set();
     this.baseline = { ...PATIENT_DEFAULTS };
+    /** @type {import('../runtime/patient-runtime.ts').DefaultPatientRuntime | null} */
+    this.runtime = null;
   }
 
   get(k) { return this.state[k]; }
@@ -201,6 +58,9 @@ export class Patient {
     if (this.state[k] === v) return;
     this.state[k] = v;
     this.recompute();
+    if (this.runtime && isChannelInput(k) && source !== 'runtime' && source !== 'cardio') {
+      this.runtime.syncChannels(this.channelSnapshot());
+    }
     this.emit({ key: k, value: v, source });
   }
 
@@ -211,56 +71,62 @@ export class Patient {
     }
     if (!changed) return;
     this.recompute();
+    if (this.runtime && source !== 'runtime' && source !== 'cardio') {
+      const touched = Object.keys(obj).some(isChannelInput);
+      if (touched) this.runtime.syncChannels(this.channelSnapshot());
+    }
     this.emit({ keys: Object.keys(obj), source });
   }
 
-  reset() { this.state = { ...PATIENT_DEFAULTS }; this.recompute(); this.emit({ source: 'reset' }); }
+  reset() {
+    this.state = { ...PATIENT_DEFAULTS };
+    this.recompute();
+    if (this.runtime) {
+      this.runtime.dispatch({
+        id: `reset_${Date.now()}`,
+        type: 'runtime.reset',
+        payload: {},
+        source: { type: 'system' },
+      });
+      this.runtime.syncChannels(this.channelSnapshot());
+    }
+    this.emit({ source: 'reset' });
+  }
 
-  /* Derived channels that are pure functions of the others. */
   recompute() {
     this.state.CPP = this.state.MAP - this.state.ICP;
   }
 
-  /* Which couplings are currently firing, for the UI to display. */
+  channelSnapshot() {
+    return {
+      K: this.state.K,
+      Ca: this.state.Ca,
+      ICP: this.state.ICP,
+      MAP: this.state.MAP,
+      CPP: this.state.CPP,
+      betaBlocker: this.state.betaBlocker,
+      atropine: this.state.atropine,
+      vasopressor: this.state.vasopressor,
+    };
+  }
+
+  /** Active mechanisms for the Patient workspace — sourced from the runtime. */
   activeCouplings() {
-    return COUPLINGS.filter((c) => {
-      try { return c.when(this.state); } catch { return false; }
-    }).map((c) => ({
-      ...c,
-      level: c.severity ? c.severity(this.state) : 'info',
-      status: c.state ? c.state(this.state) : '',
-    }));
+    if (!this.runtime) return [];
+    return this.runtime.activeMechanismDisplays();
   }
 
-  /* Merge every active coupling that targets `domain` into one override set. */
-  overridesFor(domain) {
-    const out = {};
-    for (const c of COUPLINGS) {
-      if (c.to !== domain) continue;
-      let live = false;
-      try { live = c.when(this.state); } catch { live = false; }
-      if (!live) continue;
-      Object.assign(out, c.apply(this.state));
-    }
-    return out;
-  }
-
-  /* Explain a single value: which couplings currently touch it. */
   explain(paramKey) {
-    const hits = [];
-    for (const c of COUPLINGS) {
-      let live = false;
-      try { live = c.when(this.state); } catch { live = false; }
-      if (!live) continue;
-      const eff = c.apply(this.state);
-      if (paramKey in eff) hits.push({ coupling: c, value: eff[paramKey] });
-    }
-    return hits;
+    if (!this.runtime) return [];
+    return this.runtime.explainPrivateParam(paramKey);
   }
 
   on(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
   emit(ev) { for (const fn of this.listeners) fn(ev, this.state); }
 }
+
+const CHANNEL_INPUTS = new Set(['K', 'Ca', 'ICP', 'betaBlocker', 'atropine', 'vasopressor']);
+function isChannelInput(k) { return CHANNEL_INPUTS.has(k); }
 
 export function channelStatus(key, value) {
   const ch = CHANNELS[key];
