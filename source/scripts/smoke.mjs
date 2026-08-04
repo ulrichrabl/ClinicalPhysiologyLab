@@ -83,7 +83,7 @@ try {
 const shell = globalThis.__shell;
 if (!shell) { console.error('shell was not exposed for testing'); process.exit(1); }
 let visited = 0;
-for (const d of shell.domains) {
+const visitDomain = (d) => {
   for (const ws of d.workspaces) {
     try {
       shell.go(`${d.id}.${ws.id}`);
@@ -93,8 +93,17 @@ for (const d of shell.domains) {
       console.error(`WORKSPACE ${d.id}.${ws.id} FAILED:`, e.stack || e.message);
     }
   }
-}
+};
+for (const d of shell.domains) visitDomain(d);
+for (const d of (shell.lenses || [])) visitDomain(d);
 console.log(`✓ workspaces: ${visited} visited`);
+
+const layerIds = (shell.domains || []).map((d) => d.id);
+if (!['patient', 'examine', 'investigate', 'treat', 'explore'].every((id) => layerIds.includes(id))) {
+  console.error('IA FAILED: missing ADR-009 layers', layerIds);
+} else {
+  console.log('✓ IA: Patient / Examine / Investigate / Treat / Explore layers present');
+}
 
 /* --- 6. exercise the runtime mechanisms --------------------------------- */
 try {

@@ -24,9 +24,23 @@ import type {
   ChemistryUnpinPayload,
   CirculationParamPayload,
   CommandResult,
+  FluidBolusPayload,
   PatientCommand,
   ResolveConditionPayload,
+  ScenarioLoadPayload,
+  VasopressorPayload,
 } from '../contracts/commands.ts';
+import type {
+  CompiledScenario,
+  ScenarioAuthority,
+  ScenarioLoadResult,
+} from '../contracts/scenarios.ts';
+import { getScenario, listScenarios } from '../scenarios/index.ts';
+import {
+  compileScenario,
+  materialiseSeedCommands,
+} from '../scenarios/compiler.ts';
+import { ScenarioTriggerRunner } from '../scenarios/triggers.ts';
 import type { PatientRuntime } from '../contracts/index.ts';
 import type { PhysiologicalEffect } from '../contracts/effects.ts';
 import type { SimDuration, SimTime } from '../contracts/brands.ts';
@@ -163,6 +177,11 @@ export class DefaultPatientRuntime implements PatientRuntime {
   private chemistryPins = new Set<string>();
   private chemistryBaseline: ChemistryPublicState = { ...CHEMISTRY_DEFAULTS };
   private activeChemistryDerivations: ChemistryDerivation[] = [];
+  private compiledScenario: CompiledScenario | null = null;
+  private scenarioAuthority: ScenarioAuthority | null = null;
+  private triggerRunner: ScenarioTriggerRunner | null = null;
+  private scenarioAnnotations: { id: string; label: string; detail?: unknown; atMs: number }[] = [];
+  private learnerBloodVolume = 5000;
 
   constructor(opts: PatientRuntimeOptions = {}) {
     this.opts = opts;
@@ -239,6 +258,14 @@ export class DefaultPatientRuntime implements PatientRuntime {
         return this.accept(command, { changedPaths: ['chemistry.*'] });
       case 'experimental.circulation-param':
         return this.experimentalCirculationParam(command);
+      case 'scenario.load':
+        return this.scenarioLoadCommand(command);
+      case 'scenario.clear':
+        return this.scenarioClearCommand(command);
+      case 'treatment.fluid-bolus':
+        return this.treatmentFluidBolus(command);
+      case 'treatment.vasopressor':
+        return this.treatmentVasopressor(command);
       case 'checkpoint.restore': {
         const ref = (command.payload as { ref?: string })?.ref;
         if (!ref) {
@@ -260,6 +287,10 @@ export class DefaultPatientRuntime implements PatientRuntime {
             'chemistry.unpin',
             'chemistry.reset',
             'experimental.circulation-param',
+            'scenario.load',
+            'scenario.clear',
+            'treatment.fluid-bolus',
+            'treatment.vasopressor',
             'runtime.advance',
             'runtime.pause',
             'runtime.resume',
@@ -496,6 +527,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
       });
       this.timeline.push(...events);
     }
+    this.triggerRunner?.tick();
     this.emit({ type: 'runtime.advanced', revision: this.revision, simTime: this.simTime });
     return {
       from,
@@ -1010,6 +1042,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
   }
 
   private resetAll() {
+    this.clearScenario(false);
     this.conditions.clear();
     this.commandLog = [];
     this.timeline = [];
@@ -1018,6 +1051,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
     this.cardiovascular = { ...EMPTY_CARDIOVASCULAR_PUBLIC };
     this.electrophysiology = { ...EMPTY_ELECTROPHYSIOLOGY_PUBLIC };
     this.channels = { ...DEFAULT_CHANNELS };
+    this.learnerBloodVolume = 5000;
     this.resetChemistry();
     this.prevCardioDriven = new Set();
     this.opts.cardioHost?.postMessage({ type: 'reset' });
@@ -1077,7 +1111,10 @@ export class DefaultPatientRuntime implements PatientRuntime {
   }
 
   private experimentalCirculationParam(command: PatientCommand): CommandResult {
-    if (this.opts.authority && this.opts.authority.mayUseExperimentalControls === false) {
+    const auth = this.effectiveAuthority();
+    const src = command.source?.type;
+    const bypassAuthority = src === 'test' || src === 'lesson';
+    if (!bypassAuthority && auth.mayUseExperimentalControls === false) {
       return this.reject(command, runtimeError('UNAUTHORISED_COMMAND', 'experimental circulation controls not permitted'));
     }
     const payload = (command.payload ?? {}) as CirculationParamPayload;
@@ -1094,10 +1131,201 @@ export class DefaultPatientRuntime implements PatientRuntime {
         received: payload.value,
       }));
     }
+    if (payload.key === 'bloodVolume' && typeof payload.value === 'number') {
+      this.learnerBloodVolume = payload.value;
+    }
     this.opts.cardioHost?.postMessage({ type: 'setParam', key: payload.key, value: payload.value });
     this.pushTimeline('experimental.circulation-param', `${payload.key}=${payload.value}`);
     return this.accept(command, {
       changedPaths: [`experimental.circulation.${payload.key}`],
+    });
+  }
+
+  private scenarioLoadCommand(command: PatientCommand): CommandResult {
+    const payload = (command.payload ?? {}) as ScenarioLoadPayload;
+    const loaded = this.loadScenarioById(payload.scenarioId);
+    if (!loaded.accepted) {
+      return this.reject(command, loaded.error ?? runtimeError('INVALID_PARAMETER', 'scenario load failed'));
+    }
+    return this.accept(command, {
+      changedPaths: ['scenario', 'conditions', 'mechanisms'],
+      events: [{ id: `ev_scen_${this.revision}`, type: 'scenario.loaded', at: this.simTime }],
+    });
+  }
+
+  private scenarioClearCommand(command: PatientCommand): CommandResult {
+    this.clearScenario();
+    return this.accept(command, { changedPaths: ['scenario', 'conditions'] });
+  }
+
+  private treatmentFluidBolus(command: PatientCommand): CommandResult {
+    const auth = this.effectiveAuthority();
+    if (auth.mayTreat && !auth.mayTreat.includes('intravenous-fluid')) {
+      return this.reject(command, runtimeError('UNAUTHORISED_COMMAND', 'intravenous fluid not permitted in this scenario'));
+    }
+    const payload = (command.payload ?? {}) as FluidBolusPayload;
+    const vol = Number(payload.volumeMl);
+    if (!Number.isFinite(vol) || vol <= 0 || vol > 2000) {
+      return this.reject(command, runtimeError('OUT_OF_RANGE', 'volumeMl must be in (0, 2000]', {
+        path: 'payload.volumeMl',
+        received: payload.volumeMl,
+      }));
+    }
+    this.learnerBloodVolume = Math.min(7000, this.learnerBloodVolume + vol);
+    this.opts.cardioHost?.postMessage({
+      type: 'setParam',
+      key: 'bloodVolume',
+      value: this.learnerBloodVolume,
+    });
+    this.pushTimeline('treatment.fluid-bolus', `+${vol} mL → ${this.learnerBloodVolume} mL`);
+    return this.accept(command, {
+      changedPaths: ['cardiovascular.bloodVolume', 'treatment.fluid'],
+    });
+  }
+
+  private treatmentVasopressor(command: PatientCommand): CommandResult {
+    const auth = this.effectiveAuthority();
+    if (auth.mayTreat && !auth.mayTreat.includes('vasopressor')) {
+      return this.reject(command, runtimeError('UNAUTHORISED_COMMAND', 'vasopressor not permitted in this scenario'));
+    }
+    const payload = (command.payload ?? {}) as VasopressorPayload;
+    const intensity = Number(payload.intensity);
+    if (!Number.isFinite(intensity) || intensity < 0 || intensity > 1) {
+      return this.reject(command, runtimeError('OUT_OF_RANGE', 'intensity must be in [0, 1]', {
+        path: 'payload.intensity',
+        received: payload.intensity,
+      }));
+    }
+    this.channels.vasopressor = intensity;
+    this.recomputeCardio();
+    this.opts.projectChannels?.({ vasopressor: intensity });
+    this.pushTimeline('treatment.vasopressor', `intensity ${intensity}`);
+    return this.accept(command, { changedPaths: ['channels.vasopressor', 'treatment.vasopressor'] });
+  }
+
+  private effectiveAuthority(): ScenarioAuthority {
+    if (this.scenarioAuthority) return this.scenarioAuthority;
+    return {
+      mayObserve: ['*'],
+      mayTreat: ['intravenous-fluid', 'vasopressor'],
+      mayUseExperimentalControls: this.opts.authority?.mayUseExperimentalControls !== false,
+      mayReadLatentState: this.opts.authority?.mayReadLatentState !== false,
+      mayAdvanceTime: this.opts.authority?.mayAdvanceTime !== false,
+      mayAuthorConditions: this.opts.authority?.mayAuthorConditions !== false,
+    };
+  }
+
+  /** Load a compiled scenario: apply authority, dispatch seed commands, arm triggers. */
+  loadScenario(compiled: CompiledScenario): ScenarioLoadResult {
+    const caps = this.describeCapabilities().capabilities;
+    const recheck = compileScenario(compiled.definition, { availableCapabilities: caps });
+    if (recheck.ok === false) {
+      return {
+        accepted: false,
+        scenarioId: compiled.definition.id,
+        version: compiled.definition.version,
+        seedResults: [],
+        error: recheck.error,
+      };
+    }
+
+    this.clearScenario(true);
+    this.compiledScenario = recheck.compiled;
+    this.scenarioAuthority = { ...recheck.compiled.authority };
+    this.fingerprint.scenario = {
+      id: recheck.compiled.definition.id,
+      version: recheck.compiled.definition.version,
+    };
+
+    const seeds = materialiseSeedCommands(recheck.compiled);
+    const seedResults = seeds.map((cmd) => {
+      const result = this.dispatch(cmd);
+      return { type: cmd.type, accepted: result.accepted };
+    });
+
+    this.triggerRunner = new ScenarioTriggerRunner(this);
+    this.triggerRunner.arm(recheck.compiled);
+    this.triggerRunner.tick();
+
+    this.emit({
+      type: 'scenario.loaded',
+      revision: this.revision,
+      simTime: this.simTime,
+      detail: { scenarioId: recheck.compiled.definition.id },
+    });
+
+    return {
+      accepted: seedResults.every((r) => r.accepted),
+      scenarioId: recheck.compiled.definition.id,
+      version: recheck.compiled.definition.version,
+      seedResults,
+    };
+  }
+
+  loadScenarioById(scenarioId: string): ScenarioLoadResult {
+    const def = getScenario(scenarioId);
+    if (!def) {
+      return {
+        accepted: false,
+        scenarioId,
+        version: '',
+        seedResults: [],
+        error: runtimeError('INVALID_PARAMETER', `Unknown scenario: ${scenarioId}`, {
+          received: scenarioId,
+          alternatives: listScenarios().map((s) => s.id),
+        }),
+      };
+    }
+    const compiled = compileScenario(def, {
+      availableCapabilities: this.describeCapabilities().capabilities,
+    });
+    if (compiled.ok === false) {
+      return {
+        accepted: false,
+        scenarioId,
+        version: def.version,
+        seedResults: [],
+        error: compiled.error,
+      };
+    }
+    return this.loadScenario(compiled.compiled);
+  }
+
+  clearScenario(resolveConditions = true): void {
+    this.triggerRunner?.disarm();
+    this.triggerRunner = null;
+    this.compiledScenario = null;
+    this.scenarioAuthority = null;
+    this.scenarioAnnotations = [];
+    if (resolveConditions) {
+      this.conditions.clear();
+      this.recomputeCardio();
+      this.projectCordLevel();
+    }
+  }
+
+  activeScenario(): CompiledScenario | null {
+    return this.compiledScenario;
+  }
+
+  scenarioAnnotationList() {
+    return [...this.scenarioAnnotations];
+  }
+
+  /** Used by ScenarioTriggerRunner for annotate actions. */
+  recordScenarioAnnotation(id: string, label: string, detail?: unknown): void {
+    this.scenarioAnnotations.push({
+      id,
+      label,
+      detail,
+      atMs: Number(this.simTime),
+    });
+    this.pushTimeline('scenario.annotation', label, detail);
+    this.emit({
+      type: 'scenario.annotation',
+      revision: this.revision,
+      simTime: this.simTime,
+      detail: { id, label, detail },
     });
   }
 

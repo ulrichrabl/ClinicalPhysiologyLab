@@ -74,8 +74,26 @@ export type KnownCommandType =
   | 'chemistry.unpin'
   | 'chemistry.reset'
   | 'experimental.circulation-param'
+  | 'scenario.load'
+  | 'scenario.clear'
+  | 'treatment.fluid-bolus'
+  | 'treatment.vasopressor'
   | 'runtime.advance'
   | 'runtime.pause'
   | 'runtime.resume'
   | 'runtime.reset'
   | 'checkpoint.restore';
+
+export interface ScenarioLoadPayload {
+  scenarioId: string;
+}
+
+export interface FluidBolusPayload {
+  /** Millilitres to add to circulating volume (educational). */
+  volumeMl: number;
+}
+
+export interface VasopressorPayload {
+  /** 0–1 educational infusion intensity. */
+  intensity: number;
+}

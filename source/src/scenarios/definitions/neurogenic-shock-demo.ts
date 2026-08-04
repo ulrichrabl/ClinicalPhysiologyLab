@@ -1,8 +1,10 @@
+import type { ScenarioDefinition } from '../../contracts/scenarios.ts';
+
 /**
  * Scenario seed for the first proof slice (spec §19).
- * Intentionally data-only: activation goes through runtime.dispatch.
+ * Intentionally data-only: activation goes through runtime.dispatch via the compiler.
  */
-export const neurogenicShockDemo = {
+export const neurogenicShockDemo: ScenarioDefinition = {
   id: 'neurogenic-shock-demo',
   version: '0.1.0',
   title: 'C5 spinal cord injury — neurogenic shock',
@@ -39,7 +41,14 @@ export const neurogenicShockDemo = {
     explanations: 'available',
   },
   authority: {
-    mayObserve: ['general-appearance', 'vital-signs', 'neurological-examination', 'cardiovascular-examination'],
+    mayObserve: [
+      'general-appearance',
+      'vital-signs',
+      'neurological-examination',
+      'cardiovascular-examination',
+      'twelve-lead-ecg',
+      'laboratory-panel',
+    ],
     mayTreat: ['intravenous-fluid', 'vasopressor'],
     mayUseExperimentalControls: false,
     mayReadLatentState: false,
@@ -58,4 +67,30 @@ export const neurogenicShockDemo = {
     },
     source: { type: 'scenario', id: 'neurogenic-shock-demo', version: '0.1.0' },
   },
-} as const;
+  triggers: [
+    {
+      id: 'hypotension-recognised',
+      when: {
+        kind: 'vital-threshold',
+        vital: 'meanArterialPressure',
+        op: 'lt',
+        value: 75,
+      },
+      then: {
+        kind: 'annotate',
+        label: 'Hypotension with relative bradycardia — consider neurogenic shock',
+        detail: {
+          teaching: 'Compensatory tachycardia is absent because cardiac accelerator fibres are interrupted.',
+        },
+      },
+    },
+    {
+      id: 'five-second-settle-note',
+      when: { kind: 'sim-time', atMs: 5000 },
+      then: {
+        kind: 'annotate',
+        label: 'Physiology has settled under complete C5 lesion',
+      },
+    },
+  ],
+};

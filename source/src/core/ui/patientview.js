@@ -1,48 +1,107 @@
 import { el, clear, card, slider, fmt } from './kit.js';
 import { CHANNELS, channelStatus } from '../patient.js';
+import { createCommandId } from '../../runtime/patient-runtime.ts';
+import { listScenarios } from '../../scenarios/index.ts';
 
 /* ---------------------------------------------------------------------------
-   The Patient workspace.
+   The Patient workspace (ADR-009 Patient layer).
 
-   This is the screen that makes the framework a framework rather than a folder
-   of unrelated simulators. It shows the shared physiological state, every
-   coupling that is currently firing, and *why*.
-
-   The design intent is that a learner who changes potassium here should be able
-   to trace, without being told, why the T waves in the ECG workspace changed
-   shape — and a learner who places a cervical cord lesion in the neuro
-   workspace should find the explanation for the new blood pressure here.
+   Clinical summary, active scenario, shared channels, and mechanisms —
+   all sourced from the Patient Runtime.
 --------------------------------------------------------------------------- */
 export class PatientView {
-  constructor({ patient, onNavigate }) {
+  constructor({ patient, runtime, onNavigate }) {
     this.patient = patient;
+    this.runtime = runtime || patient?.runtime || null;
     this.onNavigate = onNavigate || (() => {});
     this.sliders = new Map();
 
+    this.summaryNode = el('div', { class: 'exam-block' });
+    this.scenarioNode = el('div', { class: 'exam-block' });
     this.labsNode = el('div', { class: 'labs' });
     this.couplingNode = el('div', { class: 'couplings' });
     this.drugNode = el('div', { class: 'bench' });
+    this.annotationsNode = el('div', { class: 'exam-block' });
 
     this.node = el('div', { class: 'split patient-split' },
       el('div', { class: 'stack' },
+        card('Clinical summary',
+          'What the runtime currently knows about this patient.',
+          this.summaryNode),
+        card('Scenario',
+          'Load a compiled scenario — seed commands go through dispatch.',
+          this.scenarioNode),
         card('Shared state',
-          'One patient, read and written by every domain. Nothing here belongs to a specialty.',
+          'Learner-editable inputs and haemodynamic projections from public state.',
           this.labsNode),
-        card('Interventions', 'Drugs act on receptors, and receptors are not confined to one organ.',
+        card('Interventions', 'Drug channels resolved as mechanisms by the runtime.',
           this.drugNode,
           el('div', { class: 'btn-row' },
             el('button', { class: 'btn ghost sm', onclick: () => this.patient.reset() }, 'Reset patient')))),
       el('div', { class: 'stack' },
         card('Active mechanisms',
-          'Typed physiological mechanisms resolved by the Patient Runtime — '
-          + 'open one to read why it is firing.',
-          this.couplingNode)),
+          'Typed physiological mechanisms resolved by the Patient Runtime.',
+          this.couplingNode),
+        card('Scenario notes',
+          'Trigger annotations from the active scenario.',
+          this.annotationsNode)),
     );
 
+    this.buildScenario();
     this.buildLabs();
     this.buildDrugs();
     this.refresh();
     patient.on(() => this.refresh());
+    this.runtime?.subscribe?.(() => this.refresh());
+  }
+
+  buildScenario() {
+    clear(this.scenarioNode);
+    const scenarios = listScenarios();
+    for (const s of scenarios) {
+      this.scenarioNode.append(
+        el('div', { class: 'cpl' },
+          el('div', { class: 'cpl-n' }, s.title),
+          el('p', { class: 'muted' }, s.learningObjectives?.[0] || ''),
+          el('div', { class: 'btn-row' },
+            el('button', {
+              class: 'btn sm',
+              onclick: () => this.loadScenario(s.id),
+            }, 'Start scenario'),
+            el('button', {
+              class: 'btn ghost sm',
+              onclick: () => this.clearScenario(),
+            }, 'Clear'))),
+      );
+    }
+  }
+
+  loadScenario(id) {
+    if (!this.runtime) return;
+    this.runtime.dispatch({
+      id: createCommandId(),
+      type: 'scenario.load',
+      payload: { scenarioId: id },
+      source: { type: 'ui', surface: 'patient' },
+    });
+    this.runtime.dispatch({
+      id: createCommandId(),
+      type: 'runtime.advance',
+      payload: { durationMs: 5000 },
+      source: { type: 'ui', surface: 'patient' },
+    });
+    this.refresh();
+  }
+
+  clearScenario() {
+    if (!this.runtime) return;
+    this.runtime.dispatch({
+      id: createCommandId(),
+      type: 'scenario.clear',
+      payload: {},
+      source: { type: 'ui', surface: 'patient' },
+    });
+    this.refresh();
   }
 
   buildLabs() {
@@ -105,7 +164,61 @@ export class PatientView {
       s.node?.classList.toggle('warn', status === 'warn');
       s.node?.classList.toggle('danger', status === 'danger');
     }
+    this.renderSummary();
     this.renderCouplings();
+    this.renderAnnotations();
+  }
+
+  renderSummary() {
+    clear(this.summaryNode);
+    if (!this.runtime) {
+      this.summaryNode.append(el('p', { class: 'empty' }, 'Runtime not bound.'));
+      return;
+    }
+    const summary = this.runtime.query({
+      type: 'state.projection',
+      projection: 'clinicalSummary',
+    });
+    const scen = this.runtime.activeScenario?.();
+    const vitals = summary?.vitals || {};
+    const bp = vitals.bloodPressure || {};
+    this.summaryNode.append(
+      el('p', {},
+        scen
+          ? `Active scenario: ${scen.definition.title}`
+          : 'No scenario loaded — baseline physiology.'),
+      el('p', {},
+        `HR ${vitals.heartRate == null ? '—' : Math.round(vitals.heartRate)} · `
+        + `BP ${bp.systolic == null ? '—' : `${Math.round(bp.systolic)}/${Math.round(bp.diastolic ?? 0)}`} · `
+        + `MAP ${bp.mean == null ? '—' : Math.round(bp.mean)}`),
+      el('p', { class: 'muted' },
+        (summary?.activeConditions || []).length
+          ? `Conditions: ${summary.activeConditions.map((c) => c.conditionId).join(', ')}`
+          : 'No active conditions.'),
+      el('div', { class: 'btn-row' },
+        el('button', { class: 'btn ghost sm', onclick: () => this.onNavigate('examine') },
+          'Examine →'),
+        el('button', { class: 'btn ghost sm', onclick: () => this.onNavigate('investigate') },
+          'Investigate →'),
+        el('button', { class: 'btn ghost sm', onclick: () => this.onNavigate('treat') },
+          'Treat →')),
+    );
+  }
+
+  renderAnnotations() {
+    clear(this.annotationsNode);
+    const notes = this.runtime?.scenarioAnnotationList?.() || [];
+    if (!notes.length) {
+      this.annotationsNode.append(el('p', { class: 'empty' },
+        'Scenario triggers will leave teaching notes here when they fire.'));
+      return;
+    }
+    for (const n of notes) {
+      this.annotationsNode.append(
+        el('div', { class: 'abg-step' },
+          el('div', { class: 'abg-k' }, n.id),
+          el('div', { class: 'abg-f' }, n.label)));
+    }
   }
 
   renderCouplings() {
@@ -114,8 +227,7 @@ export class PatientView {
     if (!active.length) {
       this.couplingNode.append(el('p', { class: 'empty' },
         'No mechanisms are currently active — the patient is within normal limits and on no drugs. '
-        + 'Move potassium out of range, raise the intracranial pressure, or place a cervical cord '
-        + 'lesion in Neurology, and the links will appear here.'));
+        + 'Start the neurogenic shock scenario, or explore a specialty lens.'));
       return;
     }
     for (const c of active) {
