@@ -104,16 +104,8 @@ export interface AdvanceResult {
 }
 
 export interface PublicPhysiologyView {
-  cardiovascular: {
-    meanArterialPressure: number | null;
-    systolicPressure: number | null;
-    diastolicPressure: number | null;
-    heartRate: number | null;
-    cardiacOutput: number | null;
-    centralVenousPressure: number | null;
-    meanFillingPressure: number | null;
-    ejectionFraction: number | null;
-  };
+  cardiovascular: import('../models/cardiovascular/public-state.ts').CardiovascularPublicState;
+  electrophysiology: import('../models/cardiovascular/public-state.ts').ElectrophysiologyPublicState;
   neurological: {
     cordLesionLevel: string | null;
     lesionCompleteness: number | null;
@@ -185,12 +177,14 @@ export type ObservationRequest =
   | { type: 'observe.vital-signs' }
   | { type: 'observe.general-appearance' }
   | { type: 'observe.physiology'; paths?: string[] }
+  | { type: 'observe.twelve-lead-ecg'; leads?: string[] }
   | { type: 'perform.examination'; exam: string; region?: string };
 
 export type ObservationResult<R extends ObservationRequest> =
   R['type'] extends 'observe.vital-signs' ? Observation<VitalSignsValue>
   : R['type'] extends 'observe.general-appearance' ? Observation<GeneralAppearanceValue>
   : R['type'] extends 'observe.physiology' ? Observation<Record<string, unknown>>
+  : R['type'] extends 'observe.twelve-lead-ecg' ? Observation<TwelveLeadEcgValue>
   : R['type'] extends 'perform.examination' ? Observation<ExaminationValue>
   : Observation<unknown>;
 
@@ -199,6 +193,17 @@ export interface VitalSignsValue {
   bloodPressure: { systolic: number | null; diastolic: number | null; mean: number | null };
   cardiacOutput: number | null;
   pattern?: string;
+}
+
+export interface TwelveLeadEcgValue {
+  sampleRateHz: number;
+  leads: Record<string, number[]>;
+  features: {
+    heartRate: number | null;
+    qrsAxis: number | null;
+    pathology: string | null;
+  };
+  report: string;
 }
 
 export interface GeneralAppearanceValue {

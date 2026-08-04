@@ -138,22 +138,12 @@ export default function cardioDomain({ patient, shell, runtime }) {
     if (m.type !== 'snapshot') return;
     const s = m.data;
     lastSnap = s;
+    // Canonical public state lives on the runtime — cardio does not publish
+    // haemodynamics into shared channels as ground truth.
     if (runtime && typeof runtime.ingestCardioSnapshot === 'function') {
       runtime.ingestCardioSnapshot(s);
     }
-
-    // publish into the shared patient
-    if (s.Pmean != null) {
-      patient.setMany({
-        MAP: Math.round(s.Pmean), HR: Math.round(s.HR || 0), CO: +(s.CO || 0).toFixed(1),
-        // consumed by the labs domain
-        bloodVolume: Math.round(s.bloodVolume ?? 5000),
-        LAP: +(s.Pla ?? 6).toFixed(1),
-        EF: Math.round(s.EF ?? 55),
-        CVP: +(s.CVP ?? 4).toFixed(1),
-      }, 'cardio');
-    }
-    guard('shell.vitals', () => shell.updateVitals(s));
+    guard('shell.vitals', () => shell.updateVitalsFromRuntime?.() ?? shell.updateVitals(s));
     loop.push(s);
     ecg.push(s);
     if (shell.activeWorkspace() === 'cardio.cases') casePanel.push(s);
@@ -178,7 +168,7 @@ export default function cardioDomain({ patient, shell, runtime }) {
     id: 'cardio',
     name: 'Circulation',
     tagline: 'Pressures, volumes and the electrical trace that drives them',
-    produces: ['MAP', 'HR', 'CO'],
+    produces: [], // haemodynamics are runtime public state, not domain channel writes
     consumes: ['K', 'Ca', 'ICP', 'betaBlocker', 'atropine', 'vasopressor'],
     transport: true,
     workspaces: [

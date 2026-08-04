@@ -6,8 +6,9 @@
   "main": "index.js",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/physiology.test.mjs && node scripts/circulation.test.mjs && node scripts/runtime-slice.test.mjs",
+    "test": "node scripts/physiology.test.mjs && node scripts/circulation.test.mjs && node scripts/runtime-slice.test.mjs && node scripts/phase4-observations.test.mjs",
     "test:runtime": "node scripts/runtime-slice.test.mjs",
+    "test:phase4": "node scripts/phase4-observations.test.mjs",
     "test:physiology": "node scripts/physiology.test.mjs",
     "test:circulation": "node scripts/circulation.test.mjs",
     "build": "node scripts/build.mjs"

@@ -54,6 +54,22 @@ import {
   type ChannelState,
 } from '../physiology/mechanisms/channel-mechanisms.ts';
 import { NEUROGENIC_DISPLAY } from '../physiology/mechanisms/neurogenic-shock.ts';
+import {
+  snapshotToCardiovascularPublic,
+  snapshotToElectrophysiologyPublic,
+  cardiovascularToChannelProjection,
+  EMPTY_CARDIOVASCULAR_PUBLIC,
+  EMPTY_ELECTROPHYSIOLOGY_PUBLIC,
+  type CardiovascularPublicState,
+  type ElectrophysiologyPublicState,
+} from '../models/cardiovascular/public-state.ts';
+import {
+  CIRCULATION_MODEL_MANIFEST,
+  ELECTROPHYSIOLOGY_MODEL_MANIFEST,
+} from '../models/cardiovascular/manifest.ts';
+import { vitalSignsObservation } from '../observations/vitals.ts';
+import { twelveLeadEcgObservation } from '../observations/ecg.ts';
+import type { PatientStateProjection } from '../observations/types.ts';
 
 const RUNTIME_VERSION = '0.1.0';
 
@@ -116,6 +132,8 @@ export class DefaultPatientRuntime implements PatientRuntime {
   private randomState: number;
   private readonly opts: PatientRuntimeOptions;
   private channels: ChannelState = { ...DEFAULT_CHANNELS };
+  private cardiovascular: CardiovascularPublicState = { ...EMPTY_CARDIOVASCULAR_PUBLIC };
+  private electrophysiology: ElectrophysiologyPublicState = { ...EMPTY_ELECTROPHYSIOLOGY_PUBLIC };
 
   constructor(opts: PatientRuntimeOptions = {}) {
     this.opts = opts;
@@ -125,10 +143,16 @@ export class DefaultPatientRuntime implements PatientRuntime {
       scenario: opts.scenario ?? { id: 'ad-hoc', version: '0.0.0' },
       models: [
         {
-          id: 'cardiovascular.circulation.current',
-          version: '1.0.0',
-          stateSchemaVersion: '1',
+          id: CIRCULATION_MODEL_MANIFEST.id,
+          version: CIRCULATION_MODEL_MANIFEST.version,
+          stateSchemaVersion: CIRCULATION_MODEL_MANIFEST.stateSchemaVersion,
           configurationHash: 'baseline-rsys-1.05',
+        },
+        {
+          id: ELECTROPHYSIOLOGY_MODEL_MANIFEST.id,
+          version: ELECTROPHYSIOLOGY_MODEL_MANIFEST.version,
+          stateSchemaVersion: ELECTROPHYSIOLOGY_MODEL_MANIFEST.stateSchemaVersion,
+          configurationHash: 'hybrid-ecg-v0.1',
         },
       ],
       seed: opts.seed ?? 'cpl-default-seed',
@@ -292,6 +316,28 @@ export class DefaultPatientRuntime implements PatientRuntime {
 
   observe<R extends ObservationRequest>(request: R): ObservationResult<R> {
     const id = createObservationId(request.type.replace(/\./g, '_'));
+    const projection = this.observationProjection();
+
+    if (request.type === 'observe.vital-signs') {
+      const plan = vitalSignsObservation.observe({
+        patient: projection,
+        request,
+        context: { clinicalMode: true },
+        observationId: id,
+      });
+      return plan.immediate as ObservationResult<R>;
+    }
+
+    if (request.type === 'observe.twelve-lead-ecg') {
+      const plan = twelveLeadEcgObservation.observe({
+        patient: projection,
+        request,
+        context: { clinicalMode: true },
+        observationId: id,
+      });
+      return plan.immediate as ObservationResult<R>;
+    }
+
     const t = this.simTime;
     const base = {
       id,
@@ -304,32 +350,6 @@ export class DefaultPatientRuntime implements PatientRuntime {
         latentPaths: ['cardiovascular.*', 'neurological.cordLesionLevel'],
       },
     };
-
-    if (request.type === 'observe.vital-signs') {
-      const value = this.vitalsValue();
-      const interpretation = [];
-      if (value.bloodPressure.mean != null && value.bloodPressure.mean < 65) {
-        interpretation.push({ id: 'hypotension', label: 'Hypotension' });
-      }
-      if (
-        value.heartRate != null
-        && value.heartRate < 60
-        && value.bloodPressure.mean != null
-        && value.bloodPressure.mean < 70
-      ) {
-        interpretation.push({ id: 'relative-bradycardia', label: 'Relative bradycardia' });
-      }
-      if (interpretation.some((i) => i.id === 'hypotension')
-        && interpretation.some((i) => i.id === 'relative-bradycardia')) {
-        interpretation.push({ id: 'neurogenic-shock-pattern', label: 'Neurogenic shock pattern' });
-      }
-      return {
-        ...base,
-        type: 'observe.vital-signs',
-        value,
-        interpretation,
-      } as ObservationResult<R>;
-    }
 
     if (request.type === 'observe.general-appearance') {
       return {
@@ -344,14 +364,23 @@ export class DefaultPatientRuntime implements PatientRuntime {
         ...base,
         type: 'observe.physiology',
         value: this.publicPhysiology() as unknown as Record<string, unknown>,
+        provenance: {
+          modelId: 'observations.physiology-projection.v1',
+          latentPaths: ['cardiovascular.*', 'electrophysiology.*'],
+        },
       } as ObservationResult<R>;
     }
 
     if (request.type === 'perform.examination') {
       const findings: string[] = [];
-      const cord = this.publicPhysiology().neurological.cordLesionLevel;
+      const cord = this.cardiovascular && this.getActiveCordLevel();
+      const v = vitalSignsObservation.observe({
+        patient: projection,
+        request: { type: 'observe.vital-signs' },
+        context: {},
+        observationId: createObservationId('exam_vitals'),
+      }).immediate!.value;
       if (request.exam === 'pulse' || request.exam === 'cardiovascular') {
-        const v = this.vitalsValue();
         if (v.heartRate != null && v.heartRate < 60) findings.push('Bradycardic pulse');
         if (v.bloodPressure.mean != null && v.bloodPressure.mean < 70) findings.push('Hypotension');
         findings.push('Warm, dry peripheries (loss of sympathetic vasoconstriction)');
@@ -381,6 +410,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
 
     if (this.opts.settlePhysiology) {
       this.lastSnap = this.opts.settlePhysiology(privateParams, Math.max(seconds, 0.001));
+      if (this.lastSnap) this.ingestCardioSnapshot(this.lastSnap);
     } else if (this.opts.cardioHost && seconds > 0) {
       this.opts.cardioHost.postMessage({ type: 'settle', seconds });
     }
@@ -481,6 +511,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
       observations: [
         'general-appearance',
         'vital-signs',
+        'twelve-lead-ecg',
         'neurological-examination',
         'cardiovascular-examination',
       ],
@@ -490,10 +521,11 @@ export class DefaultPatientRuntime implements PatientRuntime {
         'cardiovascular.baroreflex',
       ],
       capabilities: [
-        'cardiovascular.closed-loop',
-        'cardiovascular.autonomic-input',
-        'neurology.pathway-localisation',
+        ...CIRCULATION_MODEL_MANIFEST.capabilities,
+        ...ELECTROPHYSIOLOGY_MODEL_MANIFEST.capabilities,
         'observation.vital-signs',
+        'observation.twelve-lead-ecg',
+        'neurology.pathway-localisation',
       ],
     };
   }
@@ -503,9 +535,49 @@ export class DefaultPatientRuntime implements PatientRuntime {
     return () => this.listeners.delete(listener);
   }
 
-  /** Allow the UI/sim host to publish the latest haemodynamic snapshot. */
-  ingestCardioSnapshot(snap: Record<string, number>): void {
-    this.lastSnap = snap;
+  /** Ingest a Circulation snapshot into canonical public physiological state. */
+  ingestCardioSnapshot(snap: Record<string, unknown>): void {
+    this.lastSnap = snap as Record<string, number>;
+    this.cardiovascular = snapshotToCardiovascularPublic(snap);
+    this.electrophysiology = snapshotToElectrophysiologyPublic(snap);
+    // Project derived haemodynamic channels for labs / Patient workspace.
+    // These are projections of canonical public state — not an alternate authority.
+    const projection = cardiovascularToChannelProjection(this.cardiovascular);
+    if (Object.keys(projection).length) {
+      this.opts.projectChannels?.(projection);
+    }
+    this.emit({
+      type: 'physiology.updated',
+      revision: this.revision,
+      simTime: this.simTime,
+      detail: { system: 'cardiovascular' },
+    });
+  }
+
+  /** Monitor-facing snapshot built from canonical public state (no private names). */
+  monitorSnapshot(): Record<string, number | boolean | null> {
+    const cv = this.cardiovascular;
+    const ep = this.electrophysiology;
+    return {
+      Pmean: cv.meanArterialPressure,
+      Psys: cv.systolicPressure,
+      Pdia: cv.diastolicPressure,
+      HR: cv.heartRate,
+      SV: cv.strokeVolume,
+      CO: cv.cardiacOutput,
+      EF: cv.ejectionFraction,
+      CVP: cv.centralVenousPressure,
+      Pla: cv.leftAtrialPressure,
+      Ppa: cv.pulmonaryArteryPressure,
+      PpaMean: cv.pulmonaryArteryMean,
+      Pmsf: cv.meanFillingPressure,
+      bloodVolume: cv.bloodVolume,
+      Rsys: cv.systemicVascularResistance,
+      baroEnabled: cv.baroreflexEnabled,
+      ecgValue: ep.leadIISample,
+      qrsAxis: ep.qrsAxis,
+      pathology: ep.pathology as unknown as number | null,
+    };
   }
 
   /** Bind (or re-bind) the live circulation host after the domain boots. */
@@ -734,19 +806,16 @@ export class DefaultPatientRuntime implements PatientRuntime {
 
   private publicPhysiology(): PublicPhysiologyView {
     const resolved = this.resolvedEffects();
-    const snap = this.lastSnap;
     const cord = this.getActiveCordLevel();
     const cond = [...this.conditions.values()][0];
     return {
-      cardiovascular: {
-        meanArterialPressure: snap?.Pmean ?? null,
-        systolicPressure: snap?.Psys ?? null,
-        diastolicPressure: snap?.Pdia ?? null,
-        heartRate: snap?.HR ?? null,
-        cardiacOutput: snap?.CO ?? null,
-        centralVenousPressure: snap?.CVP ?? null,
-        meanFillingPressure: snap?.Pmsf ?? null,
-        ejectionFraction: snap?.EF ?? null,
+      cardiovascular: { ...this.cardiovascular },
+      electrophysiology: {
+        leadIISample: this.electrophysiology.leadIISample,
+        leads: this.electrophysiology.leads,
+        qrsAxis: this.electrophysiology.qrsAxis,
+        pathology: this.electrophysiology.pathology,
+        effectiveHeartRate: this.electrophysiology.effectiveHeartRate,
       },
       neurological: {
         cordLesionLevel: cord,
@@ -767,23 +836,23 @@ export class DefaultPatientRuntime implements PatientRuntime {
     };
   }
 
-  private vitalsValue(): VitalSignsValue {
-    const p = this.publicPhysiology().cardiovascular;
-    let pattern: string | undefined;
-    if (p.meanArterialPressure != null && p.meanArterialPressure < 70
-      && p.heartRate != null && p.heartRate < 60) {
-      pattern = 'hypotension-with-relative-bradycardia';
-    }
+  private observationProjection(): PatientStateProjection {
+    const phys = this.publicPhysiology();
     return {
-      heartRate: p.heartRate,
-      bloodPressure: {
-        systolic: p.systolicPressure,
-        diastolic: p.diastolicPressure,
-        mean: p.meanArterialPressure,
-      },
-      cardiacOutput: p.cardiacOutput,
-      pattern,
+      cardiovascular: phys.cardiovascular,
+      electrophysiology: phys.electrophysiology,
+      neurological: phys.neurological,
+      simTime: this.simTime,
     };
+  }
+
+  private vitalsValue(): VitalSignsValue {
+    return vitalSignsObservation.observe({
+      patient: this.observationProjection(),
+      request: { type: 'observe.vital-signs' },
+      context: {},
+      observationId: createObservationId('vitals_internal'),
+    }).immediate!.value;
   }
 
   private appearanceFromState() {
@@ -802,6 +871,8 @@ export class DefaultPatientRuntime implements PatientRuntime {
     this.timeline = [];
     this.simTime = asSimTime(0);
     this.lastSnap = null;
+    this.cardiovascular = { ...EMPTY_CARDIOVASCULAR_PUBLIC };
+    this.electrophysiology = { ...EMPTY_ELECTROPHYSIOLOGY_PUBLIC };
     this.channels = { ...DEFAULT_CHANNELS };
     this.prevCardioDriven = new Set();
     this.opts.cardioHost?.postMessage({ type: 'reset' });

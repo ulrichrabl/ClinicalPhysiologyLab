@@ -198,8 +198,23 @@ class Shell {
   resizeActive() { guard('shell.resize', () => this.active?.space.view?.resize?.()); }
 
   /* ---- vitals strip ----------------------------------------------------- */
+  /** Preferred path: read monitor values from runtime canonical public state. */
+  updateVitalsFromRuntime() {
+    if (!this.runtime) return;
+    const snap = this.runtime.monitorSnapshot();
+    this.lastSnap = snap;
+    this.renderVitals(snap);
+    // Optional clinical observation pass (ideal, immediate) for pattern chips.
+    const obs = this.runtime.observe({ type: 'observe.vital-signs' });
+    this._lastVitalsObservation = obs;
+  }
+
   updateVitals(snap) {
     this.lastSnap = snap;
+    this.renderVitals(snap);
+  }
+
+  renderVitals(snap) {
     if (this.monitor.children.length === 0) this.buildVitals();
     const st = this.patient.all();
     for (const v of VITALS) {
@@ -213,7 +228,6 @@ class Shell {
       const bad = v.normal && num != null && (num < v.normal[0] || num > v.normal[1]);
       cell.node.classList.toggle('warn', !!bad);
     }
-    // shared-state chips that are out of range
     const chips = [];
     for (const [k, ch] of Object.entries(CHANNELS)) {
       if (ch.derived && k !== 'CPP') continue;
@@ -221,26 +235,43 @@ class Shell {
       if (s === 'normal') continue;
       chips.push({ k, ch, v: st[k], s });
     }
+    // Surface observation interpretations (e.g. neurogenic shock pattern)
+    const interp = this._lastVitalsObservation?.interpretation;
+    if (interp?.length) {
+      for (const i of interp) {
+        chips.push({ k: i.id, ch: { label: i.label }, v: '', s: i.id.includes('shock') ? 'danger' : 'warn' });
+      }
+    }
     clear(this._alertCell);
     if (chips.length) {
       this._alertCell.append(...chips.map((c) => el('span', { class: `vflag ${c.s}` },
-        `${c.ch.label.split(' ')[0]} ${typeof c.v === 'number' ? c.v.toFixed(c.ch.step < 1 ? 1 : 0) : c.v}`)));
+        c.v === '' || c.v == null
+          ? c.ch.label
+          : `${c.ch.label.split(' ')[0]} ${typeof c.v === 'number' ? c.v.toFixed(c.ch.step < 1 ? 1 : 0) : c.v}`)));
     }
   }
 
   buildVitals() {
     this._vitalCells = {};
+    this._lastVitalsObservation = null;
     for (const v of VITALS) {
       const value = el('span', { class: 'vital-v' }, '—');
       const node = el('button', { class: 'vital', data: { inspect: v.key },
-        onclick: (e) => this.inspector.show(e.currentTarget, {
-          title: v.title || v.label, value: value.textContent + (v.unit ? ` ${v.unit}` : ''),
-          body: v.body,
-          detail: typeof v.detail === 'function'
-            ? (v.detail(this.lastSnap) || []).map(([k, val]) => `${k}: ${val}`).join('   ·   ')
-            : v.detail,
-          links: this.patient.explain(v.key).map((h) => ({ name: h.coupling.name, text: h.coupling.short })),
-        }) },
+        onclick: (e) => {
+          const obs = this.runtime?.observe?.({ type: 'observe.vital-signs' });
+          const explain = this.runtime?.query?.({ type: 'explanation.vitals' });
+          this.inspector.show(e.currentTarget, {
+            title: v.title || v.label, value: value.textContent + (v.unit ? ` ${v.unit}` : ''),
+            body: v.body,
+            detail: typeof v.detail === 'function'
+              ? (v.detail(this.lastSnap) || []).map(([k, val]) => `${k}: ${val}`).join('   ·   ')
+              : v.detail,
+            links: [
+              ...(obs?.interpretation || []).map((i) => ({ name: i.label, text: 'Observation interpretation' })),
+              ...(explain?.nodes || []).slice(0, 3).map((n) => ({ name: n.label, text: n.detail || n.kind })),
+            ],
+          });
+        } },
         el('span', { class: 'vital-k' }, v.label),
         value,
         v.unit && el('span', { class: 'vital-u' }, v.unit),
