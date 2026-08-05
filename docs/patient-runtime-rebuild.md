@@ -1,12 +1,15 @@
 # Patient Runtime rebuild
 
-Clean production cut of the patient-first architecture (Phases 1–6) plus a
-**runtime stabilization** pass for clock ownership, deterministic IDs, checkpoints,
-authority gates, and corrected venous-tone mapping.
+Clean production cut of the patient-first architecture (Phases 1–6), runtime
+stabilization, and **platform hardening**: async/correlated model advancement,
+instance-local IDs, model-state checkpoints, complete authority boundaries,
+runtime-owned cardio controls, and scenario initialization semantics.
 
-Models are currently **adapter-wrapped** (Circulation + hybrid ECG behind versioned
-adapters). A `PhysiologyModelPlugin` contract exists; hot-swap plug-and-play is not
-claimed yet.
+Models remain **adapter-wrapped** (Circulation + hybrid ECG). The
+`PhysiologyModelPlugin` advance contract is awaitable; hot-swap plug-and-play is
+still not claimed.
+
+Label: *stabilized proof slice → hardening toward a stable platform runtime*.
 
 ## Layout
 

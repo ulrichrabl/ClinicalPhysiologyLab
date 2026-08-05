@@ -5,6 +5,7 @@ import type {
 } from '../contracts/scenarios.ts';
 import type { PatientCommand } from '../contracts/commands.ts';
 import type { RuntimeListener, Unsubscribe } from '../contracts/queries.ts';
+import type { CommandId } from '../contracts/brands.ts';
 import { asSimTime } from '../contracts/brands.ts';
 import {
   evaluateTriggerPredicate,
@@ -14,9 +15,19 @@ import {
 /** Minimal runtime surface needed by the trigger runner (avoids import cycles). */
 export interface TriggerRuntimeHost {
   subscribe(listener: RuntimeListener): Unsubscribe;
-  query(query: { type: string; [k: string]: unknown }): unknown;
-  dispatch(command: PatientCommand): { accepted: boolean };
+  /** Internal privileged state reader — not clinical queryForClient. */
+  internalStateForModels(query: { type: string; [k: string]: unknown }): unknown;
+  allocateCommandId(prefix?: string): CommandId;
+  dispatch(command: PatientCommand, session?: { role: string }): { accepted: boolean };
   recordScenarioAnnotation?(id: string, label: string, detail?: unknown): void;
+}
+
+export interface SerializedTriggerRunner {
+  schemaVersion: 'triggers.v1';
+  scenarioMeta: { id: string; version: string } | null;
+  fired: Record<string, boolean>;
+  lastPred: Record<string, boolean>;
+  annotations: { id: string; label: string; detail?: unknown; atMs: number }[];
 }
 
 /**
@@ -61,6 +72,34 @@ export class ScenarioTriggerRunner {
     this.lastPred.clear();
   }
 
+  serializeState(): SerializedTriggerRunner {
+    const fired: Record<string, boolean> = {};
+    const lastPred: Record<string, boolean> = {};
+    for (const t of this.triggers) fired[t.id] = !!t.fired;
+    for (const [k, v] of this.lastPred) lastPred[k] = v;
+    return {
+      schemaVersion: 'triggers.v1',
+      scenarioMeta: this.scenarioMeta ? { ...this.scenarioMeta } : null,
+      fired,
+      lastPred,
+      annotations: structuredClone(this.annotations),
+    };
+  }
+
+  restoreState(compiled: CompiledScenario | null, state: SerializedTriggerRunner | null): void {
+    if (!compiled) {
+      this.disarm();
+      return;
+    }
+    this.arm(compiled);
+    if (!state || state.schemaVersion !== 'triggers.v1') return;
+    this.annotations = structuredClone(state.annotations || []);
+    this.lastPred = new Map(Object.entries(state.lastPred || {}));
+    for (const t of this.triggers) {
+      if (state.fired?.[t.id]) t.fired = true;
+    }
+  }
+
   tick(): void {
     if (this.ticking || !this.scenarioMeta || !this.triggers.length) return;
     this.ticking = true;
@@ -69,15 +108,18 @@ export class ScenarioTriggerRunner {
       const actions: Array<() => void> = [];
       for (const trigger of this.triggers) {
         const pred = evaluateTriggerPredicate(
-          { ...trigger, fired: false }, // evaluate raw predicate
+          { ...trigger, fired: false },
           ctx,
         );
         const was = this.lastPred.get(trigger.id) === true;
         this.lastPred.set(trigger.id, pred);
 
         // Edge-triggered: fire on false→true. Non-repeat also respects fired.
+        // sim-time predicates stay true once reached — use fired latch, not edge alone.
+        const isSimTime = trigger.when.kind === 'sim-time';
         const rising = pred && !was;
-        if (!rising) continue;
+        const simTimeLatch = isSimTime && pred && !trigger.fired;
+        if (!rising && !simTimeLatch) continue;
         if (!trigger.repeat && trigger.fired) continue;
         trigger.fired = true;
 
@@ -94,8 +136,14 @@ export class ScenarioTriggerRunner {
             this.runtime.recordScenarioAnnotation?.(trigger.id, then.label, then.detail);
           });
         } else {
-          const cmd = triggerThenToCommand(then, meta);
-          if (cmd) actions.push(() => { this.runtime.dispatch(cmd); });
+          const cmd = triggerThenToCommand(then, meta, {
+            command: (prefix?: string) => this.runtime.allocateCommandId(prefix),
+          });
+          if (cmd) {
+            actions.push(() => {
+              this.runtime.dispatch(cmd, { role: 'scenario' });
+            });
+          }
         }
       }
       for (const act of actions) act();
@@ -109,11 +157,11 @@ export class ScenarioTriggerRunner {
   }
 
   private buildContext(): TriggerEvaluationContext {
-    const time = this.runtime.query({ type: 'runtime.time' }) as { simTimeMs: number };
-    const conditions = this.runtime.query({ type: 'conditions.active' }) as {
+    const time = this.runtime.internalStateForModels({ type: 'runtime.time' }) as { simTimeMs: number };
+    const conditions = this.runtime.internalStateForModels({ type: 'conditions.active' }) as {
       conditionId: string;
     }[];
-    const phys = this.runtime.query({
+    const phys = this.runtime.internalStateForModels({
       type: 'state.projection',
       projection: 'publicPhysiology',
     }) as {

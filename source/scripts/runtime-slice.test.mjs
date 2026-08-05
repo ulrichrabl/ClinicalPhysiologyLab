@@ -43,6 +43,14 @@ const {
 } = await import(pathToFileURL(bundleExtra).href);
 
 let pass = 0, fail = 0;
+
+function unwrapObs(outcome) {
+  if (!outcome) return null;
+  if (outcome.accepted === false) return { denied: true, error: outcome.error, value: null };
+  if (outcome.accepted === true) return outcome.observation;
+  return outcome;
+}
+
 const ok = (name, cond, detail = '') => {
   if (cond) { pass++; console.log(`  ✓ ${name}`); }
   else { fail++; console.log(`  ✗ ${name}${detail ? ' — ' + detail : ''}`); }
@@ -129,7 +137,7 @@ const activateCmd = () => ({
 {
   const rt = makeRuntime();
   rt.dispatch(activateCmd());
-  const adv = rt.advance(asSimDuration(8000)); // 8 s settle
+  const adv = await rt.advance(asSimDuration(8000)); // 8 s settle
   const phys = adv.publicPhysiology.cardiovascular;
   ok('VS-5 MAP is hypotensive (< 75)', phys.meanArterialPressure != null && phys.meanArterialPressure < 75,
     String(phys.meanArterialPressure));
@@ -142,7 +150,7 @@ const activateCmd = () => ({
     phys.cardiacOutput != null && phys.cardiacOutput < 8,
     String(phys.cardiacOutput));
 
-  const vitals = rt.observe({ type: 'observe.vital-signs' });
+  const vitals = unwrapObs(rt.observe({ type: 'observe.vital-signs' }));
   ok('VS-5 vital observation interprets neurogenic shock pattern',
     vitals.interpretation?.some((i) => i.id === 'neurogenic-shock-pattern')
     || (vitals.value.pattern === 'hypotension-with-relative-bradycardia'),
@@ -153,7 +161,7 @@ const activateCmd = () => ({
 {
   const rt = makeRuntime();
   rt.dispatch(activateCmd());
-  rt.advance(asSimDuration(2000));
+  await rt.advance(asSimDuration(2000));
   const mid = rt.query({ type: 'adapter.cardio.privateParams' });
   ok('VS-6 driven while active', mid.drivenKeys.includes('Rsys'));
 
@@ -175,10 +183,10 @@ const activateCmd = () => ({
 {
   const rt = makeRuntime();
   rt.dispatch(activateCmd());
-  rt.advance(asSimDuration(5000));
+  await rt.advance(asSimDuration(5000));
   const summary = rt.query({ type: 'state.projection', projection: 'clinicalSummary' });
-  const exam = rt.observe({ type: 'perform.examination', exam: 'cardiovascular' });
-  const vitals = rt.observe({ type: 'observe.vital-signs' });
+  const exam = unwrapObs(rt.observe({ type: 'perform.examination', exam: 'cardiovascular' }));
+  const vitals = unwrapObs(rt.observe({ type: 'observe.vital-signs' }));
   const phys = rt.query({ type: 'state.projection', projection: 'publicPhysiology' });
   ok('VS-7 clinical summary reflects cord level',
     summary.activeConditions?.[0]?.parameters?.level === 'C5');
@@ -193,7 +201,7 @@ const activateCmd = () => ({
 {
   const rt = makeRuntime();
   rt.dispatch(activateCmd());
-  rt.advance(asSimDuration(5000));
+  await rt.advance(asSimDuration(5000));
   const trace = rt.query({ type: 'explanation.vitals' });
   const kinds = new Set(trace.nodes.map((n) => n.kind));
   ok('VS-8 explanation has condition node', kinds.has('condition'));
@@ -207,11 +215,11 @@ const activateCmd = () => ({
 /* VS-9 — checkpoint before injury restores exactly. */
 {
   const rt = makeRuntime();
-  rt.advance(asSimDuration(3000));
+  await rt.advance(asSimDuration(3000));
   const before = rt.query({ type: 'adapter.cardio.privateParams' });
   const cp = rt.createCheckpoint('pre-injury');
   rt.dispatch(activateCmd());
-  rt.advance(asSimDuration(3000));
+  await rt.advance(asSimDuration(3000));
   const injured = rt.query({ type: 'adapter.cardio.privateParams' });
   ok('VS-9 injury changed Rsys', !near(injured.Rsys, before.Rsys, 1e-6));
 
@@ -226,11 +234,11 @@ const activateCmd = () => ({
 
 /* VS-10 — replay with same fingerprint and seed reproduces trajectory. */
 {
-  function runTrajectory(seed) {
+  async function runTrajectory(seed) {
     const rt = makeRuntime(seed);
     const fp = rt.fingerprint;
     rt.dispatch(activateCmd());
-    rt.advance(asSimDuration(6000));
+    await rt.advance(asSimDuration(6000));
     const phys = rt.query({ type: 'state.projection', projection: 'publicPhysiology' });
     const priv = rt.query({ type: 'adapter.cardio.privateParams' });
     return {
@@ -241,8 +249,8 @@ const activateCmd = () => ({
       rsys: priv.Rsys,
     };
   }
-  const a = runTrajectory('replay-seed');
-  const b = runTrajectory('replay-seed');
+  const a = await runTrajectory('replay-seed');
+  const b = await runTrajectory('replay-seed');
   ok('VS-10 fingerprints match',
     a.fp.runtimeVersion === b.fp.runtimeVersion && a.fp.seed === b.fp.seed);
   ok('VS-10 MAP reproducible', near(a.map, b.map, 0.05), `${a.map} vs ${b.map}`);
@@ -272,7 +280,7 @@ const activateCmd = () => ({
 /* Baseline control: healthy settle is not hypotensive. */
 {
   const rt = makeRuntime();
-  rt.advance(asSimDuration(8000));
+  await rt.advance(asSimDuration(8000));
   const phys = rt.query({ type: 'state.projection', projection: 'publicPhysiology' });
   ok('baseline MAP is not hypotensive',
     phys.cardiovascular.meanArterialPressure != null

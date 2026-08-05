@@ -3,6 +3,7 @@ import { runtimeError } from './errors.ts';
 import type { ScenarioAuthority } from './scenarios.ts';
 import type { PatientCommand } from './commands.ts';
 import type { ObservationRequest, RuntimeQuery } from './queries.ts';
+import type { RuntimeSession } from './session.ts';
 
 export type AuthorityMode = 'clinical' | 'exploration' | 'authoring' | 'diagnostic';
 
@@ -11,25 +12,25 @@ export interface AuthorityContext {
   authority: ScenarioAuthority;
   /** When true, diagnostic/latent queries are allowed. */
   diagnosticSession?: boolean;
+  /** Trusted session — never derived from command.source. */
+  session?: RuntimeSession;
 }
-
-const CLINICAL_OBSERVATIONS = new Set([
-  'observe.vital-signs',
-  'observe.general-appearance',
-  'observe.laboratory-panel',
-  'observe.twelve-lead-ecg',
-  'perform.examination',
-]);
 
 const LATENT_QUERIES = new Set([
   'adapter.cardio.privateParams',
   'effects.resolved',
+  'conditions.active',
+  'mechanisms.active',
 ]);
 
 const LATENT_PROJECTIONS = new Set([
   'modelDiagnostics',
   'authoringState',
+  'publicPhysiology',
 ]);
+
+/** Privileged session roles that may author conditions / use experimental controls. */
+const PRIVILEGED_ROLES = new Set(['system', 'test', 'lesson', 'scenario', 'authoring']);
 
 /** Map observation request types onto scenario mayObserve tokens. */
 function observationToken(type: string): string | null {
@@ -44,12 +45,23 @@ function observationToken(type: string): string | null {
   }
 }
 
+function examinationTokens(exam: string): string[] {
+  // Exact subtype match only — do not OR unrelated examination permissions.
+  return [
+    exam,
+    `${exam}-examination`,
+    'examination',
+  ];
+}
+
 export function authorizeCommand(
   command: PatientCommand,
   ctx: AuthorityContext,
 ): RuntimeError | null {
   const auth = ctx.authority;
   const type = command.type;
+  const role = ctx.session?.role;
+  const privileged = role != null && PRIVILEGED_ROLES.has(role);
 
   if (type === 'runtime.advance' && auth.mayAdvanceTime === false) {
     return runtimeError('UNAUTHORISED_COMMAND', 'advancing time is not permitted');
@@ -58,17 +70,20 @@ export function authorizeCommand(
   if (
     (type === 'condition.activate' || type === 'condition.resolve')
     && auth.mayAuthorConditions === false
-    && command.source.type !== 'scenario'
-    && command.source.type !== 'test'
-    && command.source.type !== 'system'
+    && !privileged
   ) {
     return runtimeError('UNAUTHORISED_COMMAND', 'authoring conditions is not permitted in this scenario');
   }
 
   if (type === 'experimental.circulation-param') {
-    const src = command.source?.type;
-    if (src !== 'test' && src !== 'lesson' && auth.mayUseExperimentalControls === false) {
+    if (!privileged && auth.mayUseExperimentalControls === false) {
       return runtimeError('UNAUTHORISED_COMMAND', 'experimental circulation controls not permitted');
+    }
+  }
+
+  if (type === 'model.set-pathology' || type === 'model.set-baro') {
+    if (!privileged && auth.mayUseExperimentalControls === false) {
+      return runtimeError('UNAUTHORISED_COMMAND', 'model controls not permitted in this scenario');
     }
   }
 
@@ -97,8 +112,17 @@ export function authorizeQuery(
     return runtimeError('UNAUTHORISED_COMMAND', `latent query not permitted: ${query.type}`);
   }
 
-  if (query.type === 'state.projection' && LATENT_PROJECTIONS.has(query.projection)) {
-    return runtimeError('UNAUTHORISED_COMMAND', `latent projection not permitted: ${query.projection}`);
+  if (query.type === 'state.projection') {
+    if (LATENT_PROJECTIONS.has(query.projection)) {
+      return runtimeError('UNAUTHORISED_COMMAND', `latent projection not permitted: ${query.projection}`);
+    }
+    // Unknown projections deny rather than falling through to publicPhysiology.
+    if (
+      query.projection !== 'clinicalSummary'
+      && query.projection !== 'timelineRange'
+    ) {
+      return runtimeError('UNAUTHORISED_COMMAND', `projection not permitted: ${query.projection}`);
+    }
   }
 
   return null;
@@ -116,40 +140,27 @@ export function authorizeObservation(
     return runtimeError('UNAUTHORISED_COMMAND', 'latent physiology observation not permitted');
   }
 
-  if (auth.mayObserve?.includes('*')) return null;
-  if (!auth.mayObserve?.length) return null;
+  // Empty allow-list means deny everything (explicit open requires '*').
+  if (auth.mayObserve != null && auth.mayObserve.length === 0) {
+    return runtimeError('UNAUTHORISED_COMMAND', 'no observations permitted');
+  }
 
-  // Map examination subtypes
+  if (auth.mayObserve?.includes('*')) return null;
+
   if (request.type === 'perform.examination') {
     const exam = (request as { exam?: string }).exam || 'examination';
-    const candidates = [
-      exam,
-      `${exam}-examination`,
-      'examination',
-      'neurological-examination',
-      'cardiovascular-examination',
-    ];
+    const candidates = examinationTokens(exam);
     if (candidates.some((c) => auth.mayObserve.includes(c))) return null;
     return runtimeError('UNAUTHORISED_COMMAND', `observation not permitted: ${exam}`);
   }
 
-  if (token && !auth.mayObserve.includes(token) && !CLINICAL_OBSERVATIONS.has(request.type)) {
-    return runtimeError('UNAUTHORISED_COMMAND', `observation not permitted: ${token}`);
+  if (!auth.mayObserve?.length) {
+    // No scenario authority list and not '*': open exploration default handled by caller.
+    return null;
   }
 
-  // If mayObserve is a non-empty allow-list, require membership for known tokens
-  if (token && auth.mayObserve.length && !auth.mayObserve.includes(token)) {
-    // Allow general clinical set when token aliases differ slightly
-    if (token === 'examination') return null;
-    if (CLINICAL_OBSERVATIONS.has(request.type) && auth.mayObserve.some((m) => token.includes(m) || m.includes(token))) {
-      return null;
-    }
-    // twelve-lead-ecg / laboratory-panel / vital-signs must match
-    if (['vital-signs', 'twelve-lead-ecg', 'laboratory-panel', 'general-appearance'].includes(token)) {
-      if (!auth.mayObserve.includes(token)) {
-        return runtimeError('UNAUTHORISED_COMMAND', `observation not permitted: ${token}`);
-      }
-    }
+  if (token && !auth.mayObserve.includes(token)) {
+    return runtimeError('UNAUTHORISED_COMMAND', `observation not permitted: ${token}`);
   }
 
   return null;

@@ -68,16 +68,30 @@ export interface ScenarioTrigger {
  * Author-facing scenario definition (data only).
  * The compiler turns this into seed commands + armed triggers.
  */
+export type ScenarioInitialization = 'fresh-patient' | 'continue-current-patient';
+
 export interface ScenarioDefinition {
   id: string;
   version: string;
+  /**
+   * Author / diagnostic title (may name the lesion or shock type).
+   * Prefer `presentationTitle` for clinical UI when diagnoses are hidden.
+   */
   title: string;
+  /** Learner-facing title that does not reveal the diagnosis. */
+  presentationTitle?: string;
   learningObjectives: string[];
   patient?: ScenarioPatientProfile;
   conditions: ScenarioConditionSeed[];
   requiredCapabilities: string[];
   visibility: ScenarioVisibility;
   authority: ScenarioAuthority;
+  /**
+   * How to initialise runtime state when loading this scenario.
+   * - fresh-patient: reset chemistry, interventions, experimental controls, volume
+   * - continue-current-patient: keep prior learner interventions
+   */
+  initialization?: ScenarioInitialization;
   /**
    * Optional explicit seed command. If omitted, the compiler synthesises
    * condition.activate commands from `conditions`.

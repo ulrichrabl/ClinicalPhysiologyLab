@@ -31,6 +31,14 @@ const {
 } = await import(pathToFileURL(bundle).href);
 
 let pass = 0, fail = 0;
+
+function unwrapObs(outcome) {
+  if (!outcome) return null;
+  if (outcome.accepted === false) return { denied: true, error: outcome.error, value: null };
+  if (outcome.accepted === true) return outcome.observation;
+  return outcome;
+}
+
 const ok = (name, cond, detail = '') => {
   if (cond) { pass++; console.log(`  ✓ ${name}`); }
   else { fail++; console.log(`  ✗ ${name}${detail ? ' — ' + detail : ''}`); }
@@ -80,11 +88,11 @@ ok('registry lists neurogenic-shock-demo',
   ok('scenario.load via id accepted', loaded.accepted, JSON.stringify(loaded));
   ok('active scenario is set', rt.activeScenario()?.definition.id === 'neurogenic-shock-demo');
   ok('C5 condition active after load',
-    rt.query({ type: 'conditions.active' }).some((c) =>
+    rt.internalStateForModels({ type: 'conditions.active' }).some((c) =>
       c.conditionId === 'cervical-spinal-cord-injury'
       && c.parameters.level === 'C5'));
 
-  rt.advance(asSimDuration(5000));
+  await rt.advance(asSimDuration(5000));
   const notes = rt.scenarioAnnotationList();
   ok('sim-time trigger annotated after advance',
     notes.some((n) => n.id === 'five-second-settle-note'),
@@ -106,10 +114,10 @@ ok('registry lists neurogenic-shock-demo',
     type: 'scenario.clear',
     payload: {},
     source: { type: 'test', id: 'phase6' },
-  });
+  }, { role: 'test' });
   ok('scenario.clear accepted', viaCmd.accepted);
   ok('conditions cleared after scenario.clear',
-    rt.query({ type: 'conditions.active' }).length === 0);
+    rt.internalStateForModels({ type: 'conditions.active' }).length === 0);
   ok('active scenario cleared', rt.activeScenario() == null);
 }
 
@@ -123,39 +131,39 @@ ok('registry lists neurogenic-shock-demo',
     type: 'scenario.load',
     payload: { scenarioId: 'neurogenic-shock-demo' },
     source: { type: 'test', id: 'phase6' },
-  });
+  }, { role: 'test' });
   const fluid = rt.dispatch({
     id: createCommandId(),
     type: 'treatment.fluid-bolus',
     payload: { volumeMl: 500 },
     source: { type: 'ui', surface: 'treat' },
-  });
+  }, { role: 'clinical' });
   ok('treatment.fluid-bolus accepted under scenario authority', fluid.accepted, fluid.error?.message);
   const pressor = rt.dispatch({
     id: createCommandId(),
     type: 'treatment.vasopressor',
     payload: { intensity: 0.5 },
     source: { type: 'ui', surface: 'treat' },
-  });
+  }, { role: 'clinical' });
   ok('treatment.vasopressor accepted', pressor.accepted, pressor.error?.message);
 
-  // Experimental blocked for UI while scenario forbids it
+  // Experimental blocked for clinical UI while scenario forbids it
   const exp = rt.dispatch({
     id: createCommandId(),
     type: 'experimental.circulation-param',
     payload: { key: 'bloodVolume', value: 4000 },
     source: { type: 'ui', surface: 'explore' },
-  });
+  }, { role: 'clinical' });
   ok('experimental circulation blocked for UI under scenario authority',
     !exp.accepted && exp.error?.code === 'UNAUTHORISED_COMMAND');
 
-  // Lesson/test may still use experimental
+  // Lesson session may still use experimental
   const lesson = rt.dispatch({
     id: createCommandId(),
     type: 'experimental.circulation-param',
     payload: { key: 'bloodVolume', value: 3500 },
     source: { type: 'lesson', id: 'lactate-loop' },
-  });
+  }, { role: 'lesson' });
   ok('experimental circulation allowed for lesson source', lesson.accepted);
 }
 

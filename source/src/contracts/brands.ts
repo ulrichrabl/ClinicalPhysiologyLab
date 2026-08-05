@@ -18,59 +18,134 @@ export function asSimDuration(ms: number): SimDuration {
   return ms as SimDuration;
 }
 
+export interface RuntimeIdSnapshot {
+  command: number;
+  observation: number;
+  checkpoint: number;
+  event: number;
+}
+
 /**
- * Runtime-owned monotonic ID allocator.
- * Deterministic for a given seed + call sequence — never uses Date.now / Math.random.
+ * Instance-local monotonic ID allocator with separate namespaces.
+ * Reads (observations) must not advance the command/checkpoint sequences.
+ * Never uses Date.now / Math.random.
  */
 export class RuntimeIdFactory {
-  private seq = 0;
+  private commandSeq = 0;
+  private observationSeq = 0;
+  private checkpointSeq = 0;
+  private eventSeq = 0;
+
   constructor(private readonly tag: string) {}
 
+  command(prefix = 'cmd'): CommandId {
+    this.commandSeq += 1;
+    return `${prefix}_${this.tag}_${this.commandSeq}` as CommandId;
+  }
+
+  observation(prefix = 'obs'): ObservationId {
+    this.observationSeq += 1;
+    return `${prefix}_${this.tag}_${this.observationSeq}` as ObservationId;
+  }
+
+  checkpoint(prefix = 'cp'): CheckpointId {
+    this.checkpointSeq += 1;
+    return `${prefix}_${this.tag}_${this.checkpointSeq}` as CheckpointId;
+  }
+
+  event(prefix = 'ev'): string {
+    this.eventSeq += 1;
+    return `${prefix}_${this.tag}_${this.eventSeq}`;
+  }
+
+  /** @deprecated use namespaced methods — peek returns command seq for checkpoint restore compat */
   next(prefix: string): string {
-    this.seq += 1;
-    return `${prefix}_${this.tag}_${this.seq}`;
+    if (prefix.startsWith('obs') || prefix.includes('obs')) return this.observation(prefix);
+    if (prefix.startsWith('cp') || prefix.includes('cp')) return this.checkpoint(prefix);
+    if (prefix.startsWith('ev') || prefix.includes('adv') || prefix.includes('settle')) {
+      return this.event(prefix);
+    }
+    return this.command(prefix);
   }
 
   peek(): number {
-    return this.seq;
+    return this.commandSeq;
   }
 
-  restore(seq: number): void {
-    this.seq = seq;
+  snapshot(): RuntimeIdSnapshot {
+    return {
+      command: this.commandSeq,
+      observation: this.observationSeq,
+      checkpoint: this.checkpointSeq,
+      event: this.eventSeq,
+    };
+  }
+
+  restore(seqOrSnap: number | RuntimeIdSnapshot): void {
+    if (typeof seqOrSnap === 'number') {
+      this.commandSeq = seqOrSnap;
+      return;
+    }
+    this.commandSeq = seqOrSnap.command;
+    this.observationSeq = seqOrSnap.observation;
+    this.checkpointSeq = seqOrSnap.checkpoint;
+    this.eventSeq = seqOrSnap.event;
   }
 }
 
-/** Module default used before a runtime binds its factory (UI helpers). */
-let activeFactory = new RuntimeIdFactory('orphan');
+/**
+ * Orphan factory for scripts/tests that mint IDs before a runtime exists.
+ * Runtimes NEVER rebind this — each runtime owns its own `runtime.ids`.
+ */
+const orphanFactory = new RuntimeIdFactory('orphan');
 
-export function bindIdFactory(factory: RuntimeIdFactory): void {
-  activeFactory = factory;
-}
-
+/** @deprecated Prefer `runtime.ids.command()`. Does not bind to any live runtime. */
 export function createCommandId(prefix = 'cmd'): CommandId {
-  return activeFactory.next(prefix) as CommandId;
+  return orphanFactory.command(prefix);
 }
 
+/** @deprecated Prefer `runtime.ids.observation()`. */
 export function createObservationId(prefix = 'obs'): ObservationId {
-  return activeFactory.next(prefix) as ObservationId;
+  return orphanFactory.observation(prefix);
 }
 
+/** @deprecated Prefer `runtime.ids.checkpoint()`. */
 export function createCheckpointId(prefix = 'cp'): CheckpointId {
-  return activeFactory.next(prefix) as CheckpointId;
+  return orphanFactory.checkpoint(prefix);
+}
+
+/**
+ * @deprecated No-op retained so older tests compile. Runtimes are instance-local;
+ * binding a global factory is intentionally unsupported.
+ */
+export function bindIdFactory(_factory: RuntimeIdFactory): void {
+  /* intentionally empty — instance-local IDs only */
 }
 
 /**
  * Deterministic effect IDs for composition tie-breaks.
  * Prefer explicit parts over the sequential factory so re-resolving mechanisms
  * yields identical IDs for the same logical contribution.
+ * Include condition instance ID once multi-instance support is active.
  */
 export function createEffectId(
-  prefixOrParts: string | { conditionId?: string; mechanismId: string; port: string; slot?: string | number },
+  prefixOrParts: string | {
+    conditionId?: string;
+    conditionInstanceId?: string;
+    mechanismId: string;
+    port: string;
+    slot?: string | number;
+  },
 ): EffectId {
   if (typeof prefixOrParts === 'string') {
-    return activeFactory.next(`eff_${prefixOrParts}`) as EffectId;
+    return orphanFactory.event(`eff_${prefixOrParts}`) as EffectId;
   }
-  const { conditionId, mechanismId, port, slot } = prefixOrParts;
-  const parts = [conditionId ?? 'adhoc', mechanismId, port, slot ?? '0'];
+  const { conditionId, conditionInstanceId, mechanismId, port, slot } = prefixOrParts;
+  const parts = [
+    conditionInstanceId ?? conditionId ?? 'adhoc',
+    mechanismId,
+    port,
+    slot ?? '0',
+  ];
   return parts.join('::') as EffectId;
 }

@@ -28,7 +28,6 @@ const {
   composeEffects,
   neurogenicShockMechanisms,
   RuntimeIdFactory,
-  bindIdFactory,
   createEffectId,
   authorizeCommand,
   authorizeQuery,
@@ -38,6 +37,14 @@ const {
 } = await import(pathToFileURL(bundle).href);
 
 let pass = 0, fail = 0;
+
+function unwrapObs(outcome) {
+  if (!outcome) return null;
+  if (outcome.accepted === false) return { denied: true, error: outcome.error, value: null };
+  if (outcome.accepted === true) return outcome.observation;
+  return outcome;
+}
+
 const ok = (name, cond, detail = '') => {
   if (cond) { pass++; console.log(`  ✓ ${name}`); }
   else { fail++; console.log(`  ✗ ${name}${detail ? ' — ' + detail : ''}`); }
@@ -70,13 +77,11 @@ console.log('\nRuntime stabilization');
 {
   const f1 = new RuntimeIdFactory('seedA');
   const f2 = new RuntimeIdFactory('seedA');
-  bindIdFactory(f1);
-  const a = [f1.next('cmd'), f1.next('cmd'), f1.next('obs')];
-  bindIdFactory(f2);
-  const b = [f2.next('cmd'), f2.next('cmd'), f2.next('obs')];
+  const a = [f1.command('cmd'), f1.command('cmd'), f1.observation('obs')];
+  const b = [f2.command('cmd'), f2.command('cmd'), f2.observation('obs')];
   ok('same seed tag yields identical ID sequences', a.join('|') === b.join('|'), `${a} vs ${b}`);
-  ok('IDs do not contain Math.random entropy length',
-    !/_\[0-9a-z]{7}$/.test(a[0]) && a[0].includes('seedA'));
+  ok('observation namespace does not advance command seq', f1.peek() === 2);
+  ok('IDs include seed tag', a[0].includes('seedA'));
 
   const e1 = createEffectId({
     conditionId: 'c1', mechanismId: 'm1', port: 'vascular.venousTone', slot: 'ven',
@@ -131,7 +136,7 @@ console.log('\nRuntime stabilization');
     payload: { condition: 'cervical-spinal-cord-injury', parameters: { level: 'C5', completeness: 1, side: 'bilateral' } },
     source: { type: 'test', id: 'stab' },
   });
-  const adv = rt.advance(asSimDuration(5000));
+  const adv = await rt.advance(asSimDuration(5000));
   ok('headless advance returns physiology for target time',
     adv.publicPhysiology.cardiovascular.meanArterialPressure != null
     && adv.publicPhysiology.cardiovascular.meanArterialPressure < 75);
@@ -145,19 +150,19 @@ console.log('\nRuntime stabilization');
   });
   rt.setChemistry({ potassium: 6.5, lactate: 4 }, { pin: true });
   rt.dispatch({
-    id: createCommandId(),
+    id: rt.ids.command(),
     type: 'experimental.circulation-param',
     payload: { key: 'bloodVolume', value: 4200 },
     source: { type: 'test', id: 'stab' },
-  });
+  }, { role: 'test' });
   const cp = rt.createCheckpoint('chem');
   rt.setChemistry({ potassium: 3.0 }, { pin: true });
   rt.dispatch({
-    id: createCommandId(),
+    id: rt.ids.command(),
     type: 'experimental.circulation-param',
     payload: { key: 'bloodVolume', value: 5000 },
     source: { type: 'test', id: 'stab' },
-  });
+  }, { role: 'test' });
   rt.restoreCheckpoint(cp);
   ok('checkpoint restores chemistry pins', rt.chemistryState().potassium === 6.5);
   ok('checkpoint restores chemistry lactate', rt.chemistryState().lactate === 4);
@@ -183,12 +188,12 @@ console.log('\nRuntime stabilization');
   const latent = rt.query({ type: 'adapter.cardio.privateParams' });
   ok('loaded clinical scenario blocks privateParams query', latent == null);
 
-  const exam = rt.observe({ type: 'perform.examination', exam: 'cardiovascular' });
+  const exam = unwrapObs(rt.observe({ type: 'perform.examination', exam: 'cardiovascular' }));
   // After load without settle, sympathetic may already be low from condition
   ok('examination returns findings array', Array.isArray(exam.value?.findings));
 
   const rt2 = createPatientRuntime({ seed: 'stab-exam-normal' });
-  const normalExam = rt2.observe({ type: 'perform.examination', exam: 'cardiovascular' });
+  const normalExam = unwrapObs(rt2.observe({ type: 'perform.examination', exam: 'cardiovascular' }));
   ok('normal exam does not claim loss of sympathetic tone',
     !(normalExam.value?.findings || []).some((f) => /loss of sympathetic/i.test(f)),
     JSON.stringify(normalExam.value?.findings));

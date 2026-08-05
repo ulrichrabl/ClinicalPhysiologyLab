@@ -1,4 +1,4 @@
-import { createCommandId } from '../contracts/brands.ts';
+import { createCommandId, type CommandId, type RuntimeIdFactory } from '../contracts/brands.ts';
 import { runtimeError } from '../contracts/errors.ts';
 import type { PatientCommand } from '../contracts/commands.ts';
 import type {
@@ -95,11 +95,14 @@ function compileTrigger(t: ScenarioTrigger): CompiledTrigger {
   };
 }
 
-/** Materialise seed commands with fresh command ids. */
-export function materialiseSeedCommands(compiled: CompiledScenario): PatientCommand[] {
+/** Materialise seed commands with fresh command ids from a runtime-local factory when provided. */
+export function materialiseSeedCommands(
+  compiled: CompiledScenario,
+  ids?: Pick<RuntimeIdFactory, 'command'>,
+): PatientCommand[] {
   return compiled.seedCommands.map((c) => ({
     ...c,
-    id: createCommandId(),
+    id: (ids ? ids.command() : createCommandId()) as CommandId,
   }));
 }
 
@@ -132,10 +135,11 @@ export function evaluateTriggerPredicate(
 export function triggerThenToCommand(
   then: ScenarioTriggerThen,
   scenario: { id: string; version: string },
+  ids?: Pick<RuntimeIdFactory, 'command'>,
 ): PatientCommand | null {
   if (then.kind !== 'dispatch') return null;
   return {
-    id: createCommandId(),
+    id: (ids ? ids.command() : createCommandId()) as CommandId,
     type: then.command.type,
     payload: then.command.payload ?? {},
     source: { type: 'scenario', id: scenario.id, version: scenario.version },

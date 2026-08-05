@@ -14,7 +14,9 @@ const workerCode = readFileSync(workerOut, 'utf8').replace(/^export\s+/gm, '');
 
 function sim(params = {}, seconds = 10) {
   let snap = null;
-  const postMessage = (m) => { if (m.type === 'snapshot') snap = m.data; };
+  const postMessage = (m) => {
+    if (m.type === 'snapshot' || m.type === 'advanced') snap = m.data;
+  };
   const fn = new Function('postMessage', 'setInterval', 'clearInterval', 'self', workerCode);
   fn(postMessage, () => 1, () => {}, globalThis);
   globalThis.onmessage({ data: { type: 'init' } });

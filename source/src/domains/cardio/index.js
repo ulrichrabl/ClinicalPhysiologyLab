@@ -14,35 +14,16 @@ import { guard, record } from '../../core/diagnostics.js';
    Declares what it publishes into the shared patient and what it listens for.
    The shell knows nothing about elastance or Windkessel terms — it only knows
    this manifest.
---------------------------------------------------------------------------- */
-/* ---------------------------------------------------------------------------
-   Simulation host.
 
-   Normally the model runs in a Web Worker so a slow frame never stutters the
-   traces. But Chrome refuses to start a blob-URL worker from a page opened as
-   file://, and double-clicking the file is the whole point of shipping one
-   self-contained HTML document. So when there is no origin to speak of, the
-   same worker source is run on the main thread behind an identical interface.
-
-   The cost is small: at 30 fps and dt = 0.5 ms the model only advances about
-   67 integration steps per frame.
+   All learner mutations that change model state go through PatientRuntime
+   commands when a runtime is bound. The host transport remains runtime-owned
+   for play/pause/reset/settle; Explore UI no longer posts setParam directly.
 --------------------------------------------------------------------------- */
 function createSimHost(source) {
   /* Classic blob Workers have been unreliable here; in-page sim is fast enough
      (≈67 steps/frame at 30 fps) and shares the main thread's Map/typed arrays. */
   if (typeof window !== 'undefined') window.__simHost = 'in-page (no Worker)';
   return inlineSimHost(source);
-
-  /* Worker path kept for reference — re-enable once blob worker parity is verified.
-  if (typeof Worker === 'function' && location.protocol !== 'file:') {
-    try {
-      const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
-      const w = new Worker(url);
-      ...
-    } catch (e) { ... }
-  }
-  return inlineSimHost(source);
-  */
 }
 
 function inlineSimHost(source) {
@@ -66,55 +47,164 @@ function inlineSimHost(source) {
 
 export default function cardioDomain({ patient, shell, runtime }) {
   const worker = createSimHost(workerSource);
-  /* Exposed for the diagnostic report and the offline render harness. */
   if (typeof window !== 'undefined') window.__sim = worker;
 
   const send = (m) => worker.postMessage(m);
-  let base = {};          // what the learner set with the sliders
+  let base = {};
   let lastSnap = null;
-  let defaults = {};      // the model's own defaults, for undoing overrides
+  let defaults = {};
+  let catalog = [];
 
   if (runtime && typeof runtime.bindCardioHost === 'function') {
     runtime.bindCardioHost(worker);
   }
 
+  const session = () => ({ role: 'exploration' });
+
+  /** Route slider / lesson params through the runtime when bound. */
   const setParam = (k, v) => {
     base[k] = v;
+    if (runtime) {
+      if (k === 'K') {
+        runtime.dispatch({
+          id: runtime.ids.command('cardio'),
+          type: 'chemistry.set',
+          payload: { values: { K: v }, pin: true },
+          source: { type: 'ui', surface: 'cardio.loop' },
+        }, session());
+        runtime.dispatch({
+          id: runtime.ids.command('cardio'),
+          type: 'experimental.circulation-param',
+          payload: { key: 'K', value: v },
+          source: { type: 'ui', surface: 'cardio.loop' },
+        }, session());
+        return;
+      }
+      runtime.dispatch({
+        id: runtime.ids.command('cardio'),
+        type: 'experimental.circulation-param',
+        payload: { key: k, value: v },
+        source: { type: 'ui', surface: 'cardio.loop' },
+      }, session());
+      return;
+    }
     if (k === 'K') patient.set('K', v, 'cardio');
     send({ type: 'setParam', key: k, value: v });
-    // Learner slider changes are the baseline; re-sync channels so runtime
-    // mechanisms still compose on top when relevant.
-    if (runtime && k !== 'K') {
-      /* non-channel sim params stay on the host directly */
-    }
   };
 
-  const loop = new LoopView({ patient, send, onParam: setParam });
-  const ecg = new EcgView({ send, patient, getSnap: () => lastSnap });
+  const loop = new LoopView({
+    patient,
+    send: (m) => {
+      if (runtime && m.type === 'setBaro') {
+        runtime.dispatch({
+          id: runtime.ids.command('cardio'),
+          type: 'model.set-baro',
+          payload: { enabled: !!m.value },
+          source: { type: 'ui', surface: 'cardio.loop' },
+        }, session());
+        return;
+      }
+      send(m);
+    },
+    onParam: setParam,
+  });
+  const ecg = new EcgView({
+    send: (m) => {
+      if (!runtime) return send(m);
+      if (m.type === 'setPathology') {
+        runtime.dispatch({
+          id: runtime.ids.command('ecg'),
+          type: 'model.set-pathology',
+          payload: { pathologyId: m.id },
+          source: { type: 'ui', surface: 'cardio.ecg' },
+        }, session());
+        return;
+      }
+      if (m.type === 'prime') {
+        // Warm-up remains a host transport message (not a learner mutation).
+        send(m);
+        return;
+      }
+      send(m);
+    },
+    patient,
+    getSnap: () => lastSnap,
+  });
 
   const lessons = new LessonRunner({
     lessons: LESSONS,
     apply: (s) => {
       if (!s) return;
-      if (s.params) { Object.assign(base, s.params); send({ type: 'setParams', values: s.params }); }
-      if (s.pathology) send({ type: 'setPathology', id: s.pathology });
-      if (s.baro != null) send({ type: 'setBaro', value: s.baro });
+      if (s.params) {
+        Object.assign(base, s.params);
+        if (runtime) {
+          for (const [k, v] of Object.entries(s.params)) {
+            runtime.dispatch({
+              id: runtime.ids.command('lesson'),
+              type: 'experimental.circulation-param',
+              payload: { key: k, value: v },
+              source: { type: 'lesson', id: 'cardio' },
+            }, { role: 'lesson' });
+          }
+        } else {
+          send({ type: 'setParams', values: s.params });
+        }
+      }
+      if (s.pathology) {
+        if (runtime) {
+          runtime.dispatch({
+            id: runtime.ids.command('lesson'),
+            type: 'model.set-pathology',
+            payload: { pathologyId: s.pathology },
+            source: { type: 'lesson', id: 'cardio' },
+          }, { role: 'lesson' });
+        } else {
+          send({ type: 'setPathology', id: s.pathology });
+        }
+      }
+      if (s.baro != null) {
+        if (runtime) {
+          runtime.dispatch({
+            id: runtime.ids.command('lesson'),
+            type: 'model.set-baro',
+            payload: { enabled: !!s.baro },
+            source: { type: 'lesson', id: 'cardio' },
+          }, { role: 'lesson' });
+        } else {
+          send({ type: 'setBaro', value: s.baro });
+        }
+      }
       if (s.ghost === 'capture') loop.captureGhost();
       if (s.ghost === 'clear') loop.clearGhost();
-      if (s.settle !== false) send({ type: 'settle', seconds: s.settle || 4 });
+      if (s.settle !== false) {
+        if (runtime) {
+          void runtime.advance(s.settle ? s.settle * 1000 : 4000);
+        } else {
+          send({ type: 'settle', seconds: s.settle || 4 });
+        }
+      }
       loop.syncSliders({ ...BASELINE, ...base });
     },
   });
 
-  /* The case needs a tracing to read, not just a vignette. */
   const casePanel = new LeadPanel({ height: 330, strip: true });
-  let catalog = [];
   const cases = new CaseRunner({
     sets: CASE_SETS,
     stimulus: casePanel.node,
     optionLabel: (id) => catalog.find((p) => p.id === id)?.name || id,
     stage: (c) => {
-      if (c.pathId) { casePanel.reset(); send({ type: 'setPathology', id: c.pathId }); }
+      if (!c.pathId) return;
+      casePanel.reset();
+      if (runtime) {
+        runtime.dispatch({
+          id: runtime.ids.command('case'),
+          type: 'model.set-pathology',
+          payload: { pathologyId: c.pathId },
+          source: { type: 'lesson', id: 'cardio.case' },
+        }, { role: 'lesson' });
+      } else {
+        send({ type: 'setPathology', id: c.pathId });
+      }
     },
   });
 
@@ -131,15 +221,39 @@ export default function cardioDomain({ patient, shell, runtime }) {
       if (typeof globalThis !== 'undefined') globalThis.__catalogSeen = m.pathologies;
       ecg.setCatalog(m.pathologies);
       cases.render();
+      // Prime physiology for the UI; playback ownership stays with the runtime.
       send({ type: 'prime' });
-      send({ type: 'play' });
+      return;
+    }
+    if (m.type === 'modelState') {
+      if (runtime && typeof runtime.ingestModelState === 'function') {
+        runtime.ingestModelState(m.state);
+      }
+      return;
+    }
+    if (m.type === 'modelStateRestored') {
+      lastSnap = m.data;
+      if (runtime && typeof runtime.ingestCardioSnapshot === 'function') {
+        runtime.ingestCardioSnapshot(m.data);
+      }
+      return;
+    }
+    if (m.type === 'advanced') {
+      lastSnap = m.data;
+      if (runtime && typeof runtime.completeAdvance === 'function') {
+        runtime.completeAdvance(m.requestId, m.data, m.advancedMs);
+      } else if (runtime && typeof runtime.ingestCardioSnapshot === 'function') {
+        runtime.ingestCardioSnapshot(m.data);
+      }
+      guard('shell.vitals', () => shell.updateVitalsFromRuntime?.() ?? shell.updateVitals(m.data));
+      loop.push(m.data);
+      ecg.push(m.data);
+      if (shell.activeWorkspace() === 'cardio.cases') casePanel.push(m.data);
       return;
     }
     if (m.type !== 'snapshot') return;
     const s = m.data;
     lastSnap = s;
-    // Canonical public state lives on the runtime — cardio does not publish
-    // haemodynamics into shared channels as ground truth.
     if (runtime && typeof runtime.ingestCardioSnapshot === 'function') {
       runtime.ingestCardioSnapshot(s);
     }
@@ -149,12 +263,9 @@ export default function cardioDomain({ patient, shell, runtime }) {
     if (shell.activeWorkspace() === 'cardio.cases') casePanel.push(s);
   };
 
-  /* A throw inside the handler would otherwise stall every later snapshot. */
   const rawHandler = worker.onmessage;
   worker.onmessage = (e) => guard('cardio.snapshot', () => rawHandler(e));
 
-  /* Channel edits flow Patient → runtime.syncChannels → adapter → host.
-     Cardio publishes haemodynamic snapshots back into channels. */
   if (runtime) {
     runtime.subscribe((ev) => {
       if (ev.type === 'command.accepted' || ev.type === 'channels.synced' || ev.type === 'checkpoint.restored') {
@@ -168,7 +279,7 @@ export default function cardioDomain({ patient, shell, runtime }) {
     id: 'cardio',
     name: 'Circulation',
     tagline: 'Pressures, volumes and the electrical trace that drives them',
-    produces: [], // haemodynamics are runtime public state, not domain channel writes
+    produces: [],
     consumes: ['K', 'Ca', 'ICP', 'betaBlocker', 'atropine', 'vasopressor'],
     transport: true,
     workspaces: [
@@ -177,9 +288,27 @@ export default function cardioDomain({ patient, shell, runtime }) {
       { id: 'cases', label: 'Cases', node: cases.node, view: { resize: () => casePanel.resize() } },
       { id: 'lessons', label: 'Lessons', node: lessons.node, view: lessons },
     ],
-    control: { play: () => send({ type: 'play' }), pause: () => send({ type: 'pause' }),
-      speed: (v) => send({ type: 'setSpeed', value: v }),
-      reset: () => { base = {}; send({ type: 'reset' }); } },
+    control: {
+      play: () => (runtime ? runtime.play() : send({ type: 'play' })),
+      pause: () => (runtime ? runtime.pause() : send({ type: 'pause' })),
+      speed: (v) => {
+        if (runtime) runtime.play({ speed: v });
+        else send({ type: 'setSpeed', value: v });
+      },
+      reset: () => {
+        base = {};
+        if (runtime) {
+          runtime.dispatch({
+            id: runtime.ids.command('cardio'),
+            type: 'runtime.reset',
+            payload: {},
+            source: { type: 'ui', surface: 'cardio' },
+          }, session());
+        } else {
+          send({ type: 'reset' });
+        }
+      },
+    },
     snapshot: () => lastSnap,
     setParam,
   };

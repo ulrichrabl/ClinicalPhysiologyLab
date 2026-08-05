@@ -31,6 +31,14 @@ const {
 } = await import(pathToFileURL(bundle).href);
 
 let pass = 0, fail = 0;
+
+function unwrapObs(outcome) {
+  if (!outcome) return null;
+  if (outcome.accepted === false) return { denied: true, error: outcome.error, value: null };
+  if (outcome.accepted === true) return outcome.observation;
+  return outcome;
+}
+
 const ok = (name, cond, detail = '') => {
   if (cond) { pass++; console.log(`  ✓ ${name}`); }
   else { fail++; console.log(`  ✗ ${name}${detail ? ' — ' + detail : ''}`); }
@@ -85,7 +93,7 @@ ok('chemistry model declares laboratory capabilities',
   const bag = chemistryToLabBag(rt.chemistryState());
   ok('lab bag mirrors chemistry', bag.K === 7.2);
 
-  const panel = rt.observe({ type: 'observe.laboratory-panel', includeInterpretation: true });
+  const panel = unwrapObs(rt.observe({ type: 'observe.laboratory-panel', includeInterpretation: true }));
   ok('laboratory observation provenance cites plugin',
     panel.provenance.modelId === laboratoryPanelObservation.manifest.id);
   ok('laboratory observation reports potassium', panel.value.results.K === 7.2);
@@ -126,7 +134,7 @@ ok('chemistry model declares laboratory capabilities',
   ok('pinned potassium survives haemodynamic ingest',
     rt.chemistryState().potassium === 7.2);
 
-  const afterBleed = rt.observe({ type: 'observe.laboratory-panel' });
+  const afterBleed = unwrapObs(rt.observe({ type: 'observe.laboratory-panel' }));
   ok('observation marks lactate as physiology-derived',
     afterBleed.value.lines.find((l) => l.key === 'lactate')?.source === 'physiology-derived',
     afterBleed.value.lines.find((l) => l.key === 'lactate')?.source);
@@ -159,7 +167,7 @@ ok('chemistry model declares laboratory capabilities',
     caps.capabilities.includes('observation.laboratory-panel')
     || caps.observations.includes('laboratory-panel'));
 
-  rt.advance(asSimDuration(1000));
+  await rt.advance(asSimDuration(1000));
   ok('advance still works with chemistry model mounted', true);
 }
 

@@ -59,7 +59,12 @@ export class Patient {
     this.state[k] = v;
     this.recompute();
     if (this.runtime && isChannelInput(k) && source !== 'runtime' && source !== 'cardio') {
-      this.runtime.syncChannels(this.channelSnapshot());
+      this.runtime.dispatch({
+        id: this.runtime.ids.command('patient'),
+        type: 'channels.sync',
+        payload: { channels: this.channelSnapshot() },
+        source: { type: 'ui', surface: 'patient' },
+      }, { role: 'exploration' });
     }
     this.emit({ key: k, value: v, source });
   }
@@ -73,7 +78,14 @@ export class Patient {
     this.recompute();
     if (this.runtime && source !== 'runtime' && source !== 'cardio') {
       const touched = Object.keys(obj).some(isChannelInput);
-      if (touched) this.runtime.syncChannels(this.channelSnapshot());
+      if (touched) {
+        this.runtime.dispatch({
+          id: this.runtime.ids.command('patient'),
+          type: 'channels.sync',
+          payload: { channels: this.channelSnapshot() },
+          source: { type: 'ui', surface: 'patient' },
+        }, { role: 'exploration' });
+      }
     }
     this.emit({ keys: Object.keys(obj), source });
   }
