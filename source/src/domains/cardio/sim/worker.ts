@@ -50,9 +50,10 @@ function ensureTimer() {
   if (timer === null) timer = setInterval(tick, FRAME_MS);
 }
 
-function settle() {
-  sim.advance(8000);
-  postMessage({ type: 'snapshot', data: sim.snapshot() });
+function settle(seconds = 4) {
+  const before = sim.t;
+  sim.advance(Math.round(seconds / sim.dt));
+  return { advancedMs: (sim.t - before) * 1000, data: sim.snapshot() };
 }
 
 declare var self: typeof globalThis;
@@ -64,7 +65,17 @@ postMessage({
 });
 
 self.onmessage = (e: MessageEvent) => {
-  const msg = e.data as { type: string; id?: string; key?: string; value?: number; values?: Record<string, number>; seconds?: number };
+  const msg = e.data as {
+    type: string;
+    id?: string;
+    key?: string;
+    value?: number | boolean;
+    values?: Record<string, number>;
+    seconds?: number;
+    requestId?: string;
+    state?: unknown;
+    patient?: { ageYears?: number; sex?: string; phenotypeProfile?: string };
+  };
   switch (msg.type) {
     case 'init':
       sim = new Circulation(DEFAULTS);
@@ -72,23 +83,33 @@ self.onmessage = (e: MessageEvent) => {
       engine.reset();
       engine.initialize({
         version: '0.1', seed: '10392042',
-        patient: { phenotypeProfile: 'adult_profile_017' },
+        patient: {
+          phenotypeProfile: msg.patient?.phenotypeProfile ?? 'adult_profile_017',
+          ageYears: msg.patient?.ageYears,
+          biologicalSex: msg.patient?.sex as 'female' | 'male' | undefined,
+        },
         conditions: [{ id: 'normal', severity: 0, expression: 1 }],
         acquisition: {},
       });
-      settle();
+      {
+        const r = settle(4);
+        postMessage({ type: 'advanced', requestId: msg.requestId ?? null, advancedMs: r.advancedMs, data: r.data });
+      }
       break;
     case 'play': running = true; ensureTimer(); break;
     case 'pause': running = false; break;
     case 'reset':
       sim.reset(DEFAULTS);
       engine.reset();
-      settle();
+      {
+        const r = settle(4);
+        postMessage({ type: 'snapshot', data: r.data });
+      }
       break;
-    case 'setSpeed': speed = msg.value ?? 1; break;
+    case 'setSpeed': speed = (msg.value as number) ?? 1; break;
     case 'setParam':
-      if (msg.key === 'stFactor' && msg.value != null) engine.setCalcium(2.4 + (msg.value - 1) / 0.55);
-      sim.setParam(msg.key!, msg.value!);
+      if (msg.key === 'stFactor' && msg.value != null) engine.setCalcium(2.4 + ((msg.value as number) - 1) / 0.55);
+      sim.setParam(msg.key!, msg.value as number);
       break;
     case 'setParams':
       for (const [k, v] of Object.entries(msg.values ?? {})) {
@@ -100,14 +121,48 @@ self.onmessage = (e: MessageEvent) => {
     case 'setBaro': if (sim.baroEnabled !== msg.value) sim.toggleBaro(); break;
     case 'setPathology':
       sim.setPathology(msg.id!, DEFAULTS as Record<string, number | boolean>);
-      settle();
+      {
+        const r = settle(4);
+        postMessage({ type: 'snapshot', data: r.data });
+      }
       break;
-    case 'settle':
-      sim.advance(Math.round((msg.seconds || 4) / sim.dt));
-      postMessage({ type: 'snapshot', data: sim.snapshot() });
+    case 'settle': {
+      const r = settle(msg.seconds || 4);
+      postMessage({
+        type: 'advanced',
+        requestId: msg.requestId ?? null,
+        advancedMs: r.advancedMs,
+        data: r.data,
+      });
       break;
-    case 'prime':
-      settle();
+    }
+    case 'exportState':
+      postMessage({
+        type: 'modelState',
+        requestId: msg.requestId ?? null,
+        state: {
+          schemaVersion: 'circulation.private.v1',
+          modelId: 'circulation.closed-loop',
+          payload: sim.serializeState(),
+        },
+      });
       break;
+    case 'importState':
+      if (msg.state && typeof msg.state === 'object') {
+        const bag = msg.state as { payload?: unknown };
+        sim.restoreState(bag.payload ?? msg.state);
+      }
+      postMessage({
+        type: 'modelStateRestored',
+        requestId: msg.requestId ?? null,
+        data: sim.snapshot(),
+      });
+      break;
+    case 'prime': {
+      const r = settle(4);
+      // Prime is not a correlated advance — emit ordinary snapshot for UI warm-up.
+      postMessage({ type: 'snapshot', data: r.data });
+      break;
+    }
   }
 };

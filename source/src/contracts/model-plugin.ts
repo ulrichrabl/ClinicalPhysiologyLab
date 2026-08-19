@@ -33,7 +33,13 @@ export interface ModelAdvanceResult<State, Outputs> {
 export interface PhysiologyModelPlugin<State = unknown, Inputs = unknown, Outputs = unknown> {
   readonly manifest: ModelManifest;
   initialize(seed: string): State;
-  advance(request: ModelAdvanceRequest<State, Inputs>): ModelAdvanceResult<State, Outputs>;
+  /**
+   * Advance model state. Must be awaitable — Worker-backed hosts cannot
+   * provide the target state synchronously.
+   */
+  advance(
+    request: ModelAdvanceRequest<State, Inputs>,
+  ): Promise<ModelAdvanceResult<State, Outputs>> | ModelAdvanceResult<State, Outputs>;
   snapshot(state: State): SerializedModelState;
   restore(serialized: SerializedModelState): State;
 }

@@ -99,6 +99,10 @@ export interface CardioPrivateParams {
 export interface AdvanceResult {
   from: SimTime;
   to: SimTime;
+  /** Correlated request id for live model advances (null for pure clock ticks). */
+  requestId?: string | null;
+  /** Duration the model actually advanced (may differ from request). */
+  advancedMs?: number;
   publicPhysiology: PublicPhysiologyView;
   events: TimelineEntry[];
 }
@@ -190,6 +194,19 @@ export type ObservationResult<R extends ObservationRequest> =
   : R['type'] extends 'observe.laboratory-panel' ? Observation<LaboratoryPanelValue>
   : R['type'] extends 'perform.examination' ? Observation<ExaminationValue>
   : Observation<unknown>;
+
+/** Explicit denial — never a fake successful observation with empty value. */
+export interface ObservationDenied {
+  accepted: false;
+  id: ObservationId;
+  type: string;
+  requestedAt: SimTime;
+  error: import('./errors.ts').RuntimeError;
+}
+
+export type ObserveOutcome<R extends ObservationRequest> =
+  | { accepted: true; observation: ObservationResult<R> }
+  | ObservationDenied;
 
 export interface VitalSignsValue {
   heartRate: number | null;

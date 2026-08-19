@@ -3,7 +3,7 @@ export {
   createPatientRuntime,
   createCommandId,
 } from '../src/runtime/patient-runtime.ts';
-export { asSimDuration, RuntimeIdFactory, bindIdFactory, createEffectId } from '../src/contracts/brands.ts';
+export { asSimDuration, RuntimeIdFactory, createEffectId } from '../src/contracts/brands.ts';
 export { settleWithCirculation } from './_runtime_slice_entry.ts';
 export {
   NEUROGENIC_COMPLETE_TARGETS,

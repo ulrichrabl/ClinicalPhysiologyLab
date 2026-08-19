@@ -29,6 +29,14 @@ const {
 } = await import(pathToFileURL(bundle).href);
 
 let pass = 0, fail = 0;
+
+function unwrapObs(outcome) {
+  if (!outcome) return null;
+  if (outcome.accepted === false) return { denied: true, error: outcome.error, value: null };
+  if (outcome.accepted === true) return outcome.observation;
+  return outcome;
+}
+
 const ok = (name, cond, detail = '') => {
   if (cond) { pass++; console.log(`  ✓ ${name}`); }
   else { fail++; console.log(`  ✗ ${name}${detail ? ' — ' + detail : ''}`); }
@@ -67,7 +75,7 @@ ok('ECG model declares twelve-lead capability',
     },
     source: { type: 'test', id: 'phase4' },
   });
-  rt.advance(asSimDuration(5000));
+  await rt.advance(asSimDuration(5000));
 
   const phys = rt.query({ type: 'state.projection', projection: 'publicPhysiology' });
   ok('canonical public state has MAP after advance',
@@ -79,7 +87,7 @@ ok('ECG model declares twelve-lead capability',
   ok('channel projections emitted for labs consumers',
     projections.some((p) => p.MAP != null), JSON.stringify(projections.slice(-1)));
 
-  const vitals = rt.observe({ type: 'observe.vital-signs' });
+  const vitals = unwrapObs(rt.observe({ type: 'observe.vital-signs' }));
   ok('vital observation provenance cites observation plugin',
     vitals.provenance.modelId === vitalSignsObservation.manifest.id);
   ok('vital observation is not the raw snapshot',
@@ -87,7 +95,7 @@ ok('ECG model declares twelve-lead capability',
   ok('ground truth and observation agree on MAP',
     vitals.value.bloodPressure.mean === phys.cardiovascular.meanArterialPressure);
 
-  const ecg = rt.observe({ type: 'observe.twelve-lead-ecg' });
+  const ecg = unwrapObs(rt.observe({ type: 'observe.twelve-lead-ecg' }));
   ok('ECG observation provenance cites ECG plugin',
     ecg.provenance.modelId === twelveLeadEcgObservation.manifest.id);
   ok('ECG observation has a report string', typeof ecg.value.report === 'string' && ecg.value.report.length > 10);

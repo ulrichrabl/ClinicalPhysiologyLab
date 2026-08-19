@@ -1,6 +1,5 @@
 import { el, clear, card, slider, fmt } from './kit.js';
 import { CHANNELS, channelStatus } from '../patient.js';
-import { createCommandId } from '../../runtime/patient-runtime.ts';
 import { listScenarios } from '../../scenarios/index.ts';
 
 /* ---------------------------------------------------------------------------
@@ -79,28 +78,23 @@ export class PatientView {
   loadScenario(id) {
     if (!this.runtime) return;
     this.runtime.dispatch({
-      id: createCommandId(),
+      id: this.runtime.ids.command('patient'),
       type: 'scenario.load',
       payload: { scenarioId: id },
       source: { type: 'ui', surface: 'patient' },
-    });
-    this.runtime.dispatch({
-      id: createCommandId(),
-      type: 'runtime.advance',
-      payload: { durationMs: 5000 },
-      source: { type: 'ui', surface: 'patient' },
-    });
+    }, { role: 'clinical' });
+    void this.runtime.advance(5000);
     this.refresh();
   }
 
   clearScenario() {
     if (!this.runtime) return;
     this.runtime.dispatch({
-      id: createCommandId(),
+      id: this.runtime.ids.command('patient'),
       type: 'scenario.clear',
       payload: {},
       source: { type: 'ui', surface: 'patient' },
-    });
+    }, { role: 'clinical' });
     this.refresh();
   }
 
@@ -185,7 +179,7 @@ export class PatientView {
     this.summaryNode.append(
       el('p', {},
         scen
-          ? `Active scenario: ${scen.definition.title}`
+          ? `Active scenario: ${this.runtime.presentationScenarioTitle?.() || scen.definition.presentationTitle || scen.definition.title}`
           : 'No scenario loaded — baseline physiology.'),
       el('p', {},
         `HR ${vitals.heartRate == null ? '—' : Math.round(vitals.heartRate)} · `
@@ -194,7 +188,7 @@ export class PatientView {
       el('p', { class: 'muted' },
         (summary?.activeConditions || []).length
           ? `Conditions: ${summary.activeConditions.map((c) => c.conditionId).join(', ')}`
-          : 'No active conditions.'),
+          : 'No disclosed conditions.'),
       el('div', { class: 'btn-row' },
         el('button', { class: 'btn ghost sm', onclick: () => this.onNavigate('examine') },
           'Examine →'),

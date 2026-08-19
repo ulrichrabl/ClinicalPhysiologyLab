@@ -2,7 +2,7 @@ import type {
   AdvanceResult,
   CheckpointRef,
   ObservationRequest,
-  ObservationResult,
+  ObserveOutcome,
   QueryResult,
   RestoreResult,
   RuntimeBranch,
@@ -14,15 +14,24 @@ import type {
 } from './queries.ts';
 import type { CommandResult, PatientCommand } from './commands.ts';
 import type { SimDuration } from './brands.ts';
+import type { RuntimeSession } from './session.ts';
 
 export interface PatientRuntime {
   readonly fingerprint: RuntimeFingerprint;
+  /** Instance-local ID namespaces — never share a module-global factory. */
+  readonly ids: import('./brands.ts').RuntimeIdFactory;
 
-  dispatch(command: PatientCommand): CommandResult;
-  query<Q extends RuntimeQuery>(query: Q): QueryResult<Q>;
-  observe<R extends ObservationRequest>(request: R): ObservationResult<R>;
+  dispatch(command: PatientCommand, session?: RuntimeSession): CommandResult;
+  query<Q extends RuntimeQuery>(query: Q, session?: RuntimeSession): QueryResult<Q>;
+  /** Clinical / UI clients — latent state denied when scenario hides it. */
+  queryForClient<Q extends RuntimeQuery>(query: Q, session?: RuntimeSession): QueryResult<Q>;
+  observe<R extends ObservationRequest>(request: R, session?: RuntimeSession): ObserveOutcome<R>;
 
-  advance(duration: SimDuration): AdvanceResult;
+  /**
+   * Advance simulation time. Live hosts resolve when a correlated model
+   * response arrives; headless settle resolves in the same turn.
+   */
+  advance(duration: SimDuration): Promise<AdvanceResult>;
   play(options?: { speed?: number }): void;
   pause(): void;
 
@@ -44,3 +53,4 @@ export * from './models.ts';
 export * from './scenarios.ts';
 export * from './authority.ts';
 export * from './model-plugin.ts';
+export * from './session.ts';

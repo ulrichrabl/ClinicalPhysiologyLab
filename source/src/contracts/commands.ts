@@ -74,6 +74,9 @@ export type KnownCommandType =
   | 'chemistry.unpin'
   | 'chemistry.reset'
   | 'experimental.circulation-param'
+  | 'model.set-pathology'
+  | 'model.set-baro'
+  | 'channels.sync'
   | 'scenario.load'
   | 'scenario.clear'
   | 'treatment.fluid-bolus'
@@ -96,4 +99,16 @@ export interface FluidBolusPayload {
 export interface VasopressorPayload {
   /** 0–1 educational infusion intensity. */
   intensity: number;
+}
+
+export interface ModelPathologyPayload {
+  pathologyId: string;
+}
+
+export interface ModelBaroPayload {
+  enabled: boolean;
+}
+
+export interface ChannelsSyncPayload {
+  channels: Record<string, number | boolean | string | null>;
 }

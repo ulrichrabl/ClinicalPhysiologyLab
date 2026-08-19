@@ -17,7 +17,9 @@ export default function labsDomain({ patient, shell, runtime }) {
 
   const panelObservation = () => {
     if (!rt?.observe) return null;
-    return rt.observe({ type: 'observe.laboratory-panel', panel: 'all', includeInterpretation: true });
+    const outcome = rt.observe({ type: 'observe.laboratory-panel', panel: 'all', includeInterpretation: true });
+    if (outcome?.accepted === false) return null;
+    return outcome?.accepted === true ? outcome.observation : outcome;
   };
 
   const labsBag = () => {

@@ -6,8 +6,9 @@ import type { ScenarioDefinition } from '../../contracts/scenarios.ts';
  */
 export const neurogenicShockDemo: ScenarioDefinition = {
   id: 'neurogenic-shock-demo',
-  version: '0.1.0',
+  version: '0.2.0',
   title: 'C5 spinal cord injury — neurogenic shock',
+  presentationTitle: 'Collapse after a diving accident',
   learningObjectives: [
     'Recognise hypotension with relative bradycardia as neurogenic shock',
     'Link interruption of descending sympathetic pathways to venous pooling and loss of arteriolar tone',
@@ -19,6 +20,7 @@ export const neurogenicShockDemo: ScenarioDefinition = {
     heightCm: 178,
     weightKg: 76,
   },
+  initialization: 'fresh-patient',
   conditions: [
     {
       id: 'cervical-spinal-cord-injury',

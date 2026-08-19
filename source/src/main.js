@@ -45,7 +45,7 @@ class Shell {
     this.byId = new Map();
     this.active = null;
     this.exploreLensId = null;
-    this.playing = true;
+    this.playing = false;
     this.speed = 1;
     this.lastSnap = null;
 
@@ -62,6 +62,11 @@ class Shell {
     if (typeof window !== 'undefined' && window.__sim) {
       this.runtime.bindCardioHost(window.__sim);
     }
+
+    // Runtime owns playback — start the clock after the host is bound.
+    this.runtime.play();
+    this.playing = true;
+    if (this.playBtn) this.playBtn.textContent = '❚❚';
 
     const compiled = compileScenario(neurogenicShockDemo, {
       availableCapabilities: this.runtime.describeCapabilities().capabilities,
@@ -329,8 +334,8 @@ class Shell {
     const snap = this.runtime.monitorSnapshot();
     this.lastSnap = snap;
     this.renderVitals(snap);
-    const obs = this.runtime.observe({ type: 'observe.vital-signs' });
-    this._lastVitalsObservation = obs;
+    const outcome = this.runtime.observe({ type: 'observe.vital-signs' }, { role: 'clinical' });
+    this._lastVitalsObservation = outcome?.accepted === true ? outcome.observation : outcome;
   }
 
   updateVitals(snap) {
@@ -444,7 +449,6 @@ class Shell {
     this.playBtn.textContent = this.playing ? '❚❚' : '▶';
     if (this.playing) this.runtime.play();
     else this.runtime.pause();
-    for (const d of this.lenses) (this.playing ? d.control?.play : d.control?.pause)?.();
   }
 
   resetAll() {

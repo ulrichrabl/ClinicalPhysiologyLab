@@ -2,9 +2,9 @@ import type {
   AdvanceResult,
   CardioPrivateParams,
   CheckpointRef,
-  Observation,
   ObservationRequest,
   ObservationResult,
+  ObserveOutcome,
   PublicPhysiologyView,
   QueryResult,
   RestoreResult,
@@ -20,11 +20,14 @@ import type {
 } from '../contracts/queries.ts';
 import type {
   ActivateConditionPayload,
+  ChannelsSyncPayload,
   ChemistrySetPayload,
   ChemistryUnpinPayload,
   CirculationParamPayload,
   CommandResult,
   FluidBolusPayload,
+  ModelBaroPayload,
+  ModelPathologyPayload,
   PatientCommand,
   ResolveConditionPayload,
   ScenarioLoadPayload,
@@ -35,30 +38,33 @@ import type {
   ScenarioAuthority,
   ScenarioLoadResult,
 } from '../contracts/scenarios.ts';
+import type { SerializedModelState } from '../contracts/model-plugin.ts';
+import type { RuntimeSession } from '../contracts/session.ts';
+import { clinicalSession, systemSession } from '../contracts/session.ts';
 import { getScenario, listScenarios } from '../scenarios/index.ts';
 import {
   compileScenario,
   materialiseSeedCommands,
 } from '../scenarios/compiler.ts';
-import { ScenarioTriggerRunner } from '../scenarios/triggers.ts';
+import {
+  ScenarioTriggerRunner,
+  type SerializedTriggerRunner,
+} from '../scenarios/triggers.ts';
 import type { PatientRuntime } from '../contracts/index.ts';
 import type { PhysiologicalEffect } from '../contracts/effects.ts';
-import type { SimDuration, SimTime } from '../contracts/brands.ts';
+import type { CommandId, SimDuration, SimTime } from '../contracts/brands.ts';
 import {
   asSimDuration,
   asSimTime,
-  bindIdFactory,
-  createCheckpointId,
   createCommandId,
-  createObservationId,
   RuntimeIdFactory,
+  type RuntimeIdSnapshot,
 } from '../contracts/brands.ts';
 import { runtimeError } from '../contracts/errors.ts';
 import {
   authorizeCommand,
   authorizeObservation,
   authorizeQuery,
-  defaultAuthority,
 } from '../contracts/authority.ts';
 import {
   CONDITION_REGISTRY,
@@ -132,6 +138,13 @@ const EXPERIMENTAL_CIRCULATION_KEYS = new Set([
   'Csa',
   'Csv',
   'Rpul',
+  'K',
+  'baroEnabled',
+  'stFactor',
+  'Emin',
+  'Rven',
+  'Cpa',
+  'Cpv',
 ]);
 
 export interface PatientRuntimeOptions {
@@ -148,6 +161,9 @@ export interface PatientRuntimeOptions {
     },
     seconds: number,
   ) => Record<string, number> | null;
+  /** Optional headless model state export/restore for checkpoint fidelity. */
+  exportModelState?: () => SerializedModelState | null;
+  restoreModelState?: (state: SerializedModelState) => void;
   /** Optional channel projection writer (updates Patient.cordLevel etc.). */
   projectChannels?: (patch: Record<string, unknown>) => void;
   authority?: {
@@ -156,6 +172,14 @@ export interface PatientRuntimeOptions {
     mayReadLatentState?: boolean;
     mayAdvanceTime?: boolean;
   };
+}
+
+interface PendingAdvance {
+  requestId: string;
+  durationMs: number;
+  from: SimTime;
+  resolve: (result: AdvanceResult) => void;
+  reject: (err: Error) => void;
 }
 
 interface CheckpointSnapshot {
@@ -168,11 +192,14 @@ interface CheckpointSnapshot {
   commandLog: PatientCommand[];
   lastSnap: Record<string, number> | null;
   randomState: number;
+  /** @deprecated prefer idSnapshot */
   idSeq: number;
+  idSnapshot: RuntimeIdSnapshot;
   channels: ChannelState;
   chemistry: ChemistryPublicState;
   chemistryPins: string[];
   chemistryBaseline: ChemistryPublicState;
+  activeChemistryDerivations: ChemistryDerivation[];
   cardiovascular: CardiovascularPublicState;
   electrophysiology: ElectrophysiologyPublicState;
   learnerBloodVolume: number;
@@ -181,13 +208,20 @@ interface CheckpointSnapshot {
   scenarioVersion: string | null;
   scenarioAuthority: ScenarioAuthority | null;
   scenarioAnnotations: { id: string; label: string; detail?: unknown; atMs: number }[];
+  triggerState: SerializedTriggerRunner | null;
+  fingerprintScenario: { id: string; version: string };
+  models: Record<string, SerializedModelState>;
   timeline: TimelineEntry[];
   lastModelTimeSec: number | null;
   playing: boolean;
+  /** Internal transactional markers are not timeline-visible when true. */
+  silent?: boolean;
 }
 
 export class DefaultPatientRuntime implements PatientRuntime {
   readonly fingerprint: RuntimeFingerprint;
+  /** Instance-local ID namespaces. */
+  readonly ids: RuntimeIdFactory;
   private simTime: SimTime = asSimTime(0);
   private revision = 0;
   private playing = false;
@@ -213,15 +247,16 @@ export class DefaultPatientRuntime implements PatientRuntime {
   private scenarioAnnotations: { id: string; label: string; detail?: unknown; atMs: number }[] = [];
   private learnerBloodVolume = 5000;
   private experimentalControls: Record<string, number | boolean> = {};
-  private ids: RuntimeIdFactory;
   private lastModelTimeSec: number | null = null;
-  private pendingSettle: { durationMs: number; from: SimTime } | null = null;
+  private pendingAdvances = new Map<string, PendingAdvance>();
+  /** Cached private model states keyed by model id (filled on checkpoint / host export). */
+  private modelStates: Record<string, SerializedModelState> = {};
+  private hostEpoch = 0;
 
   constructor(opts: PatientRuntimeOptions = {}) {
     this.opts = opts;
     this.randomState = hashSeed(opts.seed ?? 'cpl-default-seed');
     this.ids = new RuntimeIdFactory(this.randomState.toString(36));
-    bindIdFactory(this.ids);
     this.fingerprint = {
       runtimeVersion: RUNTIME_VERSION,
       scenario: opts.scenario ?? { id: 'ad-hoc', version: '0.0.0' },
@@ -251,7 +286,11 @@ export class DefaultPatientRuntime implements PatientRuntime {
 
   /* ---- public API ----------------------------------------------------- */
 
-  dispatch(command: PatientCommand): CommandResult {
+  allocateCommandId(prefix = 'cmd'): CommandId {
+    return this.ids.command(prefix);
+  }
+
+  dispatch(command: PatientCommand, session?: RuntimeSession): CommandResult {
     if (command.expectedRevision != null && command.expectedRevision !== this.revision) {
       return this.reject(command, runtimeError(
         'COMMAND_CONFLICT',
@@ -259,7 +298,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
       ));
     }
 
-    const authErr = authorizeCommand(command, this.authorityContext());
+    const authErr = authorizeCommand(command, this.authorityContext(session));
     if (authErr) return this.reject(command, authErr);
 
     switch (command.type) {
@@ -275,7 +314,8 @@ export class DefaultPatientRuntime implements PatientRuntime {
             received: ms,
           }));
         }
-        this.advance(asSimDuration(ms));
+        // Fire-and-forget from command path; prefer await runtime.advance() for correlated results.
+        void this.advance(asSimDuration(ms));
         return this.accept(command, { changedPaths: ['runtime.time'] });
       }
       case 'runtime.pause':
@@ -297,6 +337,12 @@ export class DefaultPatientRuntime implements PatientRuntime {
         return this.accept(command, { changedPaths: ['chemistry.*'] });
       case 'experimental.circulation-param':
         return this.experimentalCirculationParam(command);
+      case 'model.set-pathology':
+        return this.modelSetPathology(command);
+      case 'model.set-baro':
+        return this.modelSetBaro(command);
+      case 'channels.sync':
+        return this.channelsSyncCommand(command);
       case 'scenario.load':
         return this.scenarioLoadCommand(command);
       case 'scenario.clear':
@@ -326,6 +372,9 @@ export class DefaultPatientRuntime implements PatientRuntime {
             'chemistry.unpin',
             'chemistry.reset',
             'experimental.circulation-param',
+            'model.set-pathology',
+            'model.set-baro',
+            'channels.sync',
             'scenario.load',
             'scenario.clear',
             'treatment.fluid-bolus',
@@ -340,10 +389,26 @@ export class DefaultPatientRuntime implements PatientRuntime {
     }
   }
 
-  query<Q extends RuntimeQuery>(query: Q): QueryResult<Q> {
-    const denied = authorizeQuery(query, this.authorityContext());
-    if (denied) return null as QueryResult<Q>;
+  /** Clinical / UI clients — latent state denied when scenario hides it. */
+  queryForClient<Q extends RuntimeQuery>(query: Q, session?: RuntimeSession): QueryResult<Q> {
+    return this.query(query, session ?? clinicalSession());
+  }
 
+  /**
+   * Privileged model/trigger path — bypasses clinical visibility.
+   * Never expose this to learner-facing UI.
+   */
+  internalStateForModels(query: { type: string; [k: string]: unknown }): unknown {
+    return this.queryUnlocked(query as RuntimeQuery);
+  }
+
+  query<Q extends RuntimeQuery>(query: Q, session?: RuntimeSession): QueryResult<Q> {
+    const denied = authorizeQuery(query, this.authorityContext(session));
+    if (denied) return null as QueryResult<Q>;
+    return this.queryUnlocked(query);
+  }
+
+  private queryUnlocked<Q extends RuntimeQuery>(query: Q): QueryResult<Q> {
     const resolved = this.resolvedEffects();
     const privateParams = this.mergedPrivateParams(resolved);
 
@@ -390,11 +455,16 @@ export class DefaultPatientRuntime implements PatientRuntime {
       case 'state.projection': {
         if (query.projection === 'publicPhysiology') return this.publicPhysiology() as QueryResult<Q>;
         if (query.projection === 'clinicalSummary') {
+          const mayLatent = this.authorityContext().authority.mayReadLatentState;
+          const hideDx = this.compiledScenario?.definition.visibility?.diagnoses === 'hidden';
           return {
             time: this.simTime,
             vitals: this.vitalsValue(),
-            activeConditions: this.query({ type: 'conditions.active' }),
+            activeConditions: (mayLatent && !hideDx)
+              ? this.queryUnlocked({ type: 'conditions.active' })
+              : [],
             appearance: this.appearanceFromState(),
+            scenarioTitle: this.presentationScenarioTitle(),
           } as QueryResult<Q>;
         }
         if (query.projection === 'modelDiagnostics') {
@@ -407,14 +477,16 @@ export class DefaultPatientRuntime implements PatientRuntime {
         if (query.projection === 'timelineRange') {
           return this.timeline as QueryResult<Q>;
         }
-        return this.publicPhysiology() as QueryResult<Q>;
+        return null as QueryResult<Q>;
       }
       case 'timeline.range':
         return this.timeline.filter((e) => e.at >= query.from && e.at <= query.to) as QueryResult<Q>;
       case 'explanation.vitals':
       case 'explanation.for': {
         const cond = [...this.conditions.values()][0] ?? null;
-        const obsId = query.type === 'explanation.for' ? query.observationId : createObservationId('vitals');
+        const obsId = query.type === 'explanation.for'
+          ? query.observationId
+          : this.ids.observation('vitals');
         return buildNeurogenicShockExplanation({
           observationId: obsId,
           condition: cond
@@ -437,26 +509,27 @@ export class DefaultPatientRuntime implements PatientRuntime {
     }
   }
 
-  observe<R extends ObservationRequest>(request: R): ObservationResult<R> {
-    const id = createObservationId(request.type.replace(/\./g, '_'));
-    const denied = authorizeObservation(request, this.authorityContext());
+  observe<R extends ObservationRequest>(request: R, session?: RuntimeSession): ObserveOutcome<R> {
+    const id = this.ids.observation(request.type.replace(/\./g, '_'));
+    const denied = authorizeObservation(request, this.authorityContext(session));
     if (denied) {
-      const t = this.simTime;
       return {
+        accepted: false,
         id,
         type: request.type,
-        requestedAt: t,
-        acquiredAt: t,
-        availableAt: t,
-        value: {},
-        quality: { ideal: false, artefact: 'unauthorised' },
-        provenance: { modelId: 'authority.denied', latentPaths: [] },
-      } as ObservationResult<R>;
+        requestedAt: this.simTime,
+        error: denied,
+      };
     }
 
     const hideDiagnoses = this.compiledScenario?.definition.visibility?.diagnoses === 'hidden';
     const projection = this.observationProjection();
     const obsContext = { clinicalMode: true, hideDiagnoses };
+
+    const wrap = (observation: ObservationResult<R>): ObserveOutcome<R> => ({
+      accepted: true,
+      observation,
+    });
 
     if (request.type === 'observe.vital-signs') {
       const plan = vitalSignsObservation.observe({
@@ -465,7 +538,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
         context: obsContext,
         observationId: id,
       });
-      return plan.immediate as ObservationResult<R>;
+      return wrap(plan.immediate as ObservationResult<R>);
     }
 
     if (request.type === 'observe.twelve-lead-ecg') {
@@ -475,7 +548,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
         context: obsContext,
         observationId: id,
       });
-      return plan.immediate as ObservationResult<R>;
+      return wrap(plan.immediate as ObservationResult<R>);
     }
 
     if (request.type === 'observe.laboratory-panel') {
@@ -496,7 +569,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
         context: { clinicalMode: true },
         observationId: id,
       });
-      return plan.immediate as ObservationResult<R>;
+      return wrap(plan.immediate as ObservationResult<R>);
     }
 
     const t = this.simTime;
@@ -513,15 +586,36 @@ export class DefaultPatientRuntime implements PatientRuntime {
     };
 
     if (request.type === 'observe.general-appearance') {
-      return {
+      return wrap({
         ...base,
         type: 'observe.general-appearance',
         value: this.appearanceFromState(),
-      } as ObservationResult<R>;
+      } as ObservationResult<R>);
     }
 
+    // Continue with examination handling below — fall through to remaining observe body
+    // by calling the legacy path for examination / unknown.
+    return this.observeExaminationOrEmpty(request, base, wrap);
+  }
+
+  private observeExaminationOrEmpty<R extends ObservationRequest>(
+    request: R,
+    base: {
+      id: ReturnType<RuntimeIdFactory['observation']>;
+      requestedAt: SimTime;
+      acquiredAt: SimTime;
+      availableAt: SimTime;
+      quality: { ideal: boolean; artefact: null };
+      provenance: { modelId: string; latentPaths: string[] };
+    },
+    wrap: (observation: ObservationResult<R>) => ObserveOutcome<R>,
+  ): ObserveOutcome<R> {
+    const hideDiagnoses = this.compiledScenario?.definition.visibility?.diagnoses === 'hidden';
+    const projection = this.observationProjection();
+    const obsContext = { clinicalMode: true, hideDiagnoses };
+
     if (request.type === 'observe.physiology') {
-      return {
+      return wrap({
         ...base,
         type: 'observe.physiology',
         value: this.publicPhysiology() as unknown as Record<string, unknown>,
@@ -529,7 +623,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
           modelId: 'observations.physiology-projection.v1',
           latentPaths: ['cardiovascular.*', 'electrophysiology.*'],
         },
-      } as ObservationResult<R>;
+      } as ObservationResult<R>);
     }
 
     if (request.type === 'perform.examination') {
@@ -544,7 +638,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
         patient: projection,
         request: { type: 'observe.vital-signs' },
         context: obsContext,
-        observationId: createObservationId('exam_vitals'),
+        observationId: this.ids.observation('exam_vitals'),
       }).immediate!.value;
       if (request.exam === 'pulse' || request.exam === 'cardiovascular') {
         if (v.heartRate != null && v.heartRate < 60) findings.push('Bradycardic pulse');
@@ -560,27 +654,25 @@ export class DefaultPatientRuntime implements PatientRuntime {
       if (request.exam === 'neurological' && cord) {
         findings.push(`Motor and sensory level consistent with ${cord}`);
       }
-      return {
+      return wrap({
         ...base,
         type: 'perform.examination',
         value: { exam: request.exam, findings },
-      } as ObservationResult<R>;
+      } as ObservationResult<R>);
     }
 
-    return {
+    return wrap({
       ...base,
       type: (request as ObservationRequest).type,
       value: {},
-    } as ObservationResult<R>;
+    } as ObservationResult<R>);
   }
 
-  advance(duration: SimDuration): AdvanceResult {
+  async advance(duration: SimDuration): Promise<AdvanceResult> {
     const from = this.simTime;
     const seconds = Number(duration) / 1000;
     const privateParams = this.mergedPrivateParams(this.resolvedEffects());
     this.pushCardioParams(privateParams);
-
-    const events: TimelineEntry[] = [];
 
     if (this.opts.settlePhysiology) {
       const settleArgs = {
@@ -598,21 +690,65 @@ export class DefaultPatientRuntime implements PatientRuntime {
         this.simTime = asSimTime(Number(from) + Number(duration));
         this.triggerRunner?.tick();
       }
-    } else if (this.opts.cardioHost && seconds > 0) {
-      this.pendingSettle = { durationMs: Number(duration), from };
-      this.opts.cardioHost.postMessage({ type: 'settle', seconds });
-      // Clock advances when the resulting snapshot is ingested.
-    } else {
-      this.simTime = asSimTime(Number(from) + Number(duration));
-      this.triggerRunner?.tick();
+      return this.finishAdvance(from, Number(duration), null);
     }
 
-    if (seconds > 0) {
+    if (this.opts.cardioHost && seconds > 0) {
+      const requestId = this.ids.event('settle');
+      return new Promise<AdvanceResult>((resolve, reject) => {
+        this.pendingAdvances.set(requestId, {
+          requestId,
+          durationMs: Number(duration),
+          from,
+          resolve,
+          reject,
+        });
+        this.opts.cardioHost!.postMessage({
+          type: 'settle',
+          requestId,
+          seconds,
+        });
+      });
+    }
+
+    this.simTime = asSimTime(Number(from) + Number(duration));
+    this.triggerRunner?.tick();
+    return this.finishAdvance(from, Number(duration), null);
+  }
+
+  /**
+   * Complete a correlated live-model advance. Called by the cardio host adapter
+   * when an `advanced` message with a matching requestId arrives.
+   */
+  completeAdvance(
+    requestId: string | null | undefined,
+    snap: Record<string, unknown>,
+    advancedMs?: number,
+  ): AdvanceResult | null {
+    if (!requestId || !this.pendingAdvances.has(requestId)) {
+      // Uncorrelated — treat as ordinary snapshot ingest (no clock jump from settle).
+      this.ingestCardioSnapshot(snap);
+      return null;
+    }
+    const pending = this.pendingAdvances.get(requestId)!;
+    this.pendingAdvances.delete(requestId);
+    const ms = advancedMs != null && Number.isFinite(advancedMs)
+      ? advancedMs
+      : pending.durationMs;
+    this.ingestCardioSnapshot(snap, { advanceMs: ms, from: pending.from });
+    const result = this.finishAdvance(pending.from, ms, requestId);
+    pending.resolve(result);
+    return result;
+  }
+
+  private finishAdvance(from: SimTime, advancedMs: number, requestId: string | null): AdvanceResult {
+    const events: TimelineEntry[] = [];
+    if (advancedMs > 0) {
       events.push({
-        id: `adv_${this.revision}`,
+        id: this.ids.event('adv'),
         at: this.simTime,
         type: 'runtime.advanced',
-        label: `Advanced ${seconds.toFixed(2)} s`,
+        label: `Advanced ${(advancedMs / 1000).toFixed(2)} s`,
       });
       this.timeline.push(...events);
     }
@@ -620,13 +756,18 @@ export class DefaultPatientRuntime implements PatientRuntime {
     return {
       from,
       to: this.simTime,
+      requestId,
+      advancedMs,
       publicPhysiology: this.publicPhysiology(),
       events,
     };
   }
 
-  play(): void {
+  play(options?: { speed?: number }): void {
     this.playing = true;
+    if (options?.speed != null) {
+      this.opts.cardioHost?.postMessage({ type: 'setSpeed', value: options.speed });
+    }
     this.opts.cardioHost?.postMessage({ type: 'play' });
     this.emit({ type: 'runtime.playing', revision: this.revision, simTime: this.simTime });
   }
@@ -637,8 +778,9 @@ export class DefaultPatientRuntime implements PatientRuntime {
     this.emit({ type: 'runtime.paused', revision: this.revision, simTime: this.simTime });
   }
 
-  createCheckpoint(label?: string): CheckpointRef {
-    const id = createCheckpointId();
+  createCheckpoint(label?: string, opts?: { silent?: boolean }): CheckpointRef {
+    const id = this.ids.checkpoint();
+    this.captureModelStatesSync();
     const snap: CheckpointSnapshot = {
       id,
       label,
@@ -647,27 +789,33 @@ export class DefaultPatientRuntime implements PatientRuntime {
       simTime: this.simTime,
       conditions: structuredClone([...this.conditions.values()]),
       commandLog: structuredClone(this.commandLog),
-      lastSnap: this.lastSnap ? { ...this.lastSnap } : null,
+      lastSnap: this.lastSnap ? structuredClone(this.lastSnap) : null,
       randomState: this.randomState,
       idSeq: this.ids.peek(),
+      idSnapshot: this.ids.snapshot(),
       channels: { ...this.channels },
       chemistry: { ...this.chemistry },
       chemistryPins: [...this.chemistryPins],
       chemistryBaseline: { ...this.chemistryBaseline },
-      cardiovascular: { ...this.cardiovascular },
-      electrophysiology: { ...this.electrophysiology },
+      activeChemistryDerivations: structuredClone(this.activeChemistryDerivations),
+      cardiovascular: structuredClone(this.cardiovascular),
+      electrophysiology: structuredClone(this.electrophysiology),
       learnerBloodVolume: this.learnerBloodVolume,
       experimentalControls: { ...this.experimentalControls },
       scenarioId: this.compiledScenario?.definition.id ?? null,
       scenarioVersion: this.compiledScenario?.definition.version ?? null,
       scenarioAuthority: this.scenarioAuthority ? { ...this.scenarioAuthority } : null,
       scenarioAnnotations: structuredClone(this.scenarioAnnotations),
+      triggerState: this.triggerRunner?.serializeState() ?? null,
+      fingerprintScenario: { ...this.fingerprint.scenario },
+      models: structuredClone(this.modelStates),
       timeline: structuredClone(this.timeline),
       lastModelTimeSec: this.lastModelTimeSec,
       playing: this.playing,
+      silent: opts?.silent,
     };
     this.checkpoints.set(id, snap);
-    this.pushTimeline('checkpoint.created', label ?? id);
+    if (!opts?.silent) this.pushTimeline('checkpoint.created', label ?? id);
     return { id, label, createdAt: this.simTime, revision: this.revision };
   }
 
@@ -681,16 +829,17 @@ export class DefaultPatientRuntime implements PatientRuntime {
     this.revision = snap.revision;
     this.conditions = new Map(snap.conditions.map((c) => [c.instanceId, structuredClone(c)]));
     this.commandLog = structuredClone(snap.commandLog);
-    this.lastSnap = snap.lastSnap ? { ...snap.lastSnap } : null;
+    this.lastSnap = snap.lastSnap ? structuredClone(snap.lastSnap) : null;
     this.randomState = snap.randomState;
-    this.ids.restore(snap.idSeq ?? 0);
-    bindIdFactory(this.ids);
+    if (snap.idSnapshot) this.ids.restore(snap.idSnapshot);
+    else this.ids.restore(snap.idSeq ?? 0);
     this.channels = { ...snap.channels };
     this.chemistry = { ...snap.chemistry };
     this.chemistryPins = new Set(snap.chemistryPins);
     this.chemistryBaseline = { ...snap.chemistryBaseline };
-    this.cardiovascular = { ...snap.cardiovascular };
-    this.electrophysiology = { ...snap.electrophysiology };
+    this.activeChemistryDerivations = structuredClone(snap.activeChemistryDerivations ?? []);
+    this.cardiovascular = structuredClone(snap.cardiovascular);
+    this.electrophysiology = structuredClone(snap.electrophysiology);
     this.learnerBloodVolume = snap.learnerBloodVolume;
     this.experimentalControls = { ...snap.experimentalControls };
     this.scenarioAnnotations = structuredClone(snap.scenarioAnnotations);
@@ -698,6 +847,12 @@ export class DefaultPatientRuntime implements PatientRuntime {
     this.lastModelTimeSec = snap.lastModelTimeSec;
     this.playing = snap.playing;
     this.scenarioAuthority = snap.scenarioAuthority ? { ...snap.scenarioAuthority } : null;
+    this.fingerprint.scenario = snap.fingerprintScenario
+      ? { ...snap.fingerprintScenario }
+      : { id: 'ad-hoc', version: '0.0.0' };
+    this.modelStates = structuredClone(snap.models ?? {});
+    this.applyModelStatesSync(this.modelStates);
+
     if (snap.scenarioId) {
       const def = getScenario(snap.scenarioId);
       if (def) {
@@ -707,7 +862,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
         if (compiled.ok) {
           this.compiledScenario = compiled.compiled;
           this.triggerRunner = new ScenarioTriggerRunner(this);
-          this.triggerRunner.arm(compiled.compiled);
+          this.triggerRunner.restoreState(compiled.compiled, snap.triggerState ?? null);
         }
       }
     } else {
@@ -716,18 +871,27 @@ export class DefaultPatientRuntime implements PatientRuntime {
       this.triggerRunner = null;
     }
     this.prevCardioDriven = new Set();
-    this.pendingSettle = null;
+    for (const pending of this.pendingAdvances.values()) {
+      pending.reject(new Error('advance cancelled by checkpoint restore'));
+    }
+    this.pendingAdvances.clear();
     this.recomputeCardio();
     this.projectCordLevel();
     this.projectChemistryChannels();
+    if (this.playing) this.opts.cardioHost?.postMessage({ type: 'play' });
+    else this.opts.cardioHost?.postMessage({ type: 'pause' });
     this.pushTimeline('checkpoint.restored', id);
     this.emit({ type: 'checkpoint.restored', revision: this.revision, simTime: this.simTime, detail: { id } });
     return { accepted: true, revision: this.revision };
   }
 
+  /**
+   * In-place rewind — not an independent branched runtime.
+   * Deferred: true isolated branches require a cloned runtime + model hosts.
+   */
   branch(ref: CheckpointRef | string, label?: string): RuntimeBranch {
     const restored = this.restoreCheckpoint(ref);
-    const id = `branch_${createCheckpointId()}`;
+    const id = `branch_${this.ids.checkpoint('branch')}`;
     if (!restored.accepted) {
       return { id, label, fromCheckpoint: typeof ref === 'string' ? ref : ref.id, createdAt: this.simTime };
     }
@@ -780,7 +944,10 @@ export class DefaultPatientRuntime implements PatientRuntime {
   }
 
   /** Ingest a Circulation snapshot into canonical public physiological state. */
-  ingestCardioSnapshot(snap: Record<string, unknown>, opts?: { advanceMs?: number }): void {
+  ingestCardioSnapshot(
+    snap: Record<string, unknown>,
+    opts?: { advanceMs?: number; from?: SimTime },
+  ): void {
     this.lastSnap = snap as Record<string, number>;
     this.cardiovascular = snapshotToCardiovascularPublic(snap);
     this.electrophysiology = snapshotToElectrophysiologyPublic(snap);
@@ -795,11 +962,8 @@ export class DefaultPatientRuntime implements PatientRuntime {
 
     const modelT = typeof snap.t === 'number' ? snap.t : null;
     if (opts?.advanceMs != null) {
-      this.simTime = asSimTime(Number(this.simTime) + opts.advanceMs);
-      this.pendingSettle = null;
-    } else if (this.pendingSettle) {
-      this.simTime = asSimTime(Number(this.pendingSettle.from) + this.pendingSettle.durationMs);
-      this.pendingSettle = null;
+      const base = opts.from != null ? opts.from : this.simTime;
+      this.simTime = asSimTime(Number(base) + opts.advanceMs);
     } else if (this.playing && modelT != null && this.lastModelTimeSec != null) {
       const deltaMs = (modelT - this.lastModelTimeSec) * 1000;
       if (deltaMs > 0 && deltaMs < 120_000) {
@@ -823,7 +987,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
 
   /**
    * Mutate latent chemistry. Prefer `dispatch({ type: 'chemistry.set' })` from UI;
-   * this method is the shared implementation and for tests.
+   * this method is the shared implementation for authorized commands and tests.
    */
   setChemistry(
     patch: Partial<ChemistryPublicState>,
@@ -837,17 +1001,12 @@ export class DefaultPatientRuntime implements PatientRuntime {
     }
     // Learner-edited potassium/calcium become channel mechanism inputs.
     if (patch.potassium != null || patch.calcium != null) {
-      this.channels.K = this.chemistry.potassium;
-      this.channels.Ca = this.chemistry.calcium;
+      if (patch.potassium != null) this.channels.K = patch.potassium;
+      if (patch.calcium != null) this.channels.Ca = patch.calcium;
       this.recomputeCardio();
     }
     this.projectChemistryChannels();
-    this.emit({
-      type: 'chemistry.updated',
-      revision: this.revision,
-      simTime: this.simTime,
-      detail: { keys: Object.keys(patch) },
-    });
+    this.emit({ type: 'chemistry.updated', revision: this.revision, simTime: this.simTime });
   }
 
   /** Convenience: accept legacy lab-panel keys (K, Ca, HCO3, …). */
@@ -865,6 +1024,11 @@ export class DefaultPatientRuntime implements PatientRuntime {
 
   chemistryPinKeys(): string[] {
     return [...this.chemistryPins];
+  }
+
+  /** Test / Explore helper — keys currently retained for headless settle. */
+  experimentalControlKeys(): string[] {
+    return Object.keys(this.experimentalControls);
   }
 
   activeChemistryLinks(): { id: string; name: string; text: string; why: string }[] {
@@ -907,22 +1071,6 @@ export class DefaultPatientRuntime implements PatientRuntime {
     this.recomputeCardio();
   }
 
-  /** Sync learner-editable channels (chemistry, drugs, ICP) into mechanism resolution. */
-  syncChannels(partial: Partial<ChannelState>): void {
-    Object.assign(this.channels, partial);
-    // Keep chemistry authority in sync when Patient workspace edits K/Ca.
-    if (partial.K != null && partial.K !== this.chemistry.potassium) {
-      this.chemistry.potassium = partial.K;
-      this.chemistryPins.add('potassium');
-    }
-    if (partial.Ca != null && partial.Ca !== this.chemistry.calcium) {
-      this.chemistry.calcium = partial.Ca;
-      this.chemistryPins.add('calcium');
-    }
-    this.recomputeCardio();
-    this.emit({ type: 'channels.synced', revision: this.revision, simTime: this.simTime });
-  }
-
   /** Private params for the cardiovascular model — the only path into Circulation. */
   cardioOverrides(): Record<string, number | boolean> {
     const p = adaptCardioPrivateParams(this.resolvedEffects()) as CardioPrivateParams & Record<string, number | boolean | undefined>;
@@ -944,8 +1092,12 @@ export class DefaultPatientRuntime implements PatientRuntime {
     return null;
   }
 
-  /** UI display list for the Patient workspace and rail badges. */
+  /** UI display list — redacted when diagnoses are hidden. */
   activeMechanismDisplays() {
+    const hideDx = this.compiledScenario?.definition.visibility?.diagnoses === 'hidden';
+    if (hideDx || !this.authorityContext().authority.mayReadLatentState) {
+      return [];
+    }
     const displays = activeChannelDisplays(this.channels);
     const level = this.getActiveCordLevel();
     if (level && lesionInterruptsSympathetic(level)) {
@@ -1012,7 +1164,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
       if (inst.conditionId === def.id) this.conditions.delete(id);
     }
 
-    const instanceId = payload.instanceId ?? `cond_${createCommandId()}`;
+    const instanceId = payload.instanceId ?? `cond_${command.id}`;
     const instance = def.initialise(payload.parameters, {
       simTime: this.simTime,
       instanceId,
@@ -1146,15 +1298,34 @@ export class DefaultPatientRuntime implements PatientRuntime {
     }
   }
 
-  private authorityContext() {
-    const authority = this.scenarioAuthority ?? defaultAuthority();
+  private authorityContext(session?: RuntimeSession) {
+    const authority = this.scenarioAuthority ?? this.effectiveAuthority();
     const clinical = !!this.compiledScenario
       && this.compiledScenario.definition.visibility?.diagnoses === 'hidden';
+    const role = session?.role;
+    const diagnosticSession = session?.diagnosticSession
+      || role === 'authoring'
+      || role === 'test'
+      || role === 'system'
+      || (!this.compiledScenario && this.opts.authority?.mayReadLatentState !== false);
     return {
-      mode: (clinical ? 'clinical' : 'exploration') as 'clinical' | 'exploration',
+      mode: (clinical && !diagnosticSession ? 'clinical' : 'exploration') as 'clinical' | 'exploration',
       authority,
-      diagnosticSession: !this.compiledScenario && this.opts.authority?.mayReadLatentState !== false,
+      diagnosticSession: !!diagnosticSession,
+      session,
     };
+  }
+
+  presentationScenarioTitle(): string | null {
+    const def = this.compiledScenario?.definition;
+    if (!def) return null;
+    const hideDx = def.visibility?.diagnoses === 'hidden';
+    if (hideDx) return def.presentationTitle ?? 'Clinical scenario';
+    return def.title;
+  }
+
+  authorScenarioTitle(): string | null {
+    return this.compiledScenario?.definition.title ?? null;
   }
 
   private publicPhysiology(): PublicPhysiologyView {
@@ -1214,7 +1385,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
       patient: this.observationProjection(),
       request: { type: 'observe.vital-signs' },
       context: {},
-      observationId: createObservationId('vitals_internal'),
+      observationId: this.ids.observation('vitals_internal'),
     }).immediate!.value;
   }
 
@@ -1239,6 +1410,15 @@ export class DefaultPatientRuntime implements PatientRuntime {
     this.electrophysiology = { ...EMPTY_ELECTROPHYSIOLOGY_PUBLIC };
     this.channels = { ...DEFAULT_CHANNELS };
     this.learnerBloodVolume = 5000;
+    this.experimentalControls = {};
+    this.modelStates = {};
+    this.lastModelTimeSec = null;
+    this.fingerprint.scenario = { id: 'ad-hoc', version: '0.0.0' };
+    for (const pending of this.pendingAdvances.values()) {
+      pending.reject(new Error('advance cancelled by reset'));
+    }
+    this.pendingAdvances.clear();
+    this.hostEpoch += 1;
     this.resetChemistry();
     this.prevCardioDriven = new Set();
     this.opts.cardioHost?.postMessage({ type: 'reset' });
@@ -1317,11 +1497,115 @@ export class DefaultPatientRuntime implements PatientRuntime {
     if (payload.key === 'bloodVolume' && typeof payload.value === 'number') {
       this.learnerBloodVolume = payload.value;
     }
+    if (payload.key === 'K' && typeof payload.value === 'number') {
+      this.setChemistry({ potassium: payload.value }, { pin: true });
+    }
     this.recomputeCardio();
     this.pushTimeline('experimental.circulation-param', `${payload.key}=${payload.value}`);
     return this.accept(command, {
       changedPaths: [`experimental.circulation.${payload.key}`],
     });
+  }
+
+  private modelSetPathology(command: PatientCommand): CommandResult {
+    const payload = (command.payload ?? {}) as ModelPathologyPayload;
+    if (!payload.pathologyId) {
+      return this.reject(command, runtimeError('INVALID_PARAMETER', 'pathologyId required', {
+        path: 'payload.pathologyId',
+      }));
+    }
+    this.opts.cardioHost?.postMessage({ type: 'setPathology', id: payload.pathologyId });
+    this.pushTimeline('model.set-pathology', payload.pathologyId);
+    return this.accept(command, { changedPaths: ['electrophysiology.pathology'] });
+  }
+
+  private modelSetBaro(command: PatientCommand): CommandResult {
+    const payload = (command.payload ?? {}) as ModelBaroPayload;
+    if (typeof payload.enabled !== 'boolean') {
+      return this.reject(command, runtimeError('INVALID_PARAMETER', 'enabled boolean required', {
+        path: 'payload.enabled',
+      }));
+    }
+    this.experimentalControls.baroEnabled = payload.enabled;
+    this.opts.cardioHost?.postMessage({ type: 'setBaro', value: payload.enabled });
+    this.recomputeCardio();
+    this.pushTimeline('model.set-baro', String(payload.enabled));
+    return this.accept(command, { changedPaths: ['cardiovascular.baroreflexEnabled'] });
+  }
+
+  private channelsSyncCommand(command: PatientCommand): CommandResult {
+    const payload = (command.payload ?? {}) as ChannelsSyncPayload;
+    if (!payload.channels || typeof payload.channels !== 'object') {
+      return this.reject(command, runtimeError('INVALID_PARAMETER', 'channels required', {
+        path: 'payload.channels',
+      }));
+    }
+    this.applyChannelSync(payload.channels as Partial<ChannelState>);
+    return this.accept(command, {
+      changedPaths: Object.keys(payload.channels).map((k) => `channels.${k}`),
+    });
+  }
+
+  private applyChannelSync(partial: Partial<ChannelState>): void {
+    Object.assign(this.channels, partial);
+    if (partial.K != null && partial.K !== this.chemistry.potassium) {
+      this.chemistry.potassium = partial.K;
+      this.chemistryPins.add('potassium');
+    }
+    if (partial.Ca != null && partial.Ca !== this.chemistry.calcium) {
+      this.chemistry.calcium = partial.Ca;
+      this.chemistryPins.add('calcium');
+    }
+    this.recomputeCardio();
+    this.emit({ type: 'channels.synced', revision: this.revision, simTime: this.simTime });
+  }
+
+  /**
+   * @deprecated Prefer dispatch({ type: 'channels.sync' }). Kept for Patient.set bridge;
+   * will be removed once all UI paths use commands.
+   */
+  syncChannels(partial: Partial<ChannelState>): void {
+    this.applyChannelSync(partial);
+  }
+
+  private captureModelStatesSync(): void {
+    if (this.opts.exportModelState) {
+      const state = this.opts.exportModelState();
+      if (state) this.modelStates[state.modelId] = state;
+    }
+    // Live host: request export; inline host responds synchronously.
+    if (this.opts.cardioHost) {
+      const requestId = this.ids.event('export');
+      let captured: SerializedModelState | null = null;
+      const host = this.opts.cardioHost as {
+        postMessage: (m: unknown) => void;
+        onmessage?: ((e: { data: unknown }) => void) | null;
+      };
+      // Prefer a one-shot interceptor if the host pipes messages back via a callback
+      // registered by bind — otherwise store last known modelStates only.
+      this.opts.cardioHost.postMessage({ type: 'exportState', requestId });
+      void captured;
+      void host;
+      void requestId;
+    }
+  }
+
+  /** Accept a model-state payload from the cardio host after exportState. */
+  ingestModelState(state: SerializedModelState): void {
+    if (!state?.modelId) return;
+    this.modelStates[state.modelId] = structuredClone(state);
+  }
+
+  private applyModelStatesSync(models: Record<string, SerializedModelState>): void {
+    for (const state of Object.values(models)) {
+      if (this.opts.restoreModelState) {
+        this.opts.restoreModelState(state);
+      }
+      this.opts.cardioHost?.postMessage({
+        type: 'importState',
+        state,
+      });
+    }
   }
 
   private scenarioLoadCommand(command: PatientCommand): CommandResult {
@@ -1412,10 +1696,23 @@ export class DefaultPatientRuntime implements PatientRuntime {
       };
     }
 
-    // Transactional: checkpoint current state; roll back if any seed fails.
-    const rollback = this.createCheckpoint(`pre-scenario-${recheck.compiled.definition.id}`);
+    // Transactional: silent checkpoint so rollback restores fingerprint without a timeline entry.
+    const rollback = this.createCheckpoint(`pre-scenario-${recheck.compiled.definition.id}`, { silent: true });
+    const priorFingerprint = { ...this.fingerprint.scenario };
 
+    const init = recheck.compiled.definition.initialization ?? 'fresh-patient';
     this.clearScenario(true);
+    if (init === 'fresh-patient') {
+      this.experimentalControls = {};
+      this.learnerBloodVolume = 5000;
+      this.resetChemistry();
+      this.channels = { ...DEFAULT_CHANNELS, K: this.chemistry.potassium, Ca: this.chemistry.calcium };
+      this.commandLog = [];
+      this.timeline = [];
+      this.simTime = asSimTime(0);
+      this.lastModelTimeSec = null;
+    }
+
     this.compiledScenario = recheck.compiled;
     this.scenarioAuthority = { ...recheck.compiled.authority };
     this.fingerprint.scenario = {
@@ -1423,14 +1720,28 @@ export class DefaultPatientRuntime implements PatientRuntime {
       version: recheck.compiled.definition.version,
     };
 
-    const seeds = materialiseSeedCommands(recheck.compiled);
+    // Apply authored patient profile to the host when present.
+    const profile = recheck.compiled.definition.patient;
+    if (profile && this.opts.cardioHost) {
+      this.opts.cardioHost.postMessage({
+        type: 'init',
+        patient: {
+          ageYears: profile.ageYears,
+          sex: profile.sex,
+          phenotypeProfile: 'adult_profile_017',
+        },
+      });
+    }
+
+    const seeds = materialiseSeedCommands(recheck.compiled, this.ids);
     const seedResults = seeds.map((cmd) => {
-      const result = this.dispatch(cmd);
+      const result = this.dispatch(cmd, systemSession());
       return { type: cmd.type, accepted: result.accepted };
     });
 
     if (seedResults.some((r) => !r.accepted)) {
       this.restoreCheckpoint(rollback);
+      this.fingerprint.scenario = priorFingerprint;
       this.checkpoints.delete(rollback.id);
       return {
         accepted: false,

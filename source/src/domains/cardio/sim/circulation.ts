@@ -550,6 +550,120 @@ export class Circulation {
 
   advance(n) { for (let i = 0; i < n; i++) this.step(); }
 
+  /**
+   * Serializable private model state for checkpoints.
+   * Restoring this vector + config restores chamber volumes, phases, and reflex state.
+   */
+  serializeState() {
+    const s = this.s instanceof Float64Array ? Array.from(this.s) : [...(this.s || [])];
+    return {
+      schemaVersion: 'circulation.private.v1',
+      t: this.t,
+      seq: this.seq,
+      s,
+      bloodVolume: this.bloodVolume,
+      // mechanics / vascular
+      Emax: this.Emax, Emin: this.Emin, V0: this.V0,
+      edpA: this.edpA, edpB: this.edpB,
+      EmaxRv: this.EmaxRv, V0rv: this.V0rv, edpArv: this.edpArv, edpBrv: this.edpBrv,
+      ElaMax: this.ElaMax, ElaMin: this.ElaMin, V0la: this.V0la,
+      EraMax: this.EraMax, EraMin: this.EraMin, V0ra: this.V0ra,
+      Csa: this.Csa, V0sa: this.V0sa, Csv: this.Csv, V0sv: this.V0sv,
+      Cpa: this.Cpa, V0pa: this.V0pa, Cpv: this.Cpv, V0pv: this.V0pv,
+      Rsys: this.Rsys, Rven: this.Rven, Rpul: this.Rpul, Rpv: this.Rpv,
+      Rmitral: this.Rmitral, Raortic: this.Raortic,
+      Rtricuspid: this.Rtricuspid, Rpulmonic: this.Rpulmonic,
+      regMitral: this.regMitral, regAortic: this.regAortic,
+      regTricuspid: this.regTricuspid, regPulmonic: this.regPulmonic,
+      TmaxV: this.TmaxV, TmaxA: this.TmaxA,
+      actM1: this.actM1, actM2: this.actM2, actT1: this.actT1, actT2: this.actT2,
+      actNorm: this.actNorm,
+      HR: this.HR, HReff: this.HReff, K: this.K,
+      baroEnabled: this.baroEnabled,
+      Pn: this.Pn, tauS: this.tauS, tauP: this.tauP, gS: this.gS, gP: this.gP,
+      gR: this.gR, gV: this.gV, gE: this.gE, dt: this.dt,
+      sigmaS: this.sigmaS, sigmaP: this.sigmaP,
+      effRsys: this.effRsys, effV0sv: this.effV0sv, effEmax: this.effEmax,
+      // activation clocks
+      enRaw: this.enRaw, eaRaw: this.eaRaw,
+      mechT: this.mechT, mechTa: this.mechTa, beatTrigger: this.beatTrigger, vtTimer: this.vtTimer,
+      // valves / phase
+      mitralOpen: this.mitralOpen, aorticOpen: this.aorticOpen,
+      tricuspidOpen: this.tricuspidOpen, pulmonicOpen: this.pulmonicOpen,
+      prevMitral: this.prevMitral, prevAortic: this.prevAortic,
+      en: this.en, ea: this.ea, E: this.E, Ela: this.Ela, prevEn: this.prevEn,
+      beatStartT: this.beatStartT, lastSample: this.lastSample,
+      avConduction: this.avConduction, lbbConduction: this.lbbConduction, rbbConduction: this.rbbConduction,
+      _pathParams: { ...(this._pathParams || {}) },
+      firingRate: this.firingRate,
+      metrics: this.metrics ? { ...this.metrics } : null,
+      lastBeat: this.lastBeat ? structuredClone(this.lastBeat) : null,
+      events: this.events ? { ...this.events } : null,
+      ecg: this.engine?.snapshot?.() ?? null,
+      pathologyId: this.engine?.getOutput?.()?.pathology ?? 'normal',
+    };
+  }
+
+  restoreState(state) {
+    if (!state || state.schemaVersion !== 'circulation.private.v1') {
+      throw new Error('unsupported circulation state schema');
+    }
+    const cfgKeys = [
+      'Emax', 'Emin', 'V0', 'edpA', 'edpB', 'EmaxRv', 'V0rv', 'edpArv', 'edpBrv',
+      'ElaMax', 'ElaMin', 'V0la', 'EraMax', 'EraMin', 'V0ra',
+      'Csa', 'V0sa', 'Csv', 'V0sv', 'Cpa', 'V0pa', 'Cpv', 'V0pv',
+      'Rsys', 'Rven', 'Rpul', 'Rpv',
+      'Rmitral', 'Raortic', 'Rtricuspid', 'Rpulmonic',
+      'regMitral', 'regAortic', 'regTricuspid', 'regPulmonic',
+      'TmaxV', 'TmaxA', 'actM1', 'actM2', 'actT1', 'actT2',
+      'HR', 'K', 'baroEnabled', 'Pn', 'tauS', 'tauP', 'gS', 'gP', 'gR', 'gV', 'gE', 'dt',
+      'bloodVolume',
+    ];
+    for (const k of cfgKeys) {
+      if (state[k] != null) this[k] = state[k];
+    }
+    this.actNorm = state.actNorm ?? this.actNorm;
+    this.s = Float64Array.from(state.s || []);
+    this.t = state.t ?? 0;
+    this.seq = state.seq ?? 0;
+    this.HReff = state.HReff ?? this.HR;
+    this.sigmaS = state.sigmaS ?? 0.5;
+    this.sigmaP = state.sigmaP ?? 0.5;
+    this.effRsys = state.effRsys ?? this.Rsys;
+    this.effV0sv = state.effV0sv ?? this.V0sv;
+    this.effEmax = state.effEmax ?? this.Emax;
+    this.enRaw = state.enRaw ?? 0;
+    this.eaRaw = state.eaRaw ?? 0;
+    this.mechT = state.mechT ?? -1;
+    this.mechTa = state.mechTa ?? -1;
+    this.beatTrigger = !!state.beatTrigger;
+    this.vtTimer = state.vtTimer ?? 0;
+    this.mitralOpen = !!state.mitralOpen;
+    this.aorticOpen = !!state.aorticOpen;
+    this.tricuspidOpen = !!state.tricuspidOpen;
+    this.pulmonicOpen = !!state.pulmonicOpen;
+    this.prevMitral = !!state.prevMitral;
+    this.prevAortic = !!state.prevAortic;
+    this.en = state.en ?? 0;
+    this.ea = state.ea ?? 0;
+    this.E = state.E ?? 0;
+    this.Ela = state.Ela ?? 0;
+    this.prevEn = state.prevEn ?? 0;
+    this.beatStartT = state.beatStartT ?? 0;
+    this.lastSample = state.lastSample ?? -1;
+    this.avConduction = state.avConduction ?? 1;
+    this.lbbConduction = state.lbbConduction ?? 1;
+    this.rbbConduction = state.rbbConduction ?? 1;
+    this._pathParams = { ...(state._pathParams || {}) };
+    this.firingRate = state.firingRate ?? 25;
+    this.metrics = state.metrics ? { ...state.metrics } : null;
+    this.lastBeat = state.lastBeat ? structuredClone(state.lastBeat) : null;
+    this.events = state.events ? { ...state.events } : { mvc: null, avo: null, avc: null, mvo: null, s1: null };
+    if (this.engine && state.ecg) {
+      try { this.engine.restore(state.ecg); } catch { /* best-effort ECG restore */ }
+    }
+  }
+
   snapshot() {
     const m = this.metrics;
     return {
