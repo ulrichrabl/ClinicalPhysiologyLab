@@ -39,8 +39,11 @@ function inlineSimHost(source) {
     terminate() {},
   };
   const emit = (m) => { if (host._onmessage) host._onmessage({ data: m }); else pending.push(m); };
-  const factory = new Function('postMessage', 'setInterval', 'clearInterval', 'self',
-    `${source}\n;return self.onmessage;`);
+  /* The production build hands over a compiled function; test harnesses hand
+     over the bundled source as a string. */
+  const factory = typeof source === 'function'
+    ? source
+    : new Function('postMessage', 'setInterval', 'clearInterval', 'self', `${source}\n;return self.onmessage;`);
   const inner = factory(emit, setInterval.bind(globalThis), clearInterval.bind(globalThis), globalThis);
   return host;
 }
@@ -132,6 +135,7 @@ export default function cardioDomain({ patient, shell, runtime }) {
   });
 
   const lessons = new LessonRunner({
+    domain: 'cardio',
     lessons: LESSONS,
     apply: (s) => {
       if (!s) return;
@@ -189,6 +193,7 @@ export default function cardioDomain({ patient, shell, runtime }) {
 
   const casePanel = new LeadPanel({ height: 330, strip: true });
   const cases = new CaseRunner({
+    domain: 'cardio',
     sets: CASE_SETS,
     stimulus: casePanel.node,
     optionLabel: (id) => catalog.find((p) => p.id === id)?.name || id,
@@ -288,6 +293,9 @@ export default function cardioDomain({ patient, shell, runtime }) {
       { id: 'cases', label: 'Cases', node: cases.node, view: { resize: () => casePanel.resize() } },
       { id: 'lessons', label: 'Lessons', node: lessons.node, view: lessons },
     ],
+    /* Used by the Bedside encounter: stage a patient with the same settings
+       vocabulary as lessons. */
+    apply: (settings) => lessons.apply(settings),
     control: {
       play: () => (runtime ? runtime.play() : send({ type: 'play' })),
       pause: () => (runtime ? runtime.pause() : send({ type: 'pause' })),

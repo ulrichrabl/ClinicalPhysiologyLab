@@ -18,7 +18,15 @@ const rawLoader = {
         target: 'es2022', platform: 'browser', minify: false,
         loader: { '.ts': 'ts' },
       });
-      return { contents: `export default ${JSON.stringify(bundled.outputFiles[0].text)};`, loader: 'js' };
+      /* Ship the simulator as a compiled function, not a string that has to be
+         eval'd at start-up. Pages served under a strict Content Security Policy
+         (no 'unsafe-eval') refuse new Function(), which left the simulator
+         silently dead. The parameters shadow the worker globals exactly as the
+         eval path did. Test harnesses keep the string form. */
+      return {
+        contents: `export default function simFactory(postMessage, setInterval, clearInterval, self) {\n${bundled.outputFiles[0].text}\n;return self.onmessage;\n}`,
+        loader: 'js',
+      };
     });
   },
 };

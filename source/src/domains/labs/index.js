@@ -68,12 +68,14 @@ export default function labsDomain({ patient, shell, runtime }) {
      the patient's chemistry — a worked example is somebody else's blood. */
   const caseStim = el('div', { class: 'lab-panels case-labs' });
   const cases = new CaseRunner({
+    domain: 'labs',
     sets: CASE_SETS,
     stimulus: caseStim,
     stage: (c) => { if (c.labs) renderResults(caseStim, { ...LAB_DEFAULTS, ...c.labs }); },
   });
 
   const lessons = new LessonRunner({
+    domain: 'labs',
     lessons: LESSONS,
     apply: (s) => {
       if (!s || !rt) return;

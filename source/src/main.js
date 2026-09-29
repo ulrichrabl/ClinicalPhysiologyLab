@@ -10,6 +10,12 @@ import labsDomain from './domains/labs/index.js';
 import { VITALS } from './domains/cardio/data/reference.js';
 import { createPatientRuntime } from './runtime/patient-runtime.ts';
 import { neurogenicShockDemo, compileScenario } from './scenarios/index.ts';
+import { learning, startEngagementClock } from './core/learning/index.js';
+import { dueItems } from './core/learning/analytics.js';
+import { moduleById } from './core/learning/modules.js';
+import { createLearnLayer } from './core/ui/learn/layer.js';
+import { createBedsideWorkspace } from './bedside/view.js';
+import { installTapFix } from './core/ui/tapfix.js';
 import {
   createExamineLayer,
   createInvestigateLayer,
@@ -95,6 +101,10 @@ class Shell {
     };
 
     const examineLayer = createExamineLayer({ runtime: this.runtime });
+    // The bedside encounter is the front of Examine; structured observations follow.
+    examineLayer.workspaces[0].label = 'Observations';
+    examineLayer.workspaces.unshift(createBedsideWorkspace({ shell: this, runtime: this.runtime }));
+    examineLayer.tagline = 'Talk to the patient, look, feel and listen';
     const investigateLayer = createInvestigateLayer({
       runtime: this.runtime,
       onExplore: (lensId, spaceId) => this.go(`${lensId}.${spaceId}`),
@@ -117,7 +127,9 @@ class Shell {
       })),
     };
 
-    this.domains = [patientLayer, examineLayer, investigateLayer, treatLayer, exploreLayer];
+    this.learnLayer = createLearnLayer();
+    this.domains = [this.learnLayer, patientLayer, examineLayer, investigateLayer, treatLayer, exploreLayer];
+    this.wireLearning();
     for (const d of this.domains) this.byId.set(d.id, d);
 
     this.renderRail();
@@ -141,6 +153,78 @@ class Shell {
     window.addEventListener('keydown', (e) => this.onKey(e));
     this.patient.on(() => this.renderRailBadges());
     this.runtime.subscribe(() => this.renderRailBadges());
+    learning.store.on(() => this.renderRailBadges());
+    this._stopClock = startEngagementClock(learning.store);
+  }
+
+  /* ---- learning layer ---------------------------------------------------
+     The learning layer knows nothing about domains. It asks the shell to open
+     an item by id; the shell finds the runner that registered it, goes to its
+     workspace and stages it there. */
+  wireLearning() {
+    learning.open = (itemId) => {
+      const item = learning.registry.get(itemId);
+      if (!item) { toast('That activity is not available in this build'); return false; }
+      const runner = learning.registry.runner(item.domain, item.kind);
+      this.go(item.path || `${item.domain}.${item.kind === 'case' ? 'cases' : 'lessons'}`);
+      const ok = item.kind === 'case' ? runner?.jumpTo(itemId) : runner?.openById(itemId);
+      try { window.scrollTo?.({ top: 0, behavior: 'smooth' }); } catch {}
+      return !!ok;
+    };
+    learning.home = (where = 'today', moduleId) => {
+      if (where === 'module' && moduleId) {
+        this.go('learn.modules');
+        this.learnLayer.views.modules.open(moduleId);
+        return;
+      }
+      if (where === 'bedside') { this.go('examine.encounter'); return; }
+      const ws = { modules: 'modules', review: 'review', record: 'record' }[where] || 'today';
+      this.go(`learn.${ws}`);
+    };
+
+    this.ctxPill = el('div', { class: 'ctx-pill', hidden: true });
+    document.body.appendChild(this.ctxPill);
+    const renderPill = () => guard('shell.ctx', () => this.renderContextPill());
+    learning.session.on(renderPill);
+    learning.store.on((ev) => {
+      renderPill();
+      const ctx = learning.session.ctx;
+      const ref = ev.itemId || ev.lessonId;
+      if (ctx?.kind === 'module' && ref && moduleById(ctx.moduleId)?.activities.some((a) => a.ref === ref)) {
+        toast('Activity recorded for this module');
+      }
+    });
+  }
+
+  renderContextPill() {
+    const ctx = learning.session.ctx;
+    const inLearn = this.active?.domain?.id === 'learn';
+    const pill = this.ctxPill;
+    if (!pill) return;
+    clear(pill);
+    if (!ctx || inLearn || (ctx.kind === 'review' && ctx.finished)) { pill.hidden = true; return; }
+    pill.hidden = false;
+    if (ctx.kind === 'review') {
+      const done = ctx.results.filter((x) => x !== undefined).length;
+      const right = ctx.results.filter(Boolean).length;
+      pill.append(
+        el('span', { class: 'ctx-k' }, ctx.label),
+        el('span', { class: 'ctx-v' }, `${Math.min(ctx.index + 1, ctx.queue.length)} of ${ctx.queue.length}`),
+        el('span', { class: 'ctx-dots' }, ...ctx.queue.map((_, i) => el('i', {
+          class: ctx.results[i] === true ? 'ok' : ctx.results[i] === false ? 'no' : i === ctx.index ? 'cur' : '' }))),
+        done ? el('span', { class: 'ctx-v' }, `${right}/${done}`) : null,
+        el('button', { class: 'btn sm ghost', onclick: () => {
+          const nxt = learning.session.advance();
+          if (nxt) learning.open(nxt); else learning.home('review');
+        } }, 'Skip'),
+        el('button', { class: 'btn sm', onclick: () => { learning.session.end(); learning.home('review'); } }, 'End'));
+    } else if (ctx.kind === 'module') {
+      pill.append(
+        el('span', { class: 'ctx-k' }, 'Module'),
+        el('span', { class: 'ctx-v ctx-title' }, ctx.label),
+        el('button', { class: 'btn sm primary', onclick: () => learning.home('module', ctx.moduleId) }, '← Back to module'),
+        el('button', { class: 'btn sm ghost', title: 'Leave module mode (progress is kept)', onclick: () => learning.session.end() }, '×'));
+    }
   }
 
   navigateLayerOrLens(id) {
@@ -222,7 +306,10 @@ class Shell {
       const badge = b.querySelector('.tab-badge');
       let n = 0;
       let danger = false;
-      if (id === 'patient' || id === 'examine') {
+      if (id === 'learn') {
+        n = dueItems(learning.store.state, learning.registry.all('case'), Date.now()).length;
+        danger = false;
+      } else if (id === 'patient' || id === 'examine') {
         n = active.length;
         danger = active.some((c) => c.level === 'danger');
       } else if (id === 'explore') {
@@ -277,8 +364,11 @@ class Shell {
       this.spaceTabs.appendChild(el('div', { class: 'space-tagline' }, d.tagline || ''));
 
       this.transport.style.visibility = d.transport ? 'visible' : 'hidden';
+      this.transport.hidden = !d.transport;
       clear(this.pane);
       this.pane.appendChild(space.node);
+      document.body.classList.remove('in-encounter');
+      this.renderContextPill?.();
       requestAnimationFrame(() => this.resizeActive());
       return;
     }
@@ -310,6 +400,7 @@ class Shell {
     this.spaceTabs.appendChild(el('div', { class: 'space-tagline' }, d.tagline || ''));
 
     this.transport.style.visibility = d.transport ? 'visible' : 'hidden';
+      this.transport.hidden = !d.transport;
 
     // Explore workspace tiles jump straight into the lens.
     if (d.id === 'explore' && space.lensId) {
@@ -320,6 +411,9 @@ class Shell {
 
     clear(this.pane);
     this.pane.appendChild(space.node);
+    document.body.classList.toggle('in-encounter', d.id === 'examine' && space.id === 'encounter');
+    if (d.id === 'learn' || space.id === 'encounter') guard('learn.refresh', () => space.view?.refresh?.());
+    this.renderContextPill?.();
     requestAnimationFrame(() => this.resizeActive());
   }
 
@@ -416,15 +510,37 @@ class Shell {
     try { seen = localStorage.getItem('cpl.seen') === '1'; } catch {}
     if (seen) return;
 
-    const close = () => {
+    /* Dismissal has to survive embedded and touch-first browsers: a click event
+       that never arrives (some embedded WebKit views drop it) must not trap the
+       learner on this card. So the card closes on click, on pointer or touch
+       release, on Enter/Escape, and on a tap outside it. */
+    let closed = false;
+    const close = (e) => {
+      if (closed) return;
+      closed = true;
+      e?.preventDefault?.();
       try { localStorage.setItem('cpl.seen', '1'); } catch {}
       overlay.remove();
+      window.removeEventListener('keydown', onKey, true);
     };
-    const overlay = el('div', { class: 'first-run', onclick: (e) => { if (e.target === overlay) close(); } },
+    const onKey = (e) => { if (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ') close(e); };
+    const outside = (e) => { if (e.target === overlay) close(e); };
+    const startBtn = el('button', { type: 'button', class: 'btn primary lg fr-start', onclick: close }, 'Start');
+    for (const ev of ['pointerup', 'touchend']) startBtn.addEventListener(ev, close);
+    window.addEventListener('keydown', onKey, true);
+    const overlay = el('div', { class: 'first-run', onclick: outside, onpointerup: outside },
       el('div', { class: 'fr-card' },
-        el('div', { class: 'eyebrow' }, 'Three things worth knowing'),
+        el('div', { class: 'eyebrow' }, 'Worth knowing'),
         el('h2', {}, 'Clinical Physiology Lab'),
         el('ol', { class: 'fr-list' },
+          el('li', {},
+            el('strong', {}, 'Meet a patient. '),
+            'Examine → Bedside: take a history, look, feel, listen and examine the nerves. Every finding, '
+            + 'including the heart sounds, comes from the live model.'),
+          el('li', {},
+            el('strong', {}, 'Learn is your front door. '),
+            'CME modules with certificates, and a review queue that brings each case back just before you would '
+            + 'forget it. Your progress stays on this device.'),
           el('li', {},
             el('strong', {}, 'Work the patient, not the specialty. '),
             'Patient → Examine → Investigate → Treat. Specialty simulators live under Explore.'),
@@ -438,9 +554,9 @@ class Shell {
             + 'can copy — much more useful than a screenshot.')),
         el('p', { class: 'fr-keys' },
           'Space play/pause · Tab switch layer · 1–9 workspaces · T theme · Shift+C ECG capture'),
-        el('div', { class: 'btn-row' },
-          el('button', { class: 'btn', onclick: close }, 'Start'))));
+        el('div', { class: 'btn-row' }, startBtn)));
     document.body.appendChild(overlay);
+    setTimeout(() => { try { startBtn.focus({ preventScroll: true }); } catch {} }, 50);
   }
 
   /* ---- controls --------------------------------------------------------- */
@@ -498,6 +614,7 @@ class Shell {
 }
 
 installErrorHandlers();
+installTapFix();
 installCapture();
 document.documentElement.dataset.theme = 'monitor';
 const shell = new Shell(document.getElementById('app'));

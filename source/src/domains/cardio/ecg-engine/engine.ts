@@ -178,6 +178,17 @@ export class EcgEngine {
     this.lastMetrics = { ...this.lastMetrics, HR: Math.round(clamped) };
   }
 
+  /** Baroreflex-modulated sinus rate. Only the sinus node is under autonomic
+   *  rate control; re-entrant and ectopic rhythms (AF, flutter, VT, VF) and the
+   *  escape rhythm of complete block keep their own rate. */
+  modulateSinusRate(hr: number): void {
+    const mode = this.conduction.getRhythmMode() || 'sinus';
+    if (mode !== 'sinus' && mode !== 'wenckebach' && mode !== 'mobitz2') return;
+    const clamped = Math.max(30, Math.min(200, hr));
+    this.conduction.setRhythm(mode, clamped);
+    this.lastMetrics = { ...this.lastMetrics, HR: Math.round(clamped) };
+  }
+
   snapshot(): SimulatorSnapshot {
     return {
       version: ENGINE_VERSION,

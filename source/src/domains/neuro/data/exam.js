@@ -293,6 +293,30 @@ export const BODY_REGIONS = [
         'Romberg separates sensory ataxia from cerebellar ataxia — cerebellar patients sway with eyes open too.')] },
 ];
 
+/* Single-muscle tests match the nerve and root that supply the muscle. A lesion
+   higher up (cord, brainstem, capsule) interrupts the upper motor neuron to the
+   same segments, and the muscle is just as weak, so each one also listens for
+   UMN findings at its own roots. Without this a C5 cord injury reported
+   "knee extension 5/5". Roots are read from the label, e.g. "(L3-4, femoral)". */
+function segmentsOf(label) {
+  const m = /\(([CTLS])(\d)(?:-([CTLS])?(\d))?/.exec(label);
+  if (!m) return [];
+  const a = `${m[1]}${m[2]}`;
+  return m[4] ? [a, `${m[3] || m[1]}${m[4]}`] : [a];
+}
+for (const region of BODY_REGIONS) {
+  const lm = /^([RL])_(arm|leg)$/.exec(region.id);
+  if (!lm) continue;
+  const [, side, limb] = lm;
+  for (const t of region.tests) {
+    if (!t.id.startsWith('pm_')) continue;
+    const segs = segmentsOf(t.label);
+    if (!segs.length) continue;
+    const own = t.match;
+    t.match = (f) => own(f) || (f.umnOrLmn === 'UMN' && segs.some((sg) => f.bodyRegion === `${side}_${limb}_${sg}`));
+  }
+}
+
 /* Cases for blind mode. Each is a real lesion the model can place, plus the
    options the learner chooses between once they have finished examining. */
 export const BLIND_CASES = [

@@ -146,8 +146,13 @@ export function applyCardioAdapterToHost(
     }
   }
 
-  for (const key of ['Rsys', 'HR', 'V0sv', 'Emax', 'avConduction', 'K'] as const) {
-    if (driven.has(key) && bag[key] != null) sent[key] = bag[key] as number;
+  /* Forward every driven numeric parameter. This used to be a fixed list of
+     six keys, which silently dropped compliance, pulmonary resistance and every
+     valve lesion that the runtime had accepted. */
+  const SPECIAL = new Set(['baroEnabled', 'stFactor', 'bloodVolume', 'drivenKeys']);
+  for (const key of driven) {
+    if (SPECIAL.has(key)) continue;
+    if (typeof bag[key] === 'number') sent[key] = bag[key] as number;
   }
 
   if (Object.keys(sent).length) {

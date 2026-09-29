@@ -2,7 +2,41 @@
 
 A multi-domain medical simulation for learning. Three domains are live —
 **Circulation**, **Neurology** and **Labs** — sharing one patient, so what you do
-in one shows up in the others.
+in one shows up in the others. A **Bedside** encounter lets you examine that
+patient, and a **Learn** layer adds spaced review and CME modules.
+
+
+## Learn and Bedside
+
+Two layers turn the simulator into a place to study, and to come back to.
+
+**Examine → Bedside.** Meet a patient and work them up the way you would on
+the ward. *Talk* (a menu of history questions; they answer in their own words),
+*Look*, *Feel*, *Listen*, *Instruct* (auscultation manoeuvres and the full
+neurological examination) and *Measure*. Then commit to a diagnosis, say how
+sure you are, and get a debrief of the key findings you found and missed.
+Nothing you find is written into the case. The slow-rising pulse, the soft S2,
+the raised JVP, the crackles, the flaccid legs after a cord injury: all are read
+off the live model, and every finding has a **why?** that shows the number it
+came from. Heart sounds are synthesised from the model's own beat (S1 and S2 at
+valve closure, murmurs shaped by the flow across the valve), so they change as
+the physiology does. Findings with no underlying model (respiratory rate, SpO₂,
+capillary refill) are labelled as bedside rules of thumb. Five patients so far:
+a healthy volunteer, aortic stenosis, decompensated heart failure, an upper GI
+bleed and a C5 cord injury.
+
+**Learn.** *Today* says what to do next and how you are doing: accuracy, a
+mastery map per topic, a calibration chart (does your confidence predict being
+right?) and an activity calendar. *Review* brings every case back just before
+you would forget it; certain-and-wrong answers come back first. *Modules* are
+CME activities built from the simulator's own cases: pre-test, activities,
+parallel post-test with explanations, a commitment to change, an evaluation and
+a certificate of the time you actually spent, with a 30-day follow-up. *Record*
+holds your transcript and exports your data. Everything stays on the device.
+
+The seven modules are marked **Draft**: their references were checked against
+current guidelines, but they have not been through independent expert review
+and carry no accreditation. See ADR-016 and ADR-017 in `docs/adr`.
 
 ---
 

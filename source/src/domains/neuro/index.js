@@ -63,12 +63,13 @@ export default function neuroDomain({ patient, runtime }) {
   exam.setLesion(localize.nodes, 'L internal capsule', true);
 
   const cases = new CaseRunner({
+    domain: 'neuro',
     sets: CASE_SETS,
     stimulus: null,
     stage: (c) => { if (c.lesion) applyLesion(c.lesion); },
   });
 
-  const lessons = new LessonRunner({ lessons: LESSONS, apply: applyLesion });
+  const lessons = new LessonRunner({ domain: 'neuro', lessons: LESSONS, apply: applyLesion });
 
   return {
     id: 'neuro',

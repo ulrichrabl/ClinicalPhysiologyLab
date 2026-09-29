@@ -224,7 +224,11 @@ export class Circulation {
     if (key === 'avConduction') { this.avConduction = value; return; }
     if (key === 'lbbConduction') { this.lbbConduction = value; return; }
     if (key === 'rbbConduction') { this.rbbConduction = value; return; }
-    if (key === 'baroEnabled') { this.baroEnabled = value; return; }
+    if (key === 'baroEnabled') {
+      this.baroEnabled = value;
+      if (!value) { this.HReff = this.HR; this.engine?.modulateSinusRate?.(this.HR); }
+      return;
+    }
     /* Legacy aliases, so lessons written against the open-loop model keep
        working after the move to a closed one. */
     if (key === 'R') { this.Rsys = value; return; }
@@ -529,10 +533,19 @@ export class Circulation {
     this.beat = [];
     this.events = { mvc: null, avo: null, avc: null, mvo: null, s1: null };
     this.beatStartT = this.t * 1000;
-    if (this.baroEnabled) this.HReff = this.modulatedHR();
+    if (this.baroEnabled) {
+      this.HReff = this.modulatedHR();
+      /* The conduction engine times the beats. Without this the reflex rate was
+         computed and then overwritten by the engine's fixed set-point on the
+         next step, so haemorrhage produced hypotension with no tachycardia. */
+      this.engine?.modulateSinusRate?.(this.HReff);
+    }
   }
 
-  toggleBaro() { this.baroEnabled = !this.baroEnabled; if (!this.baroEnabled) this.HReff = this.HR; }
+  toggleBaro() {
+    this.baroEnabled = !this.baroEnabled;
+    if (!this.baroEnabled) { this.HReff = this.HR; this.engine?.modulateSinusRate?.(this.HR); }
+  }
 
   /* Delegate. The pathology belongs to the ECG model; keeping a second copy
      here meant the message handler set a field nobody read and every pathology

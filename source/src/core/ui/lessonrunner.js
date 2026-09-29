@@ -1,4 +1,5 @@
 import { el, clear } from './kit.js';
+import { learning } from '../learning/index.js';
 
 /* ---------------------------------------------------------------------------
    Lesson runner.
@@ -30,15 +31,50 @@ function normStep(st) {
 }
 
 export class LessonRunner {
-  constructor({ lessons, apply, onExit }) {
+  constructor({ lessons, apply, onExit, domain = 'misc' }) {
     this.lessons = lessons;
+    this.domain = domain;
     this.apply = apply;             // (settings) => void
     this.onExit = onExit || (() => {});
     this.lesson = null;
     this.step = 0;
     this.answered = null;
     this.node = el('div', { class: 'lesson-wrap' });
+    learning.registry.registerRunner(domain, 'lesson', this);
+    this.lessons.forEach((l, i) => learning.registry.add({
+      id: this.lessonId(l, i), kind: 'lesson', domain, topic: 'Guided experiments',
+      topicId: 'lessons', title: l.title, where: { lesson: i },
+    }));
     this.renderList();
+  }
+
+  lessonId(l, i) { return `${this.domain}/lesson/${l.id ?? i}`; }
+
+  /** Open a lesson by local id or full item id. Returns false if unknown. */
+  openById(id) {
+    const local = String(id).split('/').pop();
+    const i = this.lessons.findIndex((l, k) => String(l.id ?? k) === local);
+    if (i < 0) return false;
+    this.open(i);
+    return true;
+  }
+
+  get currentLessonId() {
+    return this.lesson ? this.lessonId(this.lesson, this.lessons.indexOf(this.lesson)) : null;
+  }
+
+  markComplete() {
+    const id = this.currentLessonId;
+    if (!id || this._completed === id) return;
+    this._completed = id;
+    learning.store.completeLesson(id);
+  }
+
+  moduleButton() {
+    const ctx = learning.session.ctx;
+    return ctx?.kind === 'module'
+      ? el('button', { class: 'btn primary', onclick: () => learning.home('module', ctx.moduleId) }, '← Back to module')
+      : null;
   }
 
   renderList() {
@@ -52,7 +88,8 @@ export class LessonRunner {
           + 'simulation agrees with you.')),
       el('div', { class: 'lesson-list' },
         ...this.lessons.map((l, i) => el('button', {
-          class: 'lesson-card', onclick: () => this.open(i),
+          class: 'lesson-card' + (learning.store.state.lessons[this.lessonId(l, i)]?.completions?.length ? ' done' : ''),
+          onclick: () => this.open(i),
         },
           el('span', { class: 'lesson-idx' }, String(i + 1).padStart(2, '0')),
           el('span', { class: 'lesson-body' },
@@ -60,13 +97,15 @@ export class LessonRunner {
             el('span', { class: 'lesson-d' }, l.blurb || ''),
             el('span', { class: 'lesson-meta' },
               `${l.steps.length} steps`,
-              l.steps.some((s) => s.kind === 'predict') ? ' · predict & check' : '')),
+              l.steps.some((s) => s.kind === 'predict') ? ' · predict & check' : '',
+              learning.store.state.lessons[this.lessonId(l, i)]?.completions?.length ? ' · ✓ done' : '')),
         ))),
     );
   }
 
   open(i) {
     this.lesson = this.lessons[i];
+    this._completed = null;
     this.step = 0;
     this.answered = null;
     if (this.lesson.setup) this.apply(this.lesson.setup);
@@ -106,6 +145,7 @@ export class LessonRunner {
         const b = el('button', { class: 'opt', onclick: () => {
           if (this.answered) return;
           this.answered = o.id;
+          learning.store.recordPrediction(this.currentLessonId, o.correct);
           for (const x of btns) {
             x.classList.add('locked');
             if (x.dataset.opt === s.options.find((y) => y.correct)?.id) x.classList.add('right');
@@ -129,10 +169,12 @@ export class LessonRunner {
       opts.append(...btns);
       body.append(opts, outcome);
     } else if (s.kind === 'recap') {
+      this.markComplete();
       body.append(
         el('div', { class: 'eyebrow' }, 'What to take away'),
         el('ul', { class: 'recap' }, ...(s.points || []).map((p) => el('li', {}, p))),
         el('div', { class: 'btn-row' },
+          this.moduleButton(),
           el('button', { class: 'btn', onclick: () => this.renderList() }, '← All experiments')));
     } else {
       body.append(
@@ -141,7 +183,11 @@ export class LessonRunner {
         s.note && el('p', { class: 'callout' }, s.note),
         el('div', { class: 'btn-row' },
           this.step > 0 && el('button', { class: 'btn ghost', onclick: () => this.back() }, '← Back'),
-          el('button', { class: 'btn', onclick: () => { if (s.settings) this.apply(s.settings); this.advance(); } },
+          el('button', { class: 'btn', onclick: () => {
+            if (s.settings) this.apply(s.settings);
+            if (this.step === l.steps.length - 1) { this.markComplete(); this.renderList(); return; }
+            this.advance();
+          } },
             s.cta || (this.step === l.steps.length - 1 ? 'Finish' : 'Continue →'))));
       if (s.kind === 'do' && s.settings && s.auto !== false) this.apply(s.settings);
     }
