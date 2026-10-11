@@ -84,3 +84,43 @@ export function parseAction(cat: Catalog, text: string, locale: Locale): { manoe
   const side = tokens(text).map((w) => SIDE_WORDS[w]).find(Boolean);
   return { manoeuvre: bestId, side, score: bestScore };
 }
+
+/** Map typed text to an investigation. */
+export function parseOrder(cat: Catalog, text: string, locale: Locale): { investigation: string; score: number } | undefined {
+  let id: string | undefined, top = 0;
+  for (const inv of Object.values(cat.investigations)) {
+    const score = best(text, [...list(inv.synonyms, locale), ...list(inv.synonyms, 'en'), tr(inv.label, locale)]);
+    if (score > top) { top = score; id = inv.id; }
+  }
+  return id && top >= 0.85 ? { investigation: id, score: top } : undefined;
+}
+
+const QUESTION_START = /^(what|when|where|why|how|who|which|do|does|did|have|has|had|are|is|was|were|can|could|any|tell|wie|was|wann|wo|warum|welche|wer|haben|hatten|hat|sind|waren|ist|war|können|nehmen|rauchen|trinken|gibt|erzählen)\b/;
+const ORDER_WORDS = /\b(order|request|arrange|send|get an?|anordnen|veranlassen|anmelden|bestellen|schreiben|ableiten|messen lassen)\b/;
+
+export type Interpretation =
+  | { kind: 'ask'; topics: string[] }
+  | { kind: 'act'; manoeuvre: string; side?: Side }
+  | { kind: 'order'; investigation: string }
+  | { kind: 'unknown' };
+
+/**
+ * Decide whether typed text is a question for the patient, an examination
+ * step or an order. The same routing an LLM would do later, done with the
+ * catalog's phrasings.
+ */
+export function interpret(cat: Catalog, text: string, locale: Locale): Interpretation {
+  const t = normalise(text);
+  if (!t) return { kind: 'unknown' };
+  const topics = matchTopics(cat, text, locale);
+  const act = parseAction(cat, text, locale);
+  const ord = parseOrder(cat, text, locale);
+  const isQuestion = /\?\s*$/.test(text) || QUESTION_START.test(t);
+  if (ord && (ORDER_WORDS.test(t) || (ord.score >= 0.95 && !isQuestion && (act?.score ?? 0) < 0.95))) return { kind: 'order', investigation: ord.investigation };
+  const topScore = topics[0]?.score ?? 0;
+  if (isQuestion && topScore >= 0.6) return { kind: 'ask', topics: topics.map((x) => x.topic) };
+  if (act && act.score >= topScore) return { kind: 'act', manoeuvre: act.manoeuvre, side: act.side };
+  if (topScore >= 0.6) return { kind: 'ask', topics: topics.map((x) => x.topic) };
+  if (isQuestion) return { kind: 'ask', topics: [] };
+  return { kind: 'unknown' };
+}

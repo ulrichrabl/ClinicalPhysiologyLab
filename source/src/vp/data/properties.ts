@@ -106,6 +106,23 @@ export const PROPERTIES: PropertyDef[] = [
     source: 'model-or-case', resolver: 'circulation.lungs', formatter: 'lung.sounds', renderer: 'audio.lung',
   },
 
+  {
+    id: 'hands.crt', structure: 'hands', label: { en: 'Capillary refill time', de: 'Rekapillarisierungszeit' },
+    value: q('s', 0, 10), normal: { value: 2, range: [0, 2] },
+    source: 'model-or-case', resolver: 'circulation.crt', formatter: 'hands.crt',
+  },
+  {
+    id: 'legs.oedema', structure: 'legs', label: { en: 'Leg oedema', de: 'Beinödeme' },
+    value: rec({ extent: c('oedema') }), normal: { value: { extent: 'none' } },
+    source: 'model-or-case', resolver: 'circulation.oedema', formatter: 'legs.oedema',
+  },
+  {
+    id: 'abdomen.palpation', structure: 'abdomen', label: { en: 'Abdominal palpation', de: 'Palpation des Abdomens' },
+    value: rec({ tenderness: c('severity'), mass: bool, guarding: bool }),
+    normal: { value: { tenderness: 'none', mass: false, guarding: false } },
+    source: 'case', formatter: 'abdomen.palpation',
+  },
+
   /* ---- eyes ----------------------------------------------------------------- */
   {
     id: 'eye.pupil', structure: 'eye', paired: true, label: { en: 'Pupil', de: 'Pupille' },

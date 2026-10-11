@@ -139,6 +139,25 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     durationSeconds: 20,
   },
 
+  {
+    id: 'measure.crt', verb: 'measure', target: 'hands',
+    label: { en: 'Capillary refill time', de: 'Rekapillarisierungszeit prüfen' },
+    phrases: { en: ['capillary refill', 'crt', 'press on the nail'], de: ['rekapillarisierung', 'rekapillarisierungszeit', 'nagelbett drücken'] },
+    reveals: [{ property: 'hands.crt' }], requires: { instrument: ['hands'] }, durationSeconds: 10,
+  },
+  {
+    id: 'inspect.legs', verb: 'palpate', target: 'legs',
+    label: { en: 'Look and press for ankle oedema', de: 'Auf Beinödeme prüfen' },
+    phrases: { en: ['ankle oedema', 'ankle edema', 'swollen ankles', 'pitting', 'look at the legs'], de: ['ödeme', 'beinödeme', 'knöchelödeme', 'beine ansehen'] },
+    reveals: [{ property: 'legs.oedema' }], requires: { instrument: ['hands'] }, durationSeconds: 15,
+  },
+  {
+    id: 'palpate.abdomen', verb: 'palpate', target: 'abdomen',
+    label: { en: 'Palpate the abdomen', de: 'Abdomen palpieren' },
+    phrases: { en: ['palpate the abdomen', 'feel the abdomen', 'feel the tummy', 'abdominal examination'], de: ['bauch abtasten', 'abdomen palpieren', 'bauch untersuchen'] },
+    reveals: [{ property: 'abdomen.palpation' }], requires: { instrument: ['hands'], position: ['supine'], exposure: ['abdomen'] }, durationSeconds: 60,
+  },
+
   /* ---- eyes ----------------------------------------------------------------- */
   {
     id: 'inspect.eyes', verb: 'inspect', target: 'eyes',
@@ -287,5 +306,11 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     label: { en: 'Expose the chest', de: 'Oberkörper freimachen' },
     phrases: { en: ['expose the chest', 'take off shirt', 'undress'], de: ['oberkörper frei', 'freimachen', 'hemd ausziehen'] },
     reveals: [], sets: { exposure: ['chest', 'neck', 'arm'] }, requires: { consent: 'verbal' }, durationSeconds: 30,
+  },
+  {
+    id: 'expose.abdomen', verb: 'expose', target: 'abdomen',
+    label: { en: 'Expose the abdomen', de: 'Abdomen freimachen' },
+    phrases: { en: ['expose the abdomen', 'uncover the tummy'], de: ['bauch freimachen', 'abdomen freimachen'] },
+    reveals: [], sets: { exposure: ['abdomen'] }, requires: { consent: 'verbal' }, durationSeconds: 15,
   },
 ];

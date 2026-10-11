@@ -37,6 +37,9 @@ export const STRUCTURES: StructureDef[] = [
   { id: 'arm', parent: 'body', paired: true, label: { en: 'Arm', de: 'Arm' } },
   { id: 'wrist.radial', parent: 'arm', paired: true, label: { en: 'Radial artery', de: 'Arteria radialis' },
     synonyms: { en: ['radial', 'radial pulse', 'wrist'], de: ['radialis', 'radialispuls', 'handgelenk'] } },
+  { id: 'hands', parent: 'body', label: { en: 'Hands', de: 'Hände' }, synonyms: { en: ['hands', 'fingers', 'nails'], de: ['hände', 'finger', 'nägel'] } },
+  { id: 'abdomen', parent: 'body', label: { en: 'Abdomen', de: 'Abdomen' }, synonyms: { en: ['abdomen', 'belly', 'tummy', 'stomach'], de: ['bauch', 'abdomen'] } },
+  { id: 'legs', parent: 'body', label: { en: 'Legs', de: 'Beine' }, synonyms: { en: ['legs', 'ankles', 'shins'], de: ['beine', 'knöchel', 'unterschenkel'] } },
   { id: 'posture', parent: 'body', label: { en: 'Stance', de: 'Stand' } },
   { id: 'gait', parent: 'body', label: { en: 'Gait', de: 'Gang' } },
   { id: 'vitals', parent: 'body', label: { en: 'Vital signs', de: 'Vitalparameter' } },
@@ -89,6 +92,7 @@ export const VALUE_SETS: ValueSetDef[] = [
   vs('valve', [['aortic', 'aortic', 'Aortenklappe'], ['mitral', 'mitral', 'Mitralklappe'], ['tricuspid', 'tricuspid', 'Trikuspidalklappe'], ['pulmonary', 'pulmonary', 'Pulmonalklappe']]),
   vs('horizontal-deviation', [['ortho', 'aligned', 'keine'], ['eso', 'convergent (esotropia)', 'konvergent (Esotropie)'], ['exo', 'divergent (exotropia)', 'divergent (Exotropie)']]),
   vs('ecg-finding', [['normal', 'normal', 'unauffällig'], ['lvh', 'left ventricular hypertrophy', 'linksventrikuläre Hypertrophie'], ['lvh-strain', 'left ventricular hypertrophy with strain pattern', 'linksventrikuläre Hypertrophie mit Repolarisationsstörung'], ['lbbb', 'left bundle branch block', 'Linksschenkelblock'], ['af', 'atrial fibrillation', 'Vorhofflimmern'], ['chb', 'complete heart block', 'AV-Block III°']]),
+  vs('oedema', [['none', 'no oedema', 'keine Ödeme'], ['ankle', 'pitting oedema to the ankles', 'Knöchelödeme, eindrückbar'], ['shin', 'pitting oedema to mid-shin', 'eindrückbare Ödeme bis Unterschenkelmitte'], ['knee', 'pitting oedema to the knees', 'eindrückbare Ödeme bis zu den Knien']]),
   vs('colour', [['normal', 'normal colour', 'rosig'], ['pale', 'pale', 'blass'], ['grey', 'grey', 'fahl-grau'], ['flushed', 'flushed', 'gerötet'], ['cyanosed', 'cyanosed', 'zyanotisch']]),
 ];
 

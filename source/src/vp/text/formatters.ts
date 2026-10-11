@@ -102,6 +102,16 @@ export const FORMATTERS: Record<string, Formatter> = {
       : `${where}: ${lab(cat, 'breath-sounds', v.breath, l)} breath sounds, ${added || 'no added sounds'}.`;
   },
 
+  'hands.crt': (v, _c, l) => (de(l) ? `Rekapillarisierungszeit ${num(v, l, 1)} s.` : `Capillary refill ${num(v, l, 1)} s.`),
+  'legs.oedema': (v, _c, l, cat) => `${cap(lab(cat, 'oedema', v.extent, l))}.`,
+  'abdomen.palpation': (v, _c, l, cat) => {
+    const parts: string[] = [];
+    parts.push(v.tenderness === 'none' ? (de(l) ? 'weich, kein Druckschmerz' : 'soft, non-tender') : (de(l) ? `${lab(cat, 'severity', v.tenderness, l)} Druckschmerz` : `${lab(cat, 'severity', v.tenderness, l)} tenderness`));
+    if (v.guarding) parts.push(de(l) ? 'Abwehrspannung' : 'guarding');
+    parts.push(v.mass ? (de(l) ? 'Resistenz tastbar' : 'a mass is palpable') : (de(l) ? 'keine Resistenzen' : 'no masses'));
+    return de(l) ? `Abdomen: ${parts.join(', ')}.` : `Abdomen: ${parts.join(', ')}.`;
+  },
+
   /* ---- eyes ----------------------------------------------------------------- */
   'eye.pupil': (v, ctx, l, cat, ref) => {
     const who = de(l) ? `${cap(sideAdj(ref.side, l, 'linke'))} Pupille` : `${cap(sideAdj(ref.side, l))} pupil`;

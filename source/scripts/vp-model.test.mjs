@@ -13,7 +13,7 @@ await esbuild.build({
 const vp = await import(pathToFileURL(bundle).href);
 unlinkSync(bundle);
 const { CATALOG, REGISTRY, CASES, buildView, observe, startEncounter, perform, order, ask, opening, parseAction, autoNote, describe,
-  validateCatalog, validateCase, evaluate, eyeAngles, measuredSlowPhaseVelocity, settleWithCirculation, exportCatalog } = vp;
+  validateCatalog, validateCase, evaluate, interpret, commit, eyeAngles, measuredSlowPhaseVelocity, settleWithCirculation, exportCatalog } = vp;
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => {
@@ -323,6 +323,32 @@ console.log('\nEncounter: preconditions, hazards, history, notes');
   order(s, 'echo');
   const echo = s.encounter.events.find((e) => e.kind === 'result' && e.test === 'echo');
   ok('echo result comes from the model, available after its turnaround', echo.value.aorticPeakGradient > 60 && echo.t === s.t + 30 * 60000, J(echo));
+}
+
+
+/* ---- routing and debrief ---------------------------------------------------------- */
+console.log('\nTyped input routing and debrief');
+{
+  const I = (t, l = 'en') => interpret(CATALOG, t, l);
+  ok('a question goes to the patient', I('Do you have any chest pain?').kind === 'ask');
+  ok('a German question goes to the patient', I('Seit wann ist Ihnen schwindelig?', 'de').kind === 'ask');
+  ok('an examination step is an action', J(I('listen at the aortic area')) === J({ kind: 'act', manoeuvre: 'auscultate.heart.aortic', side: undefined }));
+  ok('a German examination step with a side', J(I('Radialispuls rechts tasten', 'de')) === J({ kind: 'act', manoeuvre: 'palpate.pulse.radial', side: 'R' }));
+  ok('an order', I('order an echo').kind === 'order' && I('EKG schreiben', 'de').kind === 'order');
+  ok('nonsense is not guessed', I('banana trampoline').kind === 'unknown');
+
+  const s = startEncounter(CATALOG, REGISTRY, VN, buildView(VN));
+  ask(s, 'Has your hearing changed?'); ask(s, 'Any headache?'); ask(s, 'Is it there all the time, how long does it last?');
+  perform(s, 'test.head-impulse', 'L'); perform(s, 'test.eye-movements'); perform(s, 'test.cover');
+  const d = commit(s, [{ diagnosis: 'vestibular-neuritis', confidence: 'likely' }, { diagnosis: 'cerebellar-stroke', confidence: 'possible' }]);
+  const got = Object.fromEntries(d.evidence.map((e) => [e.item.id, e.elicited]));
+  ok('debrief: diagnosis correct at rank 1', d.diagnosis.correct && d.diagnosis.rank === 1);
+  ok('debrief: head impulse, nystagmus on gaze and skew counted as elicited', got['e-hit'] && got['e-nys-unidirectional'] && got['e-nys-left-gaze'] && got['e-skew']);
+  ok('debrief: Frenzel, Weber and Romberg not done, so not elicited', !got['e-frenzel'] && !got['e-weber'] && !got['e-romberg']);
+  ok('debrief: facts count when the patient said them', got['e-hearing'] && got['e-course'] && !got['e-infection']);
+  ok('debrief: red flags asked about are covered', d.redFlags.find((r) => r.ref === 'f-headache').covered && !d.redFlags.find((r) => r.ref === 'f-diplopia').covered);
+  ok('debrief: differential considered vs missed', d.diagnosis.differentialConsidered.includes('cerebellar-stroke') && d.diagnosis.differentialMissed.includes('bppv'));
+  ok('the commit is logged', s.encounter.events.at(-1).kind === 'commit');
 }
 
 /* ---- kinematics for renderers ------------------------------------------------------ */

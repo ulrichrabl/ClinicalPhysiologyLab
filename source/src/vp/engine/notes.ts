@@ -16,8 +16,9 @@ import type { Session } from './encounter.ts';
 const SECTIONS: Array<{ id: string; label: { en: string; de: string }; match: (p: string) => boolean }> = [
   { id: 'general', label: { en: 'General', de: 'Allgemein' }, match: (p) => p.startsWith('general.') },
   { id: 'vitals', label: { en: 'Observations', de: 'Vitalparameter' }, match: (p) => p.startsWith('vitals.') },
-  { id: 'cvs', label: { en: 'Cardiovascular', de: 'Herz-Kreislauf' }, match: (p) => /^(pulse|jvp|apex|heart)/.test(p) },
+  { id: 'cvs', label: { en: 'Cardiovascular', de: 'Herz-Kreislauf' }, match: (p) => /^(pulse|jvp|apex|heart|hands|legs)/.test(p) },
   { id: 'resp', label: { en: 'Respiratory', de: 'Atmung' }, match: (p) => p.startsWith('lung.') },
+  { id: 'abdomen', label: { en: 'Abdomen', de: 'Abdomen' }, match: (p) => p.startsWith('abdomen.') },
   { id: 'eyes', label: { en: 'Eyes and eye movements', de: 'Augen und Okulomotorik' }, match: (p) => p.startsWith('eye') },
   { id: 'ears', label: { en: 'Hearing', de: 'Gehör' }, match: (p) => p.startsWith('ear.') || p === 'head.weber' },
   { id: 'balance', label: { en: 'Balance and coordination', de: 'Gleichgewicht und Koordination' }, match: (p) => /^(posture|gait|arm)/.test(p) },
@@ -32,11 +33,16 @@ export function autoNote(s: Session, locale: Locale = s.encounter.locale): strin
   const findings = [...latest.values()].sort((a, b) => order.indexOf(parseRef(a.property).property) - order.indexOf(parseRef(b.property).property));
 
   const lines: string[] = [];
-  const said = s.encounter.events.filter((e) => e.kind === 'utterance' && e.from === 'patient' && (e.facts?.length ?? 0) > 0);
-  if (said.length) {
+  // History: each fact once, in the note's language, in the order it came up.
+  const facts: string[] = [];
+  for (const e of s.encounter.events) if (e.kind === 'utterance' && e.from === 'patient') for (const id of e.facts ?? []) if (!facts.includes(id)) facts.push(id);
+  if (facts.length) {
     lines.push(locale === 'de' ? '## Anamnese (Patientenangaben)' : '## History (in the patient\'s words)');
     const [open, close] = locale === 'de' ? ['„', '“'] : ['“', '”'];
-    for (const e of said) if (e.kind === 'utterance') lines.push(`- ${open}${e.text}${close}`);
+    for (const id of facts) {
+      const f = s.caseDef.history.find((x) => x.id === id);
+      if (f) lines.push(`- ${open}${tr(f.say, locale)}${close}`);
+    }
   }
   for (const sec of SECTIONS) {
     const fs = findings.filter((f) => sec.match(parseRef(f.property).property));

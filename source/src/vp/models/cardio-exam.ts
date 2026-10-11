@@ -158,6 +158,16 @@ export const CARDIO_RESOLVERS: Record<string, Resolver> = {
     const sev = (x: number) => (x > 0.4 ? 'marked' : x > 0.15 ? 'mild' : 'none');
     return { value: { ef: r(ef), aorticPeakGradient: r(h.gradient), aorticRegurgitation: sev(h.regAortic ? h.regurgFraction : 0), mitralRegurgitation: sev(h.regMitral ? h.regurgFraction : 0) } };
   },
+  'circulation.crt': (view): Resolved | undefined => {
+    const h = hemo(view); if (!h) return undefined;
+    const crt = h.map < 55 ? 5 : h.map < 65 ? 3.5 : 2;
+    return { value: crt, basis: `mean arterial pressure ${h.map.toFixed(0)} mmHg` };
+  },
+  'circulation.oedema': (view): Resolved | undefined => {
+    const h = hemo(view); if (!h) return undefined;
+    if (h.cvp < 10) return undefined;
+    return { value: { extent: h.cvp >= 16 ? 'knee' : h.cvp >= 13 ? 'shin' : 'ankle' }, basis: `mean right atrial pressure ${h.cvp.toFixed(1)} mmHg` };
+  },
   'general.appearance': (view): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;
     if (h.map >= 60) return undefined;   // the case layer describes a well-perfused patient
