@@ -1,6 +1,6 @@
 # Virtual patient — design spec
 
-Status: **Draft for review**
+Status: **Draft for review** — data model implemented (§8)
 Date: 2026-10-11
 Supersedes: the Bedside and Learn layers of PR #4 (closed). Builds on ADR-001 to ADR-015.
 
@@ -356,39 +356,110 @@ Numbers are optional.
 
 ---
 
-## 8. Case format
+## 8. Data model
 
-```js
-export default {
-  id: 'as-syncope',
-  tags: ['cardiology', 'syncope', 'valvular'],
-  difficulty: 2,
-  presentation: { name: 'Evelyn Hart', age: 78, sex: 'F', setting: 'Acute medical unit',
-                  triage: 'Collapsed walking uphill to church this morning.' },
-  physiology: {
-    params: { Raortic: 0.35 },                      // severe AS, peak gradient ~90 mmHg
-    conditions: [],
-    neuro: null,
-  },
-  state: { position: 'sitting', consciousness: 'alert', pain: 0 },
-  caseFindings: {
-    'hands': { inspect: 'Arcus senilis is visible; no clubbing.' },
-    'chest.sternum': { inspect: 'No scars.' },
-  },
-  history: {
-    'pc':            'I passed out walking up the hill to church…',
-    'chest-pain':    { fact: 'Tightness on exertion, relieved by rest, for months', volunteers: false },
-    'syncope':       'This morning, on exertion, without warning.',
-    'medications':   'Amlodipine, atorvastatin.',
-  },
-  timeline: [ { after: '20m', if: 'no-action', change: null } ],
-  expert: { /* §7 */ },
-  diagnosis: { accepted: ['aortic-stenosis-severe'], differential: ['hocm', 'chb', 'vasovagal'] },
-};
-```
+The foundation everything else is built on. It lives in `source/src/vp/` and is
+covered by `scripts/vp-model.test.mjs` (116 checks). Nothing in the app uses it
+yet; M1 connects it to the Patient Runtime.
 
-The five patients from PR #4 (volunteer, aortic stenosis, heart failure, GI
-bleed, C5 cord injury) port to this format first.
+### Five layers, all plain data
+
+| Layer | What it holds | Where |
+|---|---|---|
+| 1. Ontology | Body structures (paired ones expand to `.L` / `.R`), scales, value sets, instruments | `data/ontology.ts` |
+| 2. Observables | Everything that can be perceived: a typed, structured value, an age- and sex-appropriate normal, the context dimensions that change it, and where its value comes from | `data/properties.ts` |
+| 3. Manoeuvres | Verb + structure, what it reveals in which context, what it requires (position, exposure, instrument, ability, consent), how long it takes, when it is harmful | `data/manoeuvres.ts` |
+| 4. Case | One patient: pathology that drives the models, a case layer for what no model covers, history facts, investigations, course over time, expert reference, diagnosis | `cases/*.json` |
+| 5. Encounter | An append-only event log: actions (performed or blocked, and why), findings, utterances, orders, results, state changes, hazards, notes, commit | `engine/encounter.ts` |
+
+Everything is JSON-serialisable. Code (resolvers, formatters, renderers) is
+referenced by id and registered in `registry.ts`, so data never contains
+functions and a future authoring platform can read and write all of it. The
+shared vocabulary exports as one JSON document (`exportCatalog()`); cases are
+already JSON files.
+
+### Findings are values, never sentences
+
+A finding is a structured value: a nystagmus is
+`{ present, type, fastPhase, torsion, slowPhase, spvDegPerS, amplitudeDeg, frequencyHz }`,
+a murmur `{ valve, timing, shape, grade, pitch }`, a pupil `{ sizeMm, reaction }`.
+From the one value:
+
+- **Formatters** write the clinical sentence in any language (English and
+  German now; a language is added as labels in the data plus one branch per
+  formatter).
+- **Renderers** draw and animate it. `render/eye-motion.ts` already turns a
+  nystagmus value into eye angles over time; its measured slow-phase velocity
+  matches the model's within 5%.
+- **The debrief** compares it with the expert reference, and later with the
+  learner's own notes, on the structure rather than the wording.
+
+### Where a value comes from
+
+Each property declares its source: `model` (only a resolver over the
+runtime), `case` (only authored), or `model-or-case`. Observation runs in a
+fixed order: model resolver, then the case layer, then the age-appropriate
+normal. Every examinable property always answers, by the same path whether
+normal or not, so nothing reveals relevance. The validator forbids a case from
+authoring a model-only property: physiology cannot be contradicted by hand,
+only changed through the pathology.
+
+Each finding records its provenance (`model` / `case` / `default-normal`) and,
+for model findings, the quantity it rests on ("aortic gradient 76 mmHg";
+"false-negative Rinne: bone conduction heard by the other cochlea"). The
+debrief shows these after the commit.
+
+### Context
+
+Signs depend on how they are elicited. The examination context carries site,
+gaze, fixation, position, respiration, instrument, which eye is lit, ambient
+light, eyes closed, which eye is covered, direction of a head impulse, and how
+long a posture is held. Models compute context-dependent values directly
+(fixation suppressing a peripheral nystagmus, the bell needed for an S4).
+Authored values use rules: `{ value, when: [{ if, mode: replace | merge | scale }] }`.
+
+### Models behind the seed set
+
+- **Vestibular and ocular motor** (`models/neuro-exam.ts`): resting tone per
+  side, central compensation, a leaky gaze-holding integrator, fixation
+  suppression, VOR gain, otolith pathway. It reproduces HINTS from the lesion
+  alone: left vestibular neuritis gives a right-beating horizontal-torsional
+  nystagmus that obeys Alexander's law and is suppressed by fixation, an
+  abnormal head impulse to the left and no skew; a left lateral medullary
+  lesion gives a normal head impulse, direction-changing nystagmus, skew with
+  the left eye lower, and Horner's syndrome; a cerebellar lesion gives
+  gaze-evoked nystagmus and ipsilateral dysmetria. Pupils, lids, ductions,
+  visual fields and hearing come from the nervous-system graph.
+- **Cardiovascular** (`models/cardio-exam.ts`): pulse, blood pressure, JVP,
+  apex, heart and lung sounds from the closed-loop circulation's beat metrics.
+  Raising aortic valve resistance produces a graded ejection murmur that
+  radiates to the carotids and changes pitch at the apex, a soft single S2, a
+  slow-rising carotid pulse, a heaving apex and an S4 heard with the bell.
+
+### Two example cases
+
+`vestibular-neuritis-left.json` (pathology: `vestibular-hypofunction`, left,
+80%, day 1) and `exertional-syncope-as.json` (pathology: `Raortic 0.3`), both
+complete in English and German. Neither case authors a single eye or heart
+finding; all of them come from the models.
+
+### Validation
+
+`validateCatalog` and `validateCase` check what an authoring platform must
+check on save: every id resolves (structures, properties, value sets, graph
+nodes, conditions, topics, facts, diagnoses), every learner-facing string
+exists in each language the case declares, every authored value fits its type,
+model-only properties stay model-only, and a published case has a clinical
+reviewer. Terminology codes (SNOMED CT, LOINC, FMA, ICD) have fields
+everywhere; only the standard vital-sign LOINC codes are filled. The rest are
+for clinicians to map, never to be guessed.
+
+### Language
+
+History matching and the action parser (`engine/language.ts`) use the
+phrasings in the catalog, per language, with simple normalised matching. An
+LLM can later replace the matcher and return the same structures; nothing else
+changes.
 
 ---
 
@@ -421,7 +492,7 @@ bleed, C5 cord injury) port to this format first.
 | | Scope | Done when |
 |---|---|---|
 | **M0** | This spec | Agreed |
-| **M1** | **Examination engine, headless.** Site ontology, ~370 manoeuvres, parser with synonyms, preconditions, time cost, `perform.action`, resolvers, case layer, five cases ported | For each case, every manoeuvre returns a finding; findings match the models; no case finding contradicts a model; parser resolves a list of 300 phrasings written by a clinician |
+| **M1** | **Examination engine, headless.** *Data model, engine core and two cases done (§8).* Remaining: site ontology, ~370 manoeuvres, parser with synonyms, preconditions, time cost, `perform.action`, resolvers, case layer, five cases ported | For each case, every manoeuvre returns a finding; findings match the models; no case finding contradicts a model; parser resolves a list of 300 phrasings written by a clinician |
 | **M2** | **Encounter screen.** Patient drawing without hotspots, command bar, body touch menu, notes, monitor, ordering with turnaround, free-text history | A student completes the aortic stenosis case on a phone without guidance |
 | **M3** | **Commit and debrief.** Differential search, expert reference, timeline, unlocks to Physiology/Anatomy with finding → mechanism links | Debrief correctly identifies missed discriminating actions in scripted runs |
 | **M4** | **Navigation.** Cases / Patient / You; layers; drills migrated; old shells removed | No specialty tabs remain; every current workspace reachable from a layer |
@@ -430,15 +501,21 @@ bleed, C5 cord injury) port to this format first.
 
 ---
 
-## 12. Open questions
+## 12. Decisions
 
-1. **Language.** English only, or German as well? It affects the parser
-   vocabulary from M1 onwards.
-2. **Notes.** Should students write their own notes (and be assessed on them),
-   or only see the automatic log?
-3. **Explore mode access.** Open to everyone, or unlocked per case after the
-   encounter?
-4. **Case authoring.** Who will write cases beyond the first ten? This decides
-   whether an authoring tool (or LLM-assisted drafting with clinician review)
-   belongs in scope.
-5. **Scoring.** Qualitative only, or numeric scores for courses later?
+Recorded 2026-10-11.
+
+1. **Language.** English and German now; other languages later, added as data.
+2. **Notes.** Both. Automatic notes are generated from the encounter log
+   (`autoNote`); learners later write their own and compare. Comparison works
+   on structured findings, so it teaches what to document, not phrasing.
+3. **Explore mode.** Yes, but after the foundational model.
+4. **Case authoring.** By collaborators, later, on a case management and
+   editing platform. For now the data model is prepared for it: JSON cases,
+   an exportable catalog, a validator, authoring metadata (authors,
+   reviewers, sources, status, version).
+5. **Findings.** As clinical as possible, with illustrations and SVG
+   animations driven by the same values the models compute (the eye
+   examination first).
+
+Still open: **scoring** — qualitative only, or numeric scores for courses later?

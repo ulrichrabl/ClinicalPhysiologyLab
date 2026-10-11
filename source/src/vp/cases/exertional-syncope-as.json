@@ -1,0 +1,137 @@
+{
+  "schema": "vp.case/1",
+  "id": "exertional-syncope-as",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": ["en", "de"],
+  "title": { "en": "Collapse on the stairs: severe aortic stenosis", "de": "Kollaps auf der Treppe: hochgradige Aortenklappenstenose" },
+  "tags": ["syncope", "murmur", "valve", "cardiology", "emergency"],
+  "difficulty": 2,
+  "authoring": {
+    "authors": ["Clinical Physiology Lab"],
+    "reviewers": [],
+    "updated": "2026-10-11",
+    "sources": [
+      "Otto CM, Prendergast B. Aortic-valve stenosis — from patients at risk to severe valve obstruction. N Engl J Med 2014;371:744-56.",
+      "2021 ESC/EACTS Guidelines for the management of valvular heart disease."
+    ]
+  },
+  "patient": {
+    "name": "Walter Brenner",
+    "age": 79,
+    "sex": "M",
+    "heightCm": 176,
+    "weightKg": 82,
+    "appearance": { "skinTone": 1, "hair": "grey, thinning", "build": "average" },
+    "speaks": ["en", "de"]
+  },
+  "setting": {
+    "place": { "en": "Emergency department, resus bay 2", "de": "Notaufnahme, Schockraum 2" },
+    "triage": { "en": "Collapsed on the stairs at home. Now alert.", "de": "Zu Hause auf der Treppe kollabiert. Jetzt wach." }
+  },
+  "pathology": {
+    "physiology": { "Raortic": 0.3 }
+  },
+  "initialState": { "position": "reclined-45", "avpu": "A", "orientation": "oriented", "cooperation": "full", "exposure": [] },
+  "observables": {
+    "general.appearance": { "value": { "distress": "none", "colour": "normal", "sweating": false } },
+    "vitals.rr": { "value": 16 },
+    "vitals.spo2": { "value": 96 },
+    "vitals.temp": { "value": 36.7 }
+  },
+  "investigations": {
+    "ecg-12": { "value": { "rhythm": "regular", "rate": 72, "findings": ["lvh-strain"] } },
+    "glucose": { "value": 6.1 }
+  },
+  "history": [
+    { "id": "f-pc", "topic": "pc", "volunteered": true,
+      "assertion": { "concept": "syncope", "present": true, "attributes": { "trigger": "exertion" } },
+      "say": { "en": "I blacked out on the stairs this morning. My wife says I was gone for less than a minute.",
+               "de": "Ich bin heute früh auf der Treppe umgekippt. Meine Frau sagt, ich war weniger als eine Minute weg." } },
+    { "id": "f-syncope", "topic": "sx.syncope",
+      "assertion": { "concept": "syncope", "present": true, "attributes": { "prodrome": "none", "recovery": "rapid" } },
+      "say": { "en": "Yes, this morning. No warning at all, it just went black, and I came round quickly.",
+               "de": "Ja, heute früh. Ganz ohne Vorwarnung, es wurde einfach schwarz, und ich war schnell wieder da." } },
+    { "id": "f-onset", "topic": "hpc.onset",
+      "say": { "en": "Halfway up the stairs to our flat, carrying the shopping.", "de": "Auf halber Treppe zu unserer Wohnung, mit den Einkäufen in der Hand." } },
+    { "id": "f-trigger", "topic": "hpc.triggers",
+      "assertion": { "concept": "symptoms-on-exertion", "present": true },
+      "say": { "en": "It's always when I exert myself: stairs, carrying things, walking uphill. When I rest it settles.",
+               "de": "Es ist immer bei Anstrengung: Treppen, Tragen, bergauf gehen. Wenn ich mich ausruhe, wird es besser." } },
+    { "id": "f-previous", "topic": "hpc.previous",
+      "assertion": { "concept": "presyncope", "present": true, "attributes": { "episodes": 2, "period": "1 month" } },
+      "say": { "en": "Twice in the last month everything went grey on the stairs and I had to sit down.",
+               "de": "Im letzten Monat wurde mir zweimal auf der Treppe grau vor Augen und ich musste mich hinsetzen." } },
+    { "id": "f-presyncope", "topic": "sx.presyncope",
+      "assertion": { "concept": "presyncope", "present": true, "attributes": { "trigger": "exertion" } },
+      "say": { "en": "Yes, on the stairs a couple of times. Never when I'm sitting or standing still.",
+               "de": "Ja, ein paarmal auf der Treppe. Nie im Sitzen oder wenn ich ruhig stehe." } },
+    { "id": "f-angina", "topic": "sx.chest-pain",
+      "assertion": { "concept": "chest-pain", "present": true, "attributes": { "character": "tightness", "trigger": "exertion", "relief": "rest" } },
+      "say": { "en": "When I walk uphill I get a tightness in the middle of my chest. It goes after a few minutes' rest.",
+               "de": "Wenn ich bergauf gehe, bekomme ich ein Engegefühl mitten in der Brust. Nach ein paar Minuten Pause geht es weg." } },
+    { "id": "f-dyspnoea", "topic": "sx.dyspnoea",
+      "assertion": { "concept": "dyspnoea", "present": true, "attributes": { "trigger": "exertion", "duration": "6 months" } },
+      "say": { "en": "I've been more out of breath on the stairs for about half a year. I put it down to my age.",
+               "de": "Seit etwa einem halben Jahr bin ich auf der Treppe kurzatmiger. Ich dachte, das ist das Alter." } },
+    { "id": "f-palp", "topic": "sx.palpitations",
+      "assertion": { "concept": "palpitations", "present": false },
+      "say": { "en": "No, my heart didn't race beforehand.", "de": "Nein, Herzrasen hatte ich vorher nicht." } },
+    { "id": "f-pmh", "topic": "pmh",
+      "say": { "en": "High blood pressure. And years ago my GP said something about a murmur, but nobody followed it up.",
+               "de": "Bluthochdruck. Und vor Jahren hat mein Hausarzt etwas von einem Herzgeräusch gesagt, aber das hat niemand weiter verfolgt." } },
+    { "id": "f-meds", "topic": "meds",
+      "say": { "en": "Ramipril, 5 milligrams in the morning.", "de": "Ramipril, 5 Milligramm morgens." } },
+    { "id": "f-smoking", "topic": "shx.smoking",
+      "say": { "en": "I stopped twenty years ago.", "de": "Ich habe vor zwanzig Jahren aufgehört." } },
+    { "id": "f-work", "topic": "shx.occupation",
+      "say": { "en": "Retired. I was a carpenter.", "de": "In Rente. Ich war Schreiner." } },
+    { "id": "f-living", "topic": "shx.living",
+      "say": { "en": "With my wife, on the second floor. There's no lift.", "de": "Mit meiner Frau im zweiten Stock. Es gibt keinen Aufzug." } },
+    { "id": "f-concerns", "topic": "ice.concerns",
+      "say": { "en": "Is it my heart? My brother had a heart attack.", "de": "Ist es das Herz? Mein Bruder hatte einen Herzinfarkt." } }
+  ],
+  "reference": {
+    "evidence": [
+      { "id": "e-murmur", "kind": "property", "ref": "heart.sounds", "context": { "site": "chest.aortic-area" }, "weight": "essential",
+        "why": { "en": "A loud ejection systolic murmur at the aortic area with a soft, single second sound: severe obstruction at the aortic valve.",
+                 "de": "Lautes systolisches Austreibungsgeräusch im Aortenareal mit leisem, nicht gespaltenem zweiten Herzton: hochgradige Obstruktion an der Aortenklappe." } },
+      { "id": "e-carotid-pulse", "kind": "property", "ref": "pulse.carotid.R", "weight": "discriminating",
+        "discriminates": ["hcm"],
+        "why": { "en": "A slow-rising carotid upstroke places the obstruction at the valve. In obstructive cardiomyopathy the upstroke is brisk, then falls away.",
+                 "de": "Ein langsam ansteigender Karotispuls lokalisiert die Obstruktion an der Klappe. Bei obstruktiver Kardiomyopathie ist der Anstieg schnell und fällt dann ab." } },
+      { "id": "e-radiation", "kind": "property", "ref": "heart.sounds", "context": { "site": "neck.carotid.R" }, "weight": "supporting",
+        "why": { "en": "The murmur radiates to the carotids.", "de": "Das Geräusch wird in die Karotiden fortgeleitet." } },
+      { "id": "e-apex", "kind": "property", "ref": "apex", "weight": "supporting",
+        "why": { "en": "A heaving, undisplaced apex: a pressure-loaded, hypertrophied ventricle.", "de": "Hebender, nicht verlagerter Herzspitzenstoß: druckbelasteter, hypertrophierter Ventrikel." } },
+      { "id": "e-exertional", "kind": "fact", "ref": "f-trigger", "weight": "essential",
+        "discriminates": ["vasovagal-syncope", "orthostatic-hypotension"],
+        "why": { "en": "Syncope on exertion without prodrome is cardiac until proven otherwise. A reflex faint has a prodrome and a trigger such as standing or pain; orthostatic syncope follows standing up.",
+                 "de": "Eine Synkope unter Belastung ohne Prodromi ist bis zum Beweis des Gegenteils kardial. Eine Reflexsynkope hat Prodromi und einen Auslöser wie Stehen oder Schmerz; die orthostatische Synkope folgt dem Aufstehen." } },
+      { "id": "e-angina", "kind": "fact", "ref": "f-angina", "weight": "supporting",
+        "why": { "en": "Angina, breathlessness and syncope are the three classic symptoms of severe aortic stenosis.", "de": "Angina pectoris, Dyspnoe und Synkope sind die drei klassischen Symptome der hochgradigen Aortenstenose." } },
+      { "id": "e-palp", "kind": "fact", "ref": "f-palp", "weight": "supporting",
+        "discriminates": ["ventricular-tachycardia"],
+        "why": { "en": "No palpitations before the collapse makes an arrhythmia less likely, though it does not exclude it.", "de": "Fehlendes Herzrasen vor dem Kollaps macht eine Rhythmusstörung weniger wahrscheinlich, schließt sie aber nicht aus." } },
+      { "id": "e-echo", "kind": "investigation", "ref": "echo", "weight": "essential",
+        "why": { "en": "Echocardiography quantifies the gradient and confirms the diagnosis.", "de": "Die Echokardiographie quantifiziert den Gradienten und sichert die Diagnose." } },
+      { "id": "e-ecg", "kind": "investigation", "ref": "ecg-12", "weight": "supporting",
+        "discriminates": ["complete-heart-block"],
+        "why": { "en": "Sinus rhythm with left ventricular hypertrophy and strain; no heart block.", "de": "Sinusrhythmus mit linksventrikulärer Hypertrophie und Repolarisationsstörung; kein AV-Block." } }
+    ],
+    "redFlags": [
+      { "kind": "fact", "ref": "f-trigger", "why": { "en": "Exertional syncope: high risk of sudden death; admit and monitor.", "de": "Belastungssynkope: hohes Risiko eines plötzlichen Herztods; stationäre Aufnahme mit Monitoring." } },
+      { "kind": "fact", "ref": "f-angina", "why": { "en": "Symptomatic severe aortic stenosis needs valve intervention.", "de": "Die symptomatische hochgradige Aortenstenose ist eine Indikation zur Klappenintervention." } }
+    ],
+    "timeBudgetMinutes": 15,
+    "summary": {
+      "en": "Exertional syncope without prodrome in a 79-year-old with exertional angina and breathlessness. Loud ejection systolic murmur at the aortic area radiating to the carotids, soft single S2, slow-rising carotid pulse, heaving apex. Severe aortic stenosis, symptomatic: admit, monitor, echo, and refer for valve intervention.",
+      "de": "Belastungssynkope ohne Prodromi bei einem 79-Jährigen mit Belastungsangina und -dyspnoe. Lautes systolisches Austreibungsgeräusch im Aortenareal mit Fortleitung in die Karotiden, leiser einfacher zweiter Herzton, Pulsus tardus, hebender Herzspitzenstoß. Symptomatische hochgradige Aortenstenose: Aufnahme, Monitoring, Echokardiographie und Vorstellung zur Klappenintervention."
+    }
+  },
+  "diagnosis": {
+    "primary": "aortic-stenosis",
+    "accepted": [],
+    "differential": ["hcm", "vasovagal-syncope", "orthostatic-hypotension", "complete-heart-block", "ventricular-tachycardia"]
+  }
+}
