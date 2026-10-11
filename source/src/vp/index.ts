@@ -11,11 +11,14 @@ export { commit, elicited, type DebriefResult, type Commit } from './engine/debr
 export { autoNote, describe } from './engine/notes.ts';
 export { validateCatalog, validateCase, checkValue, type Issue } from './engine/validate.ts';
 export { neuroExamState, nystagmus } from './models/neuro-exam.ts';
+export { limbState } from './models/neuro-limb.ts';
 export { eyeAngles, measuredSlowPhaseVelocity } from './render/eye-motion.ts';
 
 import vestibularNeuritisLeft from './cases/vestibular-neuritis-left.json';
 import exertionalSyncopeAs from './cases/exertional-syncope-as.json';
+import acuteStrokeLeftMca from './cases/acute-stroke-left-mca.json';
+import footDropRightL5 from './cases/foot-drop-right-l5.json';
 import type { CaseDef } from './model/types.ts';
 
 /** Cases are JSON documents; the validator, not the type system, vouches for them. */
-export const CASES: CaseDef[] = [vestibularNeuritisLeft as unknown as CaseDef, exertionalSyncopeAs as unknown as CaseDef];
+export const CASES: CaseDef[] = [vestibularNeuritisLeft, exertionalSyncopeAs, acuteStrokeLeftMca, footDropRightL5] as unknown as CaseDef[];

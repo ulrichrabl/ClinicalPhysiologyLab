@@ -286,6 +286,133 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     reveals: [{ property: 'arm.finger-nose' }], requires: { ability: ['follows-commands'] }, durationSeconds: 20,
   },
 
+  /* ---- neurological: cranial nerves and speech ------------------------------------ */
+  {
+    id: 'test.face-movement', verb: 'test', target: 'face',
+    label: { en: 'Facial movement: raise the eyebrows, screw the eyes shut, show the teeth', de: 'Mimik: Stirn runzeln, Augen zukneifen, Zähne zeigen' },
+    phrases: { en: ['facial movement', 'raise your eyebrows', 'show your teeth', 'facial nerve', 'smile', 'close your eyes tightly'], de: ['mimik', 'stirn runzeln', 'zähne zeigen', 'fazialis', 'augen zukneifen', 'lächeln'] },
+    reveals: [{ property: 'face.movement', side: 'both' }], requires: { ability: ['follows-commands'] }, durationSeconds: 20,
+  },
+  {
+    id: 'test.face-sensation', verb: 'test', target: 'face',
+    label: { en: 'Facial sensation in V1, V2 and V3, and the corneal reflex', de: 'Gesichtssensibilität V1–V3 und Kornealreflex' },
+    phrases: { en: ['facial sensation', 'trigeminal', 'corneal reflex', 'sensation on the face'], de: ['gesichtssensibilität', 'trigeminus', 'kornealreflex', 'gefühl im gesicht'] },
+    reveals: [{ property: 'face.sensation', side: 'both' }], requires: { instrument: ['cotton-wool', 'neurotip'] }, durationSeconds: 40,
+  },
+  {
+    id: 'test.jaw', verb: 'test', target: 'jaw',
+    label: { en: 'Open the mouth against resistance', de: 'Mundöffnung gegen Widerstand' },
+    phrases: { en: ['jaw', 'open your mouth', 'masseter', 'jaw jerk'], de: ['kiefer', 'mund öffnen', 'kaumuskulatur', 'masseter'] },
+    reveals: [{ property: 'jaw.opening' }], requires: { ability: ['follows-commands'] }, durationSeconds: 10,
+  },
+  {
+    id: 'test.palate', verb: 'inspect', target: 'mouth',
+    label: { en: 'Say “aah”: palate and uvula; gag reflex', de: '„Aaa“ sagen: Gaumensegel und Uvula; Würgreflex' },
+    phrases: { en: ['say aah', 'palate', 'uvula', 'gag reflex', 'gag'], de: ['aaa sagen', 'gaumensegel', 'uvula', 'würgreflex', 'zäpfchen'] },
+    reveals: [{ property: 'mouth.palate' }], requires: { instrument: ['tongue-depressor', 'pen-torch'] }, durationSeconds: 20,
+  },
+  {
+    id: 'test.tongue', verb: 'inspect', target: 'mouth',
+    label: { en: 'Look at the tongue at rest and stuck out', de: 'Zunge in Ruhe und herausgestreckt' },
+    phrases: { en: ['tongue', 'stick out your tongue', 'hypoglossal'], de: ['zunge', 'zunge herausstrecken', 'hypoglossus'] },
+    reveals: [{ property: 'mouth.tongue' }], requires: { ability: ['follows-commands'] }, durationSeconds: 15,
+  },
+  {
+    id: 'test.shrug', verb: 'test', target: 'shoulder',
+    label: { en: 'Shrug the shoulders and turn the head against resistance', de: 'Schultern heben und Kopf gegen Widerstand drehen' },
+    phrases: { en: ['shrug', 'shrug your shoulders', 'accessory nerve', 'turn your head against my hand'], de: ['schultern heben', 'akzessorius', 'kopf drehen gegen widerstand'] },
+    reveals: [{ property: 'shoulder.shrug', side: 'both' }], requires: { ability: ['follows-commands'] }, durationSeconds: 15,
+  },
+  {
+    id: 'test.speech', verb: 'test', target: 'speech',
+    label: { en: 'Assess speech: conversation, naming, repetition, a three-step command', de: 'Sprache prüfen: Spontansprache, Benennen, Nachsprechen, dreiteiliger Auftrag' },
+    phrases: { en: ['speech', 'language', 'naming', 'repetition', 'no ifs ands or buts', 'aphasia', 'dysarthria'], de: ['sprache', 'sprachprüfung', 'benennen', 'nachsprechen', 'aphasie', 'dysarthrie'] },
+    reveals: [{ property: 'speech.language' }], durationSeconds: 90,
+  },
+  {
+    id: 'test.count-to-50', verb: 'test', target: 'speech',
+    label: { en: 'Count aloud to 50', de: 'Laut bis 50 zählen lassen' },
+    phrases: { en: ['count to 50', 'count to fifty', 'bulbar fatigue'], de: ['bis 50 zählen', 'bis fünfzig zählen'] },
+    reveals: [{ property: 'speech.fatigue', context: { repetition: 50 } }], requires: { ability: ['follows-commands'] }, durationSeconds: 40,
+  },
+  {
+    id: 'test.sustained-upgaze', verb: 'test', target: 'eyes',
+    label: { en: 'Sustained upgaze for a minute', de: 'Eine Minute nach oben blicken (Simpson-Test)' },
+    phrases: { en: ['sustained upgaze', 'look up for a minute', 'fatigability', 'simpson'], de: ['simpson', 'nach oben blicken eine minute', 'ermüdbarkeit'] },
+    reveals: [{ property: 'eye.lid', side: 'both', context: { sustainedSeconds: 60, gaze: 'up' } }], requires: { ability: ['follows-commands'] }, durationSeconds: 70,
+  },
+
+  /* ---- neurological: limbs and trunk -------------------------------------------- */
+  ...(['arm', 'leg'] as const).flatMap((limb): ManoeuvreDef[] => {
+    const A = limb === 'arm';
+    const L = A ? { en: 'arm', de: 'Arm', enPl: 'arms', dePl: 'Arme' } : { en: 'leg', de: 'Bein', enPl: 'legs', dePl: 'Beine' };
+    return [
+      { id: `test.${limb}.tone`, verb: 'palpate', target: limb, paired: true,
+        label: { en: `Tone and bulk of the ${L.en}`, de: `Tonus und Trophik ${A ? 'des Arms' : 'des Beins'}` },
+        phrases: { en: [`${L.en} tone`, `tone in the ${L.en}`, `look at the ${L.enPl} for wasting`, 'fasciculations', 'tone'], de: [`tonus ${L.de.toLowerCase()}`, 'tonus', 'muskeltonus', 'atrophie', 'faszikulationen'] },
+        reveals: [{ property: `${limb}.tone` }], durationSeconds: 30 },
+      { id: `test.${limb}.power`, verb: 'test', target: limb, paired: true,
+        label: { en: `Power in the ${L.en}, movement by movement`, de: `Kraftprüfung ${A ? 'Arm' : 'Bein'} nach Kennmuskeln` },
+        phrases: { en: [`${L.en} power`, `power in the ${L.en}`, `strength of the ${L.en}`, 'power', 'mrc', 'push against me'], de: [`kraft ${L.de.toLowerCase()}`, 'kraftprüfung', 'kraft', 'kennmuskeln', 'paresen'] },
+        reveals: [{ property: `${limb}.power` }], requires: { ability: ['follows-commands'] }, durationSeconds: 60 },
+      { id: `test.${limb}.reflexes`, verb: 'test', target: limb, paired: true,
+        label: { en: A ? 'Biceps, supinator and triceps reflexes' : 'Knee and ankle reflexes and the plantar response', de: A ? 'Bizeps-, Brachioradialis- und Trizepssehnenreflex' : 'Patellarsehnen- und Achillessehnenreflex, Babinski' },
+        phrases: A ? { en: ['arm reflexes', 'biceps reflex', 'triceps reflex', 'supinator reflex', 'reflexes in the arm'], de: ['armreflexe', 'reflexe arm', 'bsr', 'tsr', 'rpr', 'bizepssehnenreflex', 'trizepssehnenreflex'] }
+          : { en: ['leg reflexes', 'knee jerk', 'ankle jerk', 'plantar', 'babinski', 'reflexes in the leg'], de: ['beinreflexe', 'reflexe bein', 'psr', 'asr', 'babinski', 'patellarsehnenreflex', 'achillessehnenreflex'] },
+        reveals: [{ property: `${limb}.reflexes` }], requires: { instrument: ['tendon-hammer'] }, durationSeconds: 40 },
+      { id: `test.${limb}.pinprick`, verb: 'test', target: limb, paired: true,
+        label: { en: `Pinprick in each dermatome of the ${L.en}`, de: `Spitz-stumpf-Diskrimination in den Dermatomen ${A ? 'des Arms' : 'des Beins'}` },
+        phrases: { en: [`pinprick ${L.en}`, `sensation in the ${L.en}`, 'pinprick', 'dermatomes', 'sharp or blunt', 'light touch'], de: [`sensibilität ${L.de.toLowerCase()}`, 'spitz stumpf', 'sensibilität', 'dermatome', 'schmerzempfinden'] },
+        reveals: [{ property: `${limb}.pinprick` }], requires: { instrument: ['neurotip', 'cotton-wool'] }, durationSeconds: 60 },
+      { id: `test.${limb}.vibration`, verb: 'test', target: limb, paired: true,
+        label: { en: `Vibration and joint position sense (${A ? 'finger' : 'big toe'})`, de: `Vibration und Lagesinn (${A ? 'Finger' : 'Großzehe'})` },
+        phrases: { en: [`vibration ${L.en}`, 'vibration sense', 'joint position sense', 'proprioception'], de: [`vibration ${L.de.toLowerCase()}`, 'pallästhesie', 'lagesinn', 'vibrationsempfinden'] },
+        reveals: [{ property: `${limb}.vibration` }], requires: { instrument: ['tuning-fork-128'] }, durationSeconds: 40 },
+    ];
+  }),
+  {
+    id: 'test.power-repeated', verb: 'test', target: 'arm', paired: true,
+    label: { en: 'Shoulder abduction, repeated twenty times', de: 'Schulterabduktion zwanzigmal wiederholt' },
+    phrases: { en: ['repeated shoulder abduction', 'fatigable weakness', 'repeat twenty times'], de: ['wiederholte abduktion', 'ermüdbare schwäche', 'zwanzigmal wiederholen'] },
+    reveals: [{ property: 'arm.power', context: { repetition: 20 } }], requires: { ability: ['follows-commands'] }, durationSeconds: 60,
+  },
+  {
+    id: 'test.pronator-drift', verb: 'test', target: 'arm',
+    label: { en: 'Arms out, palms up, eyes closed: pronator drift', de: 'Armvorhalteversuch mit geschlossenen Augen' },
+    phrases: { en: ['pronator drift', 'arms out palms up', 'drift'], de: ['armvorhalteversuch', 'arme vorhalten', 'pronationstendenz'] },
+    reveals: [{ property: 'arm.drift', side: 'both' }], context: { eyesClosed: true }, requires: { ability: ['follows-commands'] }, durationSeconds: 30,
+  },
+  {
+    id: 'test.slr', verb: 'test', target: 'leg', paired: true,
+    label: { en: 'Straight leg raise', de: 'Lasègue-Test' },
+    phrases: { en: ['straight leg raise', 'slr', 'lasegue', 'sciatic stretch'], de: ['lasègue', 'lasegue', 'beinheben gestreckt'] },
+    reveals: [{ property: 'leg.slr' }], requires: { position: ['supine'] }, durationSeconds: 20,
+  },
+  {
+    id: 'test.heel-shin', verb: 'test', target: 'leg', paired: true,
+    label: { en: 'Heel–shin test', de: 'Knie-Hacke-Versuch' },
+    phrases: { en: ['heel shin', 'heel to shin'], de: ['knie hacke', 'knie-hacke-versuch'] },
+    reveals: [{ property: 'leg.heel-shin' }], requires: { ability: ['follows-commands'], position: ['supine', 'reclined-45'] }, durationSeconds: 20,
+  },
+  {
+    id: 'test.rapid-alternating', verb: 'test', target: 'arm', paired: true,
+    label: { en: 'Rapid alternating movements of the hand', de: 'Diadochokinese der Hand' },
+    phrases: { en: ['rapid alternating', 'dysdiadochokinesia', 'pat your hand'], de: ['diadochokinese', 'dysdiadochokinese', 'schnell abwechselnde bewegungen'] },
+    reveals: [{ property: 'arm.rapid-alternating' }], requires: { ability: ['follows-commands'] }, durationSeconds: 15,
+  },
+  {
+    id: 'test.trunk.pinprick', verb: 'test', target: 'trunk',
+    label: { en: 'Pinprick on the trunk: look for a sensory level', de: 'Schmerzempfinden am Rumpf: sensibles Niveau' },
+    phrases: { en: ['sensory level', 'pinprick on the trunk', 'trunk sensation'], de: ['sensibles niveau', 'rumpfsensibilität', 'niveau'] },
+    reveals: [{ property: 'trunk.pinprick', side: 'both' }], requires: { instrument: ['neurotip'], exposure: ['chest'] }, durationSeconds: 40,
+  },
+  {
+    id: 'test.saddle', verb: 'test', target: 'saddle',
+    label: { en: 'Perianal (saddle) sensation', de: 'Perianale Sensibilität (Reithose)' },
+    phrases: { en: ['saddle sensation', 'perianal sensation', 'saddle anaesthesia'], de: ['reithose', 'perianale sensibilität', 'reithosenanästhesie'] },
+    reveals: [{ property: 'saddle.sensation' }], requires: { instrument: ['neurotip'], position: ['left-lateral'], consent: 'chaperone' }, durationSeconds: 60,
+  },
+
   /* ---- positioning and exposure ------------------------------------------- */
   ...([
     ['supine', 'Lie the patient flat', 'Flach hinlegen', ['lie flat', 'lie down', 'supine'], ['flach hinlegen', 'hinlegen', 'rückenlage']],

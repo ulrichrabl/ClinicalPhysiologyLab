@@ -242,6 +242,8 @@ export interface HistoryFact {
     attributes?: Record<string, string | number | boolean>;   // site, character, onset, trigger…
   };
   say: LocalizedText;             // in the persona's voice
+  /** Who says it: the patient (default) or the person accompanying them (collateral history). */
+  speaker?: 'patient' | 'companion';
   volunteered?: boolean;          // said without being asked
   onlyIf?: StatePredicate;        // e.g. only while alert
 }
@@ -323,6 +325,8 @@ export interface CaseDef {
     weightKg?: number;
     appearance: { skinTone: 1 | 2 | 3 | 4 | 5 | 6; hair: string; build: 'slim' | 'average' | 'heavy' };
     speaks?: Locale[];            // languages the patient can be interviewed in
+    /** Someone who came with the patient and can give a collateral history. */
+    companion?: { name: string; relation: LocalizedText };
   };
   setting: { place: LocalizedText; triage: LocalizedText };
 

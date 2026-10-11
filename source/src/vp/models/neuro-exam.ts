@@ -1,5 +1,6 @@
 import type { ExamContext, Side } from '../model/types.ts';
 import type { Resolved, Resolver, RuntimeView } from '../engine/observe.ts';
+import { limbState } from './neuro-limb.ts';
 
 /* ===========================================================================
    Neuro-ophthalmology, vestibular and cerebellar examination model.
@@ -283,9 +284,11 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
     return { value, normal: !abnormal };
   },
 
-  'neuro.lids': (view, ref): Resolved | undefined => {
-    const mm = neuroExamState(view).ptosisMm[ref.side!];
-    return mm > 0 ? { value: { ptosisMm: mm } } : undefined;   // otherwise the case may author one (e.g. myasthenia)
+  'neuro.lids': (view, ref, ctx): Resolved | undefined => {
+    let mm = neuroExamState(view).ptosisMm[ref.side!];
+    // Myasthenia: the lid is fine at first and droops with sustained upgaze.
+    if (limbState(view).ocularFatigue && (ctx.sustainedSeconds ?? 0) >= 30) mm = Math.max(mm, ref.side === 'L' ? 3 : 2);
+    return mm > 0 ? { value: { ptosisMm: mm }, basis: mm && (ctx.sustainedSeconds ?? 0) >= 30 ? 'fatigable neuromuscular transmission' : undefined } : undefined;
   },
 
   'neuro.ocular-motor': (view, ref, ctx): Resolved => {
@@ -331,14 +334,29 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
 
   'neuro.balance': (view, ref, ctx): Resolved | undefined => {
     const s = neuroExamState(view);
-    const lp = s.lateropulsion;
-    if (!lp) return undefined;
+    const st = limbState(view);
+    const sensoryAtaxia = st.vibration.L.leg !== 'normal' && st.vibration.R.leg !== 'normal';
     if (ref.property === 'posture.romberg') {
+      if (sensoryAtaxia) return { value: ctx.eyesClosed ? { stance: 'falls' } : { stance: 'steady' }, basis: 'joint position sense lost in both legs' };
+      if (st.gaitBalance) return { value: { stance: 'sways' }, basis: 'cerebellar vermis' };
+      const lp = s.lateropulsion;
+      if (!lp) return undefined;
       const k = ctx.eyesClosed ? lp.strength * 1.6 : lp.strength;
       const stance = k > 0.9 ? 'falls' : k > 0.25 ? 'sways' : 'steady';
       return { value: stance === 'steady' ? { stance } : { stance, toward: lp.toward } };
     }
     if (ref.property === 'gait.pattern') {
+      for (const S of ['L', 'R'] as Side[]) {
+        if (st.plantar[S] === 'extensor' && st.power[S].hipFlexion <= 4) return { value: { pattern: 'hemiplegic', toward: S }, basis: `${S} leg upper motor neuron weakness` };
+      }
+      for (const S of ['L', 'R'] as Side[]) {
+        if (st.power[S].ankleDorsiflexion <= 3) return { value: { pattern: 'high-stepping', toward: S }, basis: `${S} ankle dorsiflexion ${st.power[S].ankleDorsiflexion}/5` };
+      }
+      if (st.power.L.hipAbduction <= 4 && st.power.R.hipAbduction <= 4) return { value: { pattern: 'waddling' }, basis: 'bilateral hip abductor weakness' };
+      if (sensoryAtaxia) return { value: { pattern: 'sensory-ataxic' }, basis: 'joint position sense lost in both legs' };
+      if (st.gaitBalance) return { value: { pattern: 'ataxic' }, basis: 'cerebellar vermis' };
+      const lp = s.lateropulsion;
+      if (!lp) return undefined;
       const ataxic = s.tauSeconds < 10;
       const pattern = ataxic ? 'ataxic' : lp.strength > 0.3 ? 'veers' : 'normal';
       return { value: pattern === 'normal' ? { pattern } : { pattern, toward: lp.toward } };
@@ -346,9 +364,21 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
     return undefined;
   },
 
-  'neuro.coordination': (view, ref): Resolved | undefined => {
-    const a = neuroExamState(view).ataxia[ref.side!];
-    if (a === 'none') return undefined;
-    return { value: { dysmetria: a, intentionTremor: a === 'marked' } };
+  'neuro.coordination': (view, ref, ctx): Resolved | undefined => {
+    const S = ref.side!;
+    const a = neuroExamState(view).ataxia[S];
+    const st = limbState(view);
+    const arm = ref.property !== 'leg.heel-shin';
+    const limbPower = arm ? Math.min(st.power[S].shoulderAbduction, st.power[S].elbowExtension, st.power[S].elbowFlexion) : Math.min(st.power[S].hipFlexion, st.power[S].kneeExtension);
+    const proprio = arm ? st.vibration[S].arm : st.vibration[S].leg;
+    if (ref.property === 'arm.rapid-alternating') {
+      const slowed = st.drift[S] || limbPower <= 3;
+      if (a === 'none' && !slowed) return undefined;
+      return { value: { dysdiadochokinesia: a !== 'none', slowed } };
+    }
+    if (limbPower <= 2) return { value: { dysmetria: 'none', intentionTremor: false, limitedByWeakness: true }, basis: `${S} ${arm ? 'arm' : 'leg'} power ${limbPower}/5` };
+    if (a !== 'none') return { value: { dysmetria: a, intentionTremor: a === 'marked' } };
+    if (proprio !== 'normal' && ctx.eyesClosed) return { value: { dysmetria: 'mild', intentionTremor: false }, basis: 'joint position sense lost: accurate only while watching' };
+    return undefined;
   },
 };

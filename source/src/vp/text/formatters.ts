@@ -36,6 +36,19 @@ const GAZE: Record<string, [string, string]> = {
 };
 const DIR: Record<string, [string, string]> = { left: ['to the left', 'nach links'], right: ['to the right', 'nach rechts'], up: ['upward', 'nach oben'], down: ['downward', 'nach unten'] };
 
+const MOVE_NAMES: Record<string, [string, string]> = {
+  shoulderAbduction: ['shoulder abduction', 'Schulterabduktion'], elbowFlexion: ['elbow flexion', 'Ellenbogenbeugung'], elbowExtension: ['elbow extension', 'Ellenbogenstreckung'],
+  wristExtension: ['wrist extension', 'Handgelenkstreckung'], fingerFlexion: ['thumb flexion (OK sign)', 'Daumenendgliedbeugung'], thumbAbduction: ['thumb abduction', 'Daumenabduktion'],
+  fingerAbduction: ['finger abduction', 'Fingerspreizung'], hipFlexion: ['hip flexion', 'Hüftbeugung'], hipAdduction: ['hip adduction', 'Hüftadduktion'], hipAbduction: ['hip abduction', 'Hüftabduktion'],
+  kneeExtension: ['knee extension', 'Kniestreckung'], ankleDorsiflexion: ['ankle dorsiflexion', 'Fußhebung'], footEversion: ['foot eversion', 'Fußeversion'],
+  footInversion: ['foot inversion', 'Fußinversion'], anklePlantarflexion: ['ankle plantarflexion', 'Fußsenkung'],
+};
+const DERMATOME_AREA: Record<string, [string, string]> = {
+  C5: ['lateral upper arm', 'Oberarmaußenseite'], C6: ['lateral forearm and thumb', 'radialer Unterarm und Daumen'], C7: ['middle finger', 'Mittelfinger'],
+  C8: ['little finger', 'Kleinfinger'], T1: ['medial forearm', 'ulnarer Unterarm'], L2: ['upper anterior thigh', 'proximaler Oberschenkel vorn'],
+  L3: ['medial knee', 'Knieinnenseite'], L4: ['medial shin', 'Unterschenkelinnenseite'], L5: ['dorsum of the foot and big toe', 'Fußrücken und Großzehe'], S1: ['lateral foot and sole', 'Fußaußenrand und Fußsohle'],
+};
+
 export const FORMATTERS: Record<string, Formatter> = {
   /* ---- general and vitals --------------------------------------------------- */
   'general.appearance': (v, _c, l, cat) => de(l)
@@ -131,7 +144,11 @@ export const FORMATTERS: Record<string, Formatter> = {
       ? `Relatives afferentes Pupillendefizit ${sideAdj(s, l)}: beim Wechsel auf das ${sideAdj(s, l, 'linkes')} Auge erweitern sich beide Pupillen.`
       : `Relative afferent pupillary defect on the ${sideAdj(s, l)}: both pupils dilate when the light swings to the ${sideAdj(s, l)} eye.`;
   },
-  'eye.lid': (v, _c, l, _cat, ref) => {
+  'eye.lid': (v, ctx, l, cat, ref) => {
+    if (ctx.sustainedSeconds) {
+      const pre = de(l) ? `Nach ${ctx.sustainedSeconds} s Blick nach oben: ` : `After ${ctx.sustainedSeconds} s of upgaze: `;
+      return pre + FORMATTERS['eye.lid'](v, {}, l, cat, ref).replace(/^./, (c) => c.toLowerCase());
+    }
     if (v.ptosisMm <= 1) return de(l) ? `Keine Ptosis ${sideAdj(ref.side, l)}.` : `No ${sideAdj(ref.side, l)} ptosis.`;
     if (v.ptosisMm >= 7) return de(l)
       ? `Komplette Ptosis ${sideAdj(ref.side, l)}, das Oberlid bedeckt die Pupille.`
@@ -226,15 +243,142 @@ export const FORMATTERS: Record<string, Formatter> = {
     return `Feet together, ${eyes}: ${lab(cat, 'stance', v.stance, l)}${toward}.`;
   },
   'gait.pattern': (v, _c, l, cat) => {
-    const toward = v.toward ? (de(l) ? ` nach ${sideAdj(v.toward, l)}` : ` toward the ${sideAdj(v.toward, l)}`) : '';
+    const limbSide = v.pattern === 'hemiplegic' || v.pattern === 'high-stepping';
+    const toward = !v.toward ? '' : limbSide
+      ? (de(l) ? ` (${sideAdj(v.toward, l, 'linkes')} Bein)` : ` (${sideAdj(v.toward, l)} leg)`)
+      : (de(l) ? ` nach ${sideAdj(v.toward, l)}` : ` toward the ${sideAdj(v.toward, l)}`);
     if (v.pattern === 'normal') return de(l) ? 'Gangbild unauffällig.' : 'Gait normal.';
     return de(l) ? `Gangbild ${lab(cat, 'gait-pattern', v.pattern, l)}${toward}.` : `Gait ${lab(cat, 'gait-pattern', v.pattern, l)}${toward}.`;
   },
-  'arm.finger-nose': (v, _c, l, cat, ref) => {
-    const who = de(l) ? `Finger-Nase-Versuch ${sideAdj(ref.side, l)}` : `${cap(sideAdj(ref.side, l))} finger–nose`;
+  'arm.finger-nose': (v, ctx, l, cat, ref) => {
+    const heel = ref.property === 'leg.heel-shin';
+    const eyes = ctx.eyesClosed ? (de(l) ? ' (Augen geschlossen)' : ' (eyes closed)') : '';
+    const who = (de(l) ? `${heel ? 'Knie-Hacke-Versuch' : 'Finger-Nase-Versuch'} ${sideAdj(ref.side, l)}` : `${cap(sideAdj(ref.side, l))} ${heel ? 'heel–shin' : 'finger–nose'}`) + eyes;
+    if (v.limitedByWeakness) return de(l) ? `${who}: wegen der Parese nicht durchführbar.` : `${who}: cannot be performed because of weakness.`;
     if (v.dysmetria === 'none' && !v.intentionTremor) return de(l) ? `${who}: zielsicher.` : `${who}: accurate.`;
     const t = v.intentionTremor ? (de(l) ? ' mit Intentionstremor' : ' with intention tremor') : '';
     return de(l) ? `${who}: ${lab(cat, 'severity', v.dysmetria, l)} Dysmetrie${t}.` : `${who}: ${lab(cat, 'severity', v.dysmetria, l)} dysmetria${t}.`;
+  },
+
+
+  /* ---- neurology ------------------------------------------------------------------ */
+  'face.movement': (v, _c, l, _cat, ref) => {
+    const who = de(l) ? `${cap(sideAdj(ref.side, l, 'linke'))} Gesichtshälfte` : `${cap(sideAdj(ref.side, l))} face`;
+    if (v.forehead === 'normal' && v.eyeClosure === 'normal' && v.mouth === 'normal')
+      return de(l) ? `${who}: Stirnrunzeln, Lidschluss und Zähnezeigen seitengleich.` : `${who}: brow raise, eye closure and smile full and symmetrical.`;
+    const parts: string[] = [];
+    const w = (x: string, en: [string, string], dx: [string, string]) => x === 'normal' ? (de(l) ? dx[0] : en[0]) : (de(l) ? dx[1] : en[1]);
+    parts.push(w(v.forehead, ['brow raises normally', v.forehead === 'absent' ? 'cannot raise the brow' : 'brow raise weak'], ['Stirnrunzeln erhalten', v.forehead === 'absent' ? 'kein Stirnrunzeln' : 'Stirnrunzeln schwach']));
+    parts.push(w(v.eyeClosure, ['eye closes fully', v.eyeClosure === 'absent' ? 'eye does not close (Bell’s phenomenon visible)' : 'eye closure weak, lashes not buried'], ['Lidschluss vollständig', v.eyeClosure === 'absent' ? 'kein Lidschluss (Bell-Phänomen sichtbar)' : 'Lidschluss schwach, Wimpern nicht versenkt']));
+    parts.push(w(v.mouth, ['smile symmetrical', v.mouth === 'absent' ? 'mouth does not move' : 'nasolabial fold flattened, corner of the mouth droops'], ['Mundwinkel seitengleich', v.mouth === 'absent' ? 'keine Bewegung des Mundwinkels' : 'Nasolabialfalte verstrichen, Mundwinkel hängt']));
+    return `${who}: ${parts.join(', ')}.`;
+  },
+  'face.sensation': (v, _c, l, cat, ref) => {
+    const who = de(l) ? `${cap(sideAdj(ref.side, l, 'linke'))} Gesichtshälfte` : `${cap(sideAdj(ref.side, l))} face`;
+    const lost = (['V1', 'V2', 'V3'] as const).filter((k) => v[k] !== 'normal');
+    const sens = !lost.length ? (de(l) ? 'Berührung und Spitz-stumpf in V1–V3 intakt' : 'light touch and pinprick intact in V1–V3')
+      : lost.map((k) => `${k} ${lab(cat, 'sense-level', v[k], l)}`).join(', ');
+    const corneal = v.corneal ? (de(l) ? 'Kornealreflex vorhanden' : 'corneal reflex present') : (de(l) ? 'Kornealreflex fehlt' : 'corneal reflex absent');
+    return `${who}: ${sens}; ${corneal}.`;
+  },
+  'jaw.opening': (v, _c, l, cat) => (v.deviatesTo === 'none'
+    ? (de(l) ? 'Mundöffnung gerade, Kaumuskulatur kräftig.' : 'Jaw opens in the midline; masseters strong.')
+    : (de(l) ? `Unterkiefer weicht bei Mundöffnung ${lab(cat, 'deviation', v.deviatesTo, l)} ab.` : `Jaw deviates ${lab(cat, 'deviation', v.deviatesTo, l)} on opening.`)),
+  'mouth.palate': (v, _c, l, cat) => {
+    const uv = v.uvulaDeviatesTo === 'none'
+      ? (de(l) ? 'Gaumensegel hebt sich symmetrisch, Uvula mittig' : 'palate elevates symmetrically, uvula central')
+      : (de(l) ? `Uvula wird ${lab(cat, 'deviation', v.uvulaDeviatesTo, l)} gezogen` : `uvula pulled ${lab(cat, 'deviation', v.uvulaDeviatesTo, l)}`);
+    const gag = v.gagLeft && v.gagRight ? (de(l) ? 'Würgreflex beidseits auslösbar' : 'gag present on both sides')
+      : (de(l) ? `Würgreflex ${!v.gagLeft && !v.gagRight ? 'beidseits' : !v.gagLeft ? 'links' : 'rechts'} nicht auslösbar` : `gag absent when touching the ${!v.gagLeft && !v.gagRight ? 'both sides' : !v.gagLeft ? 'left side' : 'right side'}`);
+    const voice = de(l) ? `Stimme ${lab(cat, 'voice', v.voice, l)}` : `voice ${lab(cat, 'voice', v.voice, l)}`;
+    return `${cap(uv)}; ${gag}; ${voice}.`;
+  },
+  'mouth.tongue': (v, _c, l, cat) => {
+    const pos = v.deviatesTo === 'none' ? (de(l) ? 'Zunge wird gerade herausgestreckt' : 'Tongue protrudes in the midline')
+      : (de(l) ? `Zunge weicht beim Herausstrecken ${lab(cat, 'deviation', v.deviatesTo, l)} ab` : `Tongue deviates ${lab(cat, 'deviation', v.deviatesTo, l)} on protrusion`);
+    const extra: string[] = [];
+    if (v.wasting) extra.push(de(l) ? 'Atrophie' : 'wasting');
+    if (v.fasciculation) extra.push(de(l) ? 'Faszikulationen' : 'fasciculation');
+    return extra.length ? `${pos}, ${join(extra, l)}.` : `${pos}; ${de(l) ? 'keine Atrophie, keine Faszikulationen' : 'no wasting or fasciculation'}.`;
+  },
+  'shoulder.shrug': (v, _c, l, _cat, ref) => (de(l)
+    ? `Schulterheben und Kopfdrehung ${sideAdj(ref.side, l)}: Kraftgrad ${v.power}/5.`
+    : `${cap(sideAdj(ref.side, l))} shoulder shrug and head turn: ${v.power}/5.`),
+  'speech.language': (v, _c, l, cat) => {
+    const all = v.fluency === 'normal' && v.comprehension === 'normal' && v.repetition === 'normal' && v.naming === 'normal';
+    if (all && v.articulation === 'normal') return de(l) ? 'Spontansprache flüssig und deutlich; Sprachverständnis, Benennen und Nachsprechen intakt.' : 'Speech fluent and clear; comprehension, naming and repetition intact.';
+    const p: string[] = [];
+    p.push(v.fluency === 'normal' ? (de(l) ? 'Spontansprache flüssig' : 'fluent speech') : (de(l) ? 'Spontansprache nicht flüssig, mühsam, Telegrammstil' : 'non-fluent, effortful, telegraphic speech'));
+    p.push(v.comprehension === 'normal' ? (de(l) ? 'befolgt einen dreiteiligen Auftrag' : 'follows a three-step command') : (de(l) ? 'Sprachverständnis gestört' : 'comprehension impaired'));
+    p.push(v.naming === 'normal' ? (de(l) ? 'Benennen intakt' : 'naming intact') : (de(l) ? 'Benennstörung' : 'naming impaired'));
+    p.push(v.repetition === 'normal' ? (de(l) ? 'Nachsprechen intakt' : 'repetition intact') : (de(l) ? 'Nachsprechen gestört' : 'repetition impaired'));
+    p.push(de(l) ? `Artikulation ${lab(cat, 'articulation', v.articulation, l)}` : `articulation ${lab(cat, 'articulation', v.articulation, l)}`);
+    return `${cap(p.join('; '))}.`;
+  },
+  'speech.fatigue': (v, _c, l) => (v.voice === 'normal'
+    ? (de(l) ? 'Zählen bis 50: Stimme bleibt klar und kräftig.' : 'Counting to 50: voice stays clear and strong.')
+    : (de(l) ? 'Zählen bis 50: Stimme wird ab etwa 30 leiser und näselnd.' : 'Counting to 50: voice fades and becomes nasal from about 30.')),
+  'limb.tone': (v, _c, l, cat, ref) => {
+    const limb = ref.property.startsWith('arm') ? (de(l) ? 'Arm' : 'arm') : (de(l) ? 'Bein' : 'leg');
+    const who = de(l) ? `${cap(sideAdj(ref.side, l, limb === 'Arm' ? 'linke' : 'linkes'))}${limb === 'Arm' ? 'r' : ''} ${limb}` : `${cap(sideAdj(ref.side, l))} ${limb}`;
+    const bulk = [v.wasting ? (de(l) ? 'Atrophie' : 'wasting') : '', v.fasciculation ? (de(l) ? 'Faszikulationen' : 'fasciculation') : ''].filter(Boolean);
+    return `${who}: ${lab(cat, 'tone', v.tone, l)}, ${bulk.length ? join(bulk, l) : (de(l) ? 'keine Atrophie, keine Faszikulationen' : 'no wasting or fasciculation')}.`;
+  },
+  'limb.power': (v, ctx, l, _cat, ref) => {
+    const arm = ref.property.startsWith('arm');
+    const who = de(l) ? `Kraft ${sideAdj(ref.side, l, 'linke')}${arm ? 'r Arm' : 's Bein'} (MRC)` : `${cap(sideAdj(ref.side, l))} ${arm ? 'arm' : 'leg'} power (MRC)`;
+    const pre = ctx.repetition && ctx.repetition > 1 ? (de(l) ? `Nach ${ctx.repetition} Wiederholungen — ` : `After ${ctx.repetition} repetitions — `) : '';
+    const weak = Object.entries(v as Record<string, number>).filter(([, p]) => p < 5);
+    const w2 = pre ? who.charAt(0).toLowerCase() + who.slice(1) : who;
+    if (!weak.length) return de(l) ? `${pre}${who}: 5/5 in allen Kennmuskeln.` : `${pre}${w2}: 5/5 throughout.`;
+    const names = MOVE_NAMES;
+    const listTxt = weak.map(([m, p]) => `${names[m]?.[de(l) ? 1 : 0] ?? m} ${p}/5`).join(', ');
+    return de(l) ? `${pre}${who}: ${listTxt}; übrige 5/5.` : `${pre}${w2}: ${listTxt}; otherwise 5/5.`;
+  },
+  'limb.reflexes': (v, _c, l, cat, ref) => {
+    const arm = ref.property.startsWith('arm');
+    const who = de(l) ? `Reflexe ${sideAdj(ref.side, l, 'linke')}${arm ? 'r Arm' : 's Bein'}` : `${cap(sideAdj(ref.side, l))} ${arm ? 'arm' : 'leg'} reflexes`;
+    const g = (n: number) => (de(l) ? ['erloschen (0)', 'abgeschwächt (1+)', 'mittellebhaft (2+)', 'gesteigert (3+)', 'gesteigert mit Klonus (4+)'] : ['absent (0)', 'reduced (1+)', 'normal (2+)', 'brisk (3+)', 'brisk with clonus (4+)'])[n];
+    const names: Record<string, [string, string]> = { biceps: ['biceps', 'BSR'], supinator: ['supinator', 'RPR'], triceps: ['triceps', 'TSR'], knee: ['knee', 'PSR'], ankle: ['ankle', 'ASR'] };
+    const parts = Object.keys(names).filter((k) => k in v).map((k) => `${names[k][de(l) ? 1 : 0]} ${g(v[k])}`);
+    if (!arm) parts.push(de(l) ? lab(cat, 'plantar', v.plantar, l) : `plantar ${lab(cat, 'plantar', v.plantar, l)}`);
+    return `${who}: ${parts.join(', ')}.`;
+  },
+  'limb.pinprick': (v, _c, l, cat, ref) => {
+    const arm = ref.property.startsWith('arm');
+    const who = de(l) ? `Schmerzempfinden ${sideAdj(ref.side, l, 'linke')}${arm ? 'r Arm' : 's Bein'}` : `${cap(sideAdj(ref.side, l))} ${arm ? 'arm' : 'leg'} pinprick`;
+    const segs = Object.keys(v).filter((k) => /^[CLTS]\d/.test(k) && v[k] !== 'normal');
+    const parts: string[] = segs.map((g) => `${lab(cat, 'sense-level', v[g], l)} ${de(l) ? 'im Dermatom' : 'in'} ${g} (${DERMATOME_AREA[g]?.[de(l) ? 1 : 0] ?? g})`);
+    for (const t of v.territories ?? []) parts.push(de(l) ? `scharf begrenzter Ausfall im Versorgungsgebiet ${lab(cat, 'territory', t, l)}` : `loss with a sharp edge confined to the ${lab(cat, 'territory', t, l)}`);
+    if (!parts.length) return de(l) ? `${who}: in allen Dermatomen intakt.` : `${who}: intact in every dermatome.`;
+    return de(l) ? `${who}: ${parts.join('; ')}; sonst intakt.` : `${who}: ${parts.join('; ')}; otherwise intact.`;
+  },
+  'limb.vibration': (v, _c, l, cat, ref) => {
+    const arm = ref.property.startsWith('arm');
+    const where = de(l) ? (arm ? `Zeigefinger ${sideAdj(ref.side, l)}` : `Großzehe ${sideAdj(ref.side, l)}`) : `${cap(sideAdj(ref.side, l))} ${arm ? 'index finger' : 'big toe'}`;
+    if (v.vibration === 'normal' && v.proprioception === 'normal') return de(l) ? `${where}: Vibration und Lagesinn intakt.` : `${where}: vibration and joint position sense intact.`;
+    return de(l) ? `${where}: Vibration ${lab(cat, 'sense-level', v.vibration, l)}, Lagesinn ${lab(cat, 'sense-level', v.proprioception, l)}.`
+      : `${where}: vibration ${lab(cat, 'sense-level', v.vibration, l)}, joint position sense ${lab(cat, 'sense-level', v.proprioception, l)}.`;
+  },
+  'arm.drift': (v, _c, l, _cat, ref) => (v.drift
+    ? (de(l) ? `${cap(sideAdj(ref.side, l, 'linke'))}r Arm: proniert und sinkt ab.` : `${cap(sideAdj(ref.side, l))} arm pronates and drifts down.`)
+    : (de(l) ? `${cap(sideAdj(ref.side, l, 'linke'))}r Arm: wird gehalten.` : `${cap(sideAdj(ref.side, l))} arm held steady.`)),
+  'trunk.pinprick': (v, _c, l, cat, ref) => {
+    const who = de(l) ? `Rumpf ${sideAdj(ref.side, l)}` : `${cap(sideAdj(ref.side, l))} trunk`;
+    if (v.T6 === 'normal' && v.T10 === 'normal') return de(l) ? `${who}: Schmerzempfinden bei T6 und T10 intakt.` : `${who}: pinprick intact at T6 and T10.`;
+    return `${who}: T6 ${lab(cat, 'sense-level', v.T6, l)}, T10 ${lab(cat, 'sense-level', v.T10, l)}.`;
+  },
+  'saddle.sensation': (v, _c, l, cat) => (v.pinprick === 'normal'
+    ? (de(l) ? 'Perianale Sensibilität intakt.' : 'Perianal sensation intact.')
+    : (de(l) ? `Perianale Sensibilität ${lab(cat, 'sense-level', v.pinprick, l)}.` : `Perianal sensation ${lab(cat, 'sense-level', v.pinprick, l)}.`)),
+  'leg.slr': (v, _c, l, _cat, ref) => (v.positive
+    ? (de(l) ? `Lasègue ${sideAdj(ref.side, l)} positiv${v.angleDeg ? ` bei ${v.angleDeg}°` : ''}, einschießender Schmerz bis unter das Knie.` : `${cap(sideAdj(ref.side, l))} straight leg raise positive${v.angleDeg ? ` at ${v.angleDeg}°` : ''}, reproducing pain shooting below the knee.`)
+    : (de(l) ? `Lasègue ${sideAdj(ref.side, l)} negativ.` : `${cap(sideAdj(ref.side, l))} straight leg raise negative.`)),
+  'arm.rapid-alternating': (v, _c, l, _cat, ref) => {
+    const who = de(l) ? `Diadochokinese ${sideAdj(ref.side, l)}` : `${cap(sideAdj(ref.side, l))} hand, rapid alternating movements`;
+    if (v.dysdiadochokinesia) return de(l) ? `${who}: unregelmäßig und zerfahren (Dysdiadochokinese).` : `${who}: irregular and disorganised (dysdiadochokinesia).`;
+    if (v.slowed) return de(l) ? `${who}: verlangsamt und ungeschickt, aber regelmäßig.` : `${who}: slow and clumsy but regular.`;
+    return de(l) ? `${who}: unauffällig.` : `${who}: normal.`;
   },
 
   /* ---- investigations -------------------------------------------------------- */
@@ -247,5 +391,6 @@ export const FORMATTERS: Record<string, Formatter> = {
       ? `EKG: ${lab(cat, 'rhythm', v.rhythm, l)}, ${v.rate}/min, ${join(f, l)}.`
       : `ECG: ${lab(cat, 'rhythm', v.rhythm, l)}, ${v.rate}/min, ${join(f, l)}.`;
   },
+  'inv.imaging': (v, _c, l, cat, ref) => `${tr(cat.investigations[ref.property]?.label ?? { en: ref.property }, l)}: ${(v.findings ?? []).map((x: string) => lab(cat, 'imaging', x, l)).join('; ')}.`,
   'inv.glucose': (v, _c, l) => (de(l) ? `Blutzucker ${num(v, l, 1)} mmol/l.` : `Glucose ${num(v, l, 1)} mmol/L.`),
 };

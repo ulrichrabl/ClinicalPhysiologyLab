@@ -12,6 +12,7 @@ import { tr, list, type LocalizedText } from '../model/i18n.ts';
 import type { CaseDef, Finding, ManoeuvreDef, Side } from '../model/types.ts';
 import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
 import { EyeView } from '../render/eye-view.ts';
+import { FaceView, type FaceFinding } from '../render/face-view.ts';
 import { cycle, phonoSample, murmurEnvelope, type Cycle } from '../render/phono.ts';
 
 type Lang = 'en' | 'de';
@@ -75,6 +76,7 @@ type Visual =
   | { kind: 'eyes'; controls: (now: number) => SceneControls }
   | { kind: 'phono'; finding: Finding; hr: number }
   | { kind: 'pulse'; finding: Finding; beat: Array<{ t: number; Pa: number }>; dur: number }
+  | { kind: 'face'; L: FaceFinding; R: FaceFinding }
   | null;
 
 /* ---- regions of the body for touch ---------------------------------------------- */
@@ -84,6 +86,8 @@ function regionOf(structure: string): string {
     if (['head', 'neck', 'chest', 'abdomen', 'arm', 'legs'].includes(id)) return id;
     if (id === 'eye' || id === 'eyes' || id === 'ear') return 'head';
     if (id === 'hands') return 'arm';
+    if (id === 'trunk') return 'chest';
+    if (id === 'saddle') return 'abdomen';
     id = CATALOG.structures[id]?.parent;
   }
   return 'body';
@@ -105,6 +109,7 @@ export function mount(root: HTMLElement) {
   let debrief: DebriefResult | null = null;
   let region: { id: string; side?: Side } | null = null;
   let eyeView: EyeView | null = null;
+  let faceView: FaceView | null = null;
   let audio: { ctx: AudioContext; stop: () => void } | null = null;
   let phonoRaf = 0;
 
@@ -214,7 +219,7 @@ export function mount(root: HTMLElement) {
       const gazes = ['primary', 'left', 'right', 'up', 'down'] as const;
       const t0 = performance.now();
       const controls = (now: number): SceneControls => {
-        const el = (now - t0) / 1000;
+        const el = Math.max(0, (now - t0) / 1000);   // a frame can be stamped slightly before t0
         switch (m.id) {
           case 'test.pupils.light': return { ...base, lightOn: el % 4 < 2.5 ? side! : 'none' };
           case 'test.swinging-light': return { ...base, lightOn: Math.floor(el / 1.6) % 2 ? 'L' : 'R' };
@@ -228,6 +233,8 @@ export function mount(root: HTMLElement) {
       setVisual({ kind: 'eyes', controls });
       return;
     }
+    const faceL = findings.find((f) => f.property === 'face.movement.L'), faceR = findings.find((f) => f.property === 'face.movement.R');
+    if (faceL && faceR) { setVisual({ kind: 'face', L: faceL.value as FaceFinding, R: faceR.value as FaceFinding }); return; }
     const heart = findings.find((f) => f.property === 'heart.sounds');
     if (heart) {
       const hr = (s.view.circulation?.metrics?.HRbeat as number | undefined) ?? (observeIn(s, 'vitals.hr', {}).value as number) ?? 72;
@@ -243,6 +250,7 @@ export function mount(root: HTMLElement) {
   const setVisual = (v: Visual) => {
     visual = v;
     eyeView?.stop();
+    faceView?.stop();
     cancelAnimationFrame(phonoRaf);
     stopAudio();
     const host = $('#visual');
@@ -254,6 +262,12 @@ export function mount(root: HTMLElement) {
       eyeView = new EyeView(host.querySelector('.eyehost')!, SKIN[c.patient.appearance.skinTone - 1], SHADE[c.patient.appearance.skinTone - 1]);
       const view = s.view;
       eyeView.show((k) => sceneFindings(CATALOG, REGISTRY, c, view, k), v.controls);
+      return;
+    }
+    if (v.kind === 'face') {
+      host.innerHTML = '<div class="facehost"></div>';
+      faceView = new FaceView(host.querySelector('.facehost')!, SKIN[c.patient.appearance.skinTone - 1], SHADE[c.patient.appearance.skinTone - 1]);
+      faceView.show({ L: v.L, R: v.R }, lang);
       return;
     }
     host.innerHTML = `<div class="trace-head"><span class="trace-label"></span><button type="button" class="ghost small" id="listen" hidden></button></div><canvas class="phono"></canvas>`;
@@ -377,8 +391,17 @@ export function mount(root: HTMLElement) {
       case 'scene': return `<div class="f-scene">${esc(tr(it.text, lang))}</div>`;
       case 'you': return `<div class="f-you"><span class="spk">${t('you')}</span>${esc(it.text)}</div>`;
       case 'patient': {
-        const text = it.facts.length && s ? it.facts.map((id) => tr(s!.caseDef.history.find((f) => f.id === id)!.say, lang)).join(' ') : it.text;
-        return `<div class="f-patient"><span class="spk">${esc(s?.caseDef.patient.name.split(' ')[0] ?? '')}</span>${esc(text)}</div>`;
+        if (!s) return '';
+        const c = s.caseDef;
+        const facts = it.facts.map((id) => c.history.find((f) => f.id === id)!).filter(Boolean);
+        if (!facts.length) return `<div class="f-patient"><span class="spk">${esc(c.patient.name.split(' ')[0])}</span>${esc(it.text)}</div>`;
+        const groups: Array<{ who: string; text: string[] }> = [];
+        for (const f of facts) {
+          const who = f.speaker === 'companion' && c.patient.companion ? `${c.patient.companion.name.split(' ')[0]} · ${tr(c.patient.companion.relation, lang)}` : c.patient.name.split(' ')[0];
+          const g = groups.find((x) => x.who === who) ?? (groups.push({ who, text: [] }), groups[groups.length - 1]);
+          g.text.push(tr(f.say, lang));
+        }
+        return groups.map((g) => `<div class="f-patient${g.who.includes('·') ? ' companion' : ''}"><span class="spk">${esc(g.who)}</span>${esc(g.text.join(' '))}</div>`).join('');
       }
       case 'act': return `<div class="f-act">${esc(tr(CATALOG.manoeuvres[it.manoeuvre].label, lang))}${sideWord(it.side)}</div>`;
       case 'blocked': return `<div class="f-blocked">${esc(blockedText(it.reason))}</div>`;

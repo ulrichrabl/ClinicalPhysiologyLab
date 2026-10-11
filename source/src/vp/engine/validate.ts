@@ -156,6 +156,7 @@ export function validateCase(c: CaseDef, cat: Catalog, reg: Registry): Issue[] {
   checkText(c.title, L, 'title', out);
   checkText(c.setting.place, L, 'setting.place', out);
   checkText(c.setting.triage, L, 'setting.triage', out);
+  if (c.patient.companion) checkText(c.patient.companion.relation, L, 'patient.companion.relation', out);
   if (!c.authoring.authors.length) out.push({ level: 'warning', path: 'authoring.authors', message: 'no author' });
   if (c.status === 'published' && !c.authoring.reviewers.length) out.push({ level: 'error', path: 'authoring.reviewers', message: 'a published case needs a clinical reviewer' });
 
@@ -208,6 +209,7 @@ export function validateCase(c: CaseDef, cat: Catalog, reg: Registry): Issue[] {
     if (factIds.has(f.id)) out.push({ level: 'error', path: p, message: 'duplicate fact id' });
     factIds.add(f.id);
     if (!cat.topics[f.topic]) out.push({ level: 'error', path: p, message: `unknown topic ${f.topic}` });
+    if (f.speaker === 'companion' && !c.patient.companion) out.push({ level: 'error', path: p, message: 'spoken by a companion, but the case has none' });
     checkText(f.say, L, `${p}.say`, out);
   }
 

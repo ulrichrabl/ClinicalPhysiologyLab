@@ -21,7 +21,10 @@ const SECTIONS: Array<{ id: string; label: { en: string; de: string }; match: (p
   { id: 'abdomen', label: { en: 'Abdomen', de: 'Abdomen' }, match: (p) => p.startsWith('abdomen.') },
   { id: 'eyes', label: { en: 'Eyes and eye movements', de: 'Augen und Okulomotorik' }, match: (p) => p.startsWith('eye') },
   { id: 'ears', label: { en: 'Hearing', de: 'Gehör' }, match: (p) => p.startsWith('ear.') || p === 'head.weber' },
-  { id: 'balance', label: { en: 'Balance and coordination', de: 'Gleichgewicht und Koordination' }, match: (p) => /^(posture|gait|arm)/.test(p) },
+  { id: 'cranial', label: { en: 'Cranial nerves and speech', de: 'Hirnnerven und Sprache' }, match: (p) => /^(face|jaw|mouth|shoulder|speech)\./.test(p) },
+  { id: 'motor', label: { en: 'Motor', de: 'Motorik' }, match: (p) => /^(arm|leg)\.(tone|power|reflexes|drift)$/.test(p) },
+  { id: 'sensory', label: { en: 'Sensory', de: 'Sensibilität' }, match: (p) => /\.(pinprick|vibration)$/.test(p) || p === 'saddle.sensation' },
+  { id: 'balance', label: { en: 'Coordination, stance and gait', de: 'Koordination, Stand und Gang' }, match: (p) => /^(posture|gait)\./.test(p) || /^(arm|leg)\.(finger-nose|heel-shin|rapid-alternating)$/.test(p) },
 ];
 
 const ctxKey = (c: ExamContext) => JSON.stringify(Object.entries(c).filter(([k]) => k !== 'position' && k !== 'instrument').sort());

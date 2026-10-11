@@ -229,9 +229,116 @@ export const PROPERTIES: PropertyDef[] = [
     normal: { value: { pattern: 'normal' } },
     source: 'model-or-case', resolver: 'neuro.balance', formatter: 'gait.pattern', renderer: 'svg.patient',
   },
+  /* ---- neurological: cranial nerves V, VII, IX–XII and speech -------------------- */
+  {
+    id: 'face.movement', structure: 'face', paired: true, label: { en: 'Facial movement', de: 'Mimik' },
+    value: rec({ forehead: c('face-power'), eyeClosure: c('face-power'), mouth: c('face-power') }),
+    normal: { value: { forehead: 'normal', eyeClosure: 'normal', mouth: 'normal' } },
+    source: 'model', resolver: 'neuro.cranial', formatter: 'face.movement', renderer: 'svg.face',
+  },
+  {
+    id: 'face.sensation', structure: 'face', paired: true, label: { en: 'Facial sensation and corneal reflex', de: 'Gesichtssensibilität und Kornealreflex' },
+    value: rec({ V1: c('sense-level'), V2: c('sense-level'), V3: c('sense-level'), corneal: bool }),
+    normal: { value: { V1: 'normal', V2: 'normal', V3: 'normal', corneal: true } },
+    source: 'model', resolver: 'neuro.sensory', formatter: 'face.sensation',
+  },
+  {
+    id: 'jaw.opening', structure: 'jaw', label: { en: 'Jaw opening', de: 'Mundöffnung' },
+    value: rec({ deviatesTo: c('deviation') }), normal: { value: { deviatesTo: 'none' } },
+    source: 'model', resolver: 'neuro.cranial', formatter: 'jaw.opening',
+  },
+  {
+    id: 'mouth.palate', structure: 'mouth', label: { en: 'Palate, gag and voice', de: 'Gaumensegel, Würgreflex und Stimme' },
+    value: rec({ uvulaDeviatesTo: c('deviation'), gagLeft: bool, gagRight: bool, voice: c('voice') }),
+    normal: { value: { uvulaDeviatesTo: 'none', gagLeft: true, gagRight: true, voice: 'normal' } },
+    source: 'model', resolver: 'neuro.cranial', formatter: 'mouth.palate',
+  },
+  {
+    id: 'mouth.tongue', structure: 'mouth', label: { en: 'Tongue', de: 'Zunge' },
+    value: rec({ deviatesTo: c('deviation'), wasting: bool, fasciculation: bool }),
+    normal: { value: { deviatesTo: 'none', wasting: false, fasciculation: false } },
+    source: 'model', resolver: 'neuro.cranial', formatter: 'mouth.tongue',
+  },
+  {
+    id: 'shoulder.shrug', structure: 'shoulder', paired: true, label: { en: 'Shoulder shrug and head turn', de: 'Schulterheben und Kopfdrehung' },
+    value: rec({ power: o('mrc-power') }), normal: { value: { power: 5 } },
+    source: 'model', resolver: 'neuro.cranial', formatter: 'shoulder.shrug',
+  },
+  {
+    id: 'speech.language', structure: 'speech', label: { en: 'Speech and language', de: 'Sprache und Sprechen' },
+    value: rec({ fluency: c('language'), comprehension: c('language'), repetition: c('language'), naming: c('language'), articulation: c('articulation') }),
+    normal: { value: { fluency: 'normal', comprehension: 'normal', repetition: 'normal', naming: 'normal', articulation: 'normal' } },
+    source: 'model', resolver: 'neuro.speech', formatter: 'speech.language',
+  },
+  {
+    id: 'speech.fatigue', structure: 'speech', label: { en: 'Voice on counting to 50', de: 'Stimme beim Zählen bis 50' },
+    value: rec({ voice: c('voice') }), normal: { value: { voice: 'normal' } }, contextDims: ['repetition'],
+    source: 'model', resolver: 'neuro.speech', formatter: 'speech.fatigue',
+  },
+
+  /* ---- neurological: limbs and trunk ------------------------------------------------ */
+  ...(['arm', 'leg'] as const).flatMap((limb): PropertyDef[] => {
+    const L = limb === 'arm' ? { en: 'arm', de: 'Arm' } : { en: 'leg', de: 'Bein' };
+    const moves = limb === 'arm'
+      ? ['shoulderAbduction', 'elbowFlexion', 'elbowExtension', 'wristExtension', 'fingerFlexion', 'thumbAbduction', 'fingerAbduction']
+      : ['hipFlexion', 'hipAdduction', 'hipAbduction', 'kneeExtension', 'ankleDorsiflexion', 'footEversion', 'footInversion', 'anklePlantarflexion'];
+    const segs = limb === 'arm' ? ['C5', 'C6', 'C7', 'C8', 'T1'] : ['L2', 'L3', 'L4', 'L5', 'S1'];
+    const reflexes = limb === 'arm'
+      ? rec({ biceps: o('reflex-grade'), supinator: o('reflex-grade'), triceps: o('reflex-grade') })
+      : rec({ knee: o('reflex-grade'), ankle: o('reflex-grade'), plantar: c('plantar') });
+    return [
+      { id: `${limb}.tone`, structure: limb, paired: true, label: { en: `Tone and bulk (${L.en})`, de: `Tonus und Trophik (${L.de})` },
+        value: rec({ tone: c('tone'), wasting: bool, fasciculation: bool }), normal: { value: { tone: 'normal', wasting: false, fasciculation: false } },
+        source: 'model', resolver: 'neuro.motor', formatter: 'limb.tone' },
+      { id: `${limb}.power`, structure: limb, paired: true, label: { en: `Power (${L.en})`, de: `Kraft (${L.de})` },
+        value: rec(Object.fromEntries(moves.map((m) => [m, o('mrc-power')]))), normal: { value: Object.fromEntries(moves.map((m) => [m, 5])) },
+        contextDims: ['repetition'], source: 'model', resolver: 'neuro.motor', formatter: 'limb.power' },
+      { id: `${limb}.reflexes`, structure: limb, paired: true, label: { en: `Reflexes (${L.en})`, de: `Reflexe (${L.de})` },
+        value: reflexes, normal: { value: limb === 'arm' ? { biceps: 2, supinator: 2, triceps: 2 } : { knee: 2, ankle: 2, plantar: 'flexor' } },
+        source: 'model', resolver: 'neuro.reflexes', formatter: 'limb.reflexes' },
+      { id: `${limb}.pinprick`, structure: limb, paired: true, label: { en: `Pinprick (${L.en})`, de: `Schmerzempfinden (${L.de})` },
+        value: rec({ ...Object.fromEntries(segs.map((g) => [g, c('sense-level')])), territories: listOf(c('territory')) }),
+        normal: { value: { ...Object.fromEntries(segs.map((g) => [g, 'normal'])), territories: [] } },
+        source: 'model', resolver: 'neuro.sensory', formatter: 'limb.pinprick', renderer: 'svg.dermatomes' },
+      { id: `${limb}.vibration`, structure: limb, paired: true, label: { en: `Vibration and joint position (${L.en})`, de: `Vibration und Lagesinn (${L.de})` },
+        value: rec({ vibration: c('sense-level'), proprioception: c('sense-level') }), normal: { value: { vibration: 'normal', proprioception: 'normal' } },
+        source: 'model', resolver: 'neuro.sensory', formatter: 'limb.vibration' },
+    ];
+  }),
+  {
+    id: 'arm.drift', structure: 'arm', paired: true, label: { en: 'Pronator drift', de: 'Armvorhalteversuch' },
+    value: rec({ drift: bool }), normal: { value: { drift: false } },
+    source: 'model', resolver: 'neuro.motor', formatter: 'arm.drift',
+  },
+  {
+    id: 'trunk.pinprick', structure: 'trunk', paired: true, label: { en: 'Pinprick on the trunk', de: 'Schmerzempfinden am Rumpf' },
+    value: rec({ T6: c('sense-level'), T10: c('sense-level') }), normal: { value: { T6: 'normal', T10: 'normal' } },
+    source: 'model', resolver: 'neuro.sensory', formatter: 'trunk.pinprick',
+  },
+  {
+    id: 'saddle.sensation', structure: 'saddle', label: { en: 'Saddle sensation', de: 'Reithosensensibilität' },
+    value: rec({ pinprick: c('sense-level') }), normal: { value: { pinprick: 'normal' } },
+    source: 'model', resolver: 'neuro.sensory', formatter: 'saddle.sensation',
+  },
+  {
+    id: 'leg.slr', structure: 'leg', paired: true, label: { en: 'Straight leg raise', de: 'Lasègue-Zeichen' },
+    value: rec({ positive: bool, angleDeg: q('deg', 0, 90) }, ['angleDeg']), normal: { value: { positive: false } },
+    source: 'case', formatter: 'leg.slr',
+  },
+  {
+    id: 'leg.heel-shin', structure: 'leg', paired: true, label: { en: 'Heel–shin test', de: 'Knie-Hacke-Versuch' },
+    value: rec({ dysmetria: c('severity'), intentionTremor: bool, limitedByWeakness: bool }, ['limitedByWeakness']),
+    normal: { value: { dysmetria: 'none', intentionTremor: false } }, contextDims: ['eyesClosed'],
+    source: 'model-or-case', resolver: 'neuro.coordination', formatter: 'arm.finger-nose',
+  },
+  {
+    id: 'arm.rapid-alternating', structure: 'arm', paired: true, label: { en: 'Rapid alternating movements', de: 'Diadochokinese' },
+    value: rec({ dysdiadochokinesia: bool, slowed: bool }), normal: { value: { dysdiadochokinesia: false, slowed: false } },
+    source: 'model-or-case', resolver: 'neuro.coordination', formatter: 'arm.rapid-alternating',
+  },
   {
     id: 'arm.finger-nose', structure: 'arm', paired: true, label: { en: 'Finger–nose test', de: 'Finger-Nase-Versuch' },
-    value: rec({ dysmetria: c('severity'), intentionTremor: bool }),
+    value: rec({ dysmetria: c('severity'), intentionTremor: bool, limitedByWeakness: bool }, ['limitedByWeakness']),
     normal: { value: { dysmetria: 'none', intentionTremor: false } },
     contextDims: ['eyesClosed'],
     source: 'model-or-case', resolver: 'neuro.coordination', formatter: 'arm.finger-nose', renderer: 'svg.patient',

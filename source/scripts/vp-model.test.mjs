@@ -300,7 +300,7 @@ console.log('\nEncounter: preconditions, hazards, history, notes');
 
   const note = autoNote(s, 'de');
   console.log(note.split('\n').map((l) => `      ${l}`).join('\n'));
-  ok('automatic notes in German, by system', /## Augen und Okulomotorik/.test(note) && /## Gleichgewicht und Koordination/.test(note) && /## Anamnese/.test(note));
+  ok('automatic notes in German, by system', /## Augen und Okulomotorik/.test(note) && /## Koordination, Stand und Gang/.test(note) && /## Anamnese/.test(note));
   ok('notes include the head impulse finding', /Kopfimpuls nach links: die Augen werden mit dem Kopf mitgenommen/.test(note));
   ok('notes include results once available', /Blutzucker 5,8 mmol\/l/.test(note));
   ok('the encounter log is plain JSON', J(JSON.parse(J(s.encounter))) === J(s.encounter));
@@ -325,6 +325,110 @@ console.log('\nEncounter: preconditions, hazards, history, notes');
   ok('echo result comes from the model, available after its turnaround', echo.value.aorticPeakGradient > 60 && echo.t === s.t + 30 * 60000, J(echo));
 }
 
+
+
+/* ---- neurological examination ------------------------------------------------------ */
+console.log('\nNeurological examination (from the nervous-system graph)');
+{
+  const STROKE = caseById('acute-stroke-left-mca'), L5 = caseById('foot-drop-right-l5');
+  const v = buildView(STROKE);
+  const o = (c, view, ref, ctx) => obs(c, view, ref, ctx).value;
+  const face = o(STROKE, v, 'face.movement.R');
+  ok('MCA stroke: lower face weak, forehead spared (upper motor neuron face)', face.forehead === 'normal' && face.mouth === 'weak' && o(STROKE, v, 'face.movement.L').mouth === 'normal');
+  const arm = o(STROKE, v, 'arm.power.R'), leg = o(STROKE, v, 'leg.power.R');
+  ok('MCA stroke: pyramidal arm weakness, extensors weaker than flexors', arm.elbowExtension < arm.elbowFlexion && arm.elbowExtension <= 3, J(arm));
+  ok('MCA stroke: face and arm more than leg', Math.min(...Object.values(leg)) > Math.min(...Object.values(arm)), J(leg));
+  ok('MCA stroke: brisk right arm reflexes, extensor plantar, pronator drift',
+    o(STROKE, v, 'arm.reflexes.R').biceps === 3 && o(STROKE, v, 'leg.reflexes.R').plantar === 'extensor' && o(STROKE, v, 'arm.drift.R').drift && !o(STROKE, v, 'arm.drift.L').drift);
+  const sp = o(STROKE, v, 'speech.language');
+  ok('MCA stroke: non-fluent aphasia with comprehension preserved', sp.fluency === 'impaired' && sp.comprehension === 'normal' && sp.repetition === 'impaired');
+  ok('MCA stroke: sensation spared', obs(STROKE, v, 'arm.pinprick.R').normal);
+  ok('MCA stroke: tongue deviates to the weak side', o(STROKE, v, 'mouth.tongue').deviatesTo === 'R');
+  ok('MCA stroke: hemiplegic gait', o(STROKE, v, 'gait.pattern').pattern === 'hemiplegic');
+
+  const lv = buildView(L5);
+  const lp = o(L5, lv, 'leg.power.R');
+  ok('L5 root: dorsiflexion, eversion, inversion and hip abduction weak together', lp.ankleDorsiflexion <= 3 && lp.footEversion <= 3 && lp.footInversion <= 3 && lp.hipAbduction <= 3 && lp.kneeExtension === 5 && lp.anklePlantarflexion === 5, J(lp));
+  ok('L5 root: knee and ankle reflexes preserved, plantar flexor', J(o(L5, lv, 'leg.reflexes.R')) === J({ knee: 2, ankle: 2, plantar: 'flexor' }));
+  const pin = o(L5, lv, 'leg.pinprick.R');
+  ok('L5 root: dermatomal sensory loss, no nerve territory', pin.L5 === 'absent' && pin.L4 === 'normal' && pin.territories.length === 0);
+  ok('L5 root: big-toe vibration preserved (a single root rarely abolishes it)', obs(L5, lv, 'leg.vibration.R').normal);
+  ok('L5 root: high-stepping gait on the right', J(o(L5, lv, 'gait.pattern')) === J({ pattern: 'high-stepping', toward: 'R' }));
+  ok('straight leg raise comes from the case layer', obs(L5, lv, 'leg.slr.R').provenance === 'case' && obs(L5, lv, 'leg.slr.L').provenance === 'default-normal');
+
+  const les = (nodes, complete = true) => { const c = clone(L5); c.pathology.lesions = [{ nodes, complete }]; return [c, buildView(c)]; };
+  {
+    const [c, w] = les(['R_n_peroneal_head']);
+    const p = o(c, w, 'leg.power.R');
+    ok('peroneal nerve: foot drop with inversion and hip abduction strong', p.ankleDorsiflexion <= 1 && p.footInversion === 5 && p.hipAbduction === 5, J(p));
+    ok('peroneal nerve: sharply edged territory loss, no dermatomal loss', J(o(c, w, 'leg.pinprick.R').territories) === J(['peroneal']) && o(c, w, 'leg.pinprick.R').L5 === 'normal');
+  }
+  {
+    const [c, w] = les(['R_n_ulnar_elbow']); const [c8, w8] = les(['R_ahn_C8', 'R_drg_C8']);
+    const u = o(c, w, 'arm.power.R'), r = o(c8, w8, 'arm.power.R');
+    ok('ulnar nerve vs C8 root: thumb abduction spared only in the ulnar lesion', u.fingerAbduction <= 1 && u.thumbAbduction === 5 && r.thumbAbduction <= 3 && r.fingerAbduction <= 3);
+    ok('C8 root loses the triceps reflex (C7–8), the ulnar nerve does not', o(c8, w8, 'arm.reflexes.R').triceps === 0 && o(c, w, 'arm.reflexes.R').triceps === 2);
+  }
+  {
+    const [c, w] = les(['L_cn7']);
+    const f = o(c, w, 'face.movement.L');
+    ok("facial nerve: whole half of the face, forehead included", f.forehead === 'absent' && f.eyeClosure === 'absent' && f.mouth === 'absent');
+    ok('facial nerve: corneal reflex lost through its efferent limb', o(c, w, 'face.sensation.L').corneal === false && o(c, w, 'face.sensation.L').V1 === 'normal');
+  }
+  {
+    const [c, w] = les(['L_nmj_post', 'R_nmj_post']);
+    const first = o(c, w, 'arm.power.R').shoulderAbduction, after = o(c, w, 'arm.power.R', { repetition: 20 }).shoulderAbduction;
+    ok('myasthenia: power fades with repetition', after < first, `${first} → ${after}`);
+    ok('myasthenia: ptosis appears only with sustained upgaze', obs(c, w, 'eye.lid.L').normal && o(c, w, 'eye.lid.L', { sustainedSeconds: 60 }).ptosisMm >= 2);
+    ok('myasthenia: voice fades counting to 50; reflexes preserved', o(c, w, 'speech.fatigue', { repetition: 50 }).voice === 'fading-nasal' && o(c, w, 'arm.reflexes.R').biceps === 2);
+  }
+  {
+    const [c, w] = les(['L_muscle_prox', 'R_muscle_prox']);
+    const p = o(c, w, 'leg.power.R');
+    ok('myopathy: proximal weakness, distal power and reflexes normal, waddling gait', p.hipFlexion <= 3 && p.ankleDorsiflexion === 5 && o(c, w, 'leg.reflexes.R').knee === 2 && o(c, w, 'gait.pattern').pattern === 'waddling');
+  }
+  {
+    const [c, w] = les(['R_cst_L2', 'R_cst_L3', 'R_cst_L4', 'R_cst_L5', 'R_cst_S1', 'R_dc_asc', 'R_stt_asc']);
+    ok('Brown-Séquard: weakness and vibration loss on the side of the lesion, pinprick lost on the other',
+      o(c, w, 'leg.power.R').hipFlexion < 5 && o(c, w, 'leg.vibration.R').vibration === 'absent' && o(c, w, 'leg.pinprick.L').L4 === 'absent' && o(c, w, 'leg.pinprick.R').L4 === 'normal');
+  }
+  {
+    const [c, w] = les(['L_cn5_sens', 'L_lat_bs', 'L_icp', 'L_cn9_nuc', 'L_cn10_nuc', 'L_stt_asc']);
+    ok('Wallenberg: crossed sensory loss (left face, right body)', o(c, w, 'face.sensation.L').V2 === 'absent' && o(c, w, 'leg.pinprick.R').L4 === 'absent' && o(c, w, 'face.sensation.R').V2 === 'normal');
+    ok('Wallenberg: uvula pulled away from the weak left palate, hoarse voice', o(c, w, 'mouth.palate').uvulaDeviatesTo === 'R' && o(c, w, 'mouth.palate').voice === 'hoarse');
+  }
+  const t = (c, view, ref, ctx = {}, l = 'de') => text(obs(c, view, ref, ctx), l);
+  ok('German motor text', /^Kraft rechtes Bein \(MRC\): Hüftabduktion 3\/5, Fußhebung 3\/5, Fußeversion 3\/5, Fußinversion 3\/5; übrige 5\/5\.$/.test(t(L5, lv, 'leg.power.R')), t(L5, lv, 'leg.power.R'));
+  ok('German reflex and speech text', /Babinski positiv/.test(t(STROKE, v, 'leg.reflexes.R')) && /Spontansprache nicht flüssig/.test(t(STROKE, v, 'speech.language')));
+}
+
+
+/* ---- parser regression ------------------------------------------------------------- */
+console.log('\nTyped examination steps (English and German)');
+{
+  const cases = [
+    ['pinprick in the right leg', 'en', 'test.leg.pinprick', 'R'], ['pinprick in the left arm', 'en', 'test.arm.pinprick', 'L'],
+    ['power in the right arm', 'en', 'test.arm.power', 'R'], ['test power in the left leg', 'en', 'test.leg.power', 'L'],
+    ['knee jerk on the right', 'en', 'test.leg.reflexes', 'R'], ['biceps reflex left', 'en', 'test.arm.reflexes', 'L'],
+    ['check the plantar response on the right', 'en', 'test.leg.reflexes', 'R'], ['tone in the left arm', 'en', 'test.arm.tone', 'L'],
+    ['vibration sense right big toe', 'en', 'test.leg.vibration', 'R'], ['pronator drift', 'en', 'test.pronator-drift', undefined],
+    ['raise your eyebrows', 'en', 'test.face-movement', undefined], ['stick out your tongue', 'en', 'test.tongue', undefined],
+    ['say aah', 'en', 'test.palate', undefined], ['heel shin left', 'en', 'test.heel-shin', 'L'],
+    ['straight leg raise right', 'en', 'test.slr', 'R'], ['count to 50', 'en', 'test.count-to-50', undefined],
+    ['listen at the aortic area', 'en', 'auscultate.heart.aortic', undefined], ['head impulse to the left', 'en', 'test.head-impulse', 'L'],
+    ['Kraftprüfung rechtes Bein', 'de', 'test.leg.power', 'R'], ['Reflexe linker Arm', 'de', 'test.arm.reflexes', 'L'],
+    ['Babinski rechts', 'de', 'test.leg.reflexes', 'R'], ['Sensibilität rechtes Bein spitz stumpf', 'de', 'test.leg.pinprick', 'R'],
+    ['Armvorhalteversuch', 'de', 'test.pronator-drift', undefined], ['Zunge herausstrecken', 'de', 'test.tongue', undefined],
+    ['Stirn runzeln', 'de', 'test.face-movement', undefined], ['Lasègue rechts', 'de', 'test.slr', 'R'],
+    ['Kopfimpulstest nach rechts', 'de', 'test.head-impulse', 'R'], ['Romberg', 'de', 'test.romberg', undefined],
+  ];
+  let wrong = [];
+  for (const [text, l, id, side] of cases) {
+    const r = parseAction(CATALOG, text, l);
+    if (r?.manoeuvre !== id || r?.side !== side) wrong.push(`${text} → ${r?.manoeuvre}/${r?.side}`);
+  }
+  ok(`${cases.length} typed examination steps resolve to the right manoeuvre and side`, wrong.length === 0, wrong.join('; '));
+}
 
 /* ---- routing and debrief ---------------------------------------------------------- */
 console.log('\nTyped input routing and debrief');

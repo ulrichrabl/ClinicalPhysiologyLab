@@ -94,6 +94,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 
 .work { display: grid; gap: 12px; min-width: 0; }
 #visual { padding: 12px; }
+.facehost svg { width: 100%; max-width: 280px; height: auto; display: block; margin: 0 auto; border-radius: 10px; }
 .eyehost svg { width: 100%; height: auto; display: block; border-radius: 10px; max-height: 260px; }
 .trace-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
 .trace-label { font: 500 12px var(--font-mono); color: var(--muted); }
@@ -108,6 +109,7 @@ canvas.phono { width: 100%; height: 140px; display: block; }
 .f-you, .f-patient { display: grid; gap: 2px; padding: 8px 12px; border-radius: 12px; max-width: 88%; }
 .f-you { justify-self: end; background: var(--accent-soft); }
 .f-patient { justify-self: start; background: var(--sunk); }
+.f-patient.companion { background: transparent; border: 1px dashed var(--line); }
 .f-act { font: 500 13px var(--font-mono); color: var(--accent); margin-top: 4px; }
 .f-blocked { color: var(--abn); font-size: .95rem; }
 .f-finding { padding: 6px 10px; border-left: 3px solid var(--grid); }
@@ -185,7 +187,7 @@ canvas.phono { width: 100%; height: 140px; display: block; }
             <rect x="300" y="280" width="10" height="90" style="fill:var(--bed)"/><rect x="40" y="280" width="10" height="90" style="fill:var(--bed)"/>
             <rect x="0" y="238" width="58" height="26" rx="11" style="fill:var(--bed)" opacity="0.7"/>
           </g>
-          <g id="fig-legs"><g data-region="legs"><rect class="skin" x="150" y="222" width="27" height="138" rx="12"/><rect class="skin" x="183" y="222" width="27" height="138" rx="12"/></g></g>
+          <g id="fig-legs"><g data-region="legs" data-side="R"><rect class="skin" x="150" y="222" width="27" height="138" rx="12"/></g><g data-region="legs" data-side="L"><rect class="skin" x="183" y="222" width="27" height="138" rx="12"/></g></g>
           <g id="fig-body">
             <g data-region="arm" data-side="R"><rect class="skin" x="104" y="108" width="22" height="140" rx="11"/><circle class="skin" cx="115" cy="258" r="12"/></g>
             <g data-region="arm" data-side="L"><rect class="skin" x="234" y="108" width="22" height="140" rx="11"/><circle class="skin" cx="245" cy="258" r="12"/></g>

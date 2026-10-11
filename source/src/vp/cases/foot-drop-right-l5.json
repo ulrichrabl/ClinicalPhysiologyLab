@@ -1,0 +1,133 @@
+{
+  "schema": "vp.case/1",
+  "id": "foot-drop-right-l5",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": ["en", "de"],
+  "title": { "en": "A foot that catches: right L5 radiculopathy", "de": "Ein Fuß, der hängen bleibt: Radikulopathie L5 rechts" },
+  "tags": ["weakness", "foot-drop", "radiculopathy", "neurology", "localisation"],
+  "difficulty": 3,
+  "authoring": {
+    "authors": ["Clinical Physiology Lab"],
+    "reviewers": [],
+    "updated": "2026-10-11",
+    "sources": [
+      "Stewart JD. Foot drop: where, why and what to do? Pract Neurol 2008;8:158-69.",
+      "Jeon CH et al. Clinical differentiation of L5 radiculopathy and peroneal neuropathy. Spine 2013."
+    ]
+  },
+  "patient": {
+    "name": "Sabine Roth",
+    "age": 44,
+    "sex": "F",
+    "heightCm": 170,
+    "weightKg": 66,
+    "appearance": { "skinTone": 3, "hair": "dark brown, tied back", "build": "slim" },
+    "speaks": ["en", "de"]
+  },
+  "setting": {
+    "place": { "en": "Neurology clinic, urgent appointment", "de": "Neurologische Ambulanz, dringender Termin" },
+    "triage": { "en": "Right foot catching for a week, after two weeks of back pain.", "de": "Seit einer Woche bleibt der rechte Fuß hängen, nach zwei Wochen Rückenschmerzen." }
+  },
+  "pathology": {
+    "lesions": [{ "nodes": ["R_nerve_L5", "R_drg_L5"], "complete": true, "label": "Right L5 root (ventral and dorsal)" }]
+  },
+  "initialState": { "position": "sitting", "avpu": "A", "orientation": "oriented", "cooperation": "full", "exposure": [] },
+  "observables": {
+    "general.appearance": { "value": { "distress": "mild", "colour": "normal", "sweating": false } },
+    "vitals.hr": { "value": 74 },
+    "vitals.bp.R": { "value": { "systolic": 124, "diastolic": 78 } },
+    "vitals.bp.L": { "value": { "systolic": 126, "diastolic": 78 } },
+    "vitals.temp": { "value": 36.7 },
+    "leg.slr.R": { "value": { "positive": true, "angleDeg": 40 } }
+  },
+  "investigations": {
+    "mri-lumbar": { "value": { "findings": ["disc-l45-right", "no-cauda-equina"] } },
+    "glucose": { "value": 5.2 }
+  },
+  "history": [
+    { "id": "f-pc", "topic": "pc", "volunteered": true,
+      "assertion": { "concept": "foot-drop", "present": true, "attributes": { "side": "right", "duration": "1 week" } },
+      "say": { "en": "My right foot keeps catching on kerbs. I've tripped twice this week.", "de": "Mein rechter Fuß bleibt ständig an Bordsteinen hängen. Ich bin diese Woche zweimal gestolpert." } },
+    { "id": "f-onset", "topic": "hpc.onset",
+      "assertion": { "concept": "back-pain", "present": true, "attributes": { "trigger": "lifting", "onset": "2 weeks ago" } },
+      "say": { "en": "The back pain started two weeks ago when I lifted a heavy planter at work. The foot started about a week ago.",
+               "de": "Die Rückenschmerzen haben vor zwei Wochen angefangen, als ich bei der Arbeit einen schweren Pflanzkübel gehoben habe. Der Fuß kam etwa eine Woche später dazu." } },
+    { "id": "f-pain", "topic": "sx.back-pain",
+      "assertion": { "concept": "radicular-pain", "present": true, "attributes": { "distribution": "buttock, lateral leg, dorsum of foot" } },
+      "say": { "en": "A shooting pain from my right buttock down the outside of the leg to the top of my foot.",
+               "de": "Ein einschießender Schmerz vom rechten Gesäß außen am Bein entlang bis auf den Fußrücken." } },
+    { "id": "f-character", "topic": "hpc.character",
+      "say": { "en": "Like an electric shock down the leg, with pins and needles on top of the foot.", "de": "Wie ein Stromschlag das Bein hinunter, mit Kribbeln auf dem Fußrücken." } },
+    { "id": "f-triggers", "topic": "hpc.triggers",
+      "assertion": { "concept": "radicular-pain", "present": true, "attributes": { "worse": "coughing, sneezing, sitting" } },
+      "say": { "en": "Coughing or sneezing sends it straight down the leg. Sitting for long is bad too.", "de": "Husten oder Niesen schießt direkt ins Bein. Langes Sitzen ist auch schlecht." } },
+    { "id": "f-numb", "topic": "sx.numbness",
+      "assertion": { "concept": "numbness", "present": true, "attributes": { "area": "dorsum of foot, big toe" } },
+      "say": { "en": "The top of my foot and the big toe feel numb, sort of woolly.", "de": "Fußrücken und Großzehe fühlen sich taub an, irgendwie pelzig." } },
+    { "id": "f-weak", "topic": "sx.weakness",
+      "assertion": { "concept": "weakness", "present": true, "attributes": { "movement": "lifting the foot" } },
+      "say": { "en": "I can't lift the front of my foot properly, so it slaps down. My hip feels a bit wobbly on that side too.", "de": "Ich kann den Vorfuß nicht richtig anheben, er klatscht auf. Die Hüfte auf der Seite fühlt sich auch etwas wackelig an." } },
+    { "id": "f-sphincter", "topic": "sx.sphincter",
+      "assertion": { "concept": "sphincter-disturbance", "present": false },
+      "say": { "en": "No, waterworks and bowels are completely normal. No numbness down below.", "de": "Nein, Wasserlassen und Stuhlgang sind ganz normal. Kein Taubheitsgefühl im Schritt." } },
+    { "id": "f-compression", "topic": "hpc.leg-compression",
+      "assertion": { "concept": "external-compression", "present": false },
+      "say": { "en": "Not really. I kneel a lot in the garden, but no more than usual, and I don't cross my legs.", "de": "Eigentlich nicht. Ich knie viel im Garten, aber nicht mehr als sonst, und ich schlage die Beine nicht übereinander." } },
+    { "id": "f-weight", "topic": "sx.weight",
+      "assertion": { "concept": "weight-loss", "present": false },
+      "say": { "en": "No, my weight hasn't changed.", "de": "Nein, mein Gewicht ist gleich geblieben." } },
+    { "id": "f-other-limbs", "topic": "sx.unsteadiness",
+      "say": { "en": "Only the foot. My balance is fine otherwise, and the other leg and my arms are normal.", "de": "Nur der Fuß. Sonst ist mein Gleichgewicht gut, und das andere Bein und die Arme sind normal." } },
+    { "id": "f-pmh", "topic": "pmh",
+      "say": { "en": "Nothing. I'm normally fit and well.", "de": "Nichts. Ich bin sonst fit und gesund." } },
+    { "id": "f-meds", "topic": "meds",
+      "say": { "en": "Ibuprofen when the pain is bad. It helps a bit.", "de": "Ibuprofen, wenn es schlimm ist. Das hilft etwas." } },
+    { "id": "f-work", "topic": "shx.occupation",
+      "say": { "en": "I'm a landscape gardener. Lots of lifting and kneeling.", "de": "Ich bin Garten- und Landschaftsbauerin. Viel Heben und Knien." } },
+    { "id": "f-concerns", "topic": "ice.concerns",
+      "say": { "en": "Will the foot recover? I can't work like this.", "de": "Wird der Fuß wieder? So kann ich nicht arbeiten." } }
+  ],
+  "reference": {
+    "evidence": [
+      { "id": "e-power", "kind": "property", "ref": "leg.power.R", "weight": "essential",
+        "discriminates": ["common-peroneal-palsy", "sciatic-neuropathy"],
+        "why": { "en": "Dorsiflexion and eversion are weak, and so are inversion and hip abduction. Inversion runs in the tibial nerve and hip abduction in the superior gluteal nerve, but both share the L5 root: weakness across several nerves of one myotome is the root. In a peroneal palsy inversion and hip abduction are strong.",
+                 "de": "Fußhebung und Eversion sind schwach, ebenso Inversion und Hüftabduktion. Die Inversion läuft über den N. tibialis und die Hüftabduktion über den N. gluteus superior, beide teilen aber die Wurzel L5: eine Schwäche über mehrere Nerven eines Myotoms ist die Wurzel. Bei einer Peroneusparese sind Inversion und Hüftabduktion kräftig." } },
+      { "id": "e-reflexes", "kind": "property", "ref": "leg.reflexes.R", "weight": "discriminating",
+        "discriminates": ["s1-radiculopathy", "ischaemic-stroke-left-mca", "motor-neurone-disease"],
+        "why": { "en": "Knee and ankle reflexes are normal and the plantar is flexor. An absent ankle jerk would point to S1; brisk reflexes or an extensor plantar to an upper motor neuron cause.",
+                 "de": "PSR und ASR normal, Babinski negativ. Ein fehlender ASR spräche für S1, gesteigerte Reflexe oder ein positiver Babinski für eine zentrale Ursache." } },
+      { "id": "e-sensory", "kind": "property", "ref": "leg.pinprick.R", "weight": "discriminating",
+        "discriminates": ["common-peroneal-palsy"],
+        "why": { "en": "Pinprick is lost in the L5 dermatome, including the big toe and medial dorsum. A peroneal palsy gives a sharply edged loss limited to the nerve's territory.",
+                 "de": "Das Schmerzempfinden fehlt im Dermatom L5 einschließlich der Großzehe. Eine Peroneusparese gibt einen scharf begrenzten Ausfall nur im Versorgungsgebiet des Nervs." } },
+      { "id": "e-sphincter", "kind": "fact", "ref": "f-sphincter", "weight": "essential",
+        "discriminates": ["cauda-equina-syndrome"],
+        "why": { "en": "Normal bladder, bowel and saddle sensation: no cauda equina syndrome, so this is not an emergency decompression.",
+                 "de": "Blase, Darm und Reithose normal: kein Kaudasyndrom, also keine notfallmäßige Dekompression." } },
+      { "id": "e-pain", "kind": "fact", "ref": "f-pain", "weight": "supporting",
+        "why": { "en": "Radicular pain in the L5 distribution after lifting, worse with coughing.", "de": "Radikulärer Schmerz im Verlauf von L5 nach dem Heben, verstärkt durch Husten." } },
+      { "id": "e-slr", "kind": "property", "ref": "leg.slr.R", "weight": "supporting",
+        "why": { "en": "A positive straight leg raise supports nerve root tension from a disc.", "de": "Ein positiver Lasègue spricht für eine Wurzelreizung durch die Bandscheibe." } },
+      { "id": "e-gait", "kind": "property", "ref": "gait.pattern", "weight": "supporting",
+        "why": { "en": "A high-stepping gait: the foot is lifted high so the toes clear the ground.", "de": "Steppergang: der Fuß wird hoch angehoben, damit die Zehen den Boden nicht berühren." } },
+      { "id": "e-mri", "kind": "investigation", "ref": "mri-lumbar", "weight": "supporting",
+        "why": { "en": "MRI confirms the level and the cause.", "de": "Die MRT bestätigt Höhe und Ursache." } }
+    ],
+    "redFlags": [
+      { "kind": "fact", "ref": "f-sphincter", "why": { "en": "Sphincter symptoms or saddle numbness mean cauda equina until proven otherwise.", "de": "Sphinkterstörung oder Reithosenanästhesie bedeuten ein Kaudasyndrom bis zum Beweis des Gegenteils." } },
+      { "kind": "property", "ref": "saddle.sensation", "why": { "en": "Saddle sensation should be examined in any new radicular weakness.", "de": "Die Reithosensensibilität gehört zu jeder neuen radikulären Parese." } }
+    ],
+    "timeBudgetMinutes": 20,
+    "summary": {
+      "en": "Right foot drop after two weeks of radicular pain following a lift. Weak dorsiflexion and eversion, and also weak inversion and hip abduction; reflexes normal; pinprick lost in the L5 dermatome; straight leg raise positive; high-stepping gait; no sphincter or saddle symptoms. Weakness across the peroneal, tibial and superior gluteal nerves within one myotome localises to the right L5 root, not the peroneal nerve. MRI shows a right L4/5 disc extrusion; with significant motor deficit, discuss decompression.",
+      "de": "Fußheberschwäche rechts nach zwei Wochen radikulärer Schmerzen nach dem Heben. Schwäche von Fußhebung und Eversion, aber auch von Inversion und Hüftabduktion; Reflexe normal; Schmerzempfinden im Dermatom L5 aufgehoben; Lasègue positiv; Steppergang; keine Sphinkter- oder Reithosensymptome. Eine Schwäche über N. peroneus, N. tibialis und N. gluteus superior innerhalb eines Myotoms lokalisiert in die Wurzel L5 rechts, nicht in den N. peroneus. MRT mit rechtsseitigem Bandscheibenvorfall L4/5; bei relevanter Parese Dekompression besprechen."
+    }
+  },
+  "diagnosis": {
+    "primary": "l5-radiculopathy",
+    "accepted": [],
+    "differential": ["common-peroneal-palsy", "sciatic-neuropathy", "lumbosacral-plexopathy", "s1-radiculopathy", "motor-neurone-disease", "cauda-equina-syndrome"]
+  }
+}

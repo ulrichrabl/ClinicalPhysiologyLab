@@ -3,6 +3,7 @@ import type { Formatter } from './text/formatters.ts';
 import { FORMATTERS } from './text/formatters.ts';
 import { NEURO_CONDITIONS, NEURO_RESOLVERS } from './models/neuro-exam.ts';
 import { CARDIO_RESOLVERS } from './models/cardio-exam.ts';
+import { NEURO_LIMB_RESOLVERS } from './models/neuro-limb.ts';
 
 /* ---------------------------------------------------------------------------
    The code side of the data model. Data refers to these by id; the validator
@@ -21,9 +22,9 @@ export interface Registry {
 }
 
 export const REGISTRY: Registry = {
-  resolvers: { ...NEURO_RESOLVERS, ...CARDIO_RESOLVERS },
+  resolvers: { ...NEURO_RESOLVERS, ...NEURO_LIMB_RESOLVERS, ...CARDIO_RESOLVERS },
   formatters: FORMATTERS,
-  renderers: ['svg.eyes', 'svg.field', 'svg.fundus', 'svg.patient', 'svg.pulse', 'svg.neck', 'audio.heart', 'audio.lung'],
+  renderers: ['svg.eyes', 'svg.face', 'svg.dermatomes', 'svg.field', 'svg.fundus', 'svg.patient', 'svg.pulse', 'svg.neck', 'audio.heart', 'audio.lung'],
   conditions: { ...NEURO_CONDITIONS },
   physiologyKeys: [
     'HR', 'Emax', 'Emin', 'V0', 'edpA', 'edpB', 'EmaxRv', 'Csa', 'Rsys', 'Rven', 'V0sv', 'Cpa', 'Rpul', 'bloodVolume', 'K',

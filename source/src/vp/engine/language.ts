@@ -71,13 +71,25 @@ export function opening(s: Session, locale: Locale = s.encounter.locale): string
   return s.caseDef.history.filter((f) => f.volunteered).map((f) => tr(f.say, locale)).join(' ');
 }
 
-const SIDE_WORDS: Record<string, Side> = { left: 'L', links: 'L', linke: 'L', linken: 'L', linkes: 'L', right: 'R', rechts: 'R', rechte: 'R', rechten: 'R', rechtes: 'R' };
+const SIDE_WORDS: Record<string, Side> = { left: 'L', links: 'L', linke: 'L', linken: 'L', linkes: 'L', linker: 'L', linkem: 'L', right: 'R', rechts: 'R', rechte: 'R', rechten: 'R', rechtes: 'R', rechter: 'R', rechtem: 'R' };
 
 /** Map a typed action to a manoeuvre and side. */
 export function parseAction(cat: Catalog, text: string, locale: Locale): { manoeuvre: string; side?: Side; score: number } | undefined {
   let bestId: string | undefined, bestScore = 0;
+  const words = ` ${normalise(text)} `;
+  const mentions = (structure: string) => {
+    for (let id: string | undefined = structure; id; id = cat.structures[id]?.parent) {
+      const st = cat.structures[id];
+      if (!st || id === 'body' || id === 'head' || id === 'chest') break;
+      const names = [tr(st.label, locale), ...list(st.synonyms, locale)].map((x) => normalise(x)).filter((x) => x.length > 2);
+      if (names.some((n) => words.includes(` ${n} `) || words.includes(` ${n}s `))) return true;
+    }
+    return false;
+  };
   for (const m of Object.values(cat.manoeuvres)) {
-    const score = best(text, [...list(m.phrases, locale), tr(m.label, locale)]);
+    let score = best(text, [...list(m.phrases, locale), tr(m.label, locale)]);
+    // Naming the body part the manoeuvre acts on settles ties between, say, pinprick in the arm and in the leg.
+    if (score > 0 && mentions(m.target)) score += 0.15;
     if (score > bestScore) { bestScore = score; bestId = m.id; }
   }
   if (!bestId || bestScore < 0.6) return undefined;

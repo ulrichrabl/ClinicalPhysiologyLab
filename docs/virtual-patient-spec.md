@@ -436,11 +436,28 @@ Authored values use rules: `{ value, when: [{ if, mode: replace | merge | scale 
   radiates to the carotids and changes pitch at the apex, a soft single S2, a
   slow-rising carotid pulse, a heaving apex and an S4 heard with the bell.
 
-### Two example cases
+- **Neurological** (`models/neuro-limb.ts`): cranial nerves V, VII and IX–XII,
+  speech and language, and the limbs (tone, MRC power for 15 movements, five
+  reflexes and the plantar response, pinprick by dermatome and nerve territory,
+  vibration and joint position, pronator drift), plus gait. It reads which
+  graph pathways a lesion interrupts, whether upper or lower motor neuron, and
+  at which rung (cortex, cord, root, plexus, nerve, junction, muscle). The
+  classic dissociations come out of the lesion with nothing written down:
+  - pyramidal weakness, face and arm more than leg in a cortical MCA lesion
+  - an L5 root weakens dorsiflexion, eversion, inversion and hip abduction
+    together, while a peroneal palsy spares inversion and hip abduction
+  - an ulnar lesion spares thumb abduction where a C8 root does not
+  - a facial nerve palsy takes the forehead, an upper motor neuron lesion
+    spares it
+  - myasthenic weakness fatigues with repetition
+  - a myopathy is proximal with normal reflexes
+  - Brown-Séquard and Wallenberg give their crossed sensory losses
+  - the facial-movement examination is animated from the same values
 
-`vestibular-neuritis-left.json` (pathology: `vestibular-hypofunction`, left,
-80%, day 1) and `exertional-syncope-as.json` (pathology: `Raortic 0.3`), both
-complete in English and German. Neither case authors a single eye or heart
+### Example cases
+
+Four cases, all complete in English and German: `acute-stroke-left-mca.json` (an aphasic patient with collateral history from his wife) and `foot-drop-right-l5.json`, plus `vestibular-neuritis-left.json` (pathology: `vestibular-hypofunction`, left,
+80%, day 1) and `exertional-syncope-as.json` (pathology: `Raortic 0.3`). None of them authors a single eye, heart or neurological
 finding; all of them come from the models.
 
 ### Validation
