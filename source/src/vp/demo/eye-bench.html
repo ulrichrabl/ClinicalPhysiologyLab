@@ -60,7 +60,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; }
 .stage-wrap { display: grid; gap: 12px; align-content: start; }
-#stage { width: 100%; height: auto; display: block; border-radius: 10px; }
+#stage { width: 100%; height: clamp(220px, 36vw, 340px); }
+#stage canvas { width: 100%; height: 100%; display: block; border-radius: 10px; }
 #trace { width: 100%; height: 170px; display: block; }
 .trace-legend { display: flex; gap: 14px; font: 12px var(--font-mono); color: var(--muted); }
 .trace-legend span::before { content: ""; display: inline-block; width: 18px; height: 0; border-top: 2px solid currentColor; vertical-align: middle; margin-right: 6px; }
@@ -113,70 +114,7 @@ footer { color: var(--muted); font-size: 0.85rem; max-width: 72ch; }
 
   <div class="main">
     <div class="panel stage-wrap">
-      <svg id="stage" viewBox="0 0 440 220" role="img" aria-label="The patient's eyes">
-        <defs>
-          <clipPath id="eye-clip-R"><path d="M98 110 Q150 70 202 110 Q150 142 98 110 Z"/></clipPath>
-          <clipPath id="eye-clip-L"><path d="M238 110 Q290 70 342 110 Q290 142 238 110 Z"/></clipPath>
-          <radialGradient id="iris-grad" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" style="stop-color:var(--iris)"/><stop offset="75%" style="stop-color:var(--iris)"/><stop offset="100%" style="stop-color:var(--iris-dark)"/>
-          </radialGradient>
-          <radialGradient id="glow-grad" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#fff6d8" stop-opacity="0.95"/><stop offset="100%" stop-color="#ffd27a" stop-opacity="0"/>
-          </radialGradient>
-          <g id="iris-art">
-            <circle r="24" fill="url(#iris-grad)"/>
-            <g stroke-width="0.9" opacity="0.55" style="stroke:var(--iris-dark)">
-              <line x1="0" y1="-23" x2="0" y2="-9"/><line x1="0" y1="23" x2="0" y2="9"/><line x1="-23" y1="0" x2="-9" y2="0"/><line x1="23" y1="0" x2="9" y2="0"/>
-              <line x1="-16" y1="-16" x2="-6.5" y2="-6.5"/><line x1="16" y1="16" x2="6.5" y2="6.5"/><line x1="16" y1="-16" x2="6.5" y2="-6.5"/><line x1="-16" y1="16" x2="-6.5" y2="6.5"/>
-            </g>
-            <circle cx="0" cy="-17" r="2.2" opacity="0.8" style="fill:var(--iris-dark)"/>
-            <circle r="24" fill="none" stroke-width="1.5" style="stroke:var(--iris-dark)"/>
-          </g>
-        </defs>
-        <rect x="0" y="0" width="440" height="220" style="fill:var(--skin)"/>
-        <g id="face">
-          <path d="M60 40 Q150 18 210 46" fill="none" stroke-width="7" stroke-linecap="round" style="stroke:var(--skin-shade)"/>
-          <path d="M230 46 Q290 18 380 40" fill="none" stroke-width="7" stroke-linecap="round" style="stroke:var(--skin-shade)"/>
-          <path d="M220 70 Q212 140 206 178 Q220 190 236 182" fill="none" stroke-width="2.5" stroke-linecap="round" style="stroke:var(--skin-shade)"/>
-          <!-- patient's right eye (viewer's left) -->
-          <g>
-            <path d="M94 104 Q150 58 206 104" fill="none" stroke-width="2" style="stroke:var(--skin-shade)"/>
-            <g clip-path="url(#eye-clip-R)">
-              <rect x="90" y="60" width="120" height="90" style="fill:var(--sclera)"/>
-              <g id="iris-R" transform="translate(150 110)">
-                <use href="#iris-art"/>
-                <circle id="pupil-R" r="7" style="fill:var(--pupil)"/>
-                <circle cx="-6" cy="-7" r="2.4" fill="#ffffff" opacity="0.85"/>
-              </g>
-              <path id="lid-R" d="M90 40 H210 V110 Q150 70 90 110 Z" style="fill:var(--skin)"/>
-            </g>
-            <path d="M98 110 Q150 70 202 110 Q150 142 98 110 Z" fill="none" stroke-width="1.6" style="stroke:var(--skin-shade)"/>
-            <circle id="glow-R" class="glow" cx="150" cy="110" r="46" fill="url(#glow-grad)" opacity="0"/>
-            <circle class="lens" cx="150" cy="108" r="60" fill-opacity="0.08" stroke="#1d2322" stroke-opacity="0.6" stroke-width="7" style="fill:var(--accent)"/>
-            <rect id="occ-R" class="occ" x="86" y="62" width="128" height="94" rx="14" fill="#1d2322" opacity="0"/>
-          </g>
-          <!-- patient's left eye (viewer's right) -->
-          <g>
-            <path d="M234 104 Q290 58 346 104" fill="none" stroke-width="2" style="stroke:var(--skin-shade)"/>
-            <g clip-path="url(#eye-clip-L)">
-              <rect x="230" y="60" width="120" height="90" style="fill:var(--sclera)"/>
-              <g id="iris-L" transform="translate(290 110)">
-                <use href="#iris-art"/>
-                <circle id="pupil-L" r="7" style="fill:var(--pupil)"/>
-                <circle cx="-6" cy="-7" r="2.4" fill="#ffffff" opacity="0.85"/>
-              </g>
-              <path id="lid-L" d="M230 40 H350 V110 Q290 70 230 110 Z" style="fill:var(--skin)"/>
-            </g>
-            <path d="M238 110 Q290 70 342 110 Q290 142 238 110 Z" fill="none" stroke-width="1.6" style="stroke:var(--skin-shade)"/>
-            <circle id="glow-L" class="glow" cx="290" cy="110" r="46" fill="url(#glow-grad)" opacity="0"/>
-            <circle class="lens" cx="290" cy="108" r="60" fill-opacity="0.08" stroke="#1d2322" stroke-opacity="0.6" stroke-width="7" style="fill:var(--accent)"/>
-            <rect id="occ-L" class="occ" x="226" y="62" width="128" height="94" rx="14" fill="#1d2322" opacity="0"/>
-          </g>
-        </g>
-        <rect class="dim-veil" x="0" y="0" width="440" height="220" fill="#000"/>
-        <text x="16" y="208" font-size="11" fill="#3b2a20" opacity="0.7" style="font-family:var(--font-mono)">R</text>
-        <text x="416" y="208" font-size="11" fill="#3b2a20" opacity="0.7" style="font-family:var(--font-mono)">L</text>
-      </svg>
+      <div id="stage" class="stagehost" role="img" aria-label="The patient's eyes"></div>
       <div>
         <h2 data-t="trace">Eye position, horizontal (VNG)</h2>
         <canvas id="trace" aria-hidden="true"></canvas>

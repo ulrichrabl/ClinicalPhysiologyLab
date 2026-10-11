@@ -13,7 +13,7 @@ await esbuild.build({
 const vp = await import(pathToFileURL(bundle).href);
 unlinkSync(bundle);
 const { CATALOG, REGISTRY, CASES, buildView, observe, startEncounter, perform, order, ask, opening, parseAction, autoNote, describe,
-  validateCatalog, validateCase, evaluate, interpret, commit, eyeAngles, measuredSlowPhaseVelocity, settleWithCirculation, exportCatalog } = vp;
+  validateCatalog, validateCase, evaluate, interpret, commit, figureSvg, lerpPose, POSES, eyeAngles, measuredSlowPhaseVelocity, settleWithCirculation, exportCatalog } = vp;
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => {
@@ -453,6 +453,20 @@ console.log('\nTyped input routing and debrief');
   ok('debrief: red flags asked about are covered', d.redFlags.find((r) => r.ref === 'f-headache').covered && !d.redFlags.find((r) => r.ref === 'f-diplopia').covered);
   ok('debrief: differential considered vs missed', d.diagnosis.differentialConsidered.includes('cerebellar-stroke') && d.diagnosis.differentialMissed.includes('bppv'));
   ok('the commit is logged', s.encounter.events.at(-1).kind === 'commit');
+}
+
+
+/* ---- patient figure ------------------------------------------------------------------ */
+console.log('\nPatient figure');
+{
+  const look = { skin: '#e8c2a4', shade: '#c4977a', hair: '#555555', gown: '#9fc4d9', gownShade: '#7fa9c2', exposed: new Set(), sex: 'F' };
+  const svg = figureSvg(POSES.standing, look);
+  ok('every touch region is drawn, with sides for the limbs', ['head', 'neck', 'chest', 'abdomen'].every((r) => svg.includes(`data-region="${r}"`))
+    && ['arm', 'legs'].every((r) => svg.includes(`data-region="${r}" data-side="R"`) && svg.includes(`data-region="${r}" data-side="L"`)));
+  const mid = lerpPose(POSES.supine, POSES.standing, 0.5);
+  ok('changing position interpolates the joints', mid.torso > 90 && mid.torso < 180 && Object.keys(POSES).every((k) => !Number.isNaN(lerpPose(POSES.supine, POSES[k], 0.3).hipY)));
+  const bare = figureSvg(POSES.supine, { ...look, exposed: new Set(['chest']) }), covered = figureSvg(POSES.supine, look);
+  ok('exposing the chest uncovers it', bare !== covered && bare.includes('r="2" fill') && !covered.includes('r="2" fill'));
 }
 
 /* ---- kinematics for renderers ------------------------------------------------------ */

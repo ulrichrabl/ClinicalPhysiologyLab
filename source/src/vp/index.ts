@@ -13,6 +13,7 @@ export { validateCatalog, validateCase, checkValue, type Issue } from './engine/
 export { neuroExamState, nystagmus } from './models/neuro-exam.ts';
 export { limbState } from './models/neuro-limb.ts';
 export { eyeAngles, measuredSlowPhaseVelocity } from './render/eye-motion.ts';
+export { figureSvg, lerpPose, POSES } from './render/patient-figure.ts';
 
 import vestibularNeuritisLeft from './cases/vestibular-neuritis-left.json';
 import exertionalSyncopeAs from './cases/exertional-syncope-as.json';

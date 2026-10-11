@@ -323,7 +323,7 @@ export interface CaseDef {
     sex: 'F' | 'M';
     heightCm?: number;
     weightKg?: number;
-    appearance: { skinTone: 1 | 2 | 3 | 4 | 5 | 6; hair: string; build: 'slim' | 'average' | 'heavy' };
+    appearance: { skinTone: 1 | 2 | 3 | 4 | 5 | 6; hair: string; build: 'slim' | 'average' | 'heavy'; eyes?: 'brown' | 'hazel' | 'green' | 'blue' | 'grey' };
     speaks?: Locale[];            // languages the patient can be interviewed in
     /** Someone who came with the patient and can give a collateral history. */
     companion?: { name: string; relation: LocalizedText };

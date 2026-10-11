@@ -13,6 +13,8 @@ import type { CaseDef, Finding, ManoeuvreDef, Side } from '../model/types.ts';
 import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
 import { EyeView } from '../render/eye-view.ts';
 import { FaceView, type FaceFinding } from '../render/face-view.ts';
+import { appearanceOf } from '../render/face-canvas.ts';
+import { figureSvg, lerpPose, POSES, type FigureLook, type Pose } from '../render/patient-figure.ts';
 import { cycle, phonoSample, murmurEnvelope, type Cycle } from '../render/phono.ts';
 
 type Lang = 'en' | 'de';
@@ -27,7 +29,7 @@ const UI: Record<string, Record<Lang, string>> = {
   send: { en: 'Go', de: 'Los' },
   feed: { en: 'Encounter', de: 'Verlauf' }, notes: { en: 'Notes', de: 'Notizen' }, mine: { en: 'My notes', de: 'Meine Notizen' }, results: { en: 'Results', de: 'Befunde' },
   wait: { en: 'Wait 10 min', de: '10 min warten' }, commit: { en: 'Commit diagnosis', de: 'Diagnose festlegen' }, leave: { en: 'Ward', de: 'Übersicht' },
-  whole: { en: 'Whole patient', de: 'Ganzer Patient' }, tapHint: { en: 'Tap the patient to examine a part of the body, or type.', de: 'Tippen Sie auf den Patienten, um eine Körperregion zu untersuchen, oder schreiben Sie.' },
+  whole: { en: 'Whole patient', de: 'Ganzer Patient' }, tapHint: { en: 'You stand at the patient’s right: the near arm and leg are the right ones. Tap a part of the body to examine it, or type.', de: 'Sie stehen rechts vom Patienten: der nahe Arm und das nahe Bein sind die rechten. Tippen Sie auf eine Körperregion oder schreiben Sie.' },
   left: { en: 'Left', de: 'Links' }, right: { en: 'Right', de: 'Rechts' }, which: { en: 'Which side?', de: 'Welche Seite?' },
   unknown: { en: "Not understood. Rephrase it as a question to the patient or as an examination step.", de: 'Nicht verstanden. Formulieren Sie eine Frage an den Patienten oder einen Untersuchungsschritt.' },
   ordered: { en: 'Ordered', de: 'Angefordert' }, resultIn: { en: 'result in', de: 'Ergebnis in' }, result: { en: 'Result', de: 'Ergebnis' },
@@ -56,8 +58,7 @@ const POSITION: Record<string, Record<Lang, string>> = {
   standing: { en: 'standing', de: 'stehend' }, 'left-lateral': { en: 'on the left side', de: 'in Linksseitenlage' },
   prone: { en: 'prone', de: 'in Bauchlage' }, 'head-hanging-left': { en: 'head hanging, turned left', de: 'Kopfhängelage links' }, 'head-hanging-right': { en: 'head hanging, turned right', de: 'Kopfhängelage rechts' },
 };
-const SKIN = ['#f3d6c2', '#e8c2a4', '#d1a07a', '#a8714d', '#7a4b2f', '#4f2f1e'];
-const SHADE = ['#d9b39a', '#d3a585', '#b4835f', '#8a5a3c', '#5f3a24', '#3a2216'];
+const seedOf = (id: string) => [...id].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7) % 100000 + 1;
 
 /* ---- feed ------------------------------------------------------------------------ */
 type FeedItem =
@@ -259,14 +260,14 @@ export function mount(root: HTMLElement) {
     const c = s.caseDef;
     if (v.kind === 'eyes') {
       host.innerHTML = '<div class="eyehost"></div>';
-      eyeView = new EyeView(host.querySelector('.eyehost')!, SKIN[c.patient.appearance.skinTone - 1], SHADE[c.patient.appearance.skinTone - 1]);
+      eyeView = new EyeView(host.querySelector('.eyehost')!, appearanceOf(c.patient, seedOf(c.id)));
       const view = s.view;
       eyeView.show((k) => sceneFindings(CATALOG, REGISTRY, c, view, k), v.controls);
       return;
     }
     if (v.kind === 'face') {
       host.innerHTML = '<div class="facehost"></div>';
-      faceView = new FaceView(host.querySelector('.facehost')!, SKIN[c.patient.appearance.skinTone - 1], SHADE[c.patient.appearance.skinTone - 1]);
+      faceView = new FaceView(host.querySelector('.facehost')!, appearanceOf(c.patient, seedOf(c.id)));
       faceView.show({ L: v.L, R: v.R }, lang);
       return;
     }
@@ -448,21 +449,32 @@ export function mount(root: HTMLElement) {
   };
 
   /* ---- the patient figure ---------------------------------------------------------- */
+  /* The figure is re-posed by interpolating joint angles, so position changes are seen, not jumped. */
+  let posePrev: Pose = POSES['reclined-45'], poseTarget: Pose = POSES['reclined-45'], poseT0 = 0, poseRaf = 0, poseKey = '';
   const renderFigure = () => {
     if (!s) return;
     const c = s.caseDef, st = s.state;
-    const skin = SKIN[c.patient.appearance.skinTone - 1], shade = SHADE[c.patient.appearance.skinTone - 1];
-    const fig = $('#figure');
-    fig.style.setProperty('--skin', skin); fig.style.setProperty('--skin-shade', shade);
-    const torso = ({ supine: -90, 'left-lateral': -90, prone: -90, 'reclined-45': -45, sitting: 0, 'sitting-forward': 12, standing: 0 } as Record<string, number>)[st.position] ?? 0;
-    const inBed = st.position !== 'standing';
-    ($('#fig-body') as unknown as SVGGElement).setAttribute('transform', `rotate(${torso} 180 226)`);
-    ($('#fig-legs') as unknown as SVGGElement).setAttribute('transform', inBed ? 'rotate(-90 180 226)' : '');
-    ($('#bed') as unknown as SVGGElement).style.opacity = inBed ? '1' : '0';
+    const ap = appearanceOf(c.patient, seedOf(c.id));
     const exposed = new Set(st.exposure ?? []);
-    ($('#gown') as unknown as SVGElement).style.opacity = exposed.has('chest') ? '0' : '1';
-    ($('#gown-low') as unknown as SVGElement).style.opacity = exposed.has('abdomen') ? '0' : '1';
-    ($('#hair') as unknown as SVGElement).setAttribute('fill', /grey|gray/.test(c.patient.appearance.hair) ? '#b9b6b0' : /brown/.test(c.patient.appearance.hair) ? '#6b4a33' : '#3a2a20');
+    const look: FigureLook = { skin: ap.skin, shade: ap.skinShade, hair: ap.hair, gown: '#9fc4d9', gownShade: '#7fa9c2', exposed, sex: c.patient.sex };
+    const target = POSES[st.position] ?? POSES.supine;
+    const key = `${c.id}|${st.position}|${[...exposed].sort().join(',')}`;
+    const g = $('#fig') as unknown as SVGGElement;
+    if (key !== poseKey) {
+      const firstForCase = !poseKey.startsWith(`${c.id}|`);
+      posePrev = firstForCase ? target : lerpPose(posePrev, poseTarget, Math.min(1, (performance.now() - poseT0) / 700));
+      poseTarget = target; poseT0 = performance.now(); poseKey = key;
+      cancelAnimationFrame(poseRaf);
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const step = (now: number) => {
+        const x = reduce ? 1 : Math.min(1, (now - poseT0) / 700);
+        const e = x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+        g.innerHTML = figureSvg(lerpPose(posePrev, poseTarget, e), look);
+        if (x < 1) poseRaf = requestAnimationFrame(step);
+      };
+      g.innerHTML = figureSvg(posePrev, look);
+      poseRaf = requestAnimationFrame(step);
+    }
     $('#state-line').textContent = `${t('position')}: ${POSITION[st.position]?.[lang] ?? st.position} · ${t('exposed')}: ${exposed.size ? [...exposed].map((x) => tr(CATALOG.structures[x]?.label, lang)).join(', ') : t('nothing')}`;
   };
 
@@ -482,10 +494,12 @@ export function mount(root: HTMLElement) {
     $('#region-close').onclick = () => { region = null; renderRegion(); };
   };
 
-  root.querySelectorAll<SVGElement>('[data-region]').forEach((el) => el.addEventListener('click', () => {
+  $('#figure').addEventListener('click', (ev) => {
+    const el = (ev.target as Element).closest('[data-region]') as SVGElement | null;
+    if (!el) return;
     region = { id: el.dataset.region!, side: (el.dataset.side as Side) || undefined };
     renderRegion();
-  }));
+  });
   $('#whole').onclick = () => { region = { id: 'body' }; renderRegion(); };
 
   /* ---- commit and debrief ----------------------------------------------------------- */

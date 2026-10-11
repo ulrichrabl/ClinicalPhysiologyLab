@@ -6,7 +6,9 @@ import { CASES } from '../index.ts';
 import { buildView } from '../engine/view.ts';
 import { observe } from '../engine/observe.ts';
 import type { CaseDef, ExamContext, Gaze, Side } from '../model/types.ts';
-import { scene, sceneFindings, type SceneControls, type SceneFindings, type Scene } from '../render/eye-scene.ts';
+import { sceneFindings, type SceneControls, type SceneFindings, type Scene } from '../render/eye-scene.ts';
+import { EyeView } from '../render/eye-view.ts';
+import { appearanceOf } from '../render/face-canvas.ts';
 
 type Lang = 'en' | 'de';
 
@@ -52,7 +54,8 @@ export function mount(root: HTMLElement) {
   let coverOn = false, coverStart = 0;
   const $ = (sel: string) => root.querySelector(sel) as HTMLElement;
 
-  const refresh = () => { findings = sceneFindings(CATALOG, REGISTRY, patient.c, view, k); renderText(); };
+  const refresh = () => { findings = sceneFindings(CATALOG, REGISTRY, patient.c, view, k); eyeViewRef?.invalidate(); renderText(); };
+  let eyeViewRef: EyeView | null = null;
 
   /* ---- controls ------------------------------------------------------------ */
   const chips = $('#patients');
@@ -126,53 +129,23 @@ export function mount(root: HTMLElement) {
     $('#basis').textContent = basis || '—';
   };
 
-  /* ---- drawing ------------------------------------------------------------------ */
-  const svg = $('#stage');
-  const face = svg.querySelector('#face') as SVGGElement;
-  const eyes: Record<Side, { iris: SVGGElement; pupil: SVGCircleElement; lid: SVGPathElement; occluder: SVGRectElement; glow: SVGCircleElement }> = {} as any;
-  for (const S of ['L', 'R'] as Side[]) {
-    eyes[S] = {
-      iris: svg.querySelector(`#iris-${S}`) as SVGGElement,
-      pupil: svg.querySelector(`#pupil-${S}`) as SVGCircleElement,
-      lid: svg.querySelector(`#lid-${S}`) as SVGPathElement,
-      occluder: svg.querySelector(`#occ-${S}`) as SVGRectElement,
-      glow: svg.querySelector(`#glow-${S}`) as SVGCircleElement,
-    };
-  }
-  // Patient's right eye is on the viewer's left.
-  const CX: Record<Side, number> = { R: 150, L: 290 };
-  const CY = 110, PX_PER_DEG = 0.95, PX_PER_MM = 3.4, IRIS_R = 24;
-  const pupilShown: Record<Side, number> = { L: 4, R: 4 };
-
+  /* ---- drawing: the face canvas, driven by the eye scene ------------------------------ */
   const canvas = $('#trace') as unknown as HTMLCanvasElement;
   const ctx2d = canvas.getContext('2d')!;
   const WINDOW_S = 4;
   const samples: Array<{ t: number; L: number; R: number; tor: number }> = [];
-
-  const draw = (now: number) => {
-    const t = now / 1000;
+  const eyeView = new EyeView($('#stage'), appearanceOf(BASE.patient, 3));
+  eyeViewRef = eyeView;
+  const controls = (now: number): SceneControls => {
     if (coverOn) k.cover = Math.floor((now - coverStart) / 1600) % 2 === 0 ? 'R' : 'L';
     k.impulse = impulseStart >= 0 && now - impulseStart < 1000 ? { to: impulseTo, t: (now - impulseStart) / 1000 } : undefined;
-    const sc: Scene = scene(findings, k, t);
-
-    face.setAttribute('transform', `translate(${(-sc.head * 2.4).toFixed(2)} 0)`);
-    for (const S of ['L', 'R'] as Side[]) {
-      const e = sc[S], el = eyes[S];
-      const inOrbit = e.h - sc.head;
-      const x = CX[S] - inOrbit * PX_PER_DEG, y = CY - e.v * PX_PER_DEG;
-      el.iris.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${(-e.torsion).toFixed(2)})`);
-      pupilShown[S] += (e.pupilMm - pupilShown[S]) * 0.12;   // pupils move in ~0.3 s, not instantly
-      el.pupil.setAttribute('r', (pupilShown[S] / 2 * PX_PER_MM).toFixed(2));
-      const drop = Math.min(e.ptosisMm, 9) * PX_PER_MM;
-      el.lid.setAttribute('transform', `translate(0 ${drop.toFixed(2)})`);
-      el.occluder.style.opacity = sc.covered === S ? '0.92' : '0';
-      el.glow.style.opacity = k.lightOn === S ? '1' : '0';
-    }
-
+    return k;
+  };
+  const onFrame = (sc: Scene, _k: SceneControls, now: number) => {
+    const t = now / 1000;
     samples.push({ t, L: sc.L.h - sc.head, R: sc.R.h - sc.head, tor: sc.R.torsion });
     while (samples.length && samples[0].t < t - WINDOW_S) samples.shift();
     drawTrace(t);
-    requestAnimationFrame(draw);
   };
 
   const css = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
@@ -212,7 +185,7 @@ export function mount(root: HTMLElement) {
   };
 
   syncControls(); applyLang();
-  requestAnimationFrame(draw);
+  eyeView.show(() => findings, controls, onFrame);
 }
 
 const el = document.getElementById('bench');
