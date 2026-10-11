@@ -3,12 +3,26 @@
   "id": "vestibular-neuritis-left",
   "version": "0.1.0",
   "status": "draft",
-  "locales": ["en", "de"],
-  "title": { "en": "Acute vertigo: left vestibular neuritis", "de": "Akuter Drehschwindel: Neuritis vestibularis links" },
-  "tags": ["dizziness", "vertigo", "hints", "neuro-otology", "emergency"],
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Acute vertigo: left vestibular neuritis",
+    "de": "Akuter Drehschwindel: Neuritis vestibularis links"
+  },
+  "tags": [
+    "dizziness",
+    "vertigo",
+    "hints",
+    "neuro-otology",
+    "emergency"
+  ],
   "difficulty": 3,
   "authoring": {
-    "authors": ["Clinical Physiology Lab"],
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
     "reviewers": [],
     "updated": "2026-10-11",
     "sources": [
@@ -22,156 +36,550 @@
     "sex": "F",
     "heightCm": 168,
     "weightKg": 64,
-    "appearance": { "skinTone": 2, "hair": "brown, shoulder-length", "build": "average" },
-    "speaks": ["en", "de"]
+    "appearance": {
+      "skinTone": 2,
+      "hair": "brown, shoulder-length",
+      "build": "average"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ]
   },
   "setting": {
-    "place": { "en": "Emergency department, cubicle 4", "de": "Notaufnahme, Box 4" },
-    "triage": { "en": "Dizziness and vomiting since yesterday morning.", "de": "Schwindel und Erbrechen seit gestern früh." }
+    "place": {
+      "en": "Emergency department, cubicle 4",
+      "de": "Notaufnahme, Box 4"
+    },
+    "triage": {
+      "en": "Dizziness and vomiting since yesterday morning.",
+      "de": "Schwindel und Erbrechen seit gestern früh."
+    }
   },
   "pathology": {
-    "conditions": [{ "id": "vestibular-hypofunction", "params": { "side": "L", "severity": 0.8, "daysSinceOnset": 1 } }]
+    "conditions": [
+      {
+        "id": "vestibular-hypofunction",
+        "params": {
+          "side": "L",
+          "severity": 0.8,
+          "daysSinceOnset": 1
+        }
+      }
+    ],
+    "physiology": {
+      "HR": 88
+    },
+    "chemistry": {
+      "glucose": 5.8
+    }
   },
-  "initialState": { "position": "reclined-45", "avpu": "A", "orientation": "oriented", "nausea": 2, "cooperation": "full", "exposure": [] },
+  "initialState": {
+    "position": "reclined-45",
+    "avpu": "A",
+    "orientation": "oriented",
+    "nausea": 2,
+    "cooperation": "full",
+    "exposure": []
+  },
   "observables": {
-    "general.appearance": { "value": { "distress": "moderate", "colour": "pale", "sweating": true } },
-    "vitals.hr": { "value": 88 },
-    "vitals.bp.L": { "value": { "systolic": 136, "diastolic": 82 } },
-    "vitals.bp.R": { "value": { "systolic": 134, "diastolic": 82 } },
-    "vitals.rr": { "value": 16 },
-    "vitals.spo2": { "value": 98 },
-    "vitals.temp": { "value": 36.9 },
-    "pulse.radial.L": { "value": { "rate": 88, "rhythm": "regular", "volume": "normal", "character": "normal" } },
-    "pulse.radial.R": { "value": { "rate": 88, "rhythm": "regular", "volume": "normal", "character": "normal" } }
+    "general.appearance": {
+      "value": {
+        "distress": "moderate",
+        "colour": "pale",
+        "sweating": true
+      }
+    },
+    "vitals.rr": {
+      "value": 16
+    },
+    "vitals.spo2": {
+      "value": 98
+    },
+    "vitals.temp": {
+      "value": 36.9
+    }
   },
-  "investigations": {
-    "ecg-12": { "value": { "rhythm": "regular", "rate": 88, "findings": ["normal"] } },
-    "glucose": { "value": 5.8 }
-  },
+  "investigations": {},
   "history": [
-    { "id": "f-pc", "topic": "pc", "volunteered": true,
-      "assertion": { "concept": "vertigo", "present": true, "attributes": { "onset": "on waking", "duration": "continuous" } },
-      "say": { "en": "Everything is spinning. It started when I woke up yesterday and it hasn't stopped since.",
-               "de": "Alles dreht sich. Das hat gestern beim Aufwachen angefangen und hört seitdem nicht mehr auf." } },
-    { "id": "f-onset", "topic": "hpc.onset",
-      "assertion": { "concept": "vertigo", "present": true, "attributes": { "onset": "over about an hour" } },
-      "say": { "en": "When I sat up in bed yesterday morning the room started turning. It got worse over about an hour and has been there ever since.",
-               "de": "Als ich mich gestern früh im Bett aufgesetzt habe, fing das Zimmer an sich zu drehen. Es wurde innerhalb von etwa einer Stunde schlimmer und ist seitdem da." } },
-    { "id": "f-course", "topic": "hpc.duration",
-      "assertion": { "concept": "vertigo", "present": true, "attributes": { "pattern": "continuous", "trend": "slightly improving" } },
-      "say": { "en": "It's there all the time. Maybe a little less than yesterday, but it never goes away.",
-               "de": "Es ist die ganze Zeit da. Vielleicht etwas weniger als gestern, aber es geht nie ganz weg." } },
-    { "id": "f-character", "topic": "hpc.character",
-      "say": { "en": "The room is turning, like getting off a merry-go-round, except it doesn't stop.",
-               "de": "Das Zimmer dreht sich, wie nach dem Karussellfahren, nur dass es nicht aufhört." } },
-    { "id": "f-triggers", "topic": "hpc.triggers",
-      "assertion": { "concept": "vertigo", "present": true, "attributes": { "worse": "head movement" } },
-      "say": { "en": "Any head movement makes it much worse, so I'm keeping very still.",
-               "de": "Jede Kopfbewegung macht es viel schlimmer, deshalb halte ich ganz still." } },
-    { "id": "f-previous", "topic": "hpc.previous",
-      "say": { "en": "Never. I've never had anything like this.", "de": "Nie. So etwas hatte ich noch nie." } },
-    { "id": "f-nausea", "topic": "sx.nausea",
-      "assertion": { "concept": "vomiting", "present": true, "attributes": { "episodes": 6 } },
-      "say": { "en": "I've been sick five or six times. I can't keep anything down.",
-               "de": "Ich habe fünf- oder sechsmal erbrochen. Ich kann nichts bei mir behalten." } },
-    { "id": "f-hearing", "topic": "sx.hearing",
-      "assertion": { "concept": "hearing-loss", "present": false },
-      "say": { "en": "No, I can hear the same in both ears.", "de": "Nein, ich höre auf beiden Ohren gleich." } },
-    { "id": "f-tinnitus", "topic": "sx.tinnitus",
-      "assertion": { "concept": "tinnitus", "present": false },
-      "say": { "en": "No ringing, no.", "de": "Nein, kein Klingeln." } },
-    { "id": "f-fullness", "topic": "sx.ear-fullness",
-      "assertion": { "concept": "aural-fullness", "present": false },
-      "say": { "en": "No, my ears feel normal.", "de": "Nein, die Ohren fühlen sich normal an." } },
-    { "id": "f-infection", "topic": "sx.infection",
-      "assertion": { "concept": "upper-respiratory-infection", "present": true, "attributes": { "when": "1 week ago" } },
-      "say": { "en": "I had a bad cold last week, with a sore throat. It was getting better.",
-               "de": "Ich hatte letzte Woche eine heftige Erkältung mit Halsweh. Die war eigentlich am Abklingen." } },
-    { "id": "f-headache", "topic": "sx.headache",
-      "assertion": { "concept": "headache", "present": false },
-      "say": { "en": "No headache, no.", "de": "Nein, Kopfschmerzen habe ich keine." } },
-    { "id": "f-neck", "topic": "sx.neck-pain",
-      "assertion": { "concept": "neck-pain", "present": false },
-      "say": { "en": "No, my neck is fine.", "de": "Nein, der Nacken ist in Ordnung." } },
-    { "id": "f-diplopia", "topic": "sx.diplopia",
-      "assertion": { "concept": "diplopia", "present": false },
-      "say": { "en": "Things seem to jump a bit when I look around, but I don't see double.",
-               "de": "Wenn ich mich umschaue, scheint alles etwas zu springen, aber doppelt sehe ich nicht." } },
-    { "id": "f-speech", "topic": "sx.speech-swallow",
-      "assertion": { "concept": "dysarthria-dysphagia", "present": false },
-      "say": { "en": "No, talking and swallowing are fine. It's just the sickness.",
-               "de": "Nein, Sprechen und Schlucken gehen gut. Es ist nur die Übelkeit." } },
-    { "id": "f-weakness", "topic": "sx.weakness",
-      "assertion": { "concept": "weakness", "present": false },
-      "say": { "en": "No, I'm not weak anywhere, just wobbly.", "de": "Nein, schwach bin ich nirgends, nur wackelig." } },
-    { "id": "f-numbness", "topic": "sx.numbness",
-      "assertion": { "concept": "numbness", "present": false },
-      "say": { "en": "No numbness or tingling.", "de": "Kein Taubheitsgefühl und kein Kribbeln." } },
-    { "id": "f-unsteady", "topic": "sx.unsteadiness",
-      "assertion": { "concept": "unsteadiness", "present": true, "attributes": { "toward": "left" } },
-      "say": { "en": "I can't walk straight. I keep drifting to the left and have to hold onto the wall.",
-               "de": "Ich kann nicht gerade gehen. Es zieht mich immer nach links, ich muss mich an der Wand festhalten." } },
-    { "id": "f-pmh", "topic": "pmh",
-      "say": { "en": "Nothing, really. I'm normally very healthy.", "de": "Eigentlich nichts. Ich bin sonst kerngesund." } },
-    { "id": "f-meds", "topic": "meds",
-      "say": { "en": "Only the contraceptive pill.", "de": "Nur die Pille." } },
-    { "id": "f-smoking", "topic": "shx.smoking",
-      "say": { "en": "No, never.", "de": "Nein, nie." } },
-    { "id": "f-work", "topic": "shx.occupation",
-      "say": { "en": "I'm a primary school teacher.", "de": "Ich bin Grundschullehrerin." } },
-    { "id": "f-living", "topic": "shx.living",
-      "say": { "en": "With my husband and our two children.", "de": "Mit meinem Mann und unseren zwei Kindern." } },
-    { "id": "f-fhx", "topic": "fhx",
-      "say": { "en": "My father had a stroke when he was seventy.", "de": "Mein Vater hatte mit siebzig einen Schlaganfall." } },
-    { "id": "f-concerns", "topic": "ice.concerns",
-      "say": { "en": "I'm scared it's a stroke, like my father.", "de": "Ich habe Angst, dass es ein Schlaganfall ist, wie bei meinem Vater." } }
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "vertigo",
+        "present": true,
+        "attributes": {
+          "onset": "on waking",
+          "duration": "continuous"
+        }
+      },
+      "say": {
+        "en": "Everything is spinning. It started when I woke up yesterday and it hasn't stopped since.",
+        "de": "Alles dreht sich. Das hat gestern beim Aufwachen angefangen und hört seitdem nicht mehr auf."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "assertion": {
+        "concept": "vertigo",
+        "present": true,
+        "attributes": {
+          "onset": "over about an hour"
+        }
+      },
+      "say": {
+        "en": "When I sat up in bed yesterday morning the room started turning. It got worse over about an hour and has been there ever since.",
+        "de": "Als ich mich gestern früh im Bett aufgesetzt habe, fing das Zimmer an sich zu drehen. Es wurde innerhalb von etwa einer Stunde schlimmer und ist seitdem da."
+      }
+    },
+    {
+      "id": "f-course",
+      "topic": "hpc.duration",
+      "assertion": {
+        "concept": "vertigo",
+        "present": true,
+        "attributes": {
+          "pattern": "continuous",
+          "trend": "slightly improving"
+        }
+      },
+      "say": {
+        "en": "It's there all the time. Maybe a little less than yesterday, but it never goes away.",
+        "de": "Es ist die ganze Zeit da. Vielleicht etwas weniger als gestern, aber es geht nie ganz weg."
+      }
+    },
+    {
+      "id": "f-character",
+      "topic": "hpc.character",
+      "say": {
+        "en": "The room is turning, like getting off a merry-go-round, except it doesn't stop.",
+        "de": "Das Zimmer dreht sich, wie nach dem Karussellfahren, nur dass es nicht aufhört."
+      }
+    },
+    {
+      "id": "f-triggers",
+      "topic": "hpc.triggers",
+      "assertion": {
+        "concept": "vertigo",
+        "present": true,
+        "attributes": {
+          "worse": "head movement"
+        }
+      },
+      "say": {
+        "en": "Any head movement makes it much worse, so I'm keeping very still.",
+        "de": "Jede Kopfbewegung macht es viel schlimmer, deshalb halte ich ganz still."
+      }
+    },
+    {
+      "id": "f-previous",
+      "topic": "hpc.previous",
+      "say": {
+        "en": "Never. I've never had anything like this.",
+        "de": "Nie. So etwas hatte ich noch nie."
+      }
+    },
+    {
+      "id": "f-nausea",
+      "topic": "sx.nausea",
+      "assertion": {
+        "concept": "vomiting",
+        "present": true,
+        "attributes": {
+          "episodes": 6
+        }
+      },
+      "say": {
+        "en": "I've been sick five or six times. I can't keep anything down.",
+        "de": "Ich habe fünf- oder sechsmal erbrochen. Ich kann nichts bei mir behalten."
+      }
+    },
+    {
+      "id": "f-hearing",
+      "topic": "sx.hearing",
+      "assertion": {
+        "concept": "hearing-loss",
+        "present": false
+      },
+      "say": {
+        "en": "No, I can hear the same in both ears.",
+        "de": "Nein, ich höre auf beiden Ohren gleich."
+      }
+    },
+    {
+      "id": "f-tinnitus",
+      "topic": "sx.tinnitus",
+      "assertion": {
+        "concept": "tinnitus",
+        "present": false
+      },
+      "say": {
+        "en": "No ringing, no.",
+        "de": "Nein, kein Klingeln."
+      }
+    },
+    {
+      "id": "f-fullness",
+      "topic": "sx.ear-fullness",
+      "assertion": {
+        "concept": "aural-fullness",
+        "present": false
+      },
+      "say": {
+        "en": "No, my ears feel normal.",
+        "de": "Nein, die Ohren fühlen sich normal an."
+      }
+    },
+    {
+      "id": "f-infection",
+      "topic": "sx.infection",
+      "assertion": {
+        "concept": "upper-respiratory-infection",
+        "present": true,
+        "attributes": {
+          "when": "1 week ago"
+        }
+      },
+      "say": {
+        "en": "I had a bad cold last week, with a sore throat. It was getting better.",
+        "de": "Ich hatte letzte Woche eine heftige Erkältung mit Halsweh. Die war eigentlich am Abklingen."
+      }
+    },
+    {
+      "id": "f-headache",
+      "topic": "sx.headache",
+      "assertion": {
+        "concept": "headache",
+        "present": false
+      },
+      "say": {
+        "en": "No headache, no.",
+        "de": "Nein, Kopfschmerzen habe ich keine."
+      }
+    },
+    {
+      "id": "f-neck",
+      "topic": "sx.neck-pain",
+      "assertion": {
+        "concept": "neck-pain",
+        "present": false
+      },
+      "say": {
+        "en": "No, my neck is fine.",
+        "de": "Nein, der Nacken ist in Ordnung."
+      }
+    },
+    {
+      "id": "f-diplopia",
+      "topic": "sx.diplopia",
+      "assertion": {
+        "concept": "diplopia",
+        "present": false
+      },
+      "say": {
+        "en": "Things seem to jump a bit when I look around, but I don't see double.",
+        "de": "Wenn ich mich umschaue, scheint alles etwas zu springen, aber doppelt sehe ich nicht."
+      }
+    },
+    {
+      "id": "f-speech",
+      "topic": "sx.speech-swallow",
+      "assertion": {
+        "concept": "dysarthria-dysphagia",
+        "present": false
+      },
+      "say": {
+        "en": "No, talking and swallowing are fine. It's just the sickness.",
+        "de": "Nein, Sprechen und Schlucken gehen gut. Es ist nur die Übelkeit."
+      }
+    },
+    {
+      "id": "f-weakness",
+      "topic": "sx.weakness",
+      "assertion": {
+        "concept": "weakness",
+        "present": false
+      },
+      "say": {
+        "en": "No, I'm not weak anywhere, just wobbly.",
+        "de": "Nein, schwach bin ich nirgends, nur wackelig."
+      }
+    },
+    {
+      "id": "f-numbness",
+      "topic": "sx.numbness",
+      "assertion": {
+        "concept": "numbness",
+        "present": false
+      },
+      "say": {
+        "en": "No numbness or tingling.",
+        "de": "Kein Taubheitsgefühl und kein Kribbeln."
+      }
+    },
+    {
+      "id": "f-unsteady",
+      "topic": "sx.unsteadiness",
+      "assertion": {
+        "concept": "unsteadiness",
+        "present": true,
+        "attributes": {
+          "toward": "left"
+        }
+      },
+      "say": {
+        "en": "I can't walk straight. I keep drifting to the left and have to hold onto the wall.",
+        "de": "Ich kann nicht gerade gehen. Es zieht mich immer nach links, ich muss mich an der Wand festhalten."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "say": {
+        "en": "Nothing, really. I'm normally very healthy.",
+        "de": "Eigentlich nichts. Ich bin sonst kerngesund."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "say": {
+        "en": "Only the contraceptive pill.",
+        "de": "Nur die Pille."
+      }
+    },
+    {
+      "id": "f-smoking",
+      "topic": "shx.smoking",
+      "say": {
+        "en": "No, never.",
+        "de": "Nein, nie."
+      }
+    },
+    {
+      "id": "f-work",
+      "topic": "shx.occupation",
+      "say": {
+        "en": "I'm a primary school teacher.",
+        "de": "Ich bin Grundschullehrerin."
+      }
+    },
+    {
+      "id": "f-living",
+      "topic": "shx.living",
+      "say": {
+        "en": "With my husband and our two children.",
+        "de": "Mit meinem Mann und unseren zwei Kindern."
+      }
+    },
+    {
+      "id": "f-fhx",
+      "topic": "fhx",
+      "say": {
+        "en": "My father had a stroke when he was seventy.",
+        "de": "Mein Vater hatte mit siebzig einen Schlaganfall."
+      }
+    },
+    {
+      "id": "f-concerns",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "I'm scared it's a stroke, like my father.",
+        "de": "Ich habe Angst, dass es ein Schlaganfall ist, wie bei meinem Vater."
+      }
+    }
   ],
   "course": [
-    { "atMinutes": 20,
-      "change": { "state": { "nausea": 3 },
-        "observables": { "general.appearance": { "value": { "distress": "severe", "colour": "pale", "sweating": true } } } },
-      "note": { "en": "She retches into a bowl; the vertigo is worse after being moved.", "de": "Sie würgt in eine Nierenschale; der Schwindel ist nach der Umlagerung schlimmer." } }
+    {
+      "atMinutes": 20,
+      "change": {
+        "state": {
+          "nausea": 3
+        },
+        "observables": {
+          "general.appearance": {
+            "value": {
+              "distress": "severe",
+              "colour": "pale",
+              "sweating": true
+            }
+          }
+        }
+      },
+      "note": {
+        "en": "She retches into a bowl; the vertigo is worse after being moved.",
+        "de": "Sie würgt in eine Nierenschale; der Schwindel ist nach der Umlagerung schlimmer."
+      }
+    }
   ],
   "reference": {
     "evidence": [
-      { "id": "e-hit", "kind": "property", "ref": "eye.head-impulse.L", "weight": "essential",
-        "discriminates": ["cerebellar-stroke", "lateral-medullary-syndrome"],
-        "why": { "en": "An abnormal head impulse to the left (overt catch-up saccade) shows a peripheral left vestibular deficit. In the acute vestibular syndrome a normal head impulse is the worrying sign.",
-                 "de": "Ein pathologischer Kopfimpulstest nach links (sichtbare Refixationssakkade) zeigt ein peripheres vestibuläres Defizit links. Beim akuten vestibulären Syndrom ist gerade ein normaler Kopfimpulstest verdächtig." } },
-      { "id": "e-nys-unidirectional", "kind": "property", "ref": "eyes.nystagmus", "context": { "gaze": "right", "fixation": true }, "weight": "essential",
-        "discriminates": ["cerebellar-stroke", "lateral-medullary-syndrome"],
-        "why": { "en": "Right-beating nystagmus that grows on looking right and never reverses on looking left (Alexander's law) is peripheral. Direction-changing nystagmus would point to the brainstem or cerebellum.",
-                 "de": "Ein Rechtsnystagmus, der bei Rechtsblick zunimmt und bei Linksblick nie die Richtung wechselt (Alexander-Gesetz), ist peripher. Ein richtungswechselnder Nystagmus spräche für Hirnstamm oder Kleinhirn." } },
-      { "id": "e-nys-left-gaze", "kind": "property", "ref": "eyes.nystagmus", "context": { "gaze": "left", "fixation": true }, "weight": "discriminating",
-        "discriminates": ["cerebellar-stroke"],
-        "why": { "en": "No left-beating nystagmus on left gaze: the direction does not change.",
-                 "de": "Kein Linksnystagmus bei Linksblick: die Schlagrichtung wechselt nicht." } },
-      { "id": "e-skew", "kind": "property", "ref": "eyes.alignment", "weight": "discriminating",
-        "discriminates": ["lateral-medullary-syndrome", "cerebellar-stroke"],
-        "why": { "en": "No vertical refixation on the alternate cover test: no skew deviation.",
-                 "de": "Keine vertikale Einstellbewegung im alternierenden Abdecktest: keine Skew Deviation." } },
-      { "id": "e-frenzel", "kind": "property", "ref": "eyes.nystagmus", "context": { "gaze": "primary", "fixation": false }, "weight": "supporting",
-        "why": { "en": "The nystagmus is much larger behind Frenzel lenses: fixation suppresses a peripheral nystagmus.",
-                 "de": "Unter der Frenzel-Brille ist der Nystagmus deutlich stärker: Fixation unterdrückt einen peripheren Nystagmus." } },
-      { "id": "e-hearing", "kind": "fact", "ref": "f-hearing", "weight": "discriminating",
-        "discriminates": ["labyrinthitis", "menieres"],
-        "why": { "en": "Hearing is preserved, so the labyrinth's cochlear part and the cochlear nerve are spared: neuritis rather than labyrinthitis. New hearing loss would also raise AICA stroke.",
-                 "de": "Das Gehör ist erhalten, Cochlea und Hörnerv sind also nicht betroffen: Neuritis statt Labyrinthitis. Ein neuer Hörverlust ließe auch an einen AICA-Infarkt denken." } },
-      { "id": "e-weber", "kind": "property", "ref": "head.weber", "weight": "supporting",
-        "why": { "en": "Weber is not lateralised: no unilateral hearing loss.", "de": "Weber nicht lateralisiert: kein einseitiger Hörverlust." } },
-      { "id": "e-course", "kind": "fact", "ref": "f-course", "weight": "discriminating",
-        "discriminates": ["bppv", "menieres"],
-        "why": { "en": "Continuous vertigo for more than a day: an acute vestibular syndrome, not the seconds-long positional attacks of BPPV or the hours-long attacks of Ménière's.",
-                 "de": "Anhaltender Schwindel seit über einem Tag: ein akutes vestibuläres Syndrom, nicht die sekundenlangen Lagerungsattacken des BPLS oder die stundenlangen Attacken des Morbus Menière." } },
-      { "id": "e-infection", "kind": "fact", "ref": "f-infection", "weight": "supporting",
-        "why": { "en": "A preceding viral illness is common, though not required.", "de": "Ein vorausgehender viraler Infekt ist häufig, aber nicht notwendig." } },
-      { "id": "e-romberg", "kind": "property", "ref": "posture.romberg", "context": { "eyesClosed": true }, "weight": "supporting",
-        "why": { "en": "She falls toward the side of the lesion with her eyes closed.", "de": "Mit geschlossenen Augen Fallneigung zur Seite der Läsion." } }
+      {
+        "id": "e-hit",
+        "kind": "property",
+        "ref": "eye.head-impulse.L",
+        "weight": "essential",
+        "discriminates": [
+          "cerebellar-stroke",
+          "lateral-medullary-syndrome"
+        ],
+        "why": {
+          "en": "An abnormal head impulse to the left (overt catch-up saccade) shows a peripheral left vestibular deficit. In the acute vestibular syndrome a normal head impulse is the worrying sign.",
+          "de": "Ein pathologischer Kopfimpulstest nach links (sichtbare Refixationssakkade) zeigt ein peripheres vestibuläres Defizit links. Beim akuten vestibulären Syndrom ist gerade ein normaler Kopfimpulstest verdächtig."
+        }
+      },
+      {
+        "id": "e-nys-unidirectional",
+        "kind": "property",
+        "ref": "eyes.nystagmus",
+        "context": {
+          "gaze": "right",
+          "fixation": true
+        },
+        "weight": "essential",
+        "discriminates": [
+          "cerebellar-stroke",
+          "lateral-medullary-syndrome"
+        ],
+        "why": {
+          "en": "Right-beating nystagmus that grows on looking right and never reverses on looking left (Alexander's law) is peripheral. Direction-changing nystagmus would point to the brainstem or cerebellum.",
+          "de": "Ein Rechtsnystagmus, der bei Rechtsblick zunimmt und bei Linksblick nie die Richtung wechselt (Alexander-Gesetz), ist peripher. Ein richtungswechselnder Nystagmus spräche für Hirnstamm oder Kleinhirn."
+        }
+      },
+      {
+        "id": "e-nys-left-gaze",
+        "kind": "property",
+        "ref": "eyes.nystagmus",
+        "context": {
+          "gaze": "left",
+          "fixation": true
+        },
+        "weight": "discriminating",
+        "discriminates": [
+          "cerebellar-stroke"
+        ],
+        "why": {
+          "en": "No left-beating nystagmus on left gaze: the direction does not change.",
+          "de": "Kein Linksnystagmus bei Linksblick: die Schlagrichtung wechselt nicht."
+        }
+      },
+      {
+        "id": "e-skew",
+        "kind": "property",
+        "ref": "eyes.alignment",
+        "weight": "discriminating",
+        "discriminates": [
+          "lateral-medullary-syndrome",
+          "cerebellar-stroke"
+        ],
+        "why": {
+          "en": "No vertical refixation on the alternate cover test: no skew deviation.",
+          "de": "Keine vertikale Einstellbewegung im alternierenden Abdecktest: keine Skew Deviation."
+        }
+      },
+      {
+        "id": "e-frenzel",
+        "kind": "property",
+        "ref": "eyes.nystagmus",
+        "context": {
+          "gaze": "primary",
+          "fixation": false
+        },
+        "weight": "supporting",
+        "why": {
+          "en": "The nystagmus is much larger behind Frenzel lenses: fixation suppresses a peripheral nystagmus.",
+          "de": "Unter der Frenzel-Brille ist der Nystagmus deutlich stärker: Fixation unterdrückt einen peripheren Nystagmus."
+        }
+      },
+      {
+        "id": "e-hearing",
+        "kind": "fact",
+        "ref": "f-hearing",
+        "weight": "discriminating",
+        "discriminates": [
+          "labyrinthitis",
+          "menieres"
+        ],
+        "why": {
+          "en": "Hearing is preserved, so the labyrinth's cochlear part and the cochlear nerve are spared: neuritis rather than labyrinthitis. New hearing loss would also raise AICA stroke.",
+          "de": "Das Gehör ist erhalten, Cochlea und Hörnerv sind also nicht betroffen: Neuritis statt Labyrinthitis. Ein neuer Hörverlust ließe auch an einen AICA-Infarkt denken."
+        }
+      },
+      {
+        "id": "e-weber",
+        "kind": "property",
+        "ref": "head.weber",
+        "weight": "supporting",
+        "why": {
+          "en": "Weber is not lateralised: no unilateral hearing loss.",
+          "de": "Weber nicht lateralisiert: kein einseitiger Hörverlust."
+        }
+      },
+      {
+        "id": "e-course",
+        "kind": "fact",
+        "ref": "f-course",
+        "weight": "discriminating",
+        "discriminates": [
+          "bppv",
+          "menieres"
+        ],
+        "why": {
+          "en": "Continuous vertigo for more than a day: an acute vestibular syndrome, not the seconds-long positional attacks of BPPV or the hours-long attacks of Ménière's.",
+          "de": "Anhaltender Schwindel seit über einem Tag: ein akutes vestibuläres Syndrom, nicht die sekundenlangen Lagerungsattacken des BPLS oder die stundenlangen Attacken des Morbus Menière."
+        }
+      },
+      {
+        "id": "e-infection",
+        "kind": "fact",
+        "ref": "f-infection",
+        "weight": "supporting",
+        "why": {
+          "en": "A preceding viral illness is common, though not required.",
+          "de": "Ein vorausgehender viraler Infekt ist häufig, aber nicht notwendig."
+        }
+      },
+      {
+        "id": "e-romberg",
+        "kind": "property",
+        "ref": "posture.romberg",
+        "context": {
+          "eyesClosed": true
+        },
+        "weight": "supporting",
+        "why": {
+          "en": "She falls toward the side of the lesion with her eyes closed.",
+          "de": "Mit geschlossenen Augen Fallneigung zur Seite der Läsion."
+        }
+      }
     ],
     "redFlags": [
-      { "kind": "fact", "ref": "f-headache", "why": { "en": "New headache or neck pain with vertigo suggests vertebral dissection or posterior fossa stroke.", "de": "Neue Kopf- oder Nackenschmerzen mit Schwindel sprechen für eine Vertebralisdissektion oder einen Infarkt der hinteren Schädelgrube." } },
-      { "kind": "fact", "ref": "f-diplopia", "why": { "en": "Diplopia, dysarthria, dysphagia, weakness or numbness make a central cause likely.", "de": "Doppelbilder, Dysarthrie, Dysphagie, Paresen oder Sensibilitätsstörungen machen eine zentrale Ursache wahrscheinlich." } },
-      { "kind": "property", "ref": "eye.head-impulse.L", "why": { "en": "A normal head impulse in a patient with continuous vertigo and nystagmus is a stroke until proven otherwise.", "de": "Ein normaler Kopfimpulstest bei anhaltendem Schwindel mit Nystagmus gilt bis zum Beweis des Gegenteils als Schlaganfall." } }
+      {
+        "kind": "fact",
+        "ref": "f-headache",
+        "why": {
+          "en": "New headache or neck pain with vertigo suggests vertebral dissection or posterior fossa stroke.",
+          "de": "Neue Kopf- oder Nackenschmerzen mit Schwindel sprechen für eine Vertebralisdissektion oder einen Infarkt der hinteren Schädelgrube."
+        }
+      },
+      {
+        "kind": "fact",
+        "ref": "f-diplopia",
+        "why": {
+          "en": "Diplopia, dysarthria, dysphagia, weakness or numbness make a central cause likely.",
+          "de": "Doppelbilder, Dysarthrie, Dysphagie, Paresen oder Sensibilitätsstörungen machen eine zentrale Ursache wahrscheinlich."
+        }
+      },
+      {
+        "kind": "property",
+        "ref": "eye.head-impulse.L",
+        "why": {
+          "en": "A normal head impulse in a patient with continuous vertigo and nystagmus is a stroke until proven otherwise.",
+          "de": "Ein normaler Kopfimpulstest bei anhaltendem Schwindel mit Nystagmus gilt bis zum Beweis des Gegenteils als Schlaganfall."
+        }
+      }
     ],
     "timeBudgetMinutes": 15,
     "summary": {
@@ -182,6 +590,13 @@
   "diagnosis": {
     "primary": "vestibular-neuritis",
     "accepted": [],
-    "differential": ["cerebellar-stroke", "lateral-medullary-syndrome", "labyrinthitis", "bppv", "vestibular-migraine", "menieres"]
+    "differential": [
+      "cerebellar-stroke",
+      "lateral-medullary-syndrome",
+      "labyrinthitis",
+      "bppv",
+      "vestibular-migraine",
+      "menieres"
+    ]
   }
 }

@@ -54,6 +54,8 @@ export class EcgEngine {
   private pathologyId = 'normal';
   private lastMetrics: EcgMetrics = { HR: 72, PR: 160, QRS: 90, QT: 380, QTc: 410, qrsAxis: 60, pAxis: 45, tAxis: 50 };
   private sampleAccumulator = 0;
+  private nextSampleMs = 0;
+  private lastMeasuredMs = -1e9;
   private conditions: ConditionConfig[] = [];
 
   initialize(config: SimulatorConfig): void {
@@ -68,7 +70,7 @@ export class EcgEngine {
     this.rebuildLeadField();
     this.acquisition = { ...DEFAULT_ACQUISITION, ...config.acquisition };
     this.physiology = defaultPhysiology();
-    this.timeMs = 0;
+    this.timeMs = 0; this.nextSampleMs = 0; this.lastMeasuredMs = -1e9;
     this.initBufferMaps();
     this.applyRhythmAndMechanisms();
   }
@@ -113,15 +115,21 @@ export class EcgEngine {
     this.events.push(...this.conduction.state.events);
     this.mechanicalTriggers.push(...this.conduction.state.mechanicalTriggers);
 
-    // Synthesize waveform at internal rate (1000 Hz), decimate to 500 Hz
-    const steps = Math.max(1, Math.round((dtMs / 1000) * INTERNAL_HZ));
-    for (let s = 0; s < steps; s++) {
-      const tMs = this.timeMs + ((s + 1) / steps) * dtMs;
-      this.synthesizeSample(tMs, modifiers);
+    /* Synthesize at the internal rate (1000 Hz) and decimate to 500 Hz. The
+       caller's step need not be a whole number of samples (the circulation
+       steps 0.5 ms), so samples are due on the internal clock, not per call:
+       rounding per call wrote one sample every 0.5 ms and doubled the rate,
+       which halved every interval the measurement code read. */
+    const end = this.timeMs + dtMs;
+    const period = 1000 / INTERNAL_HZ;
+    while (this.nextSampleMs <= end) {
+      this.synthesizeSample(this.nextSampleMs, modifiers);
+      this.nextSampleMs += period;
     }
 
-    this.timeMs += dtMs;
-    this.updateMetrics();
+    this.timeMs = end;
+    /* Interval measurement reads two seconds of twelve leads; four times a second is plenty. */
+    if (this.timeMs - this.lastMeasuredMs >= 250) { this.lastMeasuredMs = this.timeMs; this.updateMetrics(); }
   }
 
   applyIntervention(intervention: Intervention): void {
@@ -189,7 +197,7 @@ export class EcgEngine {
   }
 
   restore(snap: SimulatorSnapshot): void {
-    this.timeMs = snap.timeMs;
+    this.timeMs = snap.timeMs; this.nextSampleMs = snap.timeMs; this.lastMeasuredMs = -1e9;
     this.rng.setState(snap.rngState);
     this.physiology = snap.state.physiology;
   }
@@ -226,6 +234,12 @@ export class EcgEngine {
     return out;
   }
 
+  /** The cheap part of getOutput, for callers that run every integration step. */
+  peek(): { ecgValue: number; effectiveHR: number; qrsAxis: number; pathology: string; metrics: EcgMetrics } {
+    const ii = this.buffers.II;
+    return { ecgValue: ii.length ? ii[ii.length - 1] : 0, effectiveHR: this.lastMetrics.HR, qrsAxis: this.lastMetrics.qrsAxis, pathology: this.pathologyId, metrics: this.lastMetrics };
+  }
+
   getOutput(): EcgEngineOutput {
     const leadCopy = {} as Record<LeadName, number[]>;
     for (const l of LEADS) leadCopy[l] = [...this.buffers[l]];
@@ -250,7 +264,7 @@ export class EcgEngine {
   }
 
   reset(): void {
-    this.timeMs = 0;
+    this.timeMs = 0; this.nextSampleMs = 0; this.lastMeasuredMs = -1e9;
     this.clearBuffers();
     this.conduction.reset();
     this.events = [];
@@ -308,6 +322,8 @@ export class EcgEngine {
         this.buffers[l].push(smoothed);
         buf.length = 0;
       }
+      /* Undrained (headless) runs keep the last 30 s; nothing reads further back. */
+      if (this.buffers.II.length > OUTPUT_HZ * 40) for (const l of LEADS) this.buffers[l].splice(0, OUTPUT_HZ * 10);
     }
   }
 

@@ -13,7 +13,9 @@ await esbuild.build({
 const vp = await import(pathToFileURL(bundle).href);
 unlinkSync(bundle);
 const { CATALOG, REGISTRY, CASES, buildView, observe, startEncounter, perform, order, ask, opening, parseAction, autoNote, describe,
-  validateCatalog, validateCase, evaluate, interpret, commit, figureSvg, lerpPose, POSES, eyeAngles, measuredSlowPhaseVelocity, settleWithCirculation, exportCatalog } = vp;
+  validateCatalog, validateCase, evaluate, interpret, commit, figureSvg, lerpPose, POSES, eyeAngles, measuredSlowPhaseVelocity, exportCatalog,
+  settleCirculation, settleModel, createCirculation, healthyModel, modelFromCase, pathologyOf, caseWithModel, applyPreset, MODELS, VARIABLE_BY_ID,
+  recordLeads, measuredAxis, misplaced, standardPlacement, chemistryState, parseRef } = vp;
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => {
@@ -117,8 +119,9 @@ const VN = caseById('vestibular-neuritis-left');
   ok('Romberg: worse with eyes closed, toward the left', rombergClosed.toward === 'L' && rombergClosed.stance === 'falls' && rombergOpen.stance !== 'falls', J([rombergOpen, rombergClosed]));
   ok('gait veers to the left', J(obs(VN, view, 'gait.pattern').value) === J({ pattern: 'veers', toward: 'L' }));
   ok('finger-nose normal (no cerebellar lesion)', obs(VN, view, 'arm.finger-nose.L').normal);
-  const vitals = obs(VN, view, 'vitals.hr');
-  ok('without a circulation model, the case layer supplies vitals', vitals.value === 88 && vitals.provenance === 'case');
+  const vnView = buildView(VN, { circulation: settleCirculation(VN, 15) });
+  const vitals = obs(VN, vnView, 'vitals.hr');
+  ok('the heart rate is the case’s parameter, run through the circulation', Math.abs(vitals.value - 88) <= 3 && vitals.provenance === 'model', J(vitals));
   ok('unexamined-normal properties answer with age-appropriate normals', obs(VN, view, 'eye.fundus.L').value.disc === 'normal');
 
   // Compensation over days.
@@ -205,9 +208,8 @@ console.log('\nCranial nerves, pupils and hearing');
 /* ---- aortic stenosis, from the closed-loop circulation ---------------------------- */
 console.log('\nAortic stenosis (signs from the circulation model)');
 const AS = caseById('exertional-syncope-as');
-const BASE = { Rsys: 1.05, HR: 72, V0sv: 3200, baroEnabled: true };
-const asSnap = settleWithCirculation({ ...BASE, ...AS.pathology.physiology }, 20);
-const normalSnap = settleWithCirculation({ ...BASE }, 20);
+const asSnap = settleCirculation(AS, 20);
+const normalSnap = settleModel(healthyModel(), 20).snapshot;
 {
   const view = buildView(AS, { circulation: asSnap });
   const nview = buildView(AS, { circulation: normalSnap });
@@ -482,6 +484,100 @@ console.log('\nEye kinematics');
   const xs = Array.from({ length: 400 }, (_, i) => eyeAngles(n, { h: 0, v: 0 }, i / 400).h);
   ok('eye position oscillates within the amplitude', Math.max(...xs) - Math.min(...xs) <= n.amplitudeDeg + 1e-9 && Math.max(...xs) - Math.min(...xs) > 0.8 * n.amplitudeDeg);
   ok('torsion beats with the horizontal component', eyeAngles(n, { h: 0, v: 0 }, 0).torsion !== 0);
+}
+
+/* ---- models and measurements -------------------------------------------------------- */
+console.log('\nModels and measurements');
+{
+  const measured = [...Object.values(CATALOG.properties), ...Object.values(CATALOG.investigations)].filter((x) => x.source !== 'case');
+  ok('every model-backed finding and test says which model variables it measures', measured.every((x) => x.measurement?.measures.every((id) => VARIABLE_BY_ID[id])),
+    measured.filter((x) => !x.measurement).map((x) => x.id).join());
+  ok('…and the physics of how, in both languages', measured.every((x) => x.measurement.physics.en && x.measurement.physics.de));
+  ok('every model variable has an id, a symbol and a label in both languages', MODELS.every((m) => m.variables.every((v) => v.id && v.symbol && v.label.en && v.label.de)));
+  const ids = MODELS.flatMap((m) => m.variables.map((v) => v.id));
+  ok('variable ids are unique', new Set(ids).size === ids.length);
+  ok('cases author no finding a model produces (pathology is parameters only)', CASES.every((c) =>
+    Object.keys(c.observables ?? {}).every((ref) => CATALOG.properties[parseRef(ref).property]?.source !== 'model'
+      && !['vitals.hr', 'vitals.bp', 'pulse.radial', 'pulse.carotid'].includes(parseRef(ref).property))));
+  for (const c of CASES) {
+    const m = modelFromCase(c);
+    ok(`${c.id}: case → model → pathology round-trips`, J(modelFromCase({ ...c, pathology: pathologyOf(m) })) === J(m));
+  }
+  const bad = clone(caseById('exertional-syncope-as')); bad.pathology.electrical = { atrial: 'fibrilation', lvMass: '2' };
+  const be = J(errors(validateCase(bad, CATALOG, REGISTRY)));
+  ok('validator: electrical parameters are checked by name, type and vocabulary', /unknown value fibrilation/.test(be) && /expected a number/.test(be), be);
+  const chem = chemistryState(undefined, { potassium: 6.9 });
+  ok('a pinned chemistry value overrides what the circulation derives', chem.potassium === 6.9);
+}
+
+console.log('\nCardiac electrical model, measured by the ECG');
+const ecgOf = (preset, seconds = 8, mutate) => {
+  let m = applyPreset(healthyModel(), preset);
+  if (mutate) mutate(m);
+  const run = createCirculation(m);
+  run.sim.advance(Math.round(6 / run.sim.dt));
+  run.heart.drain();
+  run.sim.advance(Math.round(seconds / run.sim.dt));
+  const vcg = run.heart.drain();
+  return { run, vcg, snap: run.sim.snapshot(), metrics: run.heart.metrics };
+};
+{
+  const n = ecgOf('normal');
+  ok('sinus rhythm: rate from the autonomic state, normal intervals', n.metrics.HR > 60 && n.metrics.HR < 90 && n.metrics.PR >= 120 && n.metrics.PR <= 200 && n.metrics.QRS < 110, J(n.metrics));
+  const leads = recordLeads(n.vcg);
+  const peak = (a) => Math.max(...a), trough = (a) => Math.min(...a);
+  ok('normal 12-lead: upright R in II, rS in V1, R taller than S by V5', peak(leads.II) > 0.7 && -trough(leads.V1) > peak(leads.V1) && peak(leads.V5) > -trough(leads.V5));
+  ok('Einthoven: II = I + III, sample by sample', leads.II.every((x, i) => Math.abs(x - leads.I[i] - leads.III[i]) < 1e-5));
+  const axis = measuredAxis(leads, 500);
+  ok('machine axis normal', axis > -30 && axis < 90, String(axis));
+  const rev = recordLeads(n.vcg, misplaced('arm-reversal'));
+  ok('arm electrodes reversed: lead I inverts, aVR and aVL swap — a measurement artefact, not a patient', leads.I.every((x, i) => Math.abs(rev.I[i] + x) < 1e-5)
+    && rev.aVR.every((x, i) => Math.abs(x - leads.aVL[i]) < 1e-5) && measuredAxis(rev, 500) > 90);
+  const high = recordLeads(n.vcg, misplaced('v1v2-high'));
+  ok('V1 and V2 placed two spaces high record a different complex', Math.abs(peak(high.V2) - peak(leads.V2)) > 0.05 || Math.abs(trough(high.V2) - trough(leads.V2)) > 0.05);
+
+  const lbbb = ecgOf('lbbb');
+  ok('left bundle branch block: QRS ≥ 120 ms, axis leftward, contraction less efficient', lbbb.metrics.QRS >= 120 && lbbb.snap.metrics.CO < n.snap.metrics.CO, `${lbbb.metrics.QRS} ms, CO ${lbbb.snap.metrics.CO.toFixed(2)} vs ${n.snap.metrics.CO.toFixed(2)}`);
+  const rbbb = recordLeads(ecgOf('rbbb').vcg);
+  ok('right bundle branch block: terminal R′ in V1', (() => { const a = rbbb.V1; let last = 0; for (let i = 1; i < a.length - 1; i++) if (a[i] > 0.3 && a[i] >= a[i - 1] && a[i] >= a[i + 1]) last++; return last > 0; })());
+
+  const af = ecgOf('af', 12);
+  const rr = [];
+  { const run = createCirculation(applyPreset(healthyModel(), 'af')); let last = null; for (let i = 0; i < 40000; i++) { run.sim.step(); const m = run.heart.metrics; if (m.RR !== last) { rr.push(m.RR); last = m.RR; } } }
+  const sd = Math.sqrt(rr.slice(2).reduce((a, x, _, arr) => a + (x - arr.reduce((p, q) => p + q, 0) / arr.length) ** 2, 0) / Math.max(1, rr.length - 2));
+  ok('atrial fibrillation: no PR, irregularly irregular RR', af.metrics.PR == null && sd > 80, `RR sd ${sd.toFixed(0)} ms`);
+  ok('atrial fibrillation: the atrial kick is lost and cardiac output falls', af.snap.metrics.CO < n.snap.metrics.CO);
+  const afView = buildView(caseById('acute-stroke-left-mca'), { circulation: af.snap });
+  ok('…and the pulse feels irregularly irregular', obs(caseById('acute-stroke-left-mca'), afView, 'pulse.radial.R').value.rhythm === 'irregularly-irregular');
+
+  const chb = ecgOf('chb', 10);
+  ok('complete heart block: ventricles escape near 40/min, wide QRS, wide pulse pressure', Math.abs(chb.metrics.HR - 40) <= 3 && chb.metrics.QRS >= 120
+    && chb.snap.metrics.PP > n.snap.metrics.PP, `${chb.metrics.HR}/min, PP ${chb.snap.metrics.PP.toFixed(0)}`);
+
+  const hk = ecgOf('hyperkalaemia');
+  const hkLeads = recordLeads(hk.vcg);
+  ok('hyperkalaemia (a chemistry value, not an ECG pattern): tall T, longer PR', peak(hkLeads.V3) > 1.4 * peak(leads.V3) && hk.metrics.PR > n.metrics.PR, `${peak(hkLeads.V3).toFixed(2)} vs ${peak(leads.V3).toFixed(2)}`);
+  const hkView = buildView(caseById('foot-drop-right-l5'), { chemistry: chemistryState(hk.snap, { potassium: 7.2 }) });
+  ok('…and the same potassium is what the electrolyte panel reports', REGISTRY.resolvers['chemistry.panel'](hkView, { property: 'electrolytes' }, {}).value.potassium === 7.2);
+
+  const ant = recordLeads(ecgOf('stemi-anterior').vcg);
+  const st = (a, beatsFrom) => { // mean of the ST segment: 80–120 ms after the largest slope in each beat
+    let s = 0, k = 0; for (let i = 1; i < a.length - 60; i++) if (Math.abs(leads.II[i] - leads.II[i - 1]) > 0.05 && Math.abs(leads.II[i] - leads.II[i - 1]) >= Math.abs(leads.II[i + 1] - leads.II[i])) { s += a[i + 50]; k++; i += 150; } return s / Math.max(1, k); };
+  ok('anterior injury current: ST elevation in V2–V3', st(ant.V2) - st(leads.V2) > 0.15 && st(ant.V3) - st(leads.V3) > 0.15, `${(st(ant.V2) - st(leads.V2)).toFixed(2)} mV`);
+
+  const bleed = settleModel((() => { const m = healthyModel(); m.circulation.bloodVolume = 3800; return m; })(), 25).snapshot;
+  const rest = settleModel(healthyModel(), 25).snapshot;
+  ok('haemorrhage: the baroreflex drives the sinus node faster', bleed.ecgMetrics.HR > rest.ecgMetrics.HR + 8, `${rest.ecgMetrics.HR} → ${bleed.ecgMetrics.HR}`);
+  const off = settleModel((() => { const m = healthyModel(); m.circulation.bloodVolume = 3800; m.circulation.baroEnabled = 0; return m; })(), 25).snapshot;
+  ok('…and without the reflex it does not, and pressure falls further', Math.abs(off.ecgMetrics.HR - 72) <= 3 && off.metrics.Pmean < bleed.metrics.Pmean, `${off.ecgMetrics.HR}/min, MAP ${off.metrics.Pmean.toFixed(0)} vs ${bleed.metrics.Pmean.toFixed(0)}`);
+
+  const ser = createCirculation(healthyModel());
+  ser.sim.advance(8000);
+  const state = ser.sim.serializeState();
+  const twin = createCirculation(healthyModel());
+  twin.sim.restoreState(JSON.parse(J(state)));
+  ser.sim.advance(4000); twin.sim.advance(4000);
+  ok('a settled patient can be serialised and resumed exactly (for the browser worker)', Math.abs(ser.sim.Part - twin.sim.Part) < 1e-6 && ser.heart.metrics.HR === twin.heart.metrics.HR);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

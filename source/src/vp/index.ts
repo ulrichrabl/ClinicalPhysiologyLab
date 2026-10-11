@@ -14,6 +14,12 @@ export { neuroExamState, nystagmus } from './models/neuro-exam.ts';
 export { limbState } from './models/neuro-limb.ts';
 export { eyeAngles, measuredSlowPhaseVelocity } from './render/eye-motion.ts';
 export { figureSvg, lerpPose, POSES } from './render/patient-figure.ts';
+export { createCirculation, settleModel, settleCirculation } from './engine/circulation-host.ts';
+export { healthyModel, modelFromCase, pathologyOf, caseWithModel, applyPreset, CIRCULATION_DEFAULTS, type PatientModel } from './physiology/state.ts';
+export { MODELS, MODEL_BY_ID, VARIABLE_BY_ID, getPath, setPath } from './physiology/models.ts';
+export { HeartElectrical, ELECTRICAL_DEFAULTS, ELECTRICAL_PRESETS, type ElectricalParams } from './physiology/heart/electrical.ts';
+export { recordLeads, leadVectors, measuredAxis, misplaced, standardPlacement, STANDARD_SITES, LEAD_NAMES } from './measurements/ecg.ts';
+export { chemistryState } from './physiology/chemistry.ts';
 
 import vestibularNeuritisLeft from './cases/vestibular-neuritis-left.json';
 import exertionalSyncopeAs from './cases/exertional-syncope-as.json';

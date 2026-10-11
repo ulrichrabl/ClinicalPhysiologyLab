@@ -4,6 +4,17 @@ import type { Registry } from '../registry.ts';
 import { missingLocales, SUPPORTED_LOCALES, type Locale, type LocalizedText } from '../model/i18n.ts';
 import { parseRef } from './observe.ts';
 import { NODES } from '../../domains/neuro/data/anatomy.js';
+import { ELECTRICAL_DEFAULTS } from '../physiology/heart/electrical.ts';
+import { CHEMISTRY_DEFAULTS } from '../../models/chemistry/public-state.ts';
+import { VARIABLE_BY_ID } from '../physiology/models.ts';
+import type { MeasurementSpec } from '../model/types.ts';
+
+function checkMeasurement(m: MeasurementSpec | undefined, source: string, path: string, out: Issue[]): void {
+  if (!m) { if (source !== 'case') out.push({ level: 'warning', path, message: 'model-backed but says nothing about what it measures' }); return; }
+  if (!m.measures.length) out.push({ level: 'error', path, message: 'measurement names no model variable' });
+  for (const id of m.measures) if (!VARIABLE_BY_ID[id]) out.push({ level: 'error', path, message: `measures unknown model variable ${id}` });
+  checkText(m.physics, SUPPORTED_LOCALES, `${path}.measurement.physics`, out, 'warning');
+}
 
 /* ---------------------------------------------------------------------------
    Validation: what an authoring platform runs on save and CI runs on every
@@ -94,6 +105,7 @@ export function validateCatalog(cat: Catalog, reg: Registry): Issue[] {
     if (p.source === 'case' && p.resolver) out.push({ level: 'warning', path, message: 'case-only property has a resolver that will never run' });
     if (p.renderer && !reg.renderers.includes(p.renderer)) out.push({ level: 'warning', path, message: `renderer ${p.renderer} is not registered` });
     checkText(p.label, L, `${path}.label`, out, 'warning');
+    checkMeasurement(p.measurement, p.source, path, out);
   }
   for (const m of Object.values(cat.manoeuvres)) {
     const path = `manoeuvres.${m.id}`;
@@ -117,6 +129,7 @@ export function validateCatalog(cat: Catalog, reg: Registry): Issue[] {
     checkNormal(inv.normal, inv.value, cat, path, out);
     if (!reg.formatters[inv.formatter]) out.push({ level: 'error', path, message: `formatter ${inv.formatter} is not registered` });
     if (inv.source !== 'case' && (!inv.resolver || !reg.resolvers[inv.resolver])) out.push({ level: 'error', path, message: 'needs a registered resolver' });
+    checkMeasurement(inv.measurement, inv.source, path, out);
   }
   for (const t of Object.values(cat.topics)) {
     if (t.parent && !cat.topics[t.parent]) out.push({ level: 'error', path: `topics.${t.id}`, message: `unknown parent ${t.parent}` });
@@ -163,6 +176,18 @@ export function validateCase(c: CaseDef, cat: Catalog, reg: Registry): Issue[] {
   /* pathology */
   for (const k of Object.keys(c.pathology.physiology ?? {})) {
     if (!reg.physiologyKeys.includes(k)) out.push({ level: 'error', path: `pathology.physiology.${k}`, message: 'not a circulation parameter' });
+  }
+  for (const [k, v] of Object.entries(c.pathology.electrical ?? {})) {
+    const def = (ELECTRICAL_DEFAULTS as unknown as Record<string, unknown>)[k];
+    if (def === undefined) out.push({ level: 'error', path: `pathology.electrical.${k}`, message: `unknown electrical parameter ${k}` });
+    else if (typeof def !== typeof v) out.push({ level: 'error', path: `pathology.electrical.${k}`, message: `expected a ${typeof def}` });
+    else if (typeof v === 'string') {
+      const variable = VARIABLE_BY_ID[`electrical.${k}`];
+      if (variable?.options && !variable.options.some((o) => o.value === v)) out.push({ level: 'error', path: `pathology.electrical.${k}`, message: `unknown value ${v}` });
+    }
+  }
+  for (const k of Object.keys(c.pathology.chemistry ?? {})) {
+    if (!(k in CHEMISTRY_DEFAULTS)) out.push({ level: 'error', path: `pathology.chemistry.${k}`, message: 'not a chemistry variable' });
   }
   for (const [i, les] of (c.pathology.lesions ?? []).entries()) {
     for (const n of les.nodes) if (!(n in NODES)) out.push({ level: 'error', path: `pathology.lesions[${i}]`, message: `unknown nervous-system node ${n}` });

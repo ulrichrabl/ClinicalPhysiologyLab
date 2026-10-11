@@ -385,11 +385,28 @@ export const FORMATTERS: Record<string, Formatter> = {
   'inv.echo': (v, _c, l, cat) => de(l)
     ? `Echo: LVEF ${v.ef} %, maximaler Gradient über der Aortenklappe ${v.aorticPeakGradient} mmHg, Aorteninsuffizienz ${lab(cat, 'severity', v.aorticRegurgitation, l)}, Mitralinsuffizienz ${lab(cat, 'severity', v.mitralRegurgitation, l)}.`
     : `Echo: LVEF ${v.ef}%, peak aortic valve gradient ${v.aorticPeakGradient} mmHg, aortic regurgitation ${lab(cat, 'severity', v.aorticRegurgitation, l)}, mitral regurgitation ${lab(cat, 'severity', v.mitralRegurgitation, l)}.`,
-  'inv.ecg': (v, _c, l, cat) => {
-    const f = (v.findings ?? []).map((x: string) => lab(cat, 'ecg-finding', x, l));
+  'inv.ecg': (v, _c, l) => {
+    const ax = `${v.axis > 0 ? '+' : ''}${v.axis}°`;
     return de(l)
-      ? `EKG: ${lab(cat, 'rhythm', v.rhythm, l)}, ${v.rate}/min, ${join(f, l)}.`
-      : `ECG: ${lab(cat, 'rhythm', v.rhythm, l)}, ${v.rate}/min, ${join(f, l)}.`;
+      ? `12-Kanal-EKG (Gerätevermessung): Frequenz ${v.rate}/min, ${v.pr != null ? `PQ ${v.pr} ms` : 'PQ nicht messbar'}, QRS ${v.qrs} ms, QTc ${v.qtc} ms, Achse ${ax}. Die Kurve liegt unter Befunde.`
+      : `12-lead ECG (machine measurements): rate ${v.rate}/min, ${v.pr != null ? `PR ${v.pr} ms` : 'PR not measurable'}, QRS ${v.qrs} ms, QTc ${v.qtc} ms, axis ${ax}. The tracing is under Results.`;
+  },
+  'inv.panel': (v, _c, l, cat, ref) => {
+    const names: Record<string, [string, string, string]> = {
+      sodium: ['Na⁺', 'Na⁺', 'mmol/L'], potassium: ['K⁺', 'K⁺', 'mmol/L'], chloride: ['Cl⁻', 'Cl⁻', 'mmol/L'], bicarbonate: ['HCO₃⁻', 'HCO₃⁻', 'mmol/L'],
+      urea: ['urea', 'Harnstoff', 'mmol/L'], creatinine: ['creatinine', 'Kreatinin', 'µmol/L'], arterialPH: ['pH', 'pH', ''], paCO2: ['PaCO₂', 'PaCO₂', 'kPa'],
+      paO2: ['PaO₂', 'PaO₂', 'kPa'], lactate: ['lactate', 'Laktat', 'mmol/L'], haemoglobin: ['Hb', 'Hb', 'g/L'], whiteCellCount: ['WCC', 'Leukozyten', '×10⁹/L'],
+      platelets: ['platelets', 'Thrombozyten', '×10⁹/L'], mcv: ['MCV', 'MCV', 'fL'], troponin: ['troponin', 'Troponin', 'ng/L'], bnp: ['BNP', 'BNP', 'ng/L'],
+    };
+    const inv = cat.investigations[ref.property];
+    const range = (inv?.normal.range ?? {}) as Record<string, [number, number]>;
+    const parts = Object.entries(v as Record<string, number>).map(([k, x]) => {
+      const [en, dn, unit] = names[k] ?? [k, k, ''];
+      const r = range[k];
+      const flag = r ? (x < r[0] ? ' ↓' : x > r[1] ? ' ↑' : '') : '';
+      return `${de(l) ? dn : en} ${num(x, l, k === 'arterialPH' ? 2 : (Number.isInteger(x) ? 0 : 1))}${unit ? ' ' + unit : ''}${flag}`;
+    });
+    return `${tr(inv?.label ?? { en: ref.property }, l)}: ${parts.join(', ')}.`;
   },
   'inv.imaging': (v, _c, l, cat, ref) => `${tr(cat.investigations[ref.property]?.label ?? { en: ref.property }, l)}: ${(v.findings ?? []).map((x: string) => lab(cat, 'imaging', x, l)).join('; ')}.`,
   'inv.glucose': (v, _c, l) => (de(l) ? `Blutzucker ${num(v, l, 1)} mmol/l.` : `Glucose ${num(v, l, 1)} mmol/L.`),

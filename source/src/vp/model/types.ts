@@ -140,6 +140,16 @@ export interface NormalSpec {
   bands?: Array<{ minAge?: number; maxAge?: number; sex?: 'F' | 'M'; value: unknown; range?: NormalSpec['range'] }>;
 }
 
+/**
+ * How an examination or test observes the models: which model variables it
+ * measures, and the physics of the instrument (its errors and limits). This
+ * is the bridge between the physiology layer and the clinical layers.
+ */
+export interface MeasurementSpec {
+  measures: string[];             // physiology variable ids, 'model.variable'
+  physics: LocalizedText;         // how the instrument turns the variable into a reading
+}
+
 /** Something that can be perceived about the body. */
 export interface PropertyDef {
   id: string;                     // 'eye.pupil' — paired properties expand to 'eye.pupil.L'
@@ -154,6 +164,7 @@ export interface PropertyDef {
   formatter: string;              // registered formatter id: value → text in any locale
   renderer?: string;              // registered SVG renderer id
   codes?: Codes;
+  measurement?: MeasurementSpec;
 }
 
 /* ---- 3. Manoeuvres ---------------------------------------------------------- */
@@ -262,6 +273,7 @@ export interface InvestigationDef {
   formatter: string;
   turnaroundMinutes: number;      // simulated time until the result is available
   codes?: Codes;
+  measurement?: MeasurementSpec;
 }
 
 /* ---- 4. Case --------------------------------------------------------------- */
@@ -334,6 +346,7 @@ export interface CaseDef {
   pathology: {
     conditions?: Array<{ id: string; params?: Record<string, unknown> }>;
     physiology?: Record<string, number>;           // circulation parameters (lesson vocabulary)
+    electrical?: Record<string, number | string>;  // the heart's electrical substrate (physiology/heart/electrical.ts)
     chemistry?: Record<string, number>;
     lesions?: Array<{ nodes: string[]; complete?: boolean; label?: string }>;
   };

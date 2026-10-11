@@ -7,6 +7,7 @@ import { MANOEUVRES } from './manoeuvres.ts';
 import { HISTORY_TOPICS } from './history.ts';
 import { DIAGNOSES } from './diagnoses.ts';
 import { INVESTIGATIONS } from './investigations.ts';
+import { MEASUREMENTS } from './measurements.ts';
 
 /* ---------------------------------------------------------------------------
    The catalog: every shared vocabulary item, indexed by id. Cases refer into
@@ -61,7 +62,10 @@ export function buildCatalog(p: CatalogParts): Catalog {
 export const CATALOG_PARTS: CatalogParts = {
   version: '0.1.0',
   structures: STRUCTURES, scales: SCALES, valueSets: VALUE_SETS, instruments: INSTRUMENTS,
-  properties: PROPERTIES, manoeuvres: MANOEUVRES, investigations: INVESTIGATIONS,
+  /* What each finding and test measures in the models, and the physics of how. */
+  properties: PROPERTIES.map((p) => (MEASUREMENTS[p.id] ? { ...p, measurement: MEASUREMENTS[p.id] } : p)),
+  manoeuvres: MANOEUVRES,
+  investigations: INVESTIGATIONS.map((x) => (MEASUREMENTS[x.id] ? { ...x, measurement: MEASUREMENTS[x.id] } : x)),
   topics: HISTORY_TOPICS, diagnoses: DIAGNOSES,
 };
 
