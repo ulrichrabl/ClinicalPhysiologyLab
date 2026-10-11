@@ -1,6 +1,6 @@
 # Virtual patient — design spec
 
-Status: **Draft for review** — data model implemented (§8)
+Status: **Draft for review** — data model (§8), models and measurements (§8a) and the app (§2) implemented
 Date: 2026-10-11
 Supersedes: the Bedside and Learn layers of PR #4 (closed). Builds on ADR-001 to ADR-015.
 
@@ -49,6 +49,31 @@ bedside, normal or abnormal.
 ---
 
 ## 2. Information architecture
+
+### As built (October 2026)
+
+One page, `dist/encounter.html`, built from `src/vp/app/`:
+
+- **Ward**: the cases, and a **free patient** (a healthy adult on the
+  physiology bench).
+- **Patient**, in four layers:
+  - **Bedside**: the patient figure, history by free text, the examination
+    by text or by touch, notes. Focused views open where the examination
+    needs them: the eyes and face (canvas), the chest for auscultation
+    (stethoscope where the learner puts it, phonocardiogram and sound,
+    optional landmarks and the heart beneath), the pulse wave, and ECG
+    recording (the learner places ten electrodes).
+  - **Tests**: ordering, results with turnaround, lab tables with reference
+    ranges, the 12-lead on millimetre paper, and for every test *what it
+    measures and how*.
+  - **Physiology**: one chapter per model (§8a), opened on this patient.
+  - **Model**: the Model Lab, every variable of every model as a list.
+- In a case, Physiology and Model are locked until the learner commits;
+  afterwards the Model Lab shows the case read-only. In the free patient
+  everything is open and every parameter can be changed while it runs.
+
+The plan below is the original design; where it differs, the above is what
+exists.
 
 ### Top level: three places
 
@@ -480,6 +505,71 @@ changes.
 
 ---
 
+## 8a. Physiology as models, findings as measurements
+
+Agreed 2026-10-11, and implemented. The line is drawn radically: **an ECG is
+not physiology, nor is a potassium of 6.8 or a murmur.** They are
+*measurements* of physiology, each made through an instrument with physics,
+limits and artefacts of its own. The connection is explicit in the data.
+
+### Models (`src/vp/physiology/`)
+
+A model is a chapter of a living textbook (`ModelDef`): its variables
+(parameters a case or the Model Lab sets; states the simulation computes),
+its governing equations as data (`MathNode` trees, rendered as MathML both
+symbolically and with the patient's current values substituted), a diagram
+id, and sources. Equations are given at textbook level, with the full system
+one level down; they are the equations the code runs.
+
+| Chapter | What runs | Diagram |
+|---|---|---|
+| Haemodynamics | closed-loop circulation: time-varying elastance chambers, valves (stenosis and regurgitation as separate paths), compliant vessels, conserved blood volume | circuit with chambers sized by volume, valves opening, flow; PV loop with ESPVR/EDPVR; Wiggers diagram |
+| Baroreflex | receptor sigmoid, sympathetic/vagal tone, four effectors (rate, resistance, venous capacity, contractility) | sigmoid with the moving operating point, tone bars, effectors |
+| Cardiac electrical activity | beat scheduler (sinus driven by the autonomic state; AF, flutter, AV blocks, escape, VT, VF) and the heart's dipole H(t) built from the activation sequence; K⁺ and Ca²⁺ from the fluids model | conduction system lighting in sequence; frontal vector loop on the hexaxial system; E_K |
+| Fluids and acid–base | plasma chemistry: pinned values, the rest derived from the circulation | Gamblegram, pH against the HCO₃⁻/CO₂ ratio |
+| VOR and gaze holding | labyrinth tone, compensation, leaky integrator, fixation | labyrinth tones and a live eye-position trace |
+| Pupillary light reflex | afferent, pretectal, Edinger–Westphal, efferent, sympathetic | the pathway responding to a swinging light |
+| Nervous system | the lesion graph | pathways interrupted |
+
+`PatientModel` (`physiology/state.ts`) holds every parameter in one object:
+patient, circulation, electrical, vestibular, lesions, chemistry pins.
+
+### Measurements
+
+Every model-backed property and investigation carries a `MeasurementSpec`
+(`data/measurements.ts`): the model variables it reads and the physics of the
+instrument (oscillometry reads mean pressure and estimates the rest; the JVP
+is a manometer open to the right atrium; haemolysis raises potassium; the ECG
+lead is a projection of H(t) onto its lead vector). The validator checks that
+every measurement names real variables. Chapters list what observes them;
+results link back to the chapter.
+
+**The ECG as measurement** (`measurements/ecg.ts`). The electrical model
+produces the dipole H(t) in Frank coordinates. Each electrode's lead vector is
+Dower's at the standard positions and follows a field fitted to them
+elsewhere, so a recording depends on where the electrodes are: V1–V2 two
+spaces high, limb electrodes swapped, a low precordial row all give the
+tracing those mistakes give. The machine axis is measured from the recorded
+leads, so it moves with the misplacement too.
+
+### Cases are parameters
+
+A case's pathology is parameters only: `physiology` (circulation),
+`electrical`, `chemistry` pins, `conditions`, `lesions`. It may still author
+what no model covers (respiratory rate, temperature, imaging, a fundus); it
+may not author a finding a model produces. Hyperkalaemia is a potassium of
+7.2, not an ECG pattern; atrial fibrillation is an atrial rhythm, and the
+irregular pulse, the lost atrial kick and the fibrillatory baseline follow.
+
+### Running
+
+`LivePatient` (`live/live-patient.ts`) runs circulation and heart in the page
+in real time (about a hundred times faster than real time on a laptop), keeps
+16 s of the dipole for recording, and is what every layer reads. Settling a
+new patient takes 20 simulated seconds, a fraction of a second.
+
+---
+
 ## 9. Learning around encounters
 
 - **Spaced review stays, in the background.** Encounters and drills are
@@ -534,5 +624,16 @@ Recorded 2026-10-11.
 5. **Findings.** As clinical as possible, with illustrations and SVG
    animations driven by the same values the models compute (the eye
    examination first).
+
+6. **Physiology is models.** Chapters with their equations, animated and
+   evaluated on the patient, like opening a living Klinke–Silbernagl.
+7. **Measurements are not physiology.** ECG, laboratory values and signs are
+   measurements related to the models, with their physics shown (§8a).
+8. **Equations as data**, textbook level first, the full system one level down.
+9. **Model Lab** is a list of every variable, grouped and collapsible, editable
+   from a healthy adult in the free patient; disabled in a case until commit,
+   then read-only.
+10. **Focused views** for more of the examination: the chest for auscultation,
+    electrode placement for the ECG; more to follow (abdomen, fundus, neck veins).
 
 Still open: **scoring** — qualitative only, or numeric scores for courses later?

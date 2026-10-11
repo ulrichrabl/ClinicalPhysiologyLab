@@ -159,14 +159,20 @@ export function perform(s: Session, manoeuvreId: string, side?: Side, extra: Exa
   return { outcome: 'performed', findings };
 }
 
-/** Order an investigation. The result event is stamped when it will be available. */
-export function order(s: Session, investigationId: string): void {
+/**
+ * Order an investigation. The result event is stamped when it will be available.
+ * A test the learner performs (an ECG they record themselves) is available at once,
+ * and may carry how it was done (`detail`, e.g. the electrode placement) and what the
+ * measurement itself changed (`patch`, e.g. the axis the misplaced leads report).
+ */
+export function order(s: Session, investigationId: string, opts: { performed?: boolean; detail?: Record<string, unknown>; patch?: (v: any) => any } = {}): void {
   const inv = s.catalog.investigations[investigationId];
   if (!inv) throw new Error(`unknown investigation ${investigationId}`);
   push(s, { t: s.t, kind: 'order', test: inv.id });
   const fromModel = inv.source !== 'case' && inv.resolver ? s.registry.resolvers[inv.resolver]?.(s.view, { property: inv.id }, {}) : undefined;
   const authored = inv.source !== 'model' ? s.caseDef.investigations?.[inv.id] : undefined;
-  const value = fromModel?.value ?? authored?.value ?? inv.normal.value;
-  push(s, { t: s.t + inv.turnaroundMinutes * 60000, kind: 'result', test: inv.id, value });
+  let value = fromModel?.value ?? authored?.value ?? inv.normal.value;
+  if (opts.patch) value = opts.patch(structuredClone(value));
+  push(s, { t: s.t + (opts.performed ? 0 : inv.turnaroundMinutes * 60000), kind: 'result', test: inv.id, value, ...(opts.detail ? { detail: opts.detail } : {}) });
   s.done.add(inv.id);
 }

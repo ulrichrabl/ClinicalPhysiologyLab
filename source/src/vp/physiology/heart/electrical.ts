@@ -220,6 +220,14 @@ export class HeartElectrical {
   }
   reset(): void { const p = this.p; Object.assign(this, new HeartElectrical()); this.p = p; }
 
+  /** Where in the cycle the heart is now, for drawings of the conduction system. */
+  phase(): { sinceP: number; sinceV: number; qrs: number; qt: number; pr: number | null } {
+    return {
+      sinceP: this.lastP && this.p.atrial === 'sinus' ? this.timeMs - this.lastP.t : Infinity,
+      sinceV: this.timeMs - this.lastVentricularMs, qrs: this.metrics.QRS, qt: this.metrics.QT, pr: this.metrics.PR,
+    };
+  }
+
   rhythmLabel(): string {
     if (this.p.ventricular !== 'none') return this.p.ventricular;
     if (this.p.atrial === 'af') return 'af';
@@ -342,7 +350,7 @@ export class HeartElectrical {
     this.triggers.push({ activationTimeMs: t, chamber: 'LA', activationFraction: 1, synchrony: 1, contractilityScale: 1, ectopic: false, paced: false });
     this.lastP = { t, amp: ra + la };
   }
-  private lastP: { t: number; amp: number } | null = null;
+  lastP: { t: number; amp: number } | null = null;
 
   private ventricularBeat(t: number, kind: 'conducted' | 'escape' | 'vt', pr: number | null): void {
     const p = this.p, K = this.K;

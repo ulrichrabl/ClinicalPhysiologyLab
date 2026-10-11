@@ -12,6 +12,7 @@ const PANEL_FIELDS: Record<string, string[]> = {
   'cardiac-markers': ['troponin', 'bnp'],
 };
 const DIGITS: Record<string, number> = { glucose: 1, arterialPH: 2, paCO2: 1, paO2: 1, potassium: 1, lactate: 1, urea: 1, whiteCellCount: 1, bicarbonate: 0 };
+export const labDigits = (k: string) => DIGITS[k] ?? 0;
 const round = (k: string, v: number) => { const d = DIGITS[k] ?? 0; const f = 10 ** d; return Math.round(v * f) / f; };
 
 export const LAB_RESOLVERS: Record<string, Resolver> = {

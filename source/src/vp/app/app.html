@@ -1,4 +1,4 @@
-<title>Virtual Patient</title>
+<title>Clinical Physiology Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -164,6 +164,118 @@ canvas.phono { width: 100%; height: 140px; display: block; }
 .notes-compare > div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
 .notes-compare h3 { font: 700 .95rem var(--font-body); margin: 8px 0 2px; }
 .notes-compare p { margin: 0; }
+
+/* ---- app shell: layers ------------------------------------------------------- */
+.layers { display: flex; gap: 4px; padding: 4px; background: var(--sunk); border-radius: 12px; overflow-x: auto; max-width: 100%; }
+.layers button { border: 0; background: none; border-radius: 9px; padding: 7px 14px; white-space: nowrap; color: var(--muted); font-weight: 700; display: inline-flex; gap: 6px; align-items: center; }
+.layers button[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.layers button[disabled] { opacity: .55; cursor: not-allowed; }
+.layers .lock { font-size: .8em; }
+.layer-note { color: var(--muted); font-size: .92rem; margin: 0 0 12px; }
+.locked { padding: 28px; text-align: center; color: var(--muted); }
+.locked b { display: block; color: var(--fg); font: 700 1.1rem var(--font-display); margin-bottom: 6px; }
+.bedcard.free { border-style: dashed; }
+.tag { font: 500 11px var(--font-mono); text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); justify-self: start; }
+
+/* ---- focused views ------------------------------------------------------------- */
+.focus-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+@media (max-width: 700px) { .focus-grid { grid-template-columns: minmax(0, 1fr); } }
+.thorax { width: 100%; max-width: 420px; display: block; margin: 0 auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+.thorax .hit { cursor: crosshair; }
+.focus-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.focus-caption { font: 500 12px var(--font-mono); color: var(--muted); margin: 6px 0 0; }
+.electrode { cursor: grab; }
+.electrode:active { cursor: grabbing; }
+.tray { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip-el { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px 4px 4px; background: var(--surface); font: 600 12px var(--font-mono); cursor: grab; touch-action: none; }
+.chip-el i { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #333; display: inline-block; }
+.chip-el[aria-pressed="true"] { outline: 2px solid var(--accent); }
+.chip-el.placed { opacity: .45; }
+.paper-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: #fffaf7; max-width: 100%; }
+.paper-wrap canvas { display: block; }
+.ecg-line { font: 500 13px var(--font-mono); margin: 8px 0; overflow-wrap: anywhere; }
+
+/* ---- tests ------------------------------------------------------------------- */
+.tests-grid { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .tests-grid { grid-template-columns: minmax(0, 1fr); } }
+.order-list { padding: 12px; display: grid; gap: 6px; }
+.order-list h3 { font: 700 .78rem var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 8px 0 2px; }
+.order-btn { display: flex; justify-content: space-between; gap: 8px; text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 7px 10px; }
+.order-btn small { color: var(--muted); font: 500 12px var(--font-mono); white-space: nowrap; }
+.results { display: grid; gap: 12px; min-width: 0; }
+.result { padding: 14px; display: grid; gap: 8px; min-width: 0; }
+.result header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.result header b { font: 700 1.05rem var(--font-display); }
+.result header span { font: 500 12px var(--font-mono); color: var(--muted); }
+table.lab { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+table.lab td, table.lab th { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+table.lab th { font: 500 12px var(--font-mono); color: var(--muted); }
+table.lab td.v { font: 600 14px var(--font-mono); }
+table.lab tr.flag td.v { color: var(--abn); }
+details.physics { border-top: 1px dashed var(--line); padding-top: 8px; }
+details.physics summary { cursor: pointer; color: var(--accent); font-weight: 700; font-size: .92rem; }
+details.physics p { margin: 6px 0 0; color: var(--muted); font-size: .93rem; max-width: 72ch; }
+.measures { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.measures button, .measures span { font: 500 12px var(--font-mono); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; background: var(--bg); }
+
+/* ---- physiology ----------------------------------------------------------------- */
+.chapters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.chapters button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; }
+.chapters button[aria-selected="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.chapter { display: grid; gap: 16px; }
+.chapter > header h1 { font-size: clamp(1.4rem, 3vw, 2rem); }
+.chapter > header p { max-width: 75ch; margin: 8px 0 0; font-size: 1.04rem; }
+.diagram { padding: 10px; }
+.diagram canvas { width: 100%; display: block; }
+.eqs { display: grid; gap: 12px; }
+.eq { padding: 14px 16px; display: grid; gap: 6px; min-width: 0; }
+.eq h3 { margin: 0; font: 700 1rem var(--font-body); }
+.eq .sym, .eq .live { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+.eq math { font-size: 1.28rem; }
+.eq .live math { font-size: 1.12rem; color: var(--accent); }
+.eq .live .val mn { font-weight: 700; }
+.eq p { margin: 0; color: var(--muted); max-width: 75ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .88rem; }
+.legend span { white-space: nowrap; }
+.legend math { font-size: 1rem; }
+.legend .u { color: var(--muted); font: 500 12px var(--font-mono); }
+details.full > summary { cursor: pointer; font-weight: 700; padding: 8px 0; }
+.observed { display: grid; gap: 8px; }
+.observed li { list-style: none; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 10px 10px 0; }
+.observed ul { padding: 0; margin: 0; display: grid; gap: 8px; }
+.observed li b { display: block; }
+.observed li p { margin: 4px 0 0; color: var(--muted); font-size: .93rem; }
+.sources { font-size: .88rem; color: var(--muted); }
+.sources li { margin: 4px 0; }
+
+/* ---- model lab -------------------------------------------------------------------- */
+.lab-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 12px; }
+.lab-head .changed { font: 500 13px var(--font-mono); color: var(--muted); }
+.lab-head select { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); padding: 6px 8px; font: inherit; }
+details.mdl { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; }
+details.mdl > summary { cursor: pointer; padding: 12px 14px; font: 700 1.05rem var(--font-display); display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+details.mdl > summary small { font: 500 12px var(--font-mono); color: var(--muted); }
+details.grp { border-top: 1px solid var(--line); }
+details.grp > summary { cursor: pointer; padding: 8px 14px; font-weight: 700; color: var(--muted); font-size: .9rem; text-transform: uppercase; letter-spacing: .05em; }
+.var { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 220px) 92px; gap: 6px 10px; align-items: center; padding: 6px 14px; }
+.var.changed { background: var(--accent-soft); }
+.var .name { min-width: 0; }
+.var .name small { display: block; color: var(--muted); font: 500 11px var(--font-mono); }
+.var .name math { font-size: .95rem; }
+.var input[type=range] { width: 100%; accent-color: var(--accent); }
+.var input[type=number], .var select { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); padding: 5px 6px; font: 500 13px var(--font-mono); }
+.var .reset { border: 0; background: none; color: var(--accent); font-size: .8rem; padding: 0; justify-self: start; }
+.var .state { font: 600 13px var(--font-mono); text-align: right; grid-column: 2 / 4; }
+@media (max-width: 560px) { .var { grid-template-columns: minmax(0, 1fr) 92px; } .var .ctl { grid-column: 1 / -1; grid-row: 2; } .var .state { grid-column: 2; } }
+.lesion-picker { display: grid; gap: 6px; grid-column: 1 / -1; }
+.lesion-picker input { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--bg); color: var(--fg); font: inherit; }
+.lesion-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lesion-chips button { font: 500 12px var(--font-mono); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; background: var(--bg); }
+.lesion-chips button.on { background: var(--abn-soft); color: var(--abn); border-color: var(--abn); }
+.monitor { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.monitor div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.monitor b { display: block; font: 700 1.3rem var(--font-mono); font-variant-numeric: tabular-nums; }
+.monitor span { font: 500 11px var(--font-mono); color: var(--muted); text-transform: uppercase; }
 </style>
 
 <div id="vp">
@@ -182,32 +294,41 @@ canvas.phono { width: 100%; height: 140px; display: block; }
       <button type="button" class="ghost" id="leave">Ward</button>
       <button type="button" class="primary" id="to-commit">Commit diagnosis</button>
     </div>
-    <div class="grid">
-      <div class="panel figure-panel">
-        <svg id="figure" viewBox="0 0 360 380" role="img" aria-label="The patient, seen from the right side of the bed">
-          <g id="fig"></g>
-        </svg>
-        <div id="state-line"></div>
-        <div class="topline"><p id="touch-hint"></p><button type="button" class="tog small" id="whole">Whole patient</button></div>
-        <div id="region" hidden></div>
-      </div>
-      <div class="work">
-        <div class="panel" id="visual" hidden></div>
-        <div class="panel">
-          <div class="tabs" role="tablist">
-            <button type="button" role="tab" data-tab="feed">Encounter</button>
-            <button type="button" role="tab" data-tab="notes">Notes</button>
-            <button type="button" role="tab" data-tab="mine">My notes</button>
-            <button type="button" role="tab" data-tab="results">Results</button>
+    <nav class="layers" role="tablist" id="layers">
+      <button type="button" role="tab" data-layer="bedside"></button>
+      <button type="button" role="tab" data-layer="tests"></button>
+      <button type="button" role="tab" data-layer="physiology"></button>
+      <button type="button" role="tab" data-layer="model"></button>
+    </nav>
+    <div style="height:14px"></div>
+
+    <div id="layer-bedside">
+      <div class="grid">
+        <div class="panel figure-panel">
+          <svg id="figure" viewBox="0 0 360 380" role="img" aria-label="The patient, seen from the right side of the bed"><g id="fig"></g></svg>
+          <div id="state-line"></div>
+          <div class="topline"><p id="touch-hint"></p><button type="button" class="tog small" id="whole">Whole patient</button></div>
+          <div id="region" hidden></div>
+        </div>
+        <div class="work">
+          <div class="panel" id="visual" hidden></div>
+          <div class="panel">
+            <div class="tabs" role="tablist">
+              <button type="button" role="tab" data-tab="feed">Encounter</button>
+              <button type="button" role="tab" data-tab="notes">Notes</button>
+              <button type="button" role="tab" data-tab="mine">My notes</button>
+            </div>
+            <div class="tabbody" id="tab-feed" aria-live="polite"></div>
+            <div class="tabbody" id="tab-notes" hidden></div>
+            <div class="tabbody" id="tab-mine" hidden><textarea id="mynotes" aria-label="My notes"></textarea></div>
+            <form id="cmdform" autocomplete="off"><input id="cmd" aria-label="Ask or examine"><button type="submit" class="primary" id="send">Go</button></form>
           </div>
-          <div class="tabbody" id="tab-feed" aria-live="polite"></div>
-          <div class="tabbody" id="tab-notes" hidden></div>
-          <div class="tabbody" id="tab-mine" hidden><textarea id="mynotes" aria-label="My notes"></textarea></div>
-          <div class="tabbody" id="tab-results" hidden></div>
-          <form id="cmdform" autocomplete="off"><input id="cmd" aria-label="Ask or examine"><button type="submit" class="primary" id="send">Go</button></form>
         </div>
       </div>
     </div>
+    <div id="layer-tests" hidden></div>
+    <div id="layer-physiology" hidden></div>
+    <div id="layer-model" hidden></div>
   </section>
 
   <section id="debrief" hidden></section>
@@ -223,5 +344,4 @@ canvas.phono { width: 100%; height: 140px; display: block; }
     </div>
   </div>
 </div>
-<script>/*DATA*/</script>
 <script>/*BUNDLE*/</script>
