@@ -276,11 +276,14 @@ details.grp > summary { cursor: pointer; padding: 8px 14px; font-weight: 700; co
 .monitor div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
 .monitor b { display: block; font: 700 1.3rem var(--font-mono); font-variant-numeric: tabular-nums; }
 .monitor span { font: 500 11px var(--font-mono); color: var(--muted); text-transform: uppercase; }
+.lang-footer { text-align: center; padding: 24px 0 8px; margin-top: 32px; border-top: 1px solid var(--line); }
+.lang-footer .langbtn { font: 400 0.82rem/1 var(--font-mono); color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; cursor: pointer; letter-spacing: .02em; }
+.lang-footer .langbtn:hover { color: var(--fg); border-color: var(--fg); }
 </style>
 
 <div id="vp">
   <section id="ward">
-    <div class="topline"><div><div class="eyebrow">Clinical Physiology Lab</div><h1 id="ward-title">Emergency department</h1></div><button type="button" class="ghost langbtn">Deutsch</button></div>
+    <div class="topline"><div><div class="eyebrow">Clinical Physiology Lab</div><h1 id="ward-title">Emergency department</h1></div></div>
     <p class="lede" id="ward-lede"></p>
     <div id="ward-list"></div>
   </section>
@@ -290,7 +293,6 @@ details.grp > summary { cursor: pointer; padding: 8px 14px; font-weight: 700; co
       <div class="who"><b id="pt-name"></b><span id="pt-meta"></span></div>
       <span id="clock">0 min</span>
       <button type="button" class="ghost" id="wait">Wait</button>
-      <button type="button" class="ghost langbtn">Deutsch</button>
       <button type="button" class="ghost" id="leave">Ward</button>
       <button type="button" class="primary" id="to-commit">Commit diagnosis</button>
     </div>
@@ -332,6 +334,8 @@ details.grp > summary { cursor: pointer; padding: 8px 14px; font-weight: 700; co
   </section>
 
   <section id="debrief" hidden></section>
+
+  <footer class="lang-footer"><button type="button" class="langbtn">Deutsch</button></footer>
 
   <div id="commit" hidden>
     <div class="panel commit-card" role="dialog" aria-labelledby="commit-title">
