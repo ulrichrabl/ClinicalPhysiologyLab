@@ -331,13 +331,14 @@ export class Circulation {
       }
     }
 
-    const rhythm = this.engine?.getState().activeMechanisms.find(() => false) ? 'sinus' : 'sinus';
-    void rhythm;
     if (ventActivation > 0.1 && this.enRaw <= 0.1) {
       this.mechT = 0; this.beatTrigger = true;
+      /* A dyssynchronous activation (bundle branch block, a ventricular focus) contracts less
+         effectively: parts of the wall are still relaxing while others shorten. */
+      this.beatSync = Math.min(1, Math.max(0.3, ventActivation));
     }
     this.enRaw = ventActivation;
-    this.en = this.activation(this.mechT, this.TmaxV);
+    this.en = this.activation(this.mechT, this.TmaxV) * (this.beatSync ?? 1);
     if (this.mechT >= 0) this.mechT += this.dt;
 
     if (atrialActivation > 0.1 && this.eaRaw <= 0.1) this.mechTa = 0;
@@ -348,7 +349,7 @@ export class Circulation {
     const rr = 60 / Math.max(30, this.baroEnabled ? this.HReff : this.HR);
     this.TmaxV = Math.max(0.45, Math.min(1.4, rr));
 
-    const out = this.engine?.getOutput();
+    const out = this.engine?.peek ? this.engine.peek() : this.engine?.getOutput();
     this.ecgValue = out?.ecgValue ?? 0;
     if (out?.effectiveHR) this.HReff = out.effectiveHR;
 
@@ -600,7 +601,7 @@ export class Circulation {
       lastBeat: this.lastBeat ? structuredClone(this.lastBeat) : null,
       events: this.events ? { ...this.events } : null,
       ecg: this.engine?.snapshot?.() ?? null,
-      pathologyId: this.engine?.getOutput?.()?.pathology ?? 'normal',
+      pathologyId: this.engine?.peek?.()?.pathology ?? 'normal',
     };
   }
 
@@ -685,6 +686,7 @@ export class Circulation {
       PpaMean: m ? m.PpaMean : this.Ppa,
       aorticGradient: m ? m.aorticGradient : 0,
       Pmsf: this.meanFillingPressure(),
+      effRsys: this.effRsys, effV0sv: this.effV0sv, effEmax: this.effEmax,
       bloodVolume: this.bloodVolume, totalVolume: this.totalVolume(),
       Csa: this.Csa, Rsys: this.Rsys, Rpul: this.Rpul, Rven: this.Rven,
       Raortic: this.Raortic, Rmitral: this.Rmitral,
@@ -693,15 +695,16 @@ export class Circulation {
       C: this.Csa, R: this.Rsys, afterload: this.Part,
       Emax: this.Emax, Emin: this.Emin, V0: this.V0, K: this.K,
       edpA: this.edpA, edpB: this.edpB,
-      HR: this.engine?.getOutput().effectiveHR ?? (this.baroEnabled ? this.HReff : this.HR),
+      HR: this.engine?.peek().effectiveHR ?? (this.baroEnabled ? this.HReff : this.HR),
       HRset: this.HR,
-      qrsAxis: this.engine?.getOutput().qrsAxis ?? 60,
+      qrsAxis: this.engine?.peek().qrsAxis ?? 60,
+      ecgMetrics: this.engine ? { ...this.engine.peek().metrics } : null,
       avConduction: this.avConduction ?? 1,
       lbbConduction: this.lbbConduction ?? 1,
       rbbConduction: this.rbbConduction ?? 1,
       baroEnabled: this.baroEnabled, firingRate: this.firingRate,
       sympathetic: this.sigmaS, parasympathetic: this.sigmaP,
-      pathology: this.engine?.getOutput().pathology ?? 'normal',
+      pathology: this.engine?.peek().pathology ?? 'normal',
       ecgValue: this.ecgValue,
       ecgLeads: this.engine?.drain() ?? {},
       beat: this.lastBeat,

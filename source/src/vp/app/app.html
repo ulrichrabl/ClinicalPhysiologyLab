@@ -1,0 +1,351 @@
+<title>Clinical Physiology Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a bay in the emergency department. The patient on the left, the conversation and findings in the middle, what you see and hear above them. */
+:root {
+  --bg: #edf1f0;
+  --surface: #fbfcfc;
+  --sunk: #e3e9e7;
+  --fg: #15201e;
+  --muted: #5a6a67;
+  --line: #d0dad7;
+  --accent: #1f6f66;          /* scrub teal */
+  --accent-fg: #ffffff;
+  --accent-soft: #d6ebe7;
+  --abn: #9a3412;
+  --abn-soft: #fbe7dc;
+  --ok: #1f7a4a;
+  --grid: #dfe6e4;
+  --trace: #15201e;
+  --systole: rgba(31, 111, 102, 0.08);
+  --gown: #9fc4d9;
+  --gown-dot: #7fa9c2;
+  --bed: #c9d3d1;
+  --font-display: "Bricolage Grotesque", "Atkinson Hyperlegible", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1514; --surface: #162020; --sunk: #1c2828; --fg: #e3ebe9; --muted: #92a4a0; --line: #2a3836;
+    --accent: #4fb3a6; --accent-fg: #062320; --accent-soft: #173b37; --abn: #f0a07c; --abn-soft: #3a2218; --ok: #6fcf97;
+    --grid: #233130; --trace: #e3ebe9; --systole: rgba(79, 179, 166, 0.12); --gown: #5f8aa3; --gown-dot: #4b7590; --bed: #2e3b3a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1514; --surface: #162020; --sunk: #1c2828; --fg: #e3ebe9; --muted: #92a4a0; --line: #2a3836;
+  --accent: #4fb3a6; --accent-fg: #062320; --accent-soft: #173b37; --abn: #f0a07c; --abn-soft: #3a2218; --ok: #6fcf97;
+  --grid: #233130; --trace: #e3ebe9; --systole: rgba(79, 179, 166, 0.12); --gown: #5f8aa3; --gown-dot: #4b7590; --bed: #2e3b3a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font: 16px/1.5 var(--font-body); }
+#vp { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 40px; }
+h1 { font: 700 clamp(1.5rem, 3.6vw, 2.2rem)/1.15 var(--font-display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font: 700 0.78rem/1.2 var(--font-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 10px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.muted { color: var(--muted); }
+.ghost { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; }
+.ghost.small, .tog.small { padding: 3px 10px; font-size: 0.85rem; }
+.primary { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 10px; padding: 10px 16px; font-weight: 700; }
+.primary:disabled { opacity: .45; cursor: default; }
+.tog { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 10px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; min-width: 0; }
+.topline { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+
+/* ward */
+#ward .lede { color: var(--muted); max-width: 62ch; margin: 8px 0 22px; }
+#ward-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.bedcard { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 6px; align-content: start; }
+.bed-place { font: 500 12px var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.bedcard h2 { font: 700 1.35rem/1.2 var(--font-display); color: var(--fg); text-transform: none; letter-spacing: 0; margin: 0; }
+.bed-meta { color: var(--muted); }
+.bed-triage { margin: 6px 0 12px; font-style: italic; }
+.bedcard .primary { justify-self: start; }
+
+/* encounter */
+.enc-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 14px; }
+.enc-bar .who { flex: 1 1 220px; min-width: 0; }
+.enc-bar .who b { font: 700 1.25rem/1.2 var(--font-display); display: block; }
+.enc-bar .who span { color: var(--muted); font-size: .92rem; }
+#clock { font: 500 14px var(--font-mono); padding: 4px 10px; border-radius: 999px; background: var(--sunk); font-variant-numeric: tabular-nums; }
+.grid { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.figure-panel { padding: 12px; display: grid; gap: 10px; }
+#figure { width: 100%; height: auto; display: block; max-height: 380px; }
+#figure [data-region] { cursor: pointer; }
+#figure [data-region]:hover { filter: brightness(0.95); }
+.skin { fill: var(--skin); stroke: var(--skin-shade); stroke-width: 1.5; }
+#gown, #gown-low { pointer-events: none; transition: opacity .25s; }
+#bed { transition: opacity .25s; }
+
+@media (prefers-reduced-motion: reduce) { #gown, #gown-low, #bed { transition: none; } }
+#state-line { font-size: .88rem; color: var(--muted); }
+#touch-hint { font-size: .88rem; color: var(--muted); margin: 0; }
+#region { border-top: 1px solid var(--line); padding-top: 10px; }
+.region-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.region-list { display: grid; gap: 6px; max-height: 300px; overflow: auto; }
+.act { text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 7px 10px; }
+.act-pair { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 6px 5px 10px; background: var(--bg); }
+.act-pair span { flex: 1; min-width: 0; }
+
+.work { display: grid; gap: 12px; min-width: 0; }
+#visual { padding: 12px; }
+.eyehost { height: clamp(220px, 34vw, 320px); }
+.eyehost canvas, .facecanvas-host canvas { width: 100%; height: 100%; display: block; border-radius: 10px; }
+.facehost { display: grid; gap: 6px; justify-items: center; }
+.facecanvas-host { width: min(100%, 320px); aspect-ratio: 560 / 760; }
+.face-caption { font: 500 13px var(--font-mono); color: var(--muted); }
+.trace-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.trace-label { font: 500 12px var(--font-mono); color: var(--muted); }
+canvas.phono { width: 100%; height: 140px; display: block; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); padding: 8px 10px 0; overflow-x: auto; }
+.tabs button { border: 0; background: none; padding: 8px 12px; border-bottom: 2px solid transparent; color: var(--muted); white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 700; }
+.tabbody { padding: 14px; height: 420px; overflow-y: auto; display: grid; gap: 8px; align-content: start; }
+@media (max-width: 860px) { .tabbody { height: 360px; } }
+.f-scene { font-style: italic; color: var(--muted); }
+.spk { font: 500 11px var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.f-you, .f-patient { display: grid; gap: 2px; padding: 8px 12px; border-radius: 12px; max-width: 88%; }
+.f-you { justify-self: end; background: var(--accent-soft); }
+.f-patient { justify-self: start; background: var(--sunk); }
+.f-patient.companion { background: transparent; border: 1px dashed var(--line); }
+.f-act { font: 500 13px var(--font-mono); color: var(--accent); margin-top: 4px; }
+.f-blocked { color: var(--abn); font-size: .95rem; }
+.f-finding { padding: 6px 10px; border-left: 3px solid var(--grid); }
+.f-finding.abn { border-left-color: var(--abn); }
+.f-finding.result { border-left-color: var(--accent); }
+.f-system { color: var(--muted); font-size: .95rem; }
+.f-side { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+#tab-notes h3 { font: 700 .95rem var(--font-body); margin: 6px 0 0; }
+#tab-notes p { margin: 0; }
+#tab-mine textarea { width: 100%; min-height: 380px; resize: vertical; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font-body); }
+#cmdform { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
+#cmd { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--bg); color: var(--fg); font: inherit; }
+
+/* commit */
+#commit { position: fixed; inset: 0; background: rgba(10, 16, 15, 0.45); display: grid; place-items: center; padding: 16px; z-index: 10; }
+.commit-card { width: min(560px, 100%); max-height: 90vh; overflow: auto; padding: 18px; display: grid; gap: 12px; }
+#ddx-q { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--bg); color: var(--fg); font: inherit; }
+#ddx-hits { display: flex; flex-wrap: wrap; gap: 6px; }
+.hit { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 5px 12px; }
+#ddx-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+#ddx-list li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; }
+#ddx-list .rank { font: 500 13px var(--font-mono); color: var(--muted); width: 1.2em; }
+#ddx-list .dx { flex: 1; min-width: 0; }
+#ddx-list select { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); padding: 4px; font: inherit; font-size: .9rem; }
+.commit-actions { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+/* debrief */
+#debrief { display: grid; gap: 22px; max-width: 900px; }
+.db-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.eyebrow { font: 500 12px var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+.verdict { padding: 14px 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--ok); }
+.verdict.no { border-left-color: var(--abn); }
+.db-time { font: 500 13px var(--font-mono); color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
+.summary { max-width: 70ch; margin: 0; }
+.evidence { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.evidence li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.evidence li p { margin: 6px 0 0; }
+.evidence .finding { font-size: .93rem; color: var(--muted); border-left: 3px solid var(--accent); padding-left: 8px; }
+.ev-top { display: flex; align-items: center; gap: 8px; }
+.mark { font-weight: 700; }
+.got .mark { color: var(--ok); } .miss .mark { color: var(--abn); }
+.state { font: 500 12px var(--font-mono); color: var(--muted); }
+.pill { font: 500 11px var(--font-mono); padding: 2px 8px; border-radius: 999px; background: var(--sunk); text-transform: uppercase; letter-spacing: .04em; }
+.pill.essential { background: var(--abn-soft); color: var(--abn); }
+.pill.discriminating { background: var(--accent-soft); color: var(--accent); }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 18px; }
+.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.mono li { font: 13px/1.5 var(--font-mono); overflow-wrap: anywhere; }
+.notes-compare > div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.notes-compare h3 { font: 700 .95rem var(--font-body); margin: 8px 0 2px; }
+.notes-compare p { margin: 0; }
+
+/* ---- app shell: layers ------------------------------------------------------- */
+.layers { display: flex; gap: 4px; padding: 4px; background: var(--sunk); border-radius: 12px; overflow-x: auto; max-width: 100%; }
+.layers button { border: 0; background: none; border-radius: 9px; padding: 7px 14px; white-space: nowrap; color: var(--muted); font-weight: 700; display: inline-flex; gap: 6px; align-items: center; }
+.layers button[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.layers button[disabled] { opacity: .55; cursor: not-allowed; }
+.layers .lock { font-size: .8em; }
+.layer-note { color: var(--muted); font-size: .92rem; margin: 0 0 12px; }
+.locked { padding: 28px; text-align: center; color: var(--muted); }
+.locked b { display: block; color: var(--fg); font: 700 1.1rem var(--font-display); margin-bottom: 6px; }
+.bedcard.free { border-style: dashed; }
+.tag { font: 500 11px var(--font-mono); text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); justify-self: start; }
+
+/* ---- focused views ------------------------------------------------------------- */
+.focus-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+@media (max-width: 700px) { .focus-grid { grid-template-columns: minmax(0, 1fr); } }
+.thorax { width: 100%; max-width: 420px; display: block; margin: 0 auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+.thorax .hit { cursor: crosshair; }
+.focus-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.focus-caption { font: 500 12px var(--font-mono); color: var(--muted); margin: 6px 0 0; }
+.electrode { cursor: grab; }
+.electrode:active { cursor: grabbing; }
+.tray { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip-el { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px 4px 4px; background: var(--surface); font: 600 12px var(--font-mono); cursor: grab; touch-action: none; }
+.chip-el i { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #333; display: inline-block; }
+.chip-el[aria-pressed="true"] { outline: 2px solid var(--accent); }
+.chip-el.placed { opacity: .45; }
+.paper-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: #fffaf7; max-width: 100%; }
+.paper-wrap canvas { display: block; }
+.ecg-line { font: 500 13px var(--font-mono); margin: 8px 0; overflow-wrap: anywhere; }
+
+/* ---- tests ------------------------------------------------------------------- */
+.tests-grid { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .tests-grid { grid-template-columns: minmax(0, 1fr); } }
+.order-list { padding: 12px; display: grid; gap: 6px; }
+.order-list h3 { font: 700 .78rem var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 8px 0 2px; }
+.order-btn { display: flex; justify-content: space-between; gap: 8px; text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 7px 10px; }
+.order-btn small { color: var(--muted); font: 500 12px var(--font-mono); white-space: nowrap; }
+.results { display: grid; gap: 12px; min-width: 0; }
+.result { padding: 14px; display: grid; gap: 8px; min-width: 0; }
+.result header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.result header b { font: 700 1.05rem var(--font-display); }
+.result header span { font: 500 12px var(--font-mono); color: var(--muted); }
+table.lab { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+table.lab td, table.lab th { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+table.lab th { font: 500 12px var(--font-mono); color: var(--muted); }
+table.lab td.v { font: 600 14px var(--font-mono); }
+table.lab tr.flag td.v { color: var(--abn); }
+details.physics { border-top: 1px dashed var(--line); padding-top: 8px; }
+details.physics summary { cursor: pointer; color: var(--accent); font-weight: 700; font-size: .92rem; }
+details.physics p { margin: 6px 0 0; color: var(--muted); font-size: .93rem; max-width: 72ch; }
+.measures { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.measures button, .measures span { font: 500 12px var(--font-mono); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; background: var(--bg); }
+
+/* ---- physiology ----------------------------------------------------------------- */
+.chapters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.chapters button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; }
+.chapters button[aria-selected="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.chapter { display: grid; gap: 16px; }
+.chapter > header h1 { font-size: clamp(1.4rem, 3vw, 2rem); }
+.chapter > header p { max-width: 75ch; margin: 8px 0 0; font-size: 1.04rem; }
+.diagram { padding: 10px; }
+.diagram canvas { width: 100%; display: block; }
+.eqs { display: grid; gap: 12px; }
+.eq { padding: 14px 16px; display: grid; gap: 6px; min-width: 0; }
+.eq h3 { margin: 0; font: 700 1rem var(--font-body); }
+.eq .sym, .eq .live { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+.eq math { font-size: 1.28rem; }
+.eq .live math { font-size: 1.12rem; color: var(--accent); }
+.eq .live .val mn { font-weight: 700; }
+.eq p { margin: 0; color: var(--muted); max-width: 75ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .88rem; }
+.legend span { white-space: nowrap; }
+.legend math { font-size: 1rem; }
+.legend .u { color: var(--muted); font: 500 12px var(--font-mono); }
+details.full > summary { cursor: pointer; font-weight: 700; padding: 8px 0; }
+.observed { display: grid; gap: 8px; }
+.observed li { list-style: none; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 10px 10px 0; }
+.observed ul { padding: 0; margin: 0; display: grid; gap: 8px; }
+.observed li b { display: block; }
+.observed li p { margin: 4px 0 0; color: var(--muted); font-size: .93rem; }
+.sources { font-size: .88rem; color: var(--muted); }
+.sources li { margin: 4px 0; }
+
+/* ---- model lab -------------------------------------------------------------------- */
+.lab-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 12px; }
+.lab-head .changed { font: 500 13px var(--font-mono); color: var(--muted); }
+.lab-head select { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); padding: 6px 8px; font: inherit; }
+details.mdl { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; }
+details.mdl > summary { cursor: pointer; padding: 12px 14px; font: 700 1.05rem var(--font-display); display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+details.mdl > summary small { font: 500 12px var(--font-mono); color: var(--muted); }
+details.grp { border-top: 1px solid var(--line); }
+details.grp > summary { cursor: pointer; padding: 8px 14px; font-weight: 700; color: var(--muted); font-size: .9rem; text-transform: uppercase; letter-spacing: .05em; }
+.var { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 220px) 92px; gap: 6px 10px; align-items: center; padding: 6px 14px; }
+.var.changed { background: var(--accent-soft); }
+.var .name { min-width: 0; }
+.var .name small { display: block; color: var(--muted); font: 500 11px var(--font-mono); }
+.var .name math { font-size: .95rem; }
+.var input[type=range] { width: 100%; accent-color: var(--accent); }
+.var input[type=number], .var select { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); padding: 5px 6px; font: 500 13px var(--font-mono); }
+.var .reset { border: 0; background: none; color: var(--accent); font-size: .8rem; padding: 0; justify-self: start; }
+.var .state { font: 600 13px var(--font-mono); text-align: right; grid-column: 2 / 4; }
+@media (max-width: 560px) { .var { grid-template-columns: minmax(0, 1fr) 92px; } .var .ctl { grid-column: 1 / -1; grid-row: 2; } .var .state { grid-column: 2; } }
+.lesion-picker { display: grid; gap: 6px; grid-column: 1 / -1; }
+.lesion-picker input { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--bg); color: var(--fg); font: inherit; }
+.lesion-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lesion-chips button { font: 500 12px var(--font-mono); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; background: var(--bg); }
+.lesion-chips button.on { background: var(--abn-soft); color: var(--abn); border-color: var(--abn); }
+.monitor { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.monitor div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.monitor b { display: block; font: 700 1.3rem var(--font-mono); font-variant-numeric: tabular-nums; }
+.monitor span { font: 500 11px var(--font-mono); color: var(--muted); text-transform: uppercase; }
+.lang-footer { text-align: center; padding: 24px 0 8px; margin-top: 32px; border-top: 1px solid var(--line); }
+.lang-footer .langbtn { font: 400 0.82rem/1 var(--font-mono); color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; cursor: pointer; letter-spacing: .02em; }
+.lang-footer .langbtn:hover { color: var(--fg); border-color: var(--fg); }
+</style>
+
+<div id="vp">
+  <section id="ward">
+    <div class="topline"><div><div class="eyebrow">Clinical Physiology Lab</div><h1 id="ward-title">Emergency department</h1></div></div>
+    <p class="lede" id="ward-lede"></p>
+    <div id="ward-list"></div>
+  </section>
+
+  <section id="encounter" hidden>
+    <div class="enc-bar">
+      <div class="who"><b id="pt-name"></b><span id="pt-meta"></span></div>
+      <span id="clock">0 min</span>
+      <button type="button" class="ghost" id="wait">Wait</button>
+      <button type="button" class="ghost" id="leave">Ward</button>
+      <button type="button" class="primary" id="to-commit">Commit diagnosis</button>
+    </div>
+    <nav class="layers" role="tablist" id="layers">
+      <button type="button" role="tab" data-layer="bedside"></button>
+      <button type="button" role="tab" data-layer="tests"></button>
+      <button type="button" role="tab" data-layer="physiology"></button>
+      <button type="button" role="tab" data-layer="model"></button>
+    </nav>
+    <div style="height:14px"></div>
+
+    <div id="layer-bedside">
+      <div class="grid">
+        <div class="panel figure-panel">
+          <svg id="figure" viewBox="0 0 360 380" role="img" aria-label="The patient, seen from the right side of the bed"><g id="fig"></g></svg>
+          <div id="state-line"></div>
+          <div class="topline"><p id="touch-hint"></p><button type="button" class="tog small" id="whole">Whole patient</button></div>
+          <div id="region" hidden></div>
+        </div>
+        <div class="work">
+          <div class="panel" id="visual" hidden></div>
+          <div class="panel">
+            <div class="tabs" role="tablist">
+              <button type="button" role="tab" data-tab="feed">Encounter</button>
+              <button type="button" role="tab" data-tab="notes">Notes</button>
+              <button type="button" role="tab" data-tab="mine">My notes</button>
+            </div>
+            <div class="tabbody" id="tab-feed" aria-live="polite"></div>
+            <div class="tabbody" id="tab-notes" hidden></div>
+            <div class="tabbody" id="tab-mine" hidden><textarea id="mynotes" aria-label="My notes"></textarea></div>
+            <form id="cmdform" autocomplete="off"><input id="cmd" aria-label="Ask or examine"><button type="submit" class="primary" id="send">Go</button></form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="layer-tests" hidden></div>
+    <div id="layer-physiology" hidden></div>
+    <div id="layer-model" hidden></div>
+  </section>
+
+  <section id="debrief" hidden></section>
+
+  <footer class="lang-footer"><button type="button" class="langbtn">Deutsch</button></footer>
+
+  <div id="commit" hidden>
+    <div class="panel commit-card" role="dialog" aria-labelledby="commit-title">
+      <h1 id="commit-title" style="font-size:1.4rem">Your differential</h1>
+      <p class="muted" id="commit-hint" style="margin:0"></p>
+      <input id="ddx-q" aria-label="Search diagnoses">
+      <div id="ddx-hits"></div>
+      <ol id="ddx-list"></ol>
+      <div class="commit-actions"><button type="button" class="ghost" id="commit-cancel">Back</button><button type="button" class="primary" id="commit-go">Commit</button></div>
+    </div>
+  </div>
+</div>
+<script>/*BUNDLE*/</script>

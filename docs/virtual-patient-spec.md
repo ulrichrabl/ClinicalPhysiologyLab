@@ -1,0 +1,639 @@
+# Virtual patient — design spec
+
+Status: **Draft for review** — data model (§8), models and measurements (§8a) and the app (§2) implemented
+Date: 2026-10-11
+Supersedes: the Bedside and Learn layers of PR #4 (closed). Builds on ADR-001 to ADR-015.
+
+---
+
+## 1. What this changes, and why
+
+The app currently has too many parallel things: specialty tabs (Circulation,
+Neurology, Labs), patient-first layers (Patient, Examine, Investigate, Treat,
+Explore), and in PR #4 a Learn layer, CME modules and a Bedside encounter on
+top. The navigation does not match how a clinician thinks.
+
+A clinician meets **one patient** and sees them at different depths:
+
+| Depth | Question it answers | What it is in this app |
+|---|---|---|
+| **Clinical** | What do I see, hear and feel? | The patient in the room: history, examination, the monitor if attached |
+| **Investigations** | What do the tests show? | What I ordered, arriving with realistic delays |
+| **Physiology** | Why is this happening? | The mechanism: PV loop, circulation, reflexes, how the ECG arises |
+| **Anatomy** | Where is the problem? | The nervous-system graph today; heart, vessels and imaging later |
+
+These **layers** replace specialties as the primary structure. A specialty
+becomes a tag on a case.
+
+The second change is the examination. The Bedside in PR #4 was a guided menu:
+highlighted tap spots and curated lists told the student where to look. Here
+the student is **confronted with the patient and decides what to do**. Nothing
+is highlighted, and the patient answers anything a clinician could do at the
+bedside, normal or abnormal.
+
+### Principles
+
+1. **One patient, one truth.** All layers read the same Patient Runtime state
+   (ADR-001). Nothing is authored twice.
+2. **Nothing offered, everything answerable.** The interface never suggests
+   what is relevant. Any examination action from the full vocabulary returns
+   a finding.
+3. **Derived, not written.** Findings come from the models wherever a model
+   exists. Authored case findings fill only what no model covers.
+4. **Ground truth is hidden during an encounter.** It is revealed only after the
+   student commits (extends ADR-005).
+5. **Guidance is a dial, not the default.**
+6. **Offline first.** Everything works from a single HTML file. Any LLM
+   feature is an optional layer on top, never a dependency.
+
+---
+
+## 2. Information architecture
+
+### As built (October 2026)
+
+One page, `dist/encounter.html`, built from `src/vp/app/`:
+
+- **Ward**: the cases, and a **free patient** (a healthy adult on the
+  physiology bench).
+- **Patient**, in four layers:
+  - **Bedside**: the patient figure, history by free text, the examination
+    by text or by touch, notes. Focused views open where the examination
+    needs them: the eyes and face (canvas), the chest for auscultation
+    (stethoscope where the learner puts it, phonocardiogram and sound,
+    optional landmarks and the heart beneath), the pulse wave, and ECG
+    recording (the learner places ten electrodes).
+  - **Tests**: ordering, results with turnaround, lab tables with reference
+    ranges, the 12-lead on millimetre paper, and for every test *what it
+    measures and how*.
+  - **Physiology**: one chapter per model (§8a), opened on this patient.
+  - **Model**: the Model Lab, every variable of every model as a list.
+- In a case, Physiology and Model are locked until the learner commits;
+  afterwards the Model Lab shows the case read-only. In the free patient
+  everything is open and every parameter can be changed while it runs.
+
+The plan below is the original design; where it differs, the above is what
+exists.
+
+### Top level: three places
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Clinical Physiology Lab       Cases     Patient     You                │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+- **Cases**: the library. Full encounters and short drills. Filter by
+  presentation, specialty tag, difficulty and layer.
+- **Patient**: the current patient, viewed through the four layers.
+- **You**: progress, spaced review and history of encounters. No CME
+  machinery for now (see §9).
+
+### The patient screen
+
+```
+┌─ Mrs Evelyn Hart, 78 · Acute medical unit ─────── ⏱ 00:12:40 ── Encounter ┐
+│  Clinical   Investigations (2)   Physiology 🔒   Anatomy 🔒                │
+├────────────────────────────────────────────┬───────────────────────────────┤
+│                                            │  Notes                        │
+│         [ the patient, in bed ]            │  14:02  Asked about chest pain │
+│      no hotspots, no highlights            │         "Only on the hill…"   │
+│                                            │  14:05  Carotid pulse: slow-  │
+│                                            │         rising, low volume    │
+│                                            │  14:07  Auscultation, 2nd R   │
+│                                            │         ICS: ejection systolic│
+│                                            │         murmur …              │
+├────────────────────────────────────────────┴───────────────────────────────┤
+│ ›  auscultate 2nd left ics, bell, expiration held▏          ⌫  [Commit…]   │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Two modes on the same screen
+
+| | **Encounter** | **Explore** |
+|---|---|---|
+| Purpose | Assessment practice | Understanding mechanisms |
+| Clinical layer | Only what you do or ask | Same |
+| Investigations | Only what you order, with turnaround time | Everything available immediately |
+| Physiology / Anatomy | Locked until you commit | Open; parameters adjustable |
+| Clock | Runs; the patient changes | Pausable |
+| "Why?" on a finding | Hidden until debrief | Shown |
+
+Today's specialty workspaces (Loop, ECG, Localise, Examination, Results)
+become the contents of the Physiology, Anatomy and Investigations layers in
+Explore mode. Their lessons and MCQ cases become **drills** in the library,
+attached to the layer they train.
+
+---
+
+## 3. The patient model
+
+```
+                    ┌──────────────────────────── Patient Runtime ─────────────────────────────┐
+ case definition ──▶│ conditions → effects on ports → models (circulation, ECG, chemistry)     │
+                    │ nervous-system lesions (graph)                                           │
+                    │ case layer: authored findings the models do not cover                    │
+                    │ patient state: position, consciousness, pain, fatigue, cooperation       │
+                    │ clock                                                                    │
+                    └───────────────────────────────┬──────────────────────────────────────────┘
+                                                    │ observe({ type: 'perform.action', … })
+                                                    ▼
+                                         finding (text, structured, provenance)
+```
+
+- **Models** (existing): circulation and ECG, chemistry, the nervous-system
+  graph, cord-injury condition. These cover the cardiovascular examination,
+  vital signs, the full neurological examination, and lab values.
+- **Case layer** (new, authored): findings outside any model, keyed by site and
+  verb. Examples: a rash, abdominal guarding, a mass, a goitre, clubbing,
+  fundoscopy appearance, mental state. It never contradicts a model value; a
+  test enforces this.
+- **Patient state** (new): position (supine, 45°, sitting, standing, left
+  lateral), level of consciousness, pain, fatigue, cooperation, exposure.
+  Actions read and change it.
+- **Normal by default.** Any site or verb not affected by a model or the case
+  layer returns the age-appropriate normal finding. Example: absent ankle jerks
+  can be normal at 85, and a soft flow murmur in pregnancy.
+
+### Provenance on every finding
+
+```ts
+interface Finding {
+  action: ActionRef;            // what was done
+  text: string;                 // "Ejection systolic murmur, grade 3/6, loudest at the 2nd right ICS"
+  structured: { sign: string; value?: number | string; grade?: number; side?: 'L' | 'R' | 'B' };
+  normal: boolean;
+  provenance: 'model' | 'heuristic' | 'case' | 'default-normal';
+  basis: string;                // the model value behind it, shown only after commit
+  at: SimTime;
+}
+```
+
+`heuristic` marks bedside rules applied to model values where no model exists
+(respiratory rate, SpO₂, capillary refill, S3/S4). The debrief labels these
+honestly.
+
+---
+
+## 4. The examination: an action grammar
+
+### Grammar
+
+```
+action      := verb  target?  qualifier*
+verb        := inspect | palpate | percuss | auscultate | measure | test
+             | ask | instruct | position | expose | order | give
+target      := body site   (from the anatomical site ontology, with side)
+qualifier   := side (left | right | both)
+             | instrument (diaphragm | bell | tendon hammer | tuning fork 128/512 Hz
+                           | pen torch | ophthalmoscope | neurotip | cotton wool | ...)
+             | manoeuvre  (inspiration | expiration held | Valsalva | sit forward
+                           | left lateral | squat-to-stand | ...)
+             | depth      (light | deep)           for palpation
+```
+
+Examples:
+
+```
+auscultate 2nd right ics, diaphragm
+auscultate apex, bell, left lateral, expiration held
+reflex ankle left                          → test · reflex · ankle · L
+swinging torch test                        → test · pupils · RAPD
+palpate rlq deep                           → palpate · abdomen RLQ · deep
+measure jvp                                → requires position 45°
+position sit forward
+order troponin
+```
+
+### Vocabulary size
+
+The vocabulary must be large enough that knowing what to do is the skill, not
+recognising it in a list. Target for M1:
+
+| Domain | Sites | Manoeuvres (verb × site × qualifier) |
+|---|---|---|
+| General inspection | 12 | ~30 |
+| Vital signs and monitoring | – | ~12 |
+| Hands and arms | 14 | ~25 |
+| Head, eyes, mouth, neck | 20 | ~40 |
+| Cardiovascular | 12 | ~45 |
+| Respiratory | 16 | ~40 |
+| Abdomen | 14 | ~35 |
+| Neurological (existing 107 bedside tests, reorganised) | 30 | ~110 |
+| Musculoskeletal and skin | 20 | ~30 |
+| **Total** | **~150** | **~370** |
+
+Each manoeuvre is data:
+
+```ts
+{
+  id: 'auscultate.aortic-area',
+  verb: 'auscultate', site: 'chest.2nd-right-ics',
+  synonyms: ['aortic area', '2nd right intercostal space', 'right upper sternal edge', 'RUSE'],
+  requires: { instrument: ['diaphragm', 'bell'], position: ['supine', '45', 'sitting'], exposure: 'chest' },
+  seconds: 20,
+  reads: ['circulation.valves', 'circulation.flows', 'case.chest'],
+  normal: 'S1 and S2 heard, no added sounds, no murmur.',
+}
+```
+
+### Input: command bar and body, both, neither giving hints
+
+- **Command bar** with autocomplete over the **entire** vocabulary, never
+  filtered by the case. It uses synonyms and abbreviations ("ruse", "jvp",
+  "babinski"), and tolerates typos.
+- **Touching the body** opens a radial or sheet menu of everything possible at
+  that site. Every site offers the same full set in every case.
+- **The patient drawing has no hotspots.** It shows what can be seen from the
+  end of the bed: posture, colour, breathing, distress, drips, a cervical
+  collar. A learner who never looks at it misses those signs.
+- **Examination routines** ("cardiovascular examination") are available as
+  macros. A routine runs its steps, costs the full time, and is marked in the
+  debrief as routine versus targeted examination. At low guidance levels it
+  can be switched off.
+
+### Preconditions and realism
+
+| Mechanism | Example |
+|---|---|
+| Position | JVP needs 45°; sacral oedema needs the patient rolled; Romberg needs standing |
+| Instrument | Reflexes need a tendon hammer; Rinne needs a 512 Hz fork |
+| Exposure and consent | Chest exposure asks permission; intimate examinations need consent and a chaperone |
+| Patient ability | Drowsy patients cannot follow commands; a patient in pain guards; fatigable signs appear on repetition |
+| Contraindication | Moving the neck in suspected cervical injury, or standing a hypotensive patient, is allowed and recorded as harm |
+| Time | Every action costs simulated time (seconds to minutes), and the physiology advances |
+
+A failed precondition is answered the way the patient or situation would
+answer ("I can't sit up, it hurts"), never with a hint about what to do.
+
+### Resolution pipeline
+
+```
+input text ──▶ parse (synonyms, fuzzy) ──▶ ActionRef
+ActionRef ──▶ preconditions (position, instrument, exposure, ability)
+          ──▶ time cost → runtime.advance()
+          ──▶ runtime.observe({ type: 'perform.action', action })     // extends perform.examination
+          ──▶ resolvers by `reads`: circulation | neuro graph | chemistry | case layer | default-normal
+          ──▶ Finding ──▶ notes
+```
+
+Resolvers reuse what exists: the bedside derivations from PR #4 (pulse
+character, JVP, apex, heart sounds, crackles, oedema, peripheries) and the
+neurological test matchers (with the upper motor neuron fix from PR #5).
+
+---
+
+## 5. Talking to the patient
+
+### Now: free text matched to case facts (offline)
+
+- The case defines **history facts** grouped by topic, about 60 topics:
+  - presenting complaint, with SOCRATES for pain
+  - systems review
+  - past medical history and medications, allergies
+  - family history and social history
+  - ideas, concerns and expectations
+- The learner types freely. An intent matcher (synonyms, stems, phrase
+  patterns, no network) maps the question to topics. The patient answers in the
+  persona's voice with the matching fact, or a natural negative if the topic is
+  covered but negative.
+- An unmatched question gets a natural non-answer ("Sorry, I'm not sure what you
+  mean"). Every unmatched question is logged so case authors can extend the
+  matcher.
+- Facts are only revealed when asked. Volunteering is authored explicitly (a
+  patient in pain mentions it unprompted).
+- Consciousness, pain and distress shape the answers (drowsy, fragmentary,
+  unable).
+
+### Later: LLM role-play, grounded
+
+An LLM plays the patient. It receives the persona and the case facts, and it
+may reveal only facts that are asked about, and "I don't know" otherwise.
+Every answer is checked against the fact list before display. The same
+mechanism enables the **mental state examination** (appearance, speech, mood,
+thought form and content, perception, cognition, insight). This runs through
+Claude in the hosted version, and with the user's own API key in the offline
+file.
+
+---
+
+## 6. Investigations
+
+- **Ordering** uses the same command bar ("order fbc", "order ecg").
+- Results arrive after realistic turnaround times in simulated time:
+  - ECG, monitor, blood gas: minutes
+  - Bloods: about 1 hour
+  - Echo, imaging: hours
+- Results come through `observe` (existing laboratory and ECG observation
+  plugins), so they reflect the physiology at the moment of sampling.
+- Each order has an effect: blood volume drawn, cost, time. Over-investigation
+  shows up in the debrief.
+
+---
+
+## 7. Commit, debrief and guidance
+
+### Commit
+
+- A **ranked differential** chosen from a searchable diagnosis catalogue (about
+  200 diagnoses, with synonyms), instead of four options that give the answer
+  away.
+- A confidence rating per diagnosis.
+- Optionally: the key findings that support it, and an immediate management
+  step.
+
+### Debrief
+
+Each case carries an **expert reference examination**:
+
+```ts
+expert: {
+  essential:      ['auscultate.aortic-area', 'palpate.carotid', 'ask.exertional-syncope'],
+  discriminating: ['auscultate.carotid', 'palpate.apex'],   // separate it from the differential
+  redFlags:       ['ask.exertional-syncope'],
+  harmful:        ['test.exercise-tolerance'],              // contraindicated here
+  timeBudget:     '15 min',
+}
+```
+
+The debrief shows:
+
+- **Timeline.** Your actions next to the expert's, with gaps marked.
+- **Missed.** Each missed essential or discriminating action, and what it would
+  have shown (revealed now).
+- **Harm.** Contraindicated actions taken.
+- **Reasoning.** Your differential against the truth, with the findings that
+  separate them.
+- **The truth.** The Physiology and Anatomy layers unlock. Each finding links to
+  its mechanism ("why was the S2 soft?" → aortic valve model, gradient 90 mmHg).
+
+Scores are qualitative by default: complete, targeted, efficient, safe.
+Numbers are optional.
+
+### Guidance dial
+
+| Level | Behaviour |
+|---|---|
+| Off | Nothing. |
+| Prompts | Neutral nudges by system: "You haven't examined the abdomen." Never names a finding. |
+| Coach | After each action: "What are you looking for?" The student states a hypothesis, which is compared with the expert's reasoning in the debrief. |
+| Walkthrough | For first-time learners: the expert's examination is shown step by step on this patient. |
+
+---
+
+## 8. Data model
+
+The foundation everything else is built on. It lives in `source/src/vp/` and is
+covered by `scripts/vp-model.test.mjs` (116 checks). Nothing in the app uses it
+yet; M1 connects it to the Patient Runtime.
+
+### Five layers, all plain data
+
+| Layer | What it holds | Where |
+|---|---|---|
+| 1. Ontology | Body structures (paired ones expand to `.L` / `.R`), scales, value sets, instruments | `data/ontology.ts` |
+| 2. Observables | Everything that can be perceived: a typed, structured value, an age- and sex-appropriate normal, the context dimensions that change it, and where its value comes from | `data/properties.ts` |
+| 3. Manoeuvres | Verb + structure, what it reveals in which context, what it requires (position, exposure, instrument, ability, consent), how long it takes, when it is harmful | `data/manoeuvres.ts` |
+| 4. Case | One patient: pathology that drives the models, a case layer for what no model covers, history facts, investigations, course over time, expert reference, diagnosis | `cases/*.json` |
+| 5. Encounter | An append-only event log: actions (performed or blocked, and why), findings, utterances, orders, results, state changes, hazards, notes, commit | `engine/encounter.ts` |
+
+Everything is JSON-serialisable. Code (resolvers, formatters, renderers) is
+referenced by id and registered in `registry.ts`, so data never contains
+functions and a future authoring platform can read and write all of it. The
+shared vocabulary exports as one JSON document (`exportCatalog()`); cases are
+already JSON files.
+
+### Findings are values, never sentences
+
+A finding is a structured value: a nystagmus is
+`{ present, type, fastPhase, torsion, slowPhase, spvDegPerS, amplitudeDeg, frequencyHz }`,
+a murmur `{ valve, timing, shape, grade, pitch }`, a pupil `{ sizeMm, reaction }`.
+From the one value:
+
+- **Formatters** write the clinical sentence in any language (English and
+  German now; a language is added as labels in the data plus one branch per
+  formatter).
+- **Renderers** draw and animate it. `render/eye-motion.ts` already turns a
+  nystagmus value into eye angles over time; its measured slow-phase velocity
+  matches the model's within 5%.
+- **The debrief** compares it with the expert reference, and later with the
+  learner's own notes, on the structure rather than the wording.
+
+### Where a value comes from
+
+Each property declares its source: `model` (only a resolver over the
+runtime), `case` (only authored), or `model-or-case`. Observation runs in a
+fixed order: model resolver, then the case layer, then the age-appropriate
+normal. Every examinable property always answers, by the same path whether
+normal or not, so nothing reveals relevance. The validator forbids a case from
+authoring a model-only property: physiology cannot be contradicted by hand,
+only changed through the pathology.
+
+Each finding records its provenance (`model` / `case` / `default-normal`) and,
+for model findings, the quantity it rests on ("aortic gradient 76 mmHg";
+"false-negative Rinne: bone conduction heard by the other cochlea"). The
+debrief shows these after the commit.
+
+### Context
+
+Signs depend on how they are elicited. The examination context carries site,
+gaze, fixation, position, respiration, instrument, which eye is lit, ambient
+light, eyes closed, which eye is covered, direction of a head impulse, and how
+long a posture is held. Models compute context-dependent values directly
+(fixation suppressing a peripheral nystagmus, the bell needed for an S4).
+Authored values use rules: `{ value, when: [{ if, mode: replace | merge | scale }] }`.
+
+### Models behind the seed set
+
+- **Vestibular and ocular motor** (`models/neuro-exam.ts`): resting tone per
+  side, central compensation, a leaky gaze-holding integrator, fixation
+  suppression, VOR gain, otolith pathway. It reproduces HINTS from the lesion
+  alone: left vestibular neuritis gives a right-beating horizontal-torsional
+  nystagmus that obeys Alexander's law and is suppressed by fixation, an
+  abnormal head impulse to the left and no skew; a left lateral medullary
+  lesion gives a normal head impulse, direction-changing nystagmus, skew with
+  the left eye lower, and Horner's syndrome; a cerebellar lesion gives
+  gaze-evoked nystagmus and ipsilateral dysmetria. Pupils, lids, ductions,
+  visual fields and hearing come from the nervous-system graph.
+- **Cardiovascular** (`models/cardio-exam.ts`): pulse, blood pressure, JVP,
+  apex, heart and lung sounds from the closed-loop circulation's beat metrics.
+  Raising aortic valve resistance produces a graded ejection murmur that
+  radiates to the carotids and changes pitch at the apex, a soft single S2, a
+  slow-rising carotid pulse, a heaving apex and an S4 heard with the bell.
+
+- **Neurological** (`models/neuro-limb.ts`): cranial nerves V, VII and IX–XII,
+  speech and language, and the limbs (tone, MRC power for 15 movements, five
+  reflexes and the plantar response, pinprick by dermatome and nerve territory,
+  vibration and joint position, pronator drift), plus gait. It reads which
+  graph pathways a lesion interrupts, whether upper or lower motor neuron, and
+  at which rung (cortex, cord, root, plexus, nerve, junction, muscle). The
+  classic dissociations come out of the lesion with nothing written down:
+  - pyramidal weakness, face and arm more than leg in a cortical MCA lesion
+  - an L5 root weakens dorsiflexion, eversion, inversion and hip abduction
+    together, while a peroneal palsy spares inversion and hip abduction
+  - an ulnar lesion spares thumb abduction where a C8 root does not
+  - a facial nerve palsy takes the forehead, an upper motor neuron lesion
+    spares it
+  - myasthenic weakness fatigues with repetition
+  - a myopathy is proximal with normal reflexes
+  - Brown-Séquard and Wallenberg give their crossed sensory losses
+  - the facial-movement examination is animated from the same values
+
+### Example cases
+
+Four cases, all complete in English and German: `acute-stroke-left-mca.json` (an aphasic patient with collateral history from his wife) and `foot-drop-right-l5.json`, plus `vestibular-neuritis-left.json` (pathology: `vestibular-hypofunction`, left,
+80%, day 1) and `exertional-syncope-as.json` (pathology: `Raortic 0.3`). None of them authors a single eye, heart or neurological
+finding; all of them come from the models.
+
+### Validation
+
+`validateCatalog` and `validateCase` check what an authoring platform must
+check on save: every id resolves (structures, properties, value sets, graph
+nodes, conditions, topics, facts, diagnoses), every learner-facing string
+exists in each language the case declares, every authored value fits its type,
+model-only properties stay model-only, and a published case has a clinical
+reviewer. Terminology codes (SNOMED CT, LOINC, FMA, ICD) have fields
+everywhere; only the standard vital-sign LOINC codes are filled. The rest are
+for clinicians to map, never to be guessed.
+
+### Language
+
+History matching and the action parser (`engine/language.ts`) use the
+phrasings in the catalog, per language, with simple normalised matching. An
+LLM can later replace the matcher and return the same structures; nothing else
+changes.
+
+---
+
+## 8a. Physiology as models, findings as measurements
+
+Agreed 2026-10-11, and implemented. The line is drawn radically: **an ECG is
+not physiology, nor is a potassium of 6.8 or a murmur.** They are
+*measurements* of physiology, each made through an instrument with physics,
+limits and artefacts of its own. The connection is explicit in the data.
+
+### Models (`src/vp/physiology/`)
+
+A model is a chapter of a living textbook (`ModelDef`): its variables
+(parameters a case or the Model Lab sets; states the simulation computes),
+its governing equations as data (`MathNode` trees, rendered as MathML both
+symbolically and with the patient's current values substituted), a diagram
+id, and sources. Equations are given at textbook level, with the full system
+one level down; they are the equations the code runs.
+
+| Chapter | What runs | Diagram |
+|---|---|---|
+| Haemodynamics | closed-loop circulation: time-varying elastance chambers, valves (stenosis and regurgitation as separate paths), compliant vessels, conserved blood volume | circuit with chambers sized by volume, valves opening, flow; PV loop with ESPVR/EDPVR; Wiggers diagram |
+| Baroreflex | receptor sigmoid, sympathetic/vagal tone, four effectors (rate, resistance, venous capacity, contractility) | sigmoid with the moving operating point, tone bars, effectors |
+| Cardiac electrical activity | beat scheduler (sinus driven by the autonomic state; AF, flutter, AV blocks, escape, VT, VF) and the heart's dipole H(t) built from the activation sequence; K⁺ and Ca²⁺ from the fluids model | conduction system lighting in sequence; frontal vector loop on the hexaxial system; E_K |
+| Fluids and acid–base | plasma chemistry: pinned values, the rest derived from the circulation | Gamblegram, pH against the HCO₃⁻/CO₂ ratio |
+| VOR and gaze holding | labyrinth tone, compensation, leaky integrator, fixation | labyrinth tones and a live eye-position trace |
+| Pupillary light reflex | afferent, pretectal, Edinger–Westphal, efferent, sympathetic | the pathway responding to a swinging light |
+| Nervous system | the lesion graph | pathways interrupted |
+
+`PatientModel` (`physiology/state.ts`) holds every parameter in one object:
+patient, circulation, electrical, vestibular, lesions, chemistry pins.
+
+### Measurements
+
+Every model-backed property and investigation carries a `MeasurementSpec`
+(`data/measurements.ts`): the model variables it reads and the physics of the
+instrument (oscillometry reads mean pressure and estimates the rest; the JVP
+is a manometer open to the right atrium; haemolysis raises potassium; the ECG
+lead is a projection of H(t) onto its lead vector). The validator checks that
+every measurement names real variables. Chapters list what observes them;
+results link back to the chapter.
+
+**The ECG as measurement** (`measurements/ecg.ts`). The electrical model
+produces the dipole H(t) in Frank coordinates. Each electrode's lead vector is
+Dower's at the standard positions and follows a field fitted to them
+elsewhere, so a recording depends on where the electrodes are: V1–V2 two
+spaces high, limb electrodes swapped, a low precordial row all give the
+tracing those mistakes give. The machine axis is measured from the recorded
+leads, so it moves with the misplacement too.
+
+### Cases are parameters
+
+A case's pathology is parameters only: `physiology` (circulation),
+`electrical`, `chemistry` pins, `conditions`, `lesions`. It may still author
+what no model covers (respiratory rate, temperature, imaging, a fundus); it
+may not author a finding a model produces. Hyperkalaemia is a potassium of
+7.2, not an ECG pattern; atrial fibrillation is an atrial rhythm, and the
+irregular pulse, the lost atrial kick and the fibrillatory baseline follow.
+
+### Running
+
+`LivePatient` (`live/live-patient.ts`) runs circulation and heart in the page
+in real time (about a hundred times faster than real time on a laptop), keeps
+16 s of the dipole for recording, and is what every layer reads. Settling a
+new patient takes 20 simulated seconds, a fraction of a second.
+
+---
+
+## 9. Learning around encounters
+
+- **Spaced review stays, in the background.** Encounters and drills are
+  scheduled by result and confidence (SM-2, from PR #4). "You" shows what is
+  due.
+- **Courses later.** A course is an ordered series of cases with a debrief at
+  the end. CME certification (accreditation, time tracking, evaluation) is
+  dropped from scope until the encounter model is proven.
+
+---
+
+## 10. What is kept, reworked and removed
+
+| Keep | Rework | Remove (for now) |
+|---|---|---|
+| Patient Runtime, conditions, ports, observations | Shell navigation → Cases / Patient / You | Specialty tabs as navigation |
+| Circulation + ECG engines, chemistry, nervous-system graph | Examine layer → encounter screen (§2) | CME modules (pre/post tests, certificates) |
+| Bedside findings derivations (PR #4), as resolvers | Specialty workspaces → contents of the Physiology / Anatomy / Investigations layers | Guided bedside menus and hotspots |
+| Heart-sound synthesis (PR #4) | MCQ cases and lessons → drills attached to layers | 4-option diagnosis commit |
+| Spaced review store (PR #4) | `perform.examination` → `perform.action` | |
+| Simulator fixes, tap fallback (PR #5) | | |
+
+---
+
+## 11. Milestones
+
+| | Scope | Done when |
+|---|---|---|
+| **M0** | This spec | Agreed |
+| **M1** | **Examination engine, headless.** *Data model, engine core and two cases done (§8).* Remaining: site ontology, ~370 manoeuvres, parser with synonyms, preconditions, time cost, `perform.action`, resolvers, case layer, five cases ported | For each case, every manoeuvre returns a finding; findings match the models; no case finding contradicts a model; parser resolves a list of 300 phrasings written by a clinician |
+| **M2** | **Encounter screen.** Patient drawing without hotspots, command bar, body touch menu, notes, monitor, ordering with turnaround, free-text history | A student completes the aortic stenosis case on a phone without guidance |
+| **M3** | **Commit and debrief.** Differential search, expert reference, timeline, unlocks to Physiology/Anatomy with finding → mechanism links | Debrief correctly identifies missed discriminating actions in scripted runs |
+| **M4** | **Navigation.** Cases / Patient / You; layers; drills migrated; old shells removed | No specialty tabs remain; every current workspace reachable from a layer |
+| **M5** | **Time and treatment.** Deterioration, treatments as actions, guidance dial, 10 cases | A bleeding patient deteriorates without fluids and stabilises with them |
+| Later | LLM patient, mental state examination, imaging, anatomy layer expansion, courses | |
+
+---
+
+## 12. Decisions
+
+Recorded 2026-10-11.
+
+1. **Language.** English and German now; other languages later, added as data.
+2. **Notes.** Both. Automatic notes are generated from the encounter log
+   (`autoNote`); learners later write their own and compare. Comparison works
+   on structured findings, so it teaches what to document, not phrasing.
+3. **Explore mode.** Yes, but after the foundational model.
+4. **Case authoring.** By collaborators, later, on a case management and
+   editing platform. For now the data model is prepared for it: JSON cases,
+   an exportable catalog, a validator, authoring metadata (authors,
+   reviewers, sources, status, version).
+5. **Findings.** As clinical as possible, with illustrations and SVG
+   animations driven by the same values the models compute (the eye
+   examination first).
+
+6. **Physiology is models.** Chapters with their equations, animated and
+   evaluated on the patient, like opening a living Klinke–Silbernagl.
+7. **Measurements are not physiology.** ECG, laboratory values and signs are
+   measurements related to the models, with their physics shown (§8a).
+8. **Equations as data**, textbook level first, the full system one level down.
+9. **Model Lab** is a list of every variable, grouped and collapsible, editable
+   from a healthy adult in the free patient; disabled in a case until commit,
+   then read-only.
+10. **Focused views** for more of the examination: the chest for auscultation,
+    electrode placement for the ECG; more to follow (abdomen, fundus, neck veins).
+
+Still open: **scoring** — qualitative only, or numeric scores for courses later?

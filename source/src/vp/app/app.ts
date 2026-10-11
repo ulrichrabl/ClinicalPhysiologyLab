@@ -1,0 +1,795 @@
+/* Clinical Physiology Lab: the virtual patient, in one app.
+   Cases and a free patient; for each, the bedside, the tests, the physiology
+   (models, as living chapters) and the Model Lab (every variable).
+   Bundled into a standalone page by scripts/build-vp-demo.mjs. */
+import { CATALOG } from '../data/catalog.ts';
+import { REGISTRY } from '../registry.ts';
+import { CASES } from '../index.ts';
+import { buildView } from '../engine/view.ts';
+import { startEncounter, perform, order, advanceCourse, observeIn, type Session } from '../engine/encounter.ts';
+import { ask, opening, interpret, normalise } from '../engine/language.ts';
+import { autoNote, describe } from '../engine/notes.ts';
+import { commit, type Commit, type DebriefResult } from '../engine/debrief.ts';
+import { tr, list, type LocalizedText } from '../model/i18n.ts';
+import type { CaseDef, Finding, ManoeuvreDef, Side, InvestigationDef } from '../model/types.ts';
+import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
+import { EyeView } from '../render/eye-view.ts';
+import { FaceView, type FaceFinding } from '../render/face-view.ts';
+import { appearanceOf } from '../render/face-canvas.ts';
+import { figureSvg, lerpPose, POSES, type FigureLook, type Pose } from '../render/patient-figure.ts';
+import { drawEcgPaper, drawSweep, PAPER_MM } from '../render/ecg-paper.ts';
+import { recordLeads, measuredAxis, standardPlacement, type Placement, type LeadName } from '../measurements/ecg.ts';
+import { healthyModel, modelFromCase, caseWithModel, type PatientModel } from '../physiology/state.ts';
+import { VARIABLE_BY_ID } from '../physiology/models.ts';
+import { LivePatient } from '../live/live-patient.ts';
+import { renderChapter, CHAPTERS, type ChapterHandle } from './physiology-view.ts';
+import { renderModelLab } from './model-lab.ts';
+import { mountAuscultation } from './focus-thorax.ts';
+import { mountEcgPlacement, placementReview } from './focus-ecg.ts';
+import { symbolMathML } from './math.ts';
+import { labDigits } from '../measurements/labs.ts';
+import type { ThoraxLook } from '../render/thorax.ts';
+
+type Lang = 'en' | 'de';
+type Layer = 'bedside' | 'tests' | 'physiology' | 'model';
+
+/* ---- interface text ------------------------------------------------------------ */
+const UI: Record<string, Record<Lang, string>> = {
+  ward: { en: 'Clinical Physiology Lab', de: 'Clinical Physiology Lab' },
+  wardLede: { en: 'Each patient runs on the same physiological models. In a case you meet them as a clinician: take a history, examine, test, and commit to a diagnosis; then open the physiology and the model behind what you found. The free patient is a healthy adult whose every parameter you can change.', de: 'Jeder Patient läuft auf denselben physiologischen Modellen. Im Fall begegnen Sie ihnen als Ärztin oder Arzt: Anamnese, Untersuchung, Diagnostik, dann legen Sie sich auf eine Diagnose fest; danach öffnen Sie die Physiologie und das Modell hinter Ihren Befunden. Der freie Patient ist ein gesunder Erwachsener, dessen Parameter Sie alle verändern können.' },
+  see: { en: 'See patient', de: 'Patient ansehen' }, freeTitle: { en: 'Free patient', de: 'Freier Patient' },
+  freeText: { en: 'A healthy adult on the physiology bench. Examine, record an ECG, open any chapter, change any variable.', de: 'Ein gesunder Erwachsener auf dem Physiologie-Tisch. Untersuchen, EKG schreiben, jedes Kapitel öffnen, jede Variable ändern.' },
+  openFree: { en: 'Open the free patient', de: 'Freien Patienten öffnen' }, lab: { en: 'Physiology lab', de: 'Physiologielabor' },
+  preparing: { en: 'Bringing the patient to a steady state…', de: 'Der Patient erreicht einen stabilen Zustand…' },
+  placeholder: { en: 'Ask or examine…', de: 'Fragen oder untersuchen…' }, send: { en: 'Go', de: 'Los' },
+  feed: { en: 'Encounter', de: 'Verlauf' }, notes: { en: 'Notes', de: 'Notizen' }, mine: { en: 'My notes', de: 'Meine Notizen' },
+  wait: { en: 'Wait 10 min', de: '10 min warten' }, commit: { en: 'Commit diagnosis', de: 'Diagnose festlegen' }, leave: { en: 'Ward', de: 'Übersicht' },
+  whole: { en: 'Whole patient', de: 'Ganzer Patient' }, tapHint: { en: 'You stand at the patient’s right: the near arm and leg are the right ones. Tap a part of the body to examine it, or type.', de: 'Sie stehen rechts vom Patienten: der nahe Arm und das nahe Bein sind die rechten. Tippen Sie auf eine Körperregion oder schreiben Sie.' },
+  left: { en: 'Left', de: 'Links' }, right: { en: 'Right', de: 'Rechts' }, which: { en: 'Which side?', de: 'Welche Seite?' },
+  unknown: { en: 'Not understood. Rephrase it as a question to the patient or as an examination step.', de: 'Nicht verstanden. Formulieren Sie eine Frage an den Patienten oder einen Untersuchungsschritt.' },
+  ordered: { en: 'Ordered', de: 'Angefordert' }, resultIn: { en: 'result in', de: 'Ergebnis in' },
+  noResults: { en: 'Nothing ordered yet.', de: 'Noch nichts angefordert.' }, noNotes: { en: 'Notes are written as you go.', de: 'Notizen entstehen während der Untersuchung.' },
+  myNotesHint: { en: 'Write your own notes. After you commit, they are shown next to the automatic ones.', de: 'Schreiben Sie eigene Notizen. Nach der Festlegung werden sie neben den automatischen gezeigt.' },
+  position: { en: 'Position', de: 'Lagerung' }, exposed: { en: 'Exposed', de: 'Freigemacht' }, nothing: { en: 'nothing', de: 'nichts' },
+  commitTitle: { en: 'Your differential', de: 'Ihre Differentialdiagnose' }, search: { en: 'Search diagnoses', de: 'Diagnosen suchen' },
+  commitHint: { en: 'Add diagnoses in order of likelihood. The first is your working diagnosis.', de: 'Diagnosen nach Wahrscheinlichkeit ordnen. Die erste ist Ihre Arbeitsdiagnose.' },
+  submit: { en: 'Commit', de: 'Festlegen' }, cancel: { en: 'Back to the patient', de: 'Zurück zum Patienten' },
+  certain: { en: 'certain', de: 'sicher' }, likely: { en: 'likely', de: 'wahrscheinlich' }, possible: { en: 'possible', de: 'möglich' },
+  debrief: { en: 'Debrief', de: 'Nachbesprechung' }, correct: { en: 'Working diagnosis correct', de: 'Arbeitsdiagnose richtig' },
+  incorrect: { en: 'Working diagnosis not correct', de: 'Arbeitsdiagnose nicht richtig' }, diagnosisWas: { en: 'Diagnosis', de: 'Diagnose' },
+  expert: { en: 'Expert assessment', de: 'Einschätzung der Expertin' }, evidence: { en: 'The evidence that decides this case', de: 'Die entscheidenden Befunde' },
+  elicited: { en: 'found', de: 'erhoben' }, missed: { en: 'not elicited', de: 'nicht erhoben' }, redFlags: { en: 'Red flags', de: 'Warnzeichen' },
+  covered: { en: 'asked', de: 'erfragt' }, uncovered: { en: 'not asked', de: 'nicht erfragt' }, hazards: { en: 'Safety', de: 'Sicherheit' }, noHazards: { en: 'Nothing unsafe was done.', de: 'Nichts Unsicheres getan.' },
+  time: { en: 'Time', de: 'Zeit' }, budget: { en: 'expert budget', de: 'Expertenbudget' }, ddxConsidered: { en: 'Differential you considered', de: 'Bedachte Differentialdiagnosen' },
+  ddxMissed: { en: 'Worth considering too', de: 'Ebenfalls zu bedenken' }, compare: { en: 'Your notes and the automatic notes', de: 'Ihre und die automatischen Notizen' },
+  how: { en: 'How the model produced what you found', de: 'Wie das Modell Ihre Befunde erzeugt hat' }, again: { en: 'Back to the ward', de: 'Zurück zur Übersicht' },
+  explore: { en: 'Open the physiology of this patient', de: 'Die Physiologie dieses Patienten öffnen' },
+  essential: { en: 'essential', de: 'wesentlich' }, discriminating: { en: 'discriminating', de: 'unterscheidend' }, supporting: { en: 'supporting', de: 'unterstützend' },
+  min: { en: 'min', de: 'min' }, you: { en: 'You', de: 'Sie' },
+  bedside: { en: 'Bedside', de: 'Am Bett' }, tests: { en: 'Tests', de: 'Diagnostik' }, physiology: { en: 'Physiology', de: 'Physiologie' }, model: { en: 'Model', de: 'Modell' },
+  lockedTitle: { en: 'Opens after you commit', de: 'Öffnet nach der Festlegung' },
+  lockedText: { en: 'The physiology and the model are this patient’s answer. They open once you have committed to a diagnosis.', de: 'Physiologie und Modell sind die Auflösung dieses Patienten. Sie öffnen sich, sobald Sie sich auf eine Diagnose festgelegt haben.' },
+  orderTitle: { en: 'Order', de: 'Anfordern' }, atBedside: { en: 'At the bedside', de: 'Am Bett' }, laboratory: { en: 'Laboratory', de: 'Labor' }, imaging: { en: 'Imaging', de: 'Bildgebung' },
+  recordYourself: { en: 'record it yourself', de: 'selbst schreiben' }, whatMeasures: { en: 'What this measures, and how', de: 'Was das misst, und wie' },
+  pending: { en: 'pending', de: 'ausstehend' }, available: { en: 'at', de: 'um' }, value: { en: 'value', de: 'Wert' }, range: { en: 'reference', de: 'Referenz' },
+  placementAsYou: { en: 'Recorded with the electrodes where you placed them', de: 'Mit den Elektroden aufgezeichnet, wo Sie sie platziert haben' },
+  placementOk: { en: 'Electrodes at the standard positions.', de: 'Elektroden an den Standardpositionen.' },
+  recordAgain: { en: 'Record another', de: 'Noch eines schreiben' }, openTests: { en: 'Open in Tests', de: 'Unter Diagnostik öffnen' },
+  monitor: { en: 'Live', de: 'Live' },
+};
+const POSITION: Record<string, Record<Lang, string>> = {
+  supine: { en: 'lying flat', de: 'flach liegend' }, 'reclined-45': { en: 'sitting at 45°', de: 'Oberkörper 45° hoch' },
+  sitting: { en: 'sitting up', de: 'sitzend' }, 'sitting-forward': { en: 'sitting forward', de: 'vorgebeugt sitzend' },
+  standing: { en: 'standing', de: 'stehend' }, 'left-lateral': { en: 'on the left side', de: 'in Linksseitenlage' },
+  prone: { en: 'prone', de: 'in Bauchlage' }, 'head-hanging-left': { en: 'head hanging, turned left', de: 'Kopfhängelage links' }, 'head-hanging-right': { en: 'head hanging, turned right', de: 'Kopfhängelage rechts' },
+};
+const seedOf = (id: string) => [...id].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7) % 100000 + 1;
+
+/* ---- the free patient: a healthy adult, no story ----------------------------------- */
+const FREE_CASE: CaseDef = {
+  schema: 'vp.case/1', id: 'free-patient', version: '0.1.0', status: 'draft', locales: ['en', 'de'],
+  title: { en: 'Free patient', de: 'Freier Patient' }, tags: ['physiology'], difficulty: 1,
+  authoring: { authors: ['Clinical Physiology Lab'], reviewers: [], updated: '2026-10-11', sources: [] },
+  patient: { name: 'Alex Berger', age: 45, sex: 'M', heightCm: 176, weightKg: 76, appearance: { skinTone: 3, hair: 'brown, short', build: 'average', eyes: 'blue' }, speaks: ['en', 'de'] },
+  setting: { place: { en: 'Physiology lab', de: 'Physiologielabor' }, triage: { en: 'A healthy volunteer. Change anything in the Model layer, then examine what follows.', de: 'Ein gesunder Proband. Ändern Sie etwas in der Modellebene und untersuchen Sie die Folgen.' } },
+  pathology: {},
+  initialState: { position: 'reclined-45', avpu: 'A', orientation: 'oriented', cooperation: 'full', exposure: [] },
+  history: [
+    { id: 'f-pc', topic: 'pc', volunteered: true, say: { en: 'I’m here for the study. I feel fine.', de: 'Ich bin für die Studie hier. Mir geht es gut.' } },
+  ],
+  reference: { evidence: [], redFlags: [], timeBudgetMinutes: 30, summary: { en: '', de: '' } },
+  diagnosis: { primary: '', accepted: [], differential: [] },
+} as unknown as CaseDef;
+
+/* ---- feed ------------------------------------------------------------------------ */
+type FeedItem =
+  | { k: 'scene'; text: LocalizedText }
+  | { k: 'you'; text: string }
+  | { k: 'patient'; facts: string[]; topics: string[]; text: string; locale: Lang }
+  | { k: 'act'; manoeuvre: string; side?: Side }
+  | { k: 'blocked'; reason: string }
+  | { k: 'finding'; finding: Finding }
+  | { k: 'order'; inv: string }
+  | { k: 'result'; inv: string; value: unknown }
+  | { k: 'system'; text: LocalizedText }
+  | { k: 'side'; manoeuvre: string };
+
+type Visual =
+  | { kind: 'eyes'; controls: (now: number) => SceneControls }
+  | { kind: 'auscultate'; site: string; bell: boolean; value: any; sound: 'heart' | 'lung' }
+  | { kind: 'pulse'; finding: Finding }
+  | { kind: 'face'; L: FaceFinding; R: FaceFinding }
+  | { kind: 'ecg'; recorded?: number }
+  | null;
+
+/* ---- regions of the body for touch ---------------------------------------------- */
+function regionOf(structure: string): string {
+  let id: string | undefined = structure;
+  while (id) {
+    if (['head', 'neck', 'chest', 'abdomen', 'arm', 'legs'].includes(id)) return id;
+    if (id === 'eye' || id === 'eyes' || id === 'ear') return 'head';
+    if (id === 'hands') return 'arm';
+    if (id === 'trunk') return 'chest';
+    if (id === 'saddle') return 'abdomen';
+    id = CATALOG.structures[id]?.parent;
+  }
+  return 'body';
+}
+const REGION_LABEL: Record<string, Record<Lang, string>> = {
+  head: { en: 'Head, eyes and ears', de: 'Kopf, Augen und Ohren' }, neck: { en: 'Neck', de: 'Hals' }, chest: { en: 'Chest', de: 'Thorax' },
+  abdomen: { en: 'Abdomen', de: 'Abdomen' }, arm: { en: 'Arm and hand', de: 'Arm und Hand' }, legs: { en: 'Legs', de: 'Beine' }, body: { en: 'Whole patient', de: 'Ganzer Patient' },
+};
+/* Auscultation sites ↔ manoeuvres. */
+const SITE_ACT: Record<string, [string, Side?]> = {
+  'chest.aortic-area': ['auscultate.heart.aortic'], 'chest.pulmonary-area': ['auscultate.heart.pulmonary'], 'chest.erb': ['auscultate.heart.erb'],
+  'chest.tricuspid-area': ['auscultate.heart.tricuspid'], 'chest.mitral-area': ['auscultate.heart.mitral'],
+  'neck.carotid.R': ['auscultate.carotid', 'R'], 'neck.carotid.L': ['auscultate.carotid', 'L'],
+  'chest.lung-base.R': ['auscultate.lung-base', 'R'], 'chest.lung-base.L': ['auscultate.lung-base', 'L'],
+};
+const INV_GROUP = (inv: InvestigationDef): 'bedside' | 'laboratory' | 'imaging' =>
+  ['ecg-12', 'glucose'].includes(inv.id) ? 'bedside' : ['electrolytes', 'blood-gas', 'fbc', 'cardiac-markers'].includes(inv.id) ? 'laboratory' : 'imaging';
+const PANEL_NAMES: Record<string, [string, string, string]> = {
+  sodium: ['Sodium', 'Natrium', 'mmol/L'], potassium: ['Potassium', 'Kalium', 'mmol/L'], chloride: ['Chloride', 'Chlorid', 'mmol/L'], bicarbonate: ['Bicarbonate', 'Bikarbonat', 'mmol/L'],
+  urea: ['Urea', 'Harnstoff', 'mmol/L'], creatinine: ['Creatinine', 'Kreatinin', 'µmol/L'], arterialPH: ['pH', 'pH', ''], paCO2: ['PaCO₂', 'PaCO₂', 'kPa'], paO2: ['PaO₂', 'PaO₂', 'kPa'],
+  lactate: ['Lactate', 'Laktat', 'mmol/L'], haemoglobin: ['Haemoglobin', 'Hämoglobin', 'g/L'], whiteCellCount: ['White cells', 'Leukozyten', '×10⁹/L'], platelets: ['Platelets', 'Thrombozyten', '×10⁹/L'],
+  mcv: ['MCV', 'MCV', 'fL'], troponin: ['Troponin', 'Troponin', 'ng/L'], bnp: ['BNP', 'BNP', 'ng/L'],
+};
+
+export function mount(root: HTMLElement) {
+  let lang: Lang = (navigator.language || 'en').toLowerCase().startsWith('de') ? 'de' : 'en';
+  let s: Session | null = null;
+  let base: CaseDef = FREE_CASE;
+  let free = false;
+  let committed = false;
+  let live: LivePatient | null = null;
+  let layer: Layer = 'bedside';
+  let chapter = 'haemodynamics';
+  let chapterHandle: ChapterHandle | null = null;
+  let labTick: (() => void) | null = null;
+  const labOpen = new Set<string>(['haemodynamics', 'electrical']);
+  let feed: FeedItem[] = [];
+  let shownResults = new Set<string>();
+  let visual: Visual = null;
+  let tab: 'feed' | 'notes' | 'mine' = 'feed';
+  let myNotes = '';
+  let ddx: Commit[] = [];
+  let debrief: DebriefResult | null = null;
+  let region: { id: string; side?: Side } | null = null;
+  let eyeView: EyeView | null = null;
+  let faceView: FaceView | null = null;
+  let stopVisual: (() => void) | null = null;
+  const overlays = { anatomy: false, landmarks: false };
+  let placement: Partial<Placement> = {};
+  const traces = new Map<number, { leads: Record<LeadName, Float32Array>; fs: number }>();
+  let liveOff: (() => void) | null = null;
+  let tick = 0;
+
+  const t = (k: string) => UI[k]?.[lang] ?? k;
+  const $ = <T extends HTMLElement = HTMLElement>(sel: string) => root.querySelector(sel) as T;
+  const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+  const minutes = () => (s ? Math.round(s.t / 60000) : 0);
+
+  /* ---- screens ------------------------------------------------------------------- */
+  const show = (id: 'ward' | 'encounter' | 'debrief') => {
+    for (const x of ['ward', 'encounter', 'debrief']) ($(`#${x}`)).hidden = x !== id;
+    window.scrollTo(0, 0);
+  };
+
+  const renderWard = () => {
+    $('#ward-title').textContent = t('ward');
+    $('#ward-lede').textContent = t('wardLede');
+    const wl = $('#ward-list');
+    wl.innerHTML = '';
+    for (const c of CASES) {
+      const card = document.createElement('article');
+      card.className = 'bedcard';
+      card.innerHTML = `<div class="bed-place">${esc(tr(c.setting.place, lang))}</div>
+        <h2>${esc(c.patient.name)}</h2>
+        <div class="bed-meta">${c.patient.age} · ${c.patient.sex === 'F' ? (lang === 'de' ? 'weiblich' : 'female') : (lang === 'de' ? 'männlich' : 'male')}</div>
+        <p class="bed-triage">${esc(tr(c.setting.triage, lang))}</p>
+        <button type="button" class="primary">${t('see')}</button>`;
+      card.querySelector('button')!.onclick = () => start(c);
+      wl.appendChild(card);
+    }
+    const fc = document.createElement('article');
+    fc.className = 'bedcard free';
+    fc.innerHTML = `<span class="tag">${t('lab')}</span><h2>${t('freeTitle')}</h2>
+      <div class="bed-meta">${FREE_CASE.patient.age} · ${lang === 'de' ? 'männlich' : 'male'}</div>
+      <p class="bed-triage">${t('freeText')}</p><button type="button" class="primary">${t('openFree')}</button>`;
+    fc.querySelector('button')!.onclick = () => start(null);
+    wl.appendChild(fc);
+  };
+
+  /* ---- the running patient ---------------------------------------------------------- */
+  const syncView = () => {
+    if (!s || !live) return;
+    s.view.circulation = live.snap;
+    s.view.chemistry = live.chemistry;
+  };
+  const applyModel = (m: PatientModel) => {
+    if (!s || !live) return;
+    live.setModel(m);
+    s.caseDef = caseWithModel(FREE_CASE, m);
+    const state = s.state;
+    s.view = buildView(s.caseDef, { circulation: live.snap, chemistry: live.chemistry, state });
+    s.view.state = state;
+    renderFigure(true);
+    if (layer === 'model') renderLayer();
+  };
+
+  /* ---- start -------------------------------------------------------------------- */
+  const start = async (c: CaseDef | null) => {
+    stopLive();
+    free = !c;
+    base = c ?? FREE_CASE;
+    committed = free;
+    const model = free ? healthyModel() : modelFromCase(base);
+    const ward = $('#ward-list');
+    ward.insertAdjacentHTML('beforebegin', `<p class="muted" id="preparing">${t('preparing')}</p>`);
+    live = new LivePatient(model);
+    await live.settle(20);
+    $('#preparing')?.remove();
+    const caseDef = free ? caseWithModel(FREE_CASE, model) : base;
+    s = startEncounter(CATALOG, REGISTRY, caseDef, buildView(caseDef, { circulation: live.snap, chemistry: live.chemistry }), { locale: lang });
+    feed = [{ k: 'scene', text: { en: `${tr(base.setting.place, 'en')}. ${tr(base.setting.triage, 'en')}`, de: `${tr(base.setting.place, 'de')}. ${tr(base.setting.triage, 'de')}` } }];
+    const open = base.history.filter((f) => f.volunteered);
+    if (open.length) feed.push({ k: 'patient', facts: open.map((f) => f.id), topics: [], text: opening(s), locale: lang });
+    s.encounter.events.push({ t: 0, kind: 'utterance', from: 'patient', locale: lang, text: opening(s), facts: open.map((f) => f.id) });
+    shownResults = new Set(); visual = null; tab = 'feed'; myNotes = ''; ddx = []; debrief = null; region = null; placement = {}; traces.clear();
+    layer = 'bedside';
+    ($('#mynotes') as HTMLTextAreaElement).value = '';
+    setVisual(null);
+    show('encounter');
+    renderEncounter();
+    renderLayer();
+    live.start();
+    liveOff = live.on(() => { if (++tick % 15 === 0) { labTick?.(); } });
+    $('#cmd').focus();
+  };
+  const stopLive = () => { liveOff?.(); liveOff = null; live?.stop(); chapterHandle?.stop(); chapterHandle = null; labTick = null; };
+
+  /* ---- performing ------------------------------------------------------------------ */
+  const afterTime = (before: number) => {
+    if (!s) return;
+    const applied = s.appliedCourse.size;
+    advanceCourse(s);
+    if (s.appliedCourse.size > applied) {
+      (s.caseDef.course ?? []).forEach((ev, i) => {
+        if (s!.appliedCourse.has(i) && ev.atMinutes * 60000 > before && ev.note && !ev.unless?.some((u) => s!.done.has(u))) feed.push({ k: 'system', text: ev.note });
+      });
+    }
+    for (const e of s.encounter.events) {
+      if (e.kind === 'result' && e.t <= s.t && !shownResults.has(`${e.test}@${e.t}`)) { shownResults.add(`${e.test}@${e.t}`); feed.push({ k: 'result', inv: e.test, value: e.value }); }
+    }
+  };
+
+  const doAction = (id: string, side?: Side) => {
+    if (!s) return;
+    const m = CATALOG.manoeuvres[id];
+    if (m.paired && !side) { feed.push({ k: 'side', manoeuvre: id }); renderEncounter(); return; }
+    syncView();
+    const before = s.t;
+    feed.push({ k: 'act', manoeuvre: id, side });
+    const r = perform(s, id, side);
+    if (r.outcome === 'blocked') feed.push({ k: 'blocked', reason: r.reason! });
+    for (const f of r.findings) feed.push({ k: 'finding', finding: f });
+    if (r.outcome === 'performed') visualFor(m, side, r.findings);
+    afterTime(before);
+    renderEncounter();
+  };
+
+  const submit = (text: string) => {
+    if (!s || !text.trim()) return;
+    feed.push({ k: 'you', text });
+    const i = interpret(CATALOG, text, lang);
+    if (i.kind === 'ask') {
+      const before = s.t;
+      const r = ask(s, text, lang);
+      feed.push({ k: 'patient', facts: r.facts.map((f) => f.id), topics: r.topics, text: r.text, locale: lang });
+      afterTime(before);
+      renderEncounter();
+    } else if (i.kind === 'act') { feed.pop(); feed.push({ k: 'you', text }); doAction(i.manoeuvre, i.side); }
+    else if (i.kind === 'order') { if (i.investigation === 'ecg-12') { setLayer('bedside'); setVisual({ kind: 'ecg' }); renderEncounter(); } else doOrder(i.investigation); }
+    else { feed.push({ k: 'system', text: UI.unknown as LocalizedText }); renderEncounter(); }
+  };
+
+  const doOrder = (inv: string) => {
+    if (!s) return;
+    syncView();
+    order(s, inv);
+    feed.push({ k: 'order', inv });
+    afterTime(s.t);
+    renderEncounter();
+    if (layer === 'tests') renderLayer();
+  };
+
+  /* An ECG the learner records: the last ten seconds of the heart's dipole, through the electrodes where they put them. */
+  const recordEcg = (p: Placement) => {
+    if (!s || !live) return;
+    syncView();
+    placement = p;
+    const vcg = live.vcg(10);
+    const leads = recordLeads(vcg, p);
+    const axis = measuredAxis(leads, vcg.fs);
+    const before = s.t;
+    order(s, 'ecg-12', { performed: true, detail: { placement: p }, patch: (v) => ({ ...v, axis: axis ?? v.axis }) });
+    const idx = s.encounter.events.length - 1;
+    traces.set(idx, { leads, fs: vcg.fs });
+    feed.push({ k: 'order', inv: 'ecg-12' });
+    afterTime(before);
+    setVisual({ kind: 'ecg', recorded: idx });
+    renderEncounter();
+  };
+
+  /* ---- what the examiner sees and hears ------------------------------------------- */
+  const look = (): ThoraxLook => {
+    const ap = appearanceOf(s!.caseDef.patient, seedOf(base.id));
+    return { skin: ap.skin, shade: ap.skinShade, sex: s!.caseDef.patient.sex };
+  };
+  const visualFor = (m: ManoeuvreDef, side: Side | undefined, findings: Finding[]) => {
+    if (!s) return;
+    const eyeIds = ['inspect.eyes', 'inspect.eyes.dim', 'test.pupils.light', 'test.swinging-light', 'test.eye-movements', 'test.frenzel', 'test.head-impulse', 'test.cover'];
+    if (eyeIds.includes(m.id)) {
+      const b: SceneControls = { gaze: 'primary', fixation: true, lightOn: 'none', ambient: m.id === 'inspect.eyes.dim' ? 'dim' : 'room', cover: null };
+      const gazes = ['primary', 'left', 'right', 'up', 'down'] as const;
+      const t0 = performance.now();
+      const controls = (now: number): SceneControls => {
+        const el = Math.max(0, (now - t0) / 1000);
+        switch (m.id) {
+          case 'test.pupils.light': return { ...b, lightOn: el % 4 < 2.5 ? side! : 'none' };
+          case 'test.swinging-light': return { ...b, lightOn: Math.floor(el / 1.6) % 2 ? 'L' : 'R' };
+          case 'test.eye-movements': return { ...b, gaze: gazes[Math.floor(el / 2.5) % 5] };
+          case 'test.frenzel': return { ...b, fixation: false, gaze: gazes[Math.floor(el / 3) % 5] };
+          case 'test.head-impulse': return { ...b, impulse: el % 2.4 < 1 ? { to: side!, t: el % 2.4 } : undefined };
+          case 'test.cover': return { ...b, cover: Math.floor(el / 1.6) % 2 ? 'L' : 'R' };
+          default: return b;
+        }
+      };
+      setVisual({ kind: 'eyes', controls });
+      return;
+    }
+    const faceL = findings.find((f) => f.property === 'face.movement.L'), faceR = findings.find((f) => f.property === 'face.movement.R');
+    if (faceL && faceR) { setVisual({ kind: 'face', L: faceL.value as FaceFinding, R: faceR.value as FaceFinding }); return; }
+    const heart = findings.find((f) => f.property === 'heart.sounds');
+    const lung = findings.find((f) => f.property.startsWith('lung.sounds'));
+    if (heart || lung || m.verb === 'auscultate') {
+      const ctxSite = (heart ?? lung)?.context?.site ?? m.context?.site ?? 'chest.aortic-area';
+      const site = side && !/\.(L|R)$/.test(ctxSite) && /carotid|lung-base/.test(ctxSite) ? `${ctxSite}.${side}` : ctxSite;
+      setVisual({ kind: 'auscultate', site, bell: (heart?.context?.instrument ?? m.context?.instrument) === 'stethoscope-bell', value: (heart ?? lung)?.value ?? {}, sound: heart ? 'heart' : 'lung' });
+      return;
+    }
+    const pulse = findings.find((f) => f.property.startsWith('pulse.'));
+    if (pulse) { setVisual({ kind: 'pulse', finding: pulse }); return; }
+    if (m.verb !== 'position' && m.verb !== 'expose') setVisual(null);
+  };
+
+  const setVisual = (v: Visual) => {
+    visual = v;
+    eyeView?.stop(); faceView?.stop(); stopVisual?.(); stopVisual = null;
+    const host = $('#visual');
+    host.hidden = !v;
+    if (!v || !s) return;
+    const c = s.caseDef;
+    if (v.kind === 'eyes') {
+      host.innerHTML = '<div class="eyehost"></div>';
+      eyeView = new EyeView(host.querySelector('.eyehost')!, appearanceOf(c.patient, seedOf(base.id)));
+      eyeView.show((k) => sceneFindings(CATALOG, REGISTRY, c, s!.view, k), v.controls);
+      return;
+    }
+    if (v.kind === 'face') {
+      host.innerHTML = '<div class="facehost"></div>';
+      faceView = new FaceView(host.querySelector('.facehost')!, appearanceOf(c.patient, seedOf(base.id)));
+      faceView.show({ L: v.L, R: v.R }, lang);
+      return;
+    }
+    if (v.kind === 'auscultate') {
+      const hr = (live?.snap.metrics?.HRbeat as number | undefined) ?? 72;
+      const where = CATALOG.structures[v.site.replace(/\.(L|R)$/, '')]?.label;
+      const sideTxt = /\.L$/.test(v.site) ? ` (${t('left').toLowerCase()})` : /\.R$/.test(v.site) ? ` (${t('right').toLowerCase()})` : '';
+      stopVisual = mountAuscultation(host, {
+        look: look(), site: v.site, bell: v.bell, value: v.value, kind: v.sound, hr, lang, overlays,
+        caption: `${where ? tr(where, lang) : v.site}${sideTxt} · ${v.bell ? (lang === 'de' ? 'Glocke' : 'bell') : (lang === 'de' ? 'Membran' : 'diaphragm')}`,
+        onListenAt: (site) => { const a = SITE_ACT[site]; if (a) doAction(a[0], a[1]); },
+      });
+      return;
+    }
+    if (v.kind === 'ecg') {
+      host.innerHTML = '<div data-place></div><div data-paper></div>';
+      if (v.recorded == null) {
+        stopVisual = mountEcgPlacement(host.querySelector('[data-place]') as HTMLElement, {
+          look: look(), lang, placement, chestExposed: (s.state.exposure ?? []).includes('chest'),
+          onExpose: () => { doAction('expose.chest'); setVisual({ kind: 'ecg' }); },
+          onRecord: recordEcg,
+        });
+      } else {
+        const box = host.querySelector('[data-paper]') as HTMLElement;
+        box.innerHTML = ecgCard(v.recorded, true);
+        paintPapers(box);
+        box.querySelector<HTMLButtonElement>('[data-again]')!.onclick = () => setVisual({ kind: 'ecg' });
+        box.querySelector<HTMLButtonElement>('[data-to-tests]')!.onclick = () => setLayer('tests');
+      }
+      return;
+    }
+    // pulse: the arterial pressure wave of the running patient, as the fingers would follow it
+    host.innerHTML = `<div class="trace-head"><span class="trace-label">${lang === 'de' ? 'Pulskurve (arterieller Druck aus dem laufenden Kreislaufmodell)' : 'Pulse wave (arterial pressure from the running circulation)'}</span></div><canvas class="phono"></canvas>`;
+    const canvas = host.querySelector('canvas')!;
+    const hist: number[] = [];
+    const off = live!.on((p) => { hist.push(p.snap.P); if (hist.length > 300) hist.shift(); });
+    let raf = 0;
+    const frame = () => {
+      const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+      if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+      const g = canvas.getContext('2d')!;
+      g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+      if (hist.length > 2) {
+        const lo = Math.min(...hist), hi = Math.max(...hist);
+        drawSweep(g, hist, 0, 6, w, h - 12, getComputedStyle(root).getPropertyValue('--trace').trim(), Math.max(10, (hi - lo) * 1.15));
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    stopVisual = () => { off(); cancelAnimationFrame(raf); };
+  };
+
+  /* ---- results -------------------------------------------------------------------------- */
+  const physicsDetails = (inv: InvestigationDef) => inv.measurement ? `<details class="physics"><summary>${t('whatMeasures')}</summary><p>${esc(tr(inv.measurement.physics, lang))}</p>
+    ${committed ? `<div class="measures">${inv.measurement.measures.map((x) => VARIABLE_BY_ID[x]).filter(Boolean).map((v) => `<button type="button" data-goto="${v.id}">${symbolMathML(v.symbol)} ${esc(tr(v.label, lang))}</button>`).join('')}</div>` : ''}</details>` : '';
+  const ecgCard = (idx: number, inBedside = false) => {
+    const e = s!.encounter.events[idx];
+    if (!e || e.kind !== 'result') return '';
+    const inv = CATALOG.investigations['ecg-12'];
+    const p = (e.detail?.placement as Placement | undefined) ?? standardPlacement();
+    const review = placementReview(p, lang);
+    return `<article class="panel result"><header><b>${esc(tr(inv.label, lang))}</b><span>${Math.round(e.t / 60000)} ${t('min')}</span></header>
+      <p class="ecg-line">${esc(REGISTRY.formatters[inv.formatter](e.value, {}, lang, CATALOG, { property: inv.id }).replace(/ (The tracing is under Results|Die Kurve liegt unter Befunde)\.$/, ''))}</p>
+      ${traces.has(idx) ? `<div class="paper-wrap"><canvas data-paper-idx="${idx}"></canvas></div>` : ''}
+      <p class="focus-caption">${e.detail ? t('placementAsYou') : ''}${review.length ? `: ${esc(review.join('; '))}` : (e.detail ? `. ${t('placementOk')}` : '')}</p>
+      ${inBedside ? `<div class="focus-tools"><button type="button" class="ghost small" data-again>${t('recordAgain')}</button><button type="button" class="ghost small" data-to-tests>${t('openTests')}</button></div>` : physicsDetails(inv)}</article>`;
+  };
+  const paintPapers = (box: HTMLElement) => {
+    box.querySelectorAll<HTMLCanvasElement>('[data-paper-idx]').forEach((cv) => {
+      const tr0 = traces.get(+cv.dataset.paperIdx!);
+      if (!tr0) return;
+      const w = (cv.parentElement as HTMLElement).clientWidth || 800;
+      const mm = Math.max(3.2, Math.min(5, (w - 2) / PAPER_MM.width));
+      drawEcgPaper(cv, tr0.leads, tr0.fs, { pxPerMm: mm, header: `${s!.caseDef.patient.name} · ${s!.caseDef.patient.age} · ${lang === 'de' ? '12-Kanal-EKG' : '12-lead ECG'}` });
+    });
+  };
+  const labCard = (e: { test: string; value: unknown; t: number }) => {
+    const inv = CATALOG.investigations[e.test];
+    const v = e.value as Record<string, number>;
+    const range = (inv.normal.range ?? {}) as Record<string, [number, number]>;
+    const rows = Object.entries(v).map(([k, x]) => {
+      const r = range[k]; const flag = r && (x < r[0] || x > r[1]);
+      const n = PANEL_NAMES[k] ?? [k, k, ''];
+      const f = (y: number, d = labDigits(k)) => { const s0 = y.toFixed(d); return lang === 'de' ? s0.replace('.', ',') : s0; };
+      return `<tr class="${flag ? 'flag' : ''}"><td>${esc(lang === 'de' ? n[1] : n[0])}</td><td class="v">${f(x)}${flag ? (x < r![0] ? ' ↓' : ' ↑') : ''}</td><td class="muted">${esc(n[2])}</td><td class="muted">${r ? `${f(r[0], String(r[0]).split('.')[1]?.length ?? 0)}–${f(r[1], String(r[1]).split('.')[1]?.length ?? 0)}` : ''}</td></tr>`;
+    }).join('');
+    return `<article class="panel result"><header><b>${esc(tr(inv.label, lang))}</b><span>${Math.round(e.t / 60000)} ${t('min')}</span></header>
+      <table class="lab"><thead><tr><th></th><th>${t('value')}</th><th></th><th>${t('range')}</th></tr></thead><tbody>${rows}</tbody></table>${physicsDetails(inv)}</article>`;
+  };
+  const textCard = (e: { test: string; value: unknown; t: number }) => {
+    const inv = CATALOG.investigations[e.test];
+    return `<article class="panel result"><header><b>${esc(tr(inv.label, lang))}</b><span>${Math.round(e.t / 60000)} ${t('min')}</span></header>
+      <p style="margin:0">${esc(REGISTRY.formatters[inv.formatter](e.value, {}, lang, CATALOG, { property: inv.id }))}</p>${physicsDetails(inv)}</article>`;
+  };
+  const renderTests = (host: HTMLElement) => {
+    if (!s) return;
+    const groups: Array<['bedside' | 'laboratory' | 'imaging', string]> = [['bedside', t('atBedside')], ['laboratory', t('laboratory')], ['imaging', t('imaging')]];
+    const invs = Object.values(CATALOG.investigations);
+    const events = s.encounter.events.map((e, i) => ({ e, i })).filter((x) => x.e.kind === 'result');
+    const ready = events.filter((x) => x.e.t <= s!.t).reverse();
+    const pending = events.filter((x) => x.e.t > s!.t);
+    host.innerHTML = `<div class="tests-grid"><aside class="panel order-list"><h2>${t('orderTitle')}</h2>
+      ${groups.map(([g, label]) => `<h3>${label}</h3>${invs.filter((x) => INV_GROUP(x) === g).map((x) => `<button type="button" class="order-btn" data-order="${x.id}"><span>${esc(tr(x.label, lang))}</span><small>${x.id === 'ecg-12' ? t('recordYourself') : `${x.turnaroundMinutes} ${t('min')}`}</small></button>`).join('')}`).join('')}
+      </aside><div class="results">
+      ${pending.map(({ e }) => e.kind === 'result' ? `<p class="muted">${esc(tr(CATALOG.investigations[e.test].label, lang))} · ${t('resultIn')} ${Math.ceil((e.t - s!.t) / 60000)} ${t('min')}</p>` : '').join('')}
+      ${ready.map(({ e, i }) => {
+        if (e.kind !== 'result') return '';
+        if (e.test === 'ecg-12') return ecgCard(i);
+        const inv = CATALOG.investigations[e.test];
+        return inv.formatter === 'inv.panel' ? labCard(e) : textCard(e);
+      }).join('') || (pending.length ? '' : `<p class="muted">${t('noResults')}</p>`)}</div></div>`;
+    paintPapers(host);
+    host.querySelectorAll<HTMLButtonElement>('[data-order]').forEach((b) => b.onclick = () => {
+      if (b.dataset.order === 'ecg-12') { setLayer('bedside'); setVisual({ kind: 'ecg' }); return; }
+      doOrder(b.dataset.order!);
+    });
+  };
+
+  /* ---- layers -------------------------------------------------------------------------- */
+  const lockedLayer = (l: Layer) => (l === 'physiology' || l === 'model') && !committed;
+  const setLayer = (l: Layer) => { if (lockedLayer(l)) return; layer = l; renderLayer(); };
+  const gotoVariable = (id: string) => {
+    const mid = id.split('.')[0];
+    if (CHAPTERS.some((c) => c.id === mid)) { chapter = mid; setLayer('physiology'); }
+  };
+  const renderLayer = () => {
+    if (!s || !live) return;
+    root.querySelectorAll<HTMLButtonElement>('[data-layer]').forEach((b) => {
+      const l = b.dataset.layer as Layer;
+      b.innerHTML = `${t(l)}${lockedLayer(l) ? ' <span class="lock" aria-hidden="true">🔒</span>' : ''}`;
+      b.setAttribute('aria-selected', String(layer === l));
+      b.disabled = lockedLayer(l);
+      b.title = lockedLayer(l) ? t('lockedText') : '';
+    });
+    for (const l of ['bedside', 'tests', 'physiology', 'model'] as const) $(`#layer-${l}`).hidden = layer !== l;
+    chapterHandle?.stop(); chapterHandle = null; labTick = null;
+    if (layer === 'tests') renderTests($('#layer-tests'));
+    if (layer === 'physiology') {
+      const host = $('#layer-physiology');
+      host.innerHTML = `<div class="chapters" role="tablist">${CHAPTERS.map((c) => `<button type="button" role="tab" data-ch="${c.id}" aria-selected="${c.id === chapter}">${esc(tr(c.title, lang))}</button>`).join('')}</div><div data-chapter></div>`;
+      host.querySelectorAll<HTMLButtonElement>('[data-ch]').forEach((b) => b.onclick = () => { chapter = b.dataset.ch!; renderLayer(); });
+      chapterHandle = renderChapter(host.querySelector('[data-chapter]') as HTMLElement, chapter, live, () => { syncView(); return s!.view; }, lang);
+    }
+    if (layer === 'model') {
+      const host = $('#layer-model');
+      const e = live.snap.ecgMetrics ?? {}, m = live.snap.metrics ?? {};
+      const mon = `<div class="monitor"><div><span>HR</span><b>${Math.round(e.HR ?? 0)}</b></div><div><span>${lang === 'de' ? 'RR' : 'BP'}</span><b>${Math.round(m.Psys ?? 0)}/${Math.round(m.Pdia ?? 0)}</b></div><div><span>CO</span><b>${(m.CO ?? 0).toFixed(1)}</b></div><div><span>K⁺</span><b>${(live.chemistry.potassium ?? 4).toFixed(1)}</b></div><div><span>pH</span><b>${(6.1 + Math.log10(live.chemistry.bicarbonate / (0.23 * live.chemistry.paCO2))).toFixed(2)}</b></div></div>`;
+      host.innerHTML = `<div data-mon>${mon}</div><div data-lab></div>`;
+      const lab = renderModelLab(host.querySelector('[data-lab]') as HTMLElement, {
+        live, view: () => { syncView(); return s!.view; }, lang, editable: free, open: labOpen,
+        onChange: (next) => applyModel(next),
+      });
+      labTick = () => {
+        lab.tick();
+        const e2 = live!.snap.ecgMetrics ?? {}, m2 = live!.snap.metrics ?? {};
+        const mon2 = host.querySelector('[data-mon] .monitor');
+        if (mon2) { const b = mon2.querySelectorAll('b'); b[0].textContent = String(Math.round(e2.HR ?? 0)); b[1].textContent = `${Math.round(m2.Psys ?? 0)}/${Math.round(m2.Pdia ?? 0)}`; b[2].textContent = (m2.CO ?? 0).toFixed(1); b[3].textContent = (live!.chemistry.potassium ?? 4).toFixed(1); b[4].textContent = (6.1 + Math.log10(live!.chemistry.bicarbonate / (0.23 * live!.chemistry.paCO2))).toFixed(2); }
+      };
+    }
+    if (lockedLayer(layer)) layer = 'bedside';
+  };
+  root.querySelectorAll<HTMLButtonElement>('[data-layer]').forEach((b) => b.onclick = () => setLayer(b.dataset.layer as Layer));
+  root.addEventListener('click', (ev) => { const g = (ev.target as Element).closest('[data-goto]') as HTMLElement | null; if (g) gotoVariable(g.dataset.goto!); });
+
+  /* ---- rendering the encounter ---------------------------------------------------- */
+  const blockedText = (reason: string): string => {
+    const [kind, rest] = reason.split(':');
+    const items = (rest ?? '').split('|');
+    if (kind === 'position') return lang === 'de'
+      ? `Zuerst lagern: ${items.map((p) => POSITION[p]?.de ?? p).join(' oder ')}.`
+      : `First position the patient: ${items.map((p) => POSITION[p]?.en ?? p).join(' or ')}.`;
+    if (kind === 'exposure') return lang === 'de'
+      ? `${items.map((x) => tr(CATALOG.structures[x]?.label, 'de')).join(', ')}: noch bedeckt.`
+      : `The ${items.map((x) => tr(CATALOG.structures[x]?.label, 'en').toLowerCase()).join(', ')} ${items.length > 1 ? 'are' : 'is'} still covered.`;
+    const first = s?.caseDef.patient.name.split(' ')[0] ?? '';
+    if (kind === 'ability') return lang === 'de' ? `Das kann ${first} gerade nicht.` : `${first} can't do that right now.`;
+    return lang === 'de' ? 'Dafür fehlt das Instrument.' : 'You need a different instrument for that.';
+  };
+  const sideWord = (sd?: Side) => (sd ? ` (${sd === 'L' ? t('left').toLowerCase() : t('right').toLowerCase()})` : '');
+
+  const feedHtml = () => feed.map((it, idx) => {
+    switch (it.k) {
+      case 'scene': return `<div class="f-scene">${esc(tr(it.text, lang))}</div>`;
+      case 'you': return `<div class="f-you"><span class="spk">${t('you')}</span>${esc(it.text)}</div>`;
+      case 'patient': {
+        if (!s) return '';
+        const c = s.caseDef;
+        const facts = it.facts.map((id) => c.history.find((f) => f.id === id)!).filter(Boolean);
+        if (!facts.length) return `<div class="f-patient"><span class="spk">${esc(c.patient.name.split(' ')[0])}</span>${esc(it.text)}</div>`;
+        const groups: Array<{ who: string; text: string[] }> = [];
+        for (const f of facts) {
+          const who = f.speaker === 'companion' && c.patient.companion ? `${c.patient.companion.name.split(' ')[0]} · ${tr(c.patient.companion.relation, lang)}` : c.patient.name.split(' ')[0];
+          const g = groups.find((x) => x.who === who) ?? (groups.push({ who, text: [] }), groups[groups.length - 1]);
+          g.text.push(tr(f.say, lang));
+        }
+        return groups.map((g) => `<div class="f-patient${g.who.includes('·') ? ' companion' : ''}"><span class="spk">${esc(g.who)}</span>${esc(g.text.join(' '))}</div>`).join('');
+      }
+      case 'act': return `<div class="f-act">${esc(tr(CATALOG.manoeuvres[it.manoeuvre].label, lang))}${sideWord(it.side)}</div>`;
+      case 'blocked': return `<div class="f-blocked">${esc(blockedText(it.reason))}</div>`;
+      case 'finding': return `<div class="f-finding${it.finding.normal ? '' : ' abn'}">${esc(describe(s!, it.finding, lang))}</div>`;
+      case 'order': { const inv = CATALOG.investigations[it.inv]; return `<div class="f-act">${t('ordered')}: ${esc(tr(inv.label, lang))}${it.inv === 'ecg-12' ? '' : ` · ${t('resultIn')} ${inv.turnaroundMinutes} ${t('min')}`}</div>`; }
+      case 'result': { const inv = CATALOG.investigations[it.inv]; return `<div class="f-finding result">${esc(REGISTRY.formatters[inv.formatter](it.value, {}, lang, CATALOG, { property: inv.id }))}</div>`; }
+      case 'system': return `<div class="f-system">${esc(tr(it.text, lang))}</div>`;
+      case 'side': {
+        const last = idx === feed.length - 1;
+        return `<div class="f-side">${esc(tr(CATALOG.manoeuvres[it.manoeuvre].label, lang))}: ${t('which')} ${last ? `<button type="button" class="tog" data-side-act="${it.manoeuvre}" data-side="L">${t('left')}</button> <button type="button" class="tog" data-side-act="${it.manoeuvre}" data-side="R">${t('right')}</button>` : ''}</div>`;
+      }
+    }
+  }).join('');
+
+  const notesHtml = (md: string) => md ? md.split('\n').map((l) => l.startsWith('## ') ? `<h3>${esc(l.slice(3))}</h3>` : l.startsWith('- ') ? `<p>${esc(l.slice(2))}</p>` : '').join('') : `<p class="muted">${t('noNotes')}</p>`;
+
+  const renderEncounter = () => {
+    if (!s) return;
+    const c = s.caseDef;
+    $('#pt-name').textContent = c.patient.name;
+    $('#pt-meta').textContent = `${c.patient.age} · ${tr(base.setting.place, lang)}`;
+    $('#clock').textContent = `${minutes()} ${t('min')}`;
+    $('#wait').textContent = t('wait'); $('#to-commit').textContent = t('commit'); $('#leave').textContent = t('leave');
+    $('#to-commit').hidden = free || committed;
+    ($('#cmd') as HTMLInputElement).placeholder = t('placeholder'); $('#send').textContent = t('send');
+    $('#touch-hint').textContent = t('tapHint'); $('#whole').textContent = t('whole');
+    for (const k of ['feed', 'notes', 'mine'] as const) {
+      const b = $(`[data-tab="${k}"]`); b.textContent = t(k); b.setAttribute('aria-selected', String(tab === k));
+      $(`#tab-${k}`).hidden = tab !== k;
+    }
+    $('#tab-feed').innerHTML = feedHtml();
+    $('#tab-notes').innerHTML = notesHtml(autoNote(s, lang));
+    ($('#mynotes') as HTMLTextAreaElement).placeholder = t('myNotesHint');
+    root.querySelectorAll<HTMLButtonElement>('[data-side-act]').forEach((b) => b.onclick = () => { feed.pop(); doAction(b.dataset.sideAct!, b.dataset.side as Side); });
+    const fe = $('#tab-feed'); fe.scrollTop = fe.scrollHeight;
+    renderFigure();
+    renderRegion();
+    if (layer === 'tests') renderTests($('#layer-tests'));
+  };
+
+  /* ---- the patient figure ---------------------------------------------------------- */
+  let posePrev: Pose = POSES['reclined-45'], poseTarget: Pose = POSES['reclined-45'], poseT0 = 0, poseRaf = 0, poseKey = '';
+  const renderFigure = (force = false) => {
+    if (!s) return;
+    const c = s.caseDef, st = s.state;
+    const ap = appearanceOf(c.patient, seedOf(base.id));
+    const exposed = new Set(st.exposure ?? []);
+    const lk: FigureLook = { skin: ap.skin, shade: ap.skinShade, hair: ap.hair, gown: '#9fc4d9', gownShade: '#7fa9c2', exposed, sex: c.patient.sex };
+    const target = POSES[st.position] ?? POSES.supine;
+    const key = `${base.id}|${c.patient.sex}|${st.position}|${[...exposed].sort().join(',')}`;
+    const g = $('#fig') as unknown as SVGGElement;
+    if (key !== poseKey || force) {
+      const firstForCase = !poseKey.startsWith(`${base.id}|`);
+      posePrev = firstForCase ? target : lerpPose(posePrev, poseTarget, Math.min(1, (performance.now() - poseT0) / 700));
+      poseTarget = target; poseT0 = performance.now(); poseKey = key;
+      cancelAnimationFrame(poseRaf);
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const step = (now: number) => {
+        const x = reduce ? 1 : Math.min(1, (now - poseT0) / 700);
+        const e = x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+        g.innerHTML = figureSvg(lerpPose(posePrev, poseTarget, e), lk);
+        if (x < 1) poseRaf = requestAnimationFrame(step);
+      };
+      g.innerHTML = figureSvg(posePrev, lk);
+      poseRaf = requestAnimationFrame(step);
+    }
+    $('#state-line').textContent = `${t('position')}: ${POSITION[st.position]?.[lang] ?? st.position} · ${t('exposed')}: ${exposed.size ? [...exposed].map((x) => tr(CATALOG.structures[x]?.label, lang)).join(', ') : t('nothing')}`;
+  };
+
+  const renderRegion = () => {
+    const box = $('#region');
+    if (!region || !s) { box.hidden = true; return; }
+    box.hidden = false;
+    const items = Object.values(CATALOG.manoeuvres).filter((m) => regionOf(m.target) === region!.id);
+    const side = region.side;
+    const ecg = region.id === 'chest' ? `<button type="button" class="act" data-ecg>${lang === 'de' ? '12-Kanal-EKG schreiben' : 'Record a 12-lead ECG'}</button>` : '';
+    box.innerHTML = `<div class="region-head"><b>${esc(REGION_LABEL[region.id][lang])}${side ? sideWord(side) : ''}</b><button type="button" class="ghost small" id="region-close" aria-label="Close">×</button></div>
+      <div class="region-list">${items.map((m) => {
+        const label = esc(tr(m.label, lang));
+        if (!m.paired || side) return `<button type="button" class="act" data-act="${m.id}" ${side ? `data-side="${side}"` : ''}>${label}</button>`;
+        return `<div class="act-pair"><span>${label}</span><button type="button" class="tog small" data-act="${m.id}" data-side="R">${t('right')}</button><button type="button" class="tog small" data-act="${m.id}" data-side="L">${t('left')}</button></div>`;
+      }).join('')}${ecg}</div>`;
+    box.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => b.onclick = () => doAction(b.dataset.act!, (b.dataset.side as Side) || undefined));
+    box.querySelector<HTMLButtonElement>('[data-ecg]')?.addEventListener('click', () => setVisual({ kind: 'ecg' }));
+    $('#region-close').onclick = () => { region = null; renderRegion(); };
+  };
+
+  $('#figure').addEventListener('click', (ev) => {
+    const el = (ev.target as Element).closest('[data-region]') as SVGElement | null;
+    if (!el) return;
+    region = { id: el.dataset.region!, side: (el.dataset.side as Side) || undefined };
+    renderRegion();
+  });
+  $('#whole').onclick = () => { region = { id: 'body' }; renderRegion(); };
+
+  /* ---- commit and debrief ----------------------------------------------------------- */
+  const renderCommit = () => {
+    $('#commit').hidden = false;
+    $('#commit-title').textContent = t('commitTitle');
+    $('#commit-hint').textContent = t('commitHint');
+    ($('#ddx-q') as HTMLInputElement).placeholder = t('search');
+    $('#commit-go').textContent = t('submit'); $('#commit-cancel').textContent = t('cancel');
+    ($('#commit-go') as HTMLButtonElement).disabled = ddx.length === 0;
+    const q = normalise(($('#ddx-q') as HTMLInputElement).value);
+    const hits = q.length < 2 ? [] : Object.values(CATALOG.diagnoses).filter((d) => !ddx.some((x) => x.diagnosis === d.id)
+      && [tr(d.label, 'en'), tr(d.label, 'de'), ...list(d.synonyms, 'en'), ...list(d.synonyms, 'de')].some((x) => normalise(x).includes(q))).slice(0, 8);
+    $('#ddx-hits').innerHTML = hits.map((d) => `<button type="button" class="hit" data-dx="${d.id}">${esc(tr(d.label, lang))}</button>`).join('');
+    root.querySelectorAll<HTMLButtonElement>('[data-dx]').forEach((b) => b.onclick = () => {
+      ddx.push({ diagnosis: b.dataset.dx!, confidence: ddx.length ? 'possible' : 'likely' });
+      ($('#ddx-q') as HTMLInputElement).value = ''; renderCommit(); ($('#ddx-q') as HTMLInputElement).focus();
+    });
+    $('#ddx-list').innerHTML = ddx.map((d, i) => `<li><span class="rank">${i + 1}</span><span class="dx">${esc(tr(CATALOG.diagnoses[d.diagnosis].label, lang))}</span>
+      <select data-conf="${i}" aria-label="Confidence">${(['certain', 'likely', 'possible'] as const).map((c) => `<option value="${c}" ${d.confidence === c ? 'selected' : ''}>${t(c)}</option>`).join('')}</select>
+      <button type="button" class="ghost small" data-up="${i}" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>↑</button>
+      <button type="button" class="ghost small" data-rm="${i}" aria-label="Remove">×</button></li>`).join('');
+    root.querySelectorAll<HTMLSelectElement>('[data-conf]').forEach((sel) => sel.onchange = () => { ddx[+sel.dataset.conf!].confidence = sel.value as Commit['confidence']; });
+    root.querySelectorAll<HTMLButtonElement>('[data-rm]').forEach((b) => b.onclick = () => { ddx.splice(+b.dataset.rm!, 1); renderCommit(); });
+    root.querySelectorAll<HTMLButtonElement>('[data-up]').forEach((b) => b.onclick = () => { const i = +b.dataset.up!; [ddx[i - 1], ddx[i]] = [ddx[i], ddx[i - 1]]; renderCommit(); });
+  };
+
+  const evidenceDetail = (e: DebriefResult['evidence'][number]): string => {
+    if (!s || !e.elicited) return '';
+    if (e.finding) return `<p class="finding">${esc(describe(s, e.finding, lang))}</p>`;
+    if (e.item.kind === 'fact') { const f = s.caseDef.history.find((x) => x.id === e.item.ref); return f ? `<p class="finding">“${esc(tr(f.say, lang))}”</p>` : ''; }
+    const r = s.encounter.events.find((x) => x.kind === 'result' && x.test === e.item.ref);
+    if (r && r.kind === 'result') { const inv = CATALOG.investigations[r.test]; return `<p class="finding">${esc(REGISTRY.formatters[inv.formatter](r.value, {}, lang, CATALOG, { property: inv.id }))}${r.t > s.t ? (lang === 'de' ? ' (lag bei der Festlegung noch nicht vor)' : ' (not back when you committed)') : ''}</p>`; }
+    return '';
+  };
+
+  const renderDebrief = () => {
+    if (!s || !debrief) return;
+    const d = debrief, c = s.caseDef;
+    const dxName = (id: string) => esc(tr(CATALOG.diagnoses[id].label, lang));
+    const weight = (w: string) => `<span class="pill ${w}">${t(w)}</span>`;
+    const modelFindings = s.encounter.events.filter((e) => e.kind === 'finding' && e.finding.provenance === 'model' && e.finding.basis && !e.finding.normal);
+    const seen = new Set<string>();
+    $('#debrief').innerHTML = `
+      <header class="db-head"><div><div class="eyebrow">${t('debrief')} · ${esc(c.patient.name)}</div><h1>${esc(tr(c.title, lang))}</h1></div>
+        <div class="focus-tools"><button type="button" class="primary" id="db-explore">${t('explore')}</button><button type="button" class="ghost" id="db-back">${t('again')}</button></div></header>
+      <section class="verdict ${d.diagnosis.correct ? 'ok' : 'no'}">
+        <b>${d.diagnosis.correct ? t('correct') : t('incorrect')}.</b> ${t('diagnosisWas')}: ${dxName(d.diagnosis.primary)}.
+        ${d.diagnosis.rank && d.diagnosis.rank > 1 ? (lang === 'de' ? `Bei Ihnen auf Platz ${d.diagnosis.rank}.` : `You ranked it ${d.diagnosis.rank}.`) : ''}
+        <div class="db-time">${t('time')}: ${d.minutes} ${t('min')} · ${t('budget')} ${d.budgetMinutes} ${t('min')}</div>
+      </section>
+      <section><h2>${t('expert')}</h2><p class="summary">${esc(tr(c.reference.summary, lang))}</p></section>
+      <section><h2>${t('evidence')}</h2><ul class="evidence">${d.evidence.map((e) => `
+        <li class="${e.elicited ? 'got' : 'miss'}"><div class="ev-top"><span class="mark">${e.elicited ? '✓' : '○'}</span>${weight(e.item.weight)}<span class="state">${e.elicited ? t('elicited') : t('missed')}</span></div>
+        <p>${esc(tr(e.item.why, lang))}</p>${evidenceDetail(e)}</li>`).join('')}</ul></section>
+      <section class="two"><div><h2>${t('redFlags')}</h2><ul class="plain">${d.redFlags.map((r) => `<li><span class="mark">${r.covered ? '✓' : '○'}</span> ${esc(tr(r.why, lang))} <span class="muted">(${r.covered ? t('covered') : t('uncovered')})</span></li>`).join('')}</ul></div>
+        <div><h2>${t('hazards')}</h2>${d.hazards.length ? `<ul class="plain">${d.hazards.map((h) => `<li>${esc(tr(CATALOG.manoeuvres[h.manoeuvre]?.hazards?.find((x) => x.code === h.code)?.why ?? { en: h.code === 'no-consent' ? 'Examined without asking for consent first.' : h.code, de: h.code === 'no-consent' ? 'Ohne vorherige Einwilligung untersucht.' : h.code }, lang))}</li>`).join('')}</ul>` : `<p class="muted">${t('noHazards')}</p>`}</div></section>
+      <section class="two"><div><h2>${t('ddxConsidered')}</h2><p>${d.diagnosis.differentialConsidered.map(dxName).join(', ') || '—'}</p></div>
+        <div><h2>${t('ddxMissed')}</h2><p>${d.diagnosis.differentialMissed.map(dxName).join(', ') || '—'}</p></div></section>
+      <section><h2>${t('how')}</h2><ul class="plain mono">${modelFindings.map((e) => {
+        if (e.kind !== 'finding' || seen.has(e.finding.property)) return '';
+        seen.add(e.finding.property);
+        return `<li><b>${esc(tr(CATALOG.properties[e.finding.property.replace(/\.(L|R)$/, '')].label, lang))}</b> — ${esc(e.finding.basis!)}</li>`;
+      }).join('') || '<li class="muted">—</li>'}</ul></section>
+      <section><h2>${t('compare')}</h2><div class="two notes-compare"><div class="mine">${myNotes.trim() ? esc(myNotes).replace(/\n/g, '<br>') : '<span class="muted">—</span>'}</div><div class="auto">${notesHtml(autoNote(s, lang))}</div></div></section>`;
+    $('#db-back').onclick = () => { stopLive(); renderWard(); show('ward'); };
+    $('#db-explore').onclick = () => { show('encounter'); layer = 'physiology'; chapter = /stroke|foot/.test(base.id) ? 'nervous-system' : /vestib/.test(base.id) ? 'vor' : 'haemodynamics'; live?.start(); renderEncounter(); renderLayer(); };
+  };
+
+  /* ---- wiring ------------------------------------------------------------------------ */
+  $('#cmdform').addEventListener('submit', (e) => { e.preventDefault(); const i = $('#cmd') as HTMLInputElement; const v = i.value; i.value = ''; submit(v); tab = 'feed'; renderEncounter(); });
+  root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab as typeof tab; renderEncounter(); });
+  ($('#mynotes') as HTMLTextAreaElement).addEventListener('input', (e) => { myNotes = (e.target as HTMLTextAreaElement).value; });
+  $('#wait').onclick = () => { if (!s) return; const before = s.t; s.t += 10 * 60000; afterTime(before); renderEncounter(); };
+  $('#leave').onclick = () => { setVisual(null); stopLive(); renderWard(); show('ward'); };
+  $('#to-commit').onclick = () => { renderCommit(); ($('#ddx-q') as HTMLInputElement).focus(); };
+  $('#ddx-q').addEventListener('input', renderCommit);
+  $('#commit-cancel').onclick = () => { $('#commit').hidden = true; };
+  $('#commit-go').onclick = () => {
+    if (!s || !ddx.length) return;
+    debrief = commit(s, ddx);
+    committed = true;
+    $('#commit').hidden = true;
+    setVisual(null);
+    live?.stop();
+    renderDebrief();
+    show('debrief');
+  };
+  const setLang = () => {
+    document.documentElement.lang = lang;
+    root.querySelectorAll<HTMLButtonElement>('.langbtn').forEach((b) => b.textContent = lang === 'en' ? 'Deutsch' : 'English');
+    renderWard();
+    if (s) { s.encounter.locale = lang; renderEncounter(); renderLayer(); if (visual) setVisual(visual); }
+    if (debrief && !$('#debrief').hidden) renderDebrief();
+    if (!$('#commit').hidden) renderCommit();
+  };
+  root.querySelectorAll<HTMLButtonElement>('.langbtn').forEach((b) => b.onclick = () => { lang = lang === 'en' ? 'de' : 'en'; setLang(); });
+  void observeIn;
+
+  setLang();
+  show('ward');
+}
+
+const el = document.getElementById('vp');
+if (el) mount(el);
