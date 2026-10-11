@@ -1023,3 +1023,26 @@ p:last-child { margin-bottom: 0; }
 .diff-list { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--text-2); }
 .diff-list li { margin: 4px 0; }
 .diff-list li::marker { color: var(--rose); }
+
+/* --- phones ------------------------------------------------------------------
+   The primary rail scrolls sideways inside itself instead of widening the page
+   (which made phones zoom out and misplace overlays), and the welcome card
+   scrolls so its Start button is always reachable. */
+.transport[hidden] { display: none; }
+@media (max-width: 760px) {
+  .rail { gap: 8px; padding: 0 10px; }
+  .rail .tabs.domains { flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; margin-left: 0; }
+  .rail .tabs.domains::-webkit-scrollbar { display: none; }
+  .rail .tab { flex-shrink: 0; }
+  .rail .rail-spacer { display: none; }
+  .transport .speed { display: none; }
+  .subrail .tabs { overflow-x: auto; scrollbar-width: none; }
+}
+.first-run { overflow-y: auto; }
+.fr-card { max-height: calc(100dvh - 40px); overflow-y: auto; margin: auto; }
+.fr-start { min-height: 40px; touch-action: manipulation; }
+@media (max-width: 560px) { .first-run { padding: 12px; place-items: start center; } .fr-card { padding: 18px; } }
+
+/* Native controls follow the active theme. */
+:root { color-scheme: dark; }
+[data-theme="paper"] { color-scheme: light; }

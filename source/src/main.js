@@ -9,6 +9,7 @@ import neuroDomain from './domains/neuro/index.js';
 import labsDomain from './domains/labs/index.js';
 import { VITALS } from './domains/cardio/data/reference.js';
 import { createPatientRuntime } from './runtime/patient-runtime.ts';
+import { installTapFix } from './core/ui/tapfix.js';
 import { neurogenicShockDemo, compileScenario } from './scenarios/index.ts';
 import {
   createExamineLayer,
@@ -277,6 +278,7 @@ class Shell {
       this.spaceTabs.appendChild(el('div', { class: 'space-tagline' }, d.tagline || ''));
 
       this.transport.style.visibility = d.transport ? 'visible' : 'hidden';
+      this.transport.hidden = !d.transport;
       clear(this.pane);
       this.pane.appendChild(space.node);
       requestAnimationFrame(() => this.resizeActive());
@@ -310,6 +312,7 @@ class Shell {
     this.spaceTabs.appendChild(el('div', { class: 'space-tagline' }, d.tagline || ''));
 
     this.transport.style.visibility = d.transport ? 'visible' : 'hidden';
+      this.transport.hidden = !d.transport;
 
     // Explore workspace tiles jump straight into the lens.
     if (d.id === 'explore' && space.lensId) {
@@ -416,11 +419,23 @@ class Shell {
     try { seen = localStorage.getItem('cpl.seen') === '1'; } catch {}
     if (seen) return;
 
-    const close = () => {
+    /* Dismissal must survive browsers that drop the click event: close on
+       click, pointer or touch release, Enter/Escape, or a tap outside. */
+    let closed = false;
+    const close = (e) => {
+      if (closed) return;
+      closed = true;
+      e?.preventDefault?.();
       try { localStorage.setItem('cpl.seen', '1'); } catch {}
       overlay.remove();
+      window.removeEventListener('keydown', onKey, true);
     };
-    const overlay = el('div', { class: 'first-run', onclick: (e) => { if (e.target === overlay) close(); } },
+    const onKey = (e) => { if (e.key === 'Enter' || e.key === 'Escape') close(e); };
+    const outside = (e) => { if (e.target === overlay) close(e); };
+    const startBtn = el('button', { type: 'button', class: 'btn fr-start', onclick: close }, 'Start');
+    for (const ev of ['pointerup', 'touchend']) startBtn.addEventListener(ev, close);
+    window.addEventListener('keydown', onKey, true);
+    const overlay = el('div', { class: 'first-run', onclick: outside, onpointerup: outside },
       el('div', { class: 'fr-card' },
         el('div', { class: 'eyebrow' }, 'Three things worth knowing'),
         el('h2', {}, 'Clinical Physiology Lab'),
@@ -439,7 +454,7 @@ class Shell {
         el('p', { class: 'fr-keys' },
           'Space play/pause · Tab switch layer · 1–9 workspaces · T theme · Shift+C ECG capture'),
         el('div', { class: 'btn-row' },
-          el('button', { class: 'btn', onclick: close }, 'Start'))));
+          startBtn)));
     document.body.appendChild(overlay);
   }
 
@@ -498,6 +513,7 @@ class Shell {
 }
 
 installErrorHandlers();
+installTapFix();
 installCapture();
 document.documentElement.dataset.theme = 'monitor';
 const shell = new Shell(document.getElementById('app'));

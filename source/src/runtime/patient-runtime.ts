@@ -145,7 +145,35 @@ const EXPERIMENTAL_CIRCULATION_KEYS = new Set([
   'Rven',
   'Cpa',
   'Cpv',
+  // Valves and the right heart. These were missing, so the Bench valve
+  // sliders and the valve lessons were silently rejected.
+  'Raortic',
+  'Rmitral',
+  'Rtricuspid',
+  'Rpulmonic',
+  'regAortic',
+  'regMitral',
+  'regTricuspid',
+  'regPulmonic',
+  'EmaxRv',
+  'edpB',
+  'avConduction',
+  'lbbConduction',
+  'rbbConduction',
 ]);
+
+/** Legacy Bench / lesson aliases, resolved to canonical model keys. */
+const EXPERIMENTAL_CIRCULATION_ALIASES: Record<string, string> = { C: 'Csa', R: 'Rsys' };
+
+/** Healthy values for experimental keys that CIRCULATION_BASELINE does not
+ *  carry, so clearing a control restores the host (mirrors the worker's
+ *  DEFAULTS). Without these a valve lesion would outlive `runtime.reset`. */
+const EXPERIMENTAL_CIRCULATION_DEFAULTS: Record<string, number> = {
+  Csa: 1.2, Csv: 62, Rpul: 0.075, Emin: 0.06, Rven: 0.023, Cpa: 4.2, Cpv: 8.5,
+  Raortic: 0.02, Rmitral: 0.01, Rtricuspid: 0.009, Rpulmonic: 0.02,
+  regAortic: 0, regMitral: 0, regTricuspid: 0, regPulmonic: 0,
+  EmaxRv: 0.62, edpB: 0.022, lbbConduction: 1, rbbConduction: 1,
+};
 
 export interface PatientRuntimeOptions {
   seed?: string;
@@ -1282,6 +1310,7 @@ export class DefaultPatientRuntime implements PatientRuntime {
         this.prevCardioDriven,
         {
           ...CIRCULATION_BASELINE,
+          ...EXPERIMENTAL_CIRCULATION_DEFAULTS,
           ...this.experimentalControls,
         },
       );
@@ -1479,7 +1508,10 @@ export class DefaultPatientRuntime implements PatientRuntime {
 
   private experimentalCirculationParam(command: PatientCommand): CommandResult {
     // Authority is enforced centrally in dispatch via authorizeCommand.
-    const payload = (command.payload ?? {}) as CirculationParamPayload;
+    const raw = (command.payload ?? {}) as CirculationParamPayload;
+    const payload = raw.key && EXPERIMENTAL_CIRCULATION_ALIASES[raw.key]
+      ? { ...raw, key: EXPERIMENTAL_CIRCULATION_ALIASES[raw.key] }
+      : raw;
     if (!payload.key || !EXPERIMENTAL_CIRCULATION_KEYS.has(payload.key)) {
       return this.reject(command, runtimeError('INVALID_PARAMETER', `unsupported circulation param: ${payload?.key}`, {
         path: 'payload.key',

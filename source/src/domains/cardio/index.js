@@ -39,8 +39,11 @@ function inlineSimHost(source) {
     terminate() {},
   };
   const emit = (m) => { if (host._onmessage) host._onmessage({ data: m }); else pending.push(m); };
-  const factory = new Function('postMessage', 'setInterval', 'clearInterval', 'self',
-    `${source}\n;return self.onmessage;`);
+  /* The production build hands over a compiled function; test harnesses hand
+     over the bundled source as a string. */
+  const factory = typeof source === 'function'
+    ? source
+    : new Function('postMessage', 'setInterval', 'clearInterval', 'self', `${source}\n;return self.onmessage;`);
   const inner = factory(emit, setInterval.bind(globalThis), clearInterval.bind(globalThis), globalThis);
   return host;
 }

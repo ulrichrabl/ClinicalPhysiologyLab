@@ -134,7 +134,7 @@ export const LESSONS = [
         then: { params: { regMitral: 0.8 }, settle: 8 },
         after: 'Compare cardiac output with total stroke volume. The ventricle is shifting more blood than ever; less of it is going anywhere useful.' },
       { kind: 'do', title: 'Stenosis is a different problem',
-        settings: { params: { ...BASELINE, Raortic: 1.2 }, settle: 8 },
+        settings: { params: { ...BASELINE, Raortic: 0.4 }, settle: 8 },  // severe: peak gradient ~100 mmHg
         body: `Now a stenotic aortic valve instead. The ventricle must generate a far higher pressure than the aorta ever sees — that difference is the gradient, and the pressure–volume loop grows tall.
 <p>Note where the disease is not. In mitral stenosis the ventricle is entirely normal and merely underfilled; the pressure is all in the atrium behind it, and from there it is transmitted straight to the lungs. Treating that patient's "heart failure" with drugs aimed at the ventricle treats the wrong chamber.</p>` },
       { kind: 'recap', points: [

@@ -155,8 +155,10 @@ export const BENCH = [
   {
     group: 'Valves',
     items: [
-      { key: 'Raortic', label: 'Aortic stenosis', min: 0.09, max: 2.4, step: 0.02, def: 0.09, unit: '',
-        tint: 'var(--aortic)', fmt: (v) => (v <= 0.12 ? 'none' : v < 0.5 ? 'mild' : v < 1.2 ? 'moderate' : 'severe'),
+      /* Calibrated to peak systolic gradient: mild < ~36 mmHg, moderate 36–64,
+         severe > 64 (peak velocity > 4 m/s). The old range reached 400+ mmHg. */
+      { key: 'Raortic', label: 'Aortic stenosis', min: 0.02, max: 0.6, step: 0.01, def: 0.02, unit: '',
+        tint: 'var(--aortic)', fmt: (v) => (v < 0.05 ? 'none' : v < 0.135 ? 'mild' : v < 0.245 ? 'moderate' : 'severe'),
         title: 'Aortic valve stenosis',
         body: 'A narrowed outflow orifice. The ventricle generates a higher pressure than the aorta ever sees — that difference is the gradient. Look at the pressure–volume loop: it grows tall and the ejection limb flattens.' },
       { key: 'regAortic', label: 'Aortic regurgitation', min: 0, max: 1, step: 0.05, def: 0, unit: '',
