@@ -9,6 +9,7 @@ import { runDiagram, type Lang } from './diagrams.ts';
 import { CONSTANTS, type ConstantStatus } from '../evidence/constants.ts';
 import { REFERENCES, type Reference } from '../evidence/references.ts';
 import '../evidence/endocrine.ts';
+import '../evidence/renal.ts';
 
 /* ---------------------------------------------------------------------------
    The physiology layer: one chapter per model, opened on this patient.

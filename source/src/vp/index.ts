@@ -23,6 +23,7 @@ export { chemistryState } from './physiology/chemistry.ts';
 export { CONSTANTS, constantIssues, groundingSummary, type ConstantEntry, type ConstantStatus } from './evidence/constants.ts';
 export { REFERENCES, type Reference } from './evidence/references.ts';
 import './evidence/endocrine.ts';
+import './evidence/renal.ts';
 export { Body, BODY_DEFAULTS, type BodyParams, type BodySnapshot } from './physiology/body/body.ts';
 export { Respiratory, RESPIRATORY_DEFAULTS, LOBES, satO2, pulseOximeter, predicted, type RespiratoryParams, type RespSnapshot } from './physiology/lung/respiratory.ts';
 

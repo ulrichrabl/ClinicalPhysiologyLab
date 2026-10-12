@@ -556,6 +556,27 @@ of the original. Migration: the endocrine models are in the registry; the
 remaining models still hold their numbers inline and are moved over model by
 model.
 
+**Where the water and kidney constants come from.** Volume is sensed as blood
+volume (arterial filling), not extracellular fluid, so fluid leaked into the
+tissues or pooled in the splanchnic bed holds sodium as the arterial-underfilling
+hypothesis describes. Renin activity is separate from angiotensin II, which rises
+only as renin^0.37 (Walker 1976) and less in septic shock, where converting
+activity falls to 43 % (Benaroua 2025); a macula densa term reads the sodium
+delivered before aldosterone acts. Renin's sensitivity to volume, the macula
+densa, angiotensin II's vascular potency and the steepness of volume natriuresis
+are fitted jointly to the Cochrane meta-analysis of salt reduction (renin +55 %,
+aldosterone +127 %, systolic −1 mmHg; the model gives +63 %, +71 %, −1.1 mmHg:
+aldosterone stays short, most likely for want of the adrenal's rising
+sensitivity to angiotensin II on a low-salt diet); the aldosterone effect on
+sodium is fitted to Dürr's fludrocortisone escape (345 ± 50 mmol; model 317) and
+checked against DOCA expanding the ECF by about 2 L (Shade 1975). Plasma–
+interstitial exchange follows Hahn's volume kinetics of crystalloid infusions.
+Body water (Watson), ADH (Robertson, Thompson), GFR and concentrating ability
+with age (Rowe), creatinine production (Cockcroft–Gault), urea and sodium
+fractional excretion (Carvounis), bicarbonate threshold (Pitts) and ammonium
+capacity are sourced; the autoregulation limits, the tubular-injury and CKD
+modifiers, potassium secretion and much of acid handling are not yet.
+
 **Where the endocrine constants come from.** Grounded in measurements: the cortisol
 permissive effect (vascular gain halved at a complete deficit, from hydrocortisone
 doubling the maximal α-agonist response with ED50 unchanged; basal resistance −20 %
@@ -568,13 +589,13 @@ through Ramirez's clamps). Checked against outcomes rather than fitted: adrenal
 crisis presenting pressure (about half of crises present with systolic ≤100;
 saline barely moves it, hydrocortisone raises it within an hour), typical calcium
 and PTH in primary hyperparathyroidism, malignancy and vitamin D deficiency.
-Assumptions and known gaps: overt disease is taken as free T4 2.8× and 0.3× normal;
+Assumptions and known gaps: overt disease is taken as free T4 4.5× (Graves’ at diagnosis) and 0.25× (untreated hypothyroidism) normal;
 the model's resting ionised calcium is read as 1.24 mmol/L; the thyroid
 temperature effect, cortisol's effects on ADH and glucose output, the renal
 effects of hypercalcaemia and the potency scales of PTHrP and osteolysis are not
-yet grounded; hypothyroid blood volume stays about 92 % of normal (measured
-84.5 %), because lowering it reads as hypovolaemia in a circulation with no fall in
-venous capacity; untreated Addison's raises renin only about 1.4×, because the
+yet grounded; blood volume stays near normal in both thyroid states (measured 105.5 % and
+84.5 %): the kidney defends blood volume, and the renin stimulation by thyroid
+hormone and the fall in venous capacity that would move it are not modelled; untreated Addison's raises renin only about 1.4×, because the
 kidney's floor on aldosterone-dependent sodium loss is too high.
 
 `PatientModel` (`physiology/state.ts`) holds every parameter in one object:

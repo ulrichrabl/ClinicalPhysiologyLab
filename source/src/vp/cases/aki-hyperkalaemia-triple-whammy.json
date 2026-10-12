@@ -352,8 +352,8 @@
         "ref": "electrolytes",
         "weight": "essential",
         "why": {
-          "en": "Potassium near 7, creatinine about twice his baseline, urea raised out of proportion to creatinine: acute kidney injury, prerenal in mechanism.",
-          "de": "Kalium um 7, Kreatinin etwa doppelt so hoch wie sein Ausgangswert, Harnstoff überproportional zum Kreatinin erhöht: akute Nierenschädigung, prärenaler Mechanismus."
+          "en": "Potassium above 6, creatinine well above his baseline (a rise of more than 26.5 µmol/L meets the KDIGO definition), urea raised out of proportion to creatinine: acute kidney injury, prerenal in mechanism.",
+          "de": "Kalium über 6, Kreatinin deutlich über seinem Ausgangswert (ein Anstieg um mehr als 26,5 µmol/l erfüllt die KDIGO-Definition), Harnstoff überproportional zum Kreatinin erhöht: akute Nierenschädigung, prärenaler Mechanismus."
         }
       },
       {
@@ -443,8 +443,8 @@
     ],
     "timeBudgetMinutes": 20,
     "summary": {
-      "en": "A 78-year-old with hypertension and stage 3 chronic kidney disease on ramipril and spironolactone, using a potassium salt substitute, who added ibuprofen for his knee and then had six days of diarrhoea. Weak, dizzy on standing, passing little dark urine. Postural hypotension, dry mucosa, JVP not seen. ECG: peaked T waves, long PR. Potassium about 7, creatinine twice baseline with a disproportionately high urea, concentrated urine low in sodium. Prerenal acute kidney injury from volume loss on an ACE inhibitor and an NSAID, with hyperkalaemia: calcium gluconate, insulin–glucose, stop the culprits, intravenous fluid, monitor.",
-      "de": "Ein 78-Jähriger mit Hypertonie und chronischer Niereninsuffizienz Stadium 3 unter Ramipril und Spironolacton, mit kaliumhaltigem Salzersatz, der Ibuprofen für das Knie dazunahm und dann sechs Tage Durchfall hatte. Schwach, Schwindel beim Aufstehen, wenig dunkler Urin. Orthostatische Hypotonie, trockene Schleimhäute, Jugularvenen nicht sichtbar. EKG: spitze T-Wellen, lange PQ-Zeit. Kalium um 7, Kreatinin doppelt so hoch wie der Ausgangswert mit überproportional hohem Harnstoff, konzentrierter, natriumarmer Urin. Prärenale akute Nierenschädigung durch Volumenverlust unter ACE-Hemmer und NSAR, mit Hyperkaliämie: Calciumgluconat, Insulin-Glukose, auslösende Medikamente absetzen, intravenöse Flüssigkeit, Monitor."
+      "en": "A 78-year-old with hypertension and stage 3 chronic kidney disease on ramipril and spironolactone, using a potassium salt substitute, who added ibuprofen for his knee and then had six days of diarrhoea. Weak, dizzy on standing, passing little dark urine. Postural hypotension, dry mucosa, JVP not seen. ECG: peaked T waves, long PR. Potassium above 6, creatinine well above baseline with a disproportionately high urea, concentrated urine low in sodium. Prerenal acute kidney injury from volume loss on an ACE inhibitor and an NSAID, with hyperkalaemia: calcium gluconate, insulin–glucose, stop the culprits, intravenous fluid, monitor.",
+      "de": "Ein 78-Jähriger mit Hypertonie und chronischer Niereninsuffizienz Stadium 3 unter Ramipril und Spironolacton, mit kaliumhaltigem Salzersatz, der Ibuprofen für das Knie dazunahm und dann sechs Tage Durchfall hatte. Schwach, Schwindel beim Aufstehen, wenig dunkler Urin. Orthostatische Hypotonie, trockene Schleimhäute, Jugularvenen nicht sichtbar. EKG: spitze T-Wellen, lange PQ-Zeit. Kalium über 6, Kreatinin deutlich über dem Ausgangswert mit überproportional hohem Harnstoff, konzentrierter, natriumarmer Urin. Prärenale akute Nierenschädigung durch Volumenverlust unter ACE-Hemmer und NSAR, mit Hyperkaliämie: Calciumgluconat, Insulin-Glukose, auslösende Medikamente absetzen, intravenöse Flüssigkeit, Monitor."
     }
   },
   "diagnosis": {

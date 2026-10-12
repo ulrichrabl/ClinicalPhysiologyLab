@@ -1,4 +1,6 @@
 import { THY, CA } from '../evidence/endocrine.ts';
+import { WAT, KID } from '../evidence/renal.ts';
+const n = (x: number) => String(x);
 import type { LocalizedText } from '../model/i18n.ts';
 import type { EquationDef, LiveContext, MathNode, ModelDef, VariableDef } from './types.ts';
 import type { PatientModel } from './state.ts';
@@ -456,7 +458,7 @@ const WATER: ModelDef = {
       L('Too little sodium for the water, or too much water for the sodium. Hyponatraemia with a large ECF (heart failure), a normal one (inappropriate ADH, a thiazide, too little solute) or a small one (vomiting, diarrhoea) are three different problems with one number.',
         'Zu wenig Natrium für das Wasser oder zu viel Wasser für das Natrium. Eine Hyponatriämie bei großem EZV (Herzinsuffizienz), normalem (inadäquates ADH, Thiazid, zu wenig gelöste Teilchen) oder kleinem (Erbrechen, Diarrhö) sind drei verschiedene Probleme mit einer Zahl.')),
     eq('adh', 'textbook', L('ADH: tonicity, and volume before it', 'ADH: Tonizität — und davor das Volumen'),
-      [v('adh')], ['0.38', '·', paren(v('tonicity'), '−', { text: '284 + 4·hypovolaemia' }), '+', { text: '1.2·hypovolaemia²' }, '+', { text: 'nausea' }, '+', v('siadh')],
+      [v('adh')], [n(WAT.adhOsmoticSlope), '·', paren(v('tonicity'), '−', { text: `${WAT.adhThreshold} + ${WAT.adhVolumeShift}·hypovolaemia` }), '+', { text: `${WAT.adhVolumeSteep}·hypovolaemia²` }, '+', { text: 'nausea' }, '+', v('siadh')],
       L('ADH rises about 0.4 pg/mL per mosmol/kg above a threshold. A falling blood volume lowers the threshold and, when steep, overrides tonicity altogether: a hypovolaemic body keeps water even as its sodium falls. Nausea is a strong stimulus too.',
         'ADH steigt um etwa 0,4 pg/ml pro mosmol/kg über einer Schwelle. Sinkendes Blutvolumen senkt die Schwelle und setzt sich, wenn es stark sinkt, ganz über die Tonizität hinweg: Ein hypovolämischer Körper hält Wasser zurück, auch wenn sein Natrium fällt. Auch Übelkeit ist ein starker Reiz.')),
     eq('flow', 'textbook', L('Urine flow: solute divided by concentration', 'Urinfluss: Teilchen geteilt durch Konzentration'),
@@ -464,7 +466,7 @@ const WATER: ModelDef = {
       L('The kidney can only excrete water dissolving something. With 600 mosmol/day and a maximally dilute urine of 50 mosmol/kg, 12 L/day; on tea and toast (200 mosmol/day), 4 L; on a thiazide, which stops the urine getting dilute, far less. That is how drinking causes hyponatraemia.',
         'Die Niere kann Wasser nur ausscheiden, wenn es etwas löst. Mit 600 mosmol/Tag und maximal verdünntem Urin von 50 mosmol/kg sind es 12 l/Tag; bei Tee und Toast (200 mosmol/Tag) 4 l; unter einem Thiazid, das die Verdünnung verhindert, weit weniger. So macht Trinken eine Hyponatriämie.')),
     eq('starling', 'full', L('Plasma and interstitium (Starling, settling over hours)', 'Plasma und Interstitium (Starling, Einstellung über Stunden)'),
-      [v('plasma')], [{ text: 'V_p,0' }, '·', { text: 'f(ECF/ECF₀)' }, '·', { sup: [[paren(frac([{ text: 'albumin' }], ['42']))], ['0.45']] }, '·', paren('1', '−', '0.01', '·', { text: '(CVP − 8)' })],
+      [v('plasma')], [{ text: 'V_p,0' }, '·', { text: 'f(ECF/ECF₀)' }, '·', { sup: [[paren(frac([{ text: 'albumin' }], [n(WAT.albuminNormal)]))], [n(WAT.plasmaAlbumin)]] }, '·', paren('1', '−', n(WAT.plasmaCvp), '·', { text: '(CVP − 8)' })],
       L('Most of a gain or loss of extracellular fluid is interstitial; the plasma is defended by albumin’s oncotic pressure. Low albumin moves fluid out (oedema with a small plasma volume); a high venous pressure does the same. After bleeding, fluid moves the other way over hours: the transcapillary refill that dilutes the haemoglobin.',
         'Der größte Teil eines Gewinns oder Verlusts an Extrazellulärflüssigkeit ist interstitiell; das Plasma wird vom onkotischen Druck des Albumins verteidigt. Niedriges Albumin verschiebt Flüssigkeit nach außen (Ödem bei kleinem Plasmavolumen); ein hoher Venendruck ebenso. Nach einer Blutung fließt sie über Stunden zurück: das transkapilläre Auffüllen, das das Hämoglobin verdünnt.')),
   ],
@@ -480,6 +482,7 @@ const WATER: ModelDef = {
     };
   },
   diagram: 'water',
+  constants: ['water'],
   sources: ['Edelman IS et al. Interrelations between serum sodium concentration, serum osmolarity and total exchangeable sodium, total exchangeable potassium and total body water. J Clin Invest 1958;37:1236–56.', 'Robertson GL. Antidiuretic hormone: normal and disordered function. Endocrinol Metab Clin North Am 2001;30:671–94.', 'Berl T. Impact of solute intake on urine flow and water excretion. J Am Soc Nephrol 2008;19:1076–8.', 'Guyton AC, Coleman TG, Granger HJ. Circulation: overall regulation. Annu Rev Physiol 1972;34:13–46.'],
 };
 
@@ -514,29 +517,34 @@ const KIDNEY: ModelDef = {
     S('kidney', 'uKRate', 'U_KV', L('Potassium excreted', 'Ausgeschiedenes Kalium'), 'mmol/day', 0),
     S('kidney', 'NH4', 'U_{NH4}V', L('Ammonium excreted (acid)', 'Ausgeschiedenes Ammonium (Säure)'), 'mmol/day', 0),
     S('kidney', 'bicarbonaturia', 'U_{HCO3}V', L('Bicarbonate excreted', 'Ausgeschiedenes Bikarbonat'), 'mmol/day', 0),
+    S('kidney', 'renin', 'PRA', L('Renin activity', 'Reninaktivität'), '× normal', 2),
     S('kidney', 'angII', 'AngII', L('Angiotensin II', 'Angiotensin II'), '× normal', 2),
     S('kidney', 'aldosterone', 'Aldo', L('Aldosterone', 'Aldosteron'), '× normal', 2),
     S('kidney', 'phosphate', '[PO_4]', L('Phosphate', 'Phosphat'), 'mmol/L', 2),
   ],
   equations: [
     eq('gfr', 'textbook', L('Filtration and its autoregulation', 'Filtration und ihre Autoregulation'),
-      [v('GFR')], [{ text: 'GFR₀' }, '·', v('nephronMass'), '·', paren('1', '−', '0.9', '·', v('tubularInjury')), '·', { sup: [[paren(frac([v('MAP'), '−', { text: 'CVP' }, '−', '35'], [{ text: 'P_low' }, '−', '35']))], ['0.8']] }],
+      [v('GFR')], [{ text: 'GFR₀' }, '·', v('nephronMass'), '·', paren('1', '−', n(KID.atnFiltrationLoss), '·', v('tubularInjury')), '·', { sup: [[paren(frac([v('MAP'), '−', { text: 'CVP' }, '−', n(KID.filtrationZeroPressure)], [{ text: 'P_low' }, '−', n(KID.filtrationZeroPressure)]))], [n(KID.autoregulationExponent)]] }],
       L('Flat above the lower limit of autoregulation (about 72 mmHg), falling below it. An ACE inhibitor raises that limit because angiotensin II, which holds the efferent arteriole tight when perfusion falls, is gone; an NSAID raises it because the prostaglandins that hold the afferent open are gone. Together, with diarrhoea or a diuretic: the ‘triple whammy’. A high venous pressure (heart failure) lowers filtration too.',
         'Flach oberhalb der unteren Autoregulationsgrenze (etwa 72 mmHg), darunter abfallend. Ein ACE-Hemmer hebt diese Grenze, weil Angiotensin II fehlt, das bei sinkender Perfusion das Vas efferens eng hält; ein NSAR hebt sie, weil die Prostaglandine fehlen, die das Vas afferens offen halten. Beide zusammen mit Diarrhö oder einem Diuretikum: der „Triple Whammy“. Auch ein hoher Venendruck (Herzinsuffizienz) senkt die Filtration.')),
     eq('creat', 'textbook', L('Creatinine: production over clearance', 'Kreatinin: Bildung durch Clearance'),
-      [v('creatinine')], [frac([{ text: 'production (muscle)' }], [{ text: '1.15' }, '·', v('GFR')])],
+      [v('creatinine')], [frac([{ text: 'production (muscle)' }], [{ text: n(KID.creatSecretion) }, '·', v('GFR')])],
       L('Halve the filtration and creatinine doubles, but only after several half-lives: creatinine is spread through the body water, so after an acute loss of filtration it climbs over days. A small, old woman makes little creatinine: her ‘normal’ value can hide a GFR of 30.',
         'Halbiert sich die Filtration, verdoppelt sich das Kreatinin — aber erst nach mehreren Halbwertszeiten: Kreatinin verteilt sich im Körperwasser, nach einem akuten Filtrationsverlust steigt es über Tage. Eine kleine, alte Frau bildet wenig Kreatinin: Ihr „normaler“ Wert kann eine GFR von 30 verbergen.')),
     eq('urea', 'textbook', L('Urea: reabsorbed when urine flow is slow', 'Harnstoff: rückresorbiert, wenn der Urin langsam fließt'),
-      [{ text: 'urea excreted' }], [v('GFR'), '·', v('urea'), '·', paren('0.47', '−', '0.15', '·', { text: 'ADH effect' }, '−', { text: 'hypovolaemia' })],
+      [{ text: 'urea excreted' }], [v('GFR'), '·', v('urea'), '·', paren(n(KID.ureaReabsorption), '−', n(KID.ureaFlowEffect), '·', { text: 'ADH effect' }, '−', { text: 'hypovolaemia' })],
       L('Unlike creatinine, urea is partly reabsorbed, more so when ADH is high and flow is slow. In a dry patient urea climbs faster than creatinine (a high urea:creatinine ratio, ‘prerenal’); it climbs further with catabolism, steroids and blood digested in the gut.',
         'Anders als Kreatinin wird Harnstoff teilweise rückresorbiert — umso mehr, je höher ADH und je langsamer der Fluss. Beim exsikkierten Patienten steigt Harnstoff schneller als Kreatinin (hoher Harnstoff-Kreatinin-Quotient, „prärenal“); weiter bei Katabolie, Steroiden und im Darm verdautem Blut.')),
     eq('natri', 'textbook', L('Sodium excretion: volume, pressure, hormones', 'Natriumausscheidung: Volumen, Druck, Hormone'),
-      [v('uNaRate')], ['150', '·', { sup: [['e'], ['18·(ECF/ECF₀ − 1)']] }, '·', { sup: [['e'], ['0.015·(MAP − 93)']] }, '·', { sup: [[v('aldosterone')], ['−0.4']] }, '·', { sup: [[v('angII')], ['−0.2']] }, '·', paren('1', '+', '0.8', '·', v('loopDiuretic'), '+', '0.25', '·', v('thiazide'))],
+      [v('uNaRate')], [n(KID.sodiumIntake), '·', { sup: [['e'], [`${KID.natriuresisVolume}·(V_eff − 1)`]] }, '·', { sup: [['e'], [`${KID.natriuresisPressure}·(MAP − 93)`]] }, '·', { sup: [[v('aldosterone')], [`${KID.natriuresisAldosterone}`.replace('-', '−')]] }, '·', { sup: [[v('angII')], [`${KID.natriuresisAngiotensin}`.replace('-', '−')]] }, '·', paren('1', '+', n(KID.loopDiuretic), '·', v('loopDiuretic'), '+', n(KID.thiazide), '·', v('thiazide'))],
       L('In steady state the kidney excretes what is eaten; the ECF settles wherever that is true. A diuretic shifts the curve, the ECF shrinks until the hormones it switches on cancel it (‘braking’). In tubular injury the tubule cannot hold sodium: a high FENa despite a dry patient, the opposite of prerenal failure.',
         'Im Gleichgewicht scheidet die Niere aus, was gegessen wird; das EZV stellt sich dort ein, wo das stimmt. Ein Diuretikum verschiebt die Kurve, das EZV schrumpft, bis die Hormone, die es dabei anschaltet, die Wirkung aufheben („Bremsphänomen“). Bei Tubulusschaden kann der Tubulus Natrium nicht halten: hohe FENa trotz Exsikkose, das Gegenteil des prärenalen Versagens.')),
+    eq('renin', 'textbook', L('Renin, angiotensin II, aldosterone', 'Renin, Angiotensin II, Aldosteron'),
+      [v('renin')], [{ sup: [['e'], [`−${KID.reninVolume}·(V_eff − 1)`]] }, '·', { sup: [[{ text: 'macula densa NaCl' }], [`−${KID.reninMaculaDensa}`]] }, '·', { sup: [['e'], [`−${KID.reninPressure}·(MAP − 93)`]] }, '·', { text: 'renal nerves' }],
+      L(`Renin is released when the afferent arteriole sees a low pressure, when less salt reaches the macula densa, and when the renal nerves fire. Angiotensin II follows it only as renin^${KID.angiotensinFromRenin}: renin rises twentyfold under maximal stimulation, angiotensin II threefold (Walker 1976). Aldosterone follows angiotensin II and potassium. Fitted to the sodium-reduction meta-analysis: cutting salt from 201 to 66 mmol/day raises renin about 55 % and aldosterone about 127 % for a fall in systolic pressure of 1 mmHg.`,
+        `Renin wird ausgeschüttet, wenn das Vas afferens einen niedrigen Druck sieht, wenn weniger Salz die Macula densa erreicht und wenn die Nierennerven feuern. Angiotensin II folgt ihm nur als Renin^${KID.angiotensinFromRenin}: Renin steigt unter maximaler Stimulation zwanzigfach, Angiotensin II dreifach (Walker 1976). Aldosteron folgt Angiotensin II und Kalium. Angepasst an die Metaanalyse der Salzreduktion: Senkung von 201 auf 66 mmol/Tag hebt Renin um etwa 55 % und Aldosteron um etwa 127 %, bei einem Abfall des systolischen Drucks um 1 mmHg.`)),
     eq('kU', 'textbook', L('Potassium secretion: aldosterone and distal flow', 'Kaliumsekretion: Aldosteron und distaler Fluss'),
-      [v('uKRate')], ['70', '·', { sup: [[paren(frac([{ text: '[K⁺]' }], ['4']))], ['2']] }, '·', { sup: [[v('aldosterone')], ['0.3']] }, '·', { sup: [[paren(frac([v('uNaRate')], ['150']))], ['0.45']] }, '·', { text: 'tubular capacity' }],
+      [v('uKRate')], [n(KID.potassiumIntake), '·', { sup: [[paren(frac([{ text: '[K⁺]' }], ['4']))], [n(KID.kSecretionPotassium)]] }, '·', { sup: [[v('aldosterone')], [n(KID.kSecretionAldosterone)]] }, '·', { sup: [[paren(frac([v('uNaRate')], [n(KID.sodiumIntake)]))], [n(KID.kSecretionFlow)]] }, '·', { text: 'tubular capacity' }],
       L('Potassium leaves in the collecting duct, driven by aldosterone and by the flow of sodium past it. Block aldosterone (spironolactone, ACE inhibitor), slow the flow (a dry patient) and lose filtration, and potassium accumulates. Loop and thiazide diuretics do the reverse.',
         'Kalium verlässt den Körper im Sammelrohr, angetrieben von Aldosteron und vom vorbeifließenden Natrium. Aldosteron blockieren (Spironolacton, ACE-Hemmer), den Fluss verlangsamen (Exsikkose) und Filtration verlieren — und Kalium sammelt sich an. Schleifen- und Thiaziddiuretika bewirken das Gegenteil.')),
   ],
@@ -546,11 +554,12 @@ const KIDNEY: ModelDef = {
       ...Object.fromEntries(Object.entries(ctx.model.body)),
       MAP: metric(ctx, 'Pmean'), autoregulation: bn(ctx, 'autoregulation'), GFR: bn(ctx, 'GFR'), creatinine: bn(ctx, 'creatinine'), urea: bn(ctx, 'urea'),
       ureaCreat: 1000 * bn(ctx, 'urea') / bn(ctx, 'creatinine'), FENa: bn(ctx, 'FENa'), urineNa: bn(ctx, 'urineNa'), uNaRate: bn(ctx, 'uNaRate'), uKRate: bn(ctx, 'uKRate'),
-      NH4: bn(ctx, 'NH4'), bicarbonaturia: bn(ctx, 'bicarbonaturia'), angII: bn(ctx, 'angII'), aldosterone: bn(ctx, 'aldosterone'), phosphate: bn(ctx, 'phosphate'),
+      NH4: bn(ctx, 'NH4'), bicarbonaturia: bn(ctx, 'bicarbonaturia'), renin: bn(ctx, 'renin') / 1.5, angII: bn(ctx, 'angII'), aldosterone: bn(ctx, 'aldosterone'), phosphate: bn(ctx, 'phosphate'),
       urine: b.urineMlPerH,
     };
   },
   diagram: 'kidney',
+  constants: ['kidney'],
   sources: ['Carlström M, Wilcox CS, Arendshorst WJ. Renal autoregulation in health and disease. Physiol Rev 2015;95:405–511.', 'Lapi F et al. Concurrent use of diuretics, angiotensin converting enzyme inhibitors, and angiotensin receptor blockers with NSAIDs and risk of acute kidney injury. BMJ 2013;346:e8525.', 'Palmer BF, Clegg DJ. Physiology and pathophysiology of potassium homeostasis. Adv Physiol Educ 2016;40:480–90.', 'Waikar SS, Bonventre JV. Creatinine kinetics and the definition of acute kidney injury. J Am Soc Nephrol 2009;20:672–9.'],
 };
 
