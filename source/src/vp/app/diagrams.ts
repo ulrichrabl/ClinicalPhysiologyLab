@@ -685,7 +685,154 @@ const control: Draw = (g, w, h, c) => {
   text(g, `${L(c, 'asks for', 'fordert')} ${num(c, r.demand, 1)} · ${L(c, 'gets', 'erhält')} ${num(c, r.VE, 1)} L/min`, dx, y2 + 18, { size: 11, mono: true, weight: 700 });
 };
 
+/* ---- the internal milieu ---------------------------------------------------------------------------------------- */
+const bodyOf = (c: DiagramContext) => (c.live.snap.body ?? {}) as Record<string, any>;
+
+/* Water: the compartments drawn to scale against their normal size, with what enters and leaves. */
+const water: Draw = (g, w, h, c) => {
+  const b = bodyOf(c);
+  if (!b.TBW) return;
+  const ECF0 = b.ECF - b.dECF, Vp0 = b.plasma - b.dPlasma, ISF0 = b.ISF - b.dISF, ICF0 = b.ICF - b.dICF;
+  const wide = w >= 600;
+  const x0 = 16, top = 34, hh = wide ? h - 120 : 200, bw = (wide ? w * 0.62 : w - 32);
+  const total = Math.max(b.TBW, ICF0 + ECF0) * 1.08;
+  const W = (v: number) => (v / total) * bw;
+  text(g, L(c, 'Body water, to scale (outline: normal)', 'Körperwasser, maßstäblich (Umriss: normal)'), x0, top - 14, { size: 11, weight: 700 });
+  const box = (x: number, v: number, v0: number, col: string, label: string, sub: string) => {
+    const ww = W(v), w0 = W(v0);
+    g.fillStyle = col; g.fillRect(x, top, ww, hh);
+    g.strokeStyle = css('--fg'); g.setLineDash([4, 3]); g.lineWidth = 1; g.strokeRect(x, top, w0, hh); g.setLineDash([]);
+    if (ww > 60) { text(g, label, x + ww / 2, top + hh / 2 - 6, { size: 11, align: 'center', weight: 700, color: '#fff' }); text(g, sub, x + ww / 2, top + hh / 2 + 10, { size: 10, align: 'center', mono: true, color: '#fff' }); }
+    else { text(g, label, x + ww / 2, top - 2, { size: 10, align: 'center', weight: 700, color: col }); text(g, sub, x + ww / 2, top + hh + 12, { size: 9, align: 'center', mono: true, color: col }); }
+    return x + Math.max(ww, w0) + 6;
+  };
+  let x = x0;
+  x = box(x, b.ICF, ICF0, '#6a8fb8', L(c, 'cells', 'Zellen'), `${num(c, b.ICF, 1)} L`);
+  x = box(x, b.ISF, ISF0, '#7fb08a', L(c, 'interstitium', 'Interstitium'), `${num(c, b.ISF, 1)} L`);
+  x = box(x, b.plasma, Vp0, '#c8473d', L(c, 'plasma', 'Plasma'), `${num(c, b.plasma, 2)} L`);
+  const ty = top + hh + 30;
+  text(g, `Na⁺ ${num(c, b.sodium, 0)} mmol/L · ${L(c, 'tonicity', 'Tonizität')} ${num(c, b.tonicity, 0)} mosmol/kg · ${L(c, 'blood volume', 'Blutvolumen')} ${num(c, b.bloodVolume, 0)} mL`, x0, ty, { size: 11, mono: true });
+  text(g, `${L(c, 'ECF', 'EZV')} ${b.dECF >= 0 ? '+' : ''}${num(c, b.dECF, 1)} L · ${L(c, 'interstitium', 'Interstitium')} ${b.dISF >= 0 ? '+' : ''}${num(c, b.dISF, 1)} L · ${L(c, 'plasma', 'Plasma')} ${b.dPlasma >= 0 ? '+' : ''}${num(c, b.dPlasma, 2)} L`, x0, ty + 18, { size: 11, mono: true, color: css('--muted') });
+  // in and out
+  const fx = wide ? x0 + bw + 24 : x0, fy = wide ? top : ty + 44, fw = wide ? w - fx - 16 : w - 32;
+  text(g, L(c, 'Water in and out (L/day)', 'Wasser hinein und hinaus (l/Tag)'), fx, fy - 14 + (wide ? 0 : 0), { size: 11, weight: 700 });
+  const rows: Array<[string, number, string]> = [
+    [L(c, 'taken in', 'aufgenommen'), b.waterIn, C.ven],
+    [L(c, 'urine', 'Urin'), b.urineMlPerH * 24 / 1000, C.art],
+    [L(c, 'all losses', 'alle Verluste'), b.waterOut, C.art],
+  ];
+  const mx = Math.max(4, ...rows.map((r) => r[1]));
+  rows.forEach(([lab, v, col], i) => {
+    const y = fy + 8 + i * 30;
+    text(g, lab, fx, y, { size: 11 }); text(g, num(c, v, 2), fx + fw, y, { size: 11, align: 'right', mono: true });
+    g.fillStyle = css('--sunk'); g.fillRect(fx, y + 5, fw, 8); g.fillStyle = col; g.fillRect(fx, y + 5, (clamp(v, 0, mx) / mx) * fw, 8);
+  });
+  const y2 = fy + 8 + rows.length * 30 + 8;
+  text(g, `ADH ${num(c, b.adh, 1)} pg/mL`, fx, y2, { size: 11, mono: true, weight: 700 });
+  text(g, `${L(c, 'urine', 'Urin')} ${num(c, b.urineOsm, 0)} mosmol/kg`, fx, y2 + 18, { size: 11, mono: true });
+  g.fillStyle = css('--sunk'); g.fillRect(fx, y2 + 26, fw, 8);
+  const ux = (o: number) => fx + clamp((o - 50) / 1150, 0, 1) * fw;
+  g.fillStyle = css('--accent'); g.fillRect(ux(b.urineOsm) - 2, y2 + 24, 4, 12);
+  text(g, '50', fx, y2 + 48, { size: 9, mono: true, color: css('--muted') }); text(g, '1200', fx + fw, y2 + 48, { size: 9, mono: true, color: css('--muted'), align: 'right' });
+  text(g, L(c, 'dilute ← → concentrated', 'verdünnt ← → konzentriert'), fx + fw / 2, y2 + 48, { size: 9, align: 'center', color: css('--muted') });
+};
+
+/* The kidney: filtration against perfusion pressure, and what leaves in a day against what came in. */
+const kidney: Draw = (g, w, h, c) => {
+  const b = bodyOf(c);
+  if (!b.GFR) return;
+  const wide = w >= 620;
+  const px = 16, py = 28, pw = wide ? w * 0.5 : w - 32, ph = wide ? h - 60 : 240;
+  text(g, L(c, 'Filtration and perfusion pressure', 'Filtration und Perfusionsdruck'), px, py - 10, { size: 11, weight: 700 });
+  axes(g, px + 34, py, pw - 34, ph - 24);
+  const P0 = 20, P1 = 160, Gm = Math.max(140, b.gfrMax * 1.15);
+  const X = (p: number) => px + 34 + ((p - P0) / (P1 - P0)) * (pw - 34), Y = (q: number) => py + ph - 24 - (clamp(q, 0, Gm) / Gm) * (ph - 28);
+  const curve = (Plow: number, gmax: number, col: string, wid: number, dash?: number[]) => {
+    g.strokeStyle = col; g.lineWidth = wid; if (dash) g.setLineDash(dash); g.beginPath();
+    for (let p = P0; p <= P1; p += 1) { const q = gmax * Math.pow(clamp((p - 35) / (Plow - 35), 0, 1), 0.8); p === P0 ? g.moveTo(X(p), Y(q)) : g.lineTo(X(p), Y(q)); }
+    g.stroke(); g.setLineDash([]);
+  };
+  curve(72, b.gfrMax / Math.max(0.3, b.params?.nephronMass ?? 1), 'rgba(120,120,120,0.6)', 1.5, [4, 4]);
+  curve(b.Plow, b.gfrMax, C.art, 2.4);
+  g.fillStyle = css('--fg'); g.beginPath(); g.arc(X(clamp(b.perfusion, P0, P1)), Y(b.GFR), 6, 0, Math.PI * 2); g.fill();
+  text(g, `GFR ${num(c, b.GFR, 0)} mL/min`, X(clamp(b.perfusion, P0, P1)) + 9, Y(b.GFR) - 8, { size: 11, mono: true, weight: 700 });
+  g.strokeStyle = css('--abn'); g.setLineDash([2, 3]); g.beginPath(); g.moveTo(X(b.Plow), py); g.lineTo(X(b.Plow), py + ph - 24); g.stroke(); g.setLineDash([]);
+  text(g, L(c, `lower limit ${num(c, b.Plow, 0)}`, `untere Grenze ${num(c, b.Plow, 0)}`), X(b.Plow) + 4, py + 12, { size: 10, color: css('--abn') });
+  text(g, L(c, 'MAP − CVP (mmHg)', 'MAP − ZVD (mmHg)'), px + pw, py + ph - 4, { size: 10, align: 'right', color: css('--muted') });
+  for (let p = 40; p <= 160; p += 40) text(g, String(p), X(p), py + ph - 10, { size: 9, align: 'center', color: css('--muted'), mono: true });
+  text(g, L(c, 'dashed: a healthy kidney', 'gestrichelt: eine gesunde Niere'), px + 38, py + ph - 30, { size: 10, color: css('--muted') });
+  // excretion
+  const dx = wide ? px + pw + 26 : 16, dy = wide ? 28 : py + ph + 30, dw = wide ? w - dx - 16 : w - 32;
+  text(g, L(c, 'In the urine today', 'Heute im Urin'), dx, dy - 10, { size: 11, weight: 700 });
+  const p = b.params ?? {};
+  const food = p.foodIntake ?? 1;
+  const rows: Array<[string, number, number, string]> = [
+    ['Na⁺ (mmol)', b.uNaRate, (p.saltIntake ?? 150) * food, C.ven],
+    ['K⁺ (mmol)', b.uKRate, (p.potassiumIntake ?? 70) * food, '#8a6bb8'],
+    ['NH₄⁺ (mmol)', b.NH4, 28, '#b7a36a'],
+    [L(c, 'water (L)', 'Wasser (l)'), b.urineMlPerH * 24 / 1000, b.waterIn, C.art],
+  ];
+  rows.forEach(([lab, v, ref, col], i) => {
+    const y = dy + 8 + i * 36;
+    const mx = Math.max(ref * 1.6, v * 1.1, 1e-3);
+    text(g, lab, dx, y, { size: 11 }); text(g, `${num(c, v, lab.startsWith(L(c, 'water', 'Wasser')) ? 2 : 0)} / ${num(c, ref, lab.startsWith(L(c, 'water', 'Wasser')) ? 2 : 0)}`, dx + dw, y, { size: 11, align: 'right', mono: true });
+    g.fillStyle = css('--sunk'); g.fillRect(dx, y + 5, dw, 9);
+    g.fillStyle = col; g.fillRect(dx, y + 5, (clamp(v, 0, mx) / mx) * dw, 9);
+    g.fillStyle = css('--fg'); g.fillRect(dx + (clamp(ref, 0, mx) / mx) * dw - 1, y + 2, 2, 15);
+  });
+  const y2 = dy + 8 + rows.length * 36 + 6;
+  text(g, L(c, 'bar: excreted · tick: taken in (made)', 'Balken: ausgeschieden · Strich: aufgenommen (gebildet)'), dx, y2, { size: 10, color: css('--muted') });
+  text(g, `FENa ${num(c, b.FENa, 2)} % · ${L(c, 'urine', 'Urin')} ${num(c, b.urineOsm, 0)} mosmol/kg`, dx, y2 + 20, { size: 11, mono: true });
+  text(g, `AngII ×${num(c, b.angII, 2)} · ${L(c, 'aldosterone', 'Aldosteron')} ×${num(c, b.aldosterone, 2)}`, dx, y2 + 38, { size: 11, mono: true });
+  text(g, `${L(c, 'creatinine', 'Kreatinin')} ${num(c, b.creatinine, 0)} µmol/L · ${L(c, 'urea', 'Harnstoff')} ${num(c, b.urea, 1)} mmol/L`, dx, y2 + 56, { size: 11, mono: true, weight: 700 });
+};
+
+/* Fuels: glucose, ketones and lactate as pools with what flows in and out, arrows sized by flux. */
+const fuels: Draw = (g, w, h, c) => {
+  const b = bodyOf(c);
+  if (!b.glucose) return;
+  const wide = w >= 640;
+  const pools: Array<{ title: string; conc: string; ins: Array<[string, number]>; outs: Array<[string, number]>; col: string }> = [
+    { title: L(c, 'Glucose', 'Glukose'), conc: `${num(c, b.glucose, 1)} mmol/L`, col: '#c8a23d',
+      ins: [[L(c, 'gut', 'Darm'), (b.params?.carbIntake ?? 250) * 5.55 * (b.params?.foodIntake ?? 1) / 24], [L(c, 'liver', 'Leber'), b.hgo]],
+      outs: [[L(c, 'tissues', 'Gewebe'), b.glucoseUptake], [L(c, 'urine', 'Urin'), b.glucosuria * b.urineMlPerH / 1000]] },
+    { title: L(c, 'Ketoacids', 'Ketosäuren'), conc: `${num(c, b.ketones, 1)} mmol/L`, col: '#8a6bb8',
+      ins: [[L(c, 'liver', 'Leber'), b.ketogenesis]], outs: [[L(c, 'burnt', 'verbrannt'), b.ketoneOxidation], [L(c, 'urine', 'Urin'), b.ketonuria * b.urineMlPerH / 1000]] },
+    { title: L(c, 'Lactate', 'Laktat'), conc: `${num(c, b.lactate, 1)} mmol/L`, col: C.art,
+      ins: [[L(c, 'tissues', 'Gewebe'), b.lactateProduction]], outs: [[L(c, 'liver', 'Leber'), b.lactateClearance]] },
+  ];
+  const cols = wide ? 3 : 1;
+  const cw = (w - 32) / cols, ch = wide ? h - 70 : (h - 70) / 3;
+  const maxF = Math.max(60, ...pools.flatMap((p) => [...p.ins, ...p.outs].map((x) => x[1] || 0)));
+  pools.forEach((p, i) => {
+    const x = 16 + (wide ? i * cw : 0), y = 24 + (wide ? 0 : i * ch);
+    const bx = x + cw * 0.33, by = y + 26, bwid = cw * 0.34, bh = Math.min(70, ch - 50);
+    text(g, p.title, x, y, { size: 12, weight: 700 });
+    g.fillStyle = p.col; rrect(g, bx, by, bwid, bh, 8); g.fill();
+    text(g, p.conc, bx + bwid / 2, by + bh / 2 + 4, { size: 11, align: 'center', mono: true, weight: 700, color: '#fff' });
+    const arrowW = (f: number) => 1.5 + 9 * Math.sqrt(clamp(f, 0, maxF) / maxF);
+    p.ins.forEach(([lab, f], k) => {
+      const ay = by + (bh / (p.ins.length + 1)) * (k + 1);
+      arrow(g, x + 4, ay, bx - 4, ay, css('--muted'), arrowW(f));
+      text(g, `${lab} ${num(c, f, 0)}`, x + 4, ay - 8, { size: 10, mono: true });
+    });
+    p.outs.forEach(([lab, f], k) => {
+      const ay = by + (bh / (p.outs.length + 1)) * (k + 1);
+      arrow(g, bx + bwid + 4, ay, x + cw - 10, ay, css('--muted'), arrowW(f));
+      text(g, `${lab} ${num(c, f, 0)}`, x + cw - 10, ay - 8, { size: 10, mono: true, align: 'right' });
+    });
+  });
+  const fy = h - 30;
+  text(g, `${L(c, 'insulin', 'Insulin')} ${num(c, b.insulin, 1)} mU/L · ${L(c, 'fluxes in mmol/h', 'Flüsse in mmol/h')}`, 16, fy, { size: 11, mono: true, weight: 700 });
+  const gx = Math.min(w - 136, 330);
+  g.fillStyle = css('--sunk'); g.fillRect(gx, fy - 9, 120, 10);
+  g.fillStyle = css('--accent'); g.fillRect(gx, fy - 9, clamp(b.insulin / 40, 0, 1) * 120, 10);
+};
+
 export const DIAGRAMS: Record<string, { draw: Draw; height: (w: number) => number }> = {
+  water: { draw: water, height: (w) => (w >= 600 ? 300 : 520) },
+  kidney: { draw: kidney, height: (w) => (w >= 620 ? 320 : 560) },
+  fuels: { draw: fuels, height: (w) => (w >= 640 ? 230 : 560) },
   circuit: { draw: circuit, height: (w) => (w >= 620 ? 360 : 640) },
   baroreflex: { draw: baroreflex, height: (w) => (w >= 600 ? 300 : 520) },
   conduction: { draw: conduction, height: (w) => (w >= 600 ? 330 : 620) },

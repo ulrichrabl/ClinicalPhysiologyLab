@@ -60,8 +60,8 @@
       "de": "Notaufnahme, Schockraum 2"
     },
     "triage": {
-      "en": "Type 1 diabetes. Vomiting since last night, tummy pain, breathing fast. Drowsy. Meter reads “HI”.",
-      "de": "Typ-1-Diabetes. Erbrechen seit gestern Abend, Bauchschmerzen, atmet schnell. Schläfrig. Messgerät zeigt „HI“."
+      "en": "Type 1 diabetes. Vomiting since last night, tummy pain, breathing deeply. Drowsy. Meter reads “HI”.",
+      "de": "Typ-1-Diabetes. Erbrechen seit gestern Abend, Bauchschmerzen, atmet tief. Schläfrig. Messgerät zeigt „HI“."
     }
   },
   "pathology": {
@@ -360,8 +360,8 @@
         "ref": "breathing.pattern",
         "weight": "essential",
         "why": {
-          "en": "Deep, sighing breathing (Kussmaul): the brainstem answering the acid, not the lungs failing.",
-          "de": "Tiefe, seufzende Atmung (Kussmaul): Der Hirnstamm antwortet auf die Säure, nicht die Lunge versagt."
+          "en": "Deep, sighing breathing (Kussmaul), the rate barely raised: the brainstem answering the acid with depth, not the lungs failing.",
+          "de": "Tiefe, seufzende Atmung (Kussmaul), die Frequenz kaum erhöht: Der Hirnstamm antwortet auf die Säure mit Tiefe, nicht die Lunge versagt."
         }
       },
       {

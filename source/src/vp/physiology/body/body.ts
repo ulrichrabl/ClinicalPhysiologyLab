@@ -131,11 +131,13 @@ export interface BodySnapshot {
   albumin: number; haemoglobin: number; haematocrit: number; osmolality: number; tonicity: number;
   /* volumes, L */
   TBW: number; ICF: number; ECF: number; plasma: number; ISF: number; bloodVolume: number;
-  dECF: number; dISF: number; dPlasma: number; bloodVolumeDelta: number;
+  dECF: number; dISF: number; dPlasma: number; dICF: number; bloodVolumeDelta: number;
   /* kidney */
   GFR: number; urineMlPerH: number; urineOsm: number; urineNa: number; urineK: number; urineCl: number;
   FENa: number; NH4: number; bicarbonaturia: number; glucosuria: number; ketonuria: number; uNaRate: number; uKRate: number;
   autoregulation: number;
+  /** The lower limit of autoregulation (mmHg perfusion pressure) and the filtration it would allow above it (mL/min). */
+  Plow: number; gfrMax: number; perfusion: number;
   /* hormones */
   insulin: number; angII: number; aldosterone: number; adh: number;
   /* fluxes, mmol/h or L/h */
@@ -391,7 +393,7 @@ export class Body {
     const VpTarget = r.Vp * veShape * clamp(c.alb / 42, 0.3, 1.5) ** 0.45 * (1 - 0.01 * Math.max(0, i.CVP - 8));
 
     return {
-      c, GFR, auto, naU, kU: kU2, clU, nh4U, hco3U, ureaU, crU, uaU, uaProd, pIn, pU, glucU, ketoU, ketoProd, ketoOx, hgo, uBrain, uIns, uMass, carbIn,
+      c, GFR, auto, Plow, gfrMax: auto > 1e-3 ? GFR / auto : GFR, rpp, naU, kU: kU2, clU, nh4U, hco3U, ureaU, crU, uaU, uaProd, pIn, pU, glucU, ketoU, ketoProd, ketoOx, hgo, uBrain, uIns, uMass, carbIn,
       lacProd, lacClear, ureaProd, waterU, waterIn, insensible, vomit, stool, VpTarget, uOsm, food, obstructed,
     };
   }
@@ -435,7 +437,7 @@ export class Body {
     s.B = clamp(s.B, 2 * 2 * this.ref.ECF * 0.3, 2 * 60 * this.ref.ECF);
     if (!Number.isFinite(s.TBW + s.Na + s.K + s.B + s.G + s.Ket + s.Lac)) throw new Error('body model diverged');
     this.f = {
-      GFR: f.GFR, auto: f.auto, naU: f.naU * o, kU: f.kU * o, clU: f.clU * o, nh4U: f.nh4U * o, hco3U: f.hco3U * o, glucU: f.glucU * o, ketoU: f.ketoU * o,
+      GFR: f.GFR, auto: f.auto, Plow: f.Plow, gfrMax: f.gfrMax, rpp: f.rpp, naU: f.naU * o, kU: f.kU * o, clU: f.clU * o, nh4U: f.nh4U * o, hco3U: f.hco3U * o, glucU: f.glucU * o, ketoU: f.ketoU * o,
       waterU: f.waterU, uOsm: f.uOsm, hgo: f.hgo, gU: f.uBrain + f.uIns + f.uMass, ketoProd: f.ketoProd, ketoOx: f.ketoOx,
       lacProd: f.lacProd, lacClear: f.lacClear, waterIn: f.waterIn, waterOut: f.waterU + f.insensible + f.vomit + f.stool, FL: f.GFR * f.c.Na,
     };
@@ -484,12 +486,12 @@ export class Body {
       urea: c.urea, creatinine: c.Cr * 1000, lactate: c.Lac, ketones: c.Ket, betaHydroxybutyrate: 0.78 * c.Ket, phosphate: c.Pi,
       albumin: c.alb, haemoglobin: c.Hb, haematocrit: c.Hct, osmolality: c.osm + 0, tonicity: c.tonicity,
       TBW: s.TBW, ICF: c.ICF, ECF: c.ECF, plasma: s.Vp, ISF: c.ISF, bloodVolume: c.BV,
-      dECF: c.ECF - r.ECF, dISF: c.ISF - r.ISF, dPlasma: s.Vp - r.Vp, bloodVolumeDelta: this.bloodVolumeDelta(),
+      dECF: c.ECF - r.ECF, dISF: c.ISF - r.ISF, dPlasma: s.Vp - r.Vp, dICF: c.ICF - r.ICF, bloodVolumeDelta: this.bloodVolumeDelta(),
       GFR: (f.GFR ?? r.GFR) / 0.06, urineMlPerH: wU * 1000, urineOsm: f.uOsm ?? 600,
       urineNa: (f.naU ?? 6) / wU, urineK: (f.kU ?? 3) / wU, urineCl: (f.clU ?? 7) / wU,
       FENa: (f.naU ?? 6) / Math.max(1e-3, f.FL ?? 1000) * 100, NH4: (f.nh4U ?? 1.2) * 24, bicarbonaturia: (f.hco3U ?? 0) * 24,
       glucosuria: (f.glucU ?? 0) / wU, ketonuria: (f.ketoU ?? 0) / wU, uNaRate: (f.naU ?? 6) * 24, uKRate: (f.kU ?? 3) * 24,
-      autoregulation: f.auto ?? 1,
+      autoregulation: f.auto ?? 1, Plow: f.Plow ?? 72, gfrMax: (f.gfrMax ?? r.GFR) / 0.06, perfusion: f.rpp ?? 90,
       insulin: s.I, angII: s.AngII, aldosterone: s.Ald, adh: s.ADH,
       hgo: f.hgo ?? 0, glucoseUptake: f.gU ?? 0, ketogenesis: f.ketoProd ?? 0, ketoneOxidation: f.ketoOx ?? 0, lactateProduction: f.lacProd ?? 0, lactateClearance: f.lacClear ?? 0,
       waterIn: (f.waterIn ?? 0) * 24, waterOut: (f.waterOut ?? 0) * 24,
