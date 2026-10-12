@@ -15,7 +15,7 @@ unlinkSync(bundle);
 const { CATALOG, REGISTRY, CASES, buildView, observe, startEncounter, perform, order, ask, opening, parseAction, autoNote, describe,
   validateCatalog, validateCase, evaluate, interpret, commit, figureSvg, lerpPose, POSES, eyeAngles, measuredSlowPhaseVelocity, exportCatalog,
   settleCirculation, settleModel, createCirculation, healthyModel, modelFromCase, pathologyOf, caseWithModel, applyPreset, MODELS, VARIABLE_BY_ID,
-  recordLeads, measuredAxis, misplaced, standardPlacement, chemistryState, parseRef, Respiratory, pulseOximeter, perform: performM } = vp;
+  recordLeads, measuredAxis, misplaced, standardPlacement, chemistryState, parseRef, Respiratory, pulseOximeter, perform: performM, CONSTANTS, REFERENCES, constantIssues, groundingSummary } = vp;
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => {
@@ -930,7 +930,7 @@ console.log('\nHormones: thyroid, adrenal cortex and calcium');
     `TSH ${f(Hy.b.tsh)} fT4 ${f(Hy.b.ft4)} HR ${f(Hy.snap.metrics.HRbeat, 0)} SVR ${f(Hy.snap.metrics.SVR, 0)} CO ${f(Hy.snap.metrics.CO)} VO2 ${f(Hy.snap.resp.VO2, 0)}`);
   const Sub = B(chronic(120, { thyroidGland: 0.5 }));
   ok('a failing gland driven harder: subclinical hypothyroidism (TSH up, T4 still normal)', Sub.b.tsh > 4 && Sub.b.ft4 > 10, `TSH ${f(Sub.b.tsh)} fT4 ${f(Sub.b.ft4)}`);
-  const T4 = B(chronic(90, { thyroidGland: 0.02, thyroxineDose: 100 }));
+  const T4 = B((m) => chronic(90, { thyroidGland: 0.02, thyroxineDose: 1.6 * m.patient.weightKg })(m));
   ok('levothyroxine 1.6 µg/kg replaces the gland', T4.b.tsh > 0.4 && T4.b.tsh < 4 && T4.b.ft4 > 12, `TSH ${f(T4.b.tsh, 2)} fT4 ${f(T4.b.ft4)}`);
   const Ad = B(chronic(90, { adrenalFunction: 0.03 }));
   ok('Addison’s disease: cortisol low with ACTH very high, aldosterone low with renin up, sodium down, potassium up',
@@ -990,6 +990,24 @@ console.log('\nHormones: thyroid, adrenal cortex and calcium');
   ok('hypercalcaemia case: adjusted calcium above 3.2 with PTH suppressed, dry, urea raised, a short QTc',
     inv(Hc, 'bone-profile').calcium > 3.2 && inv(Hc, 'pth').pth < 1 && obs(Hc.c, Hc.view, 'mouth.mucosa').value.moisture !== 'moist' && Hc.view.chemistry.urea > 8 && ecg.qtc < 380,
     JSON.stringify({ bone: inv(Hc, 'bone-profile'), pth: inv(Hc, 'pth'), urea: Hc.view.chemistry.urea, qtc: ecg.qtc }));
+}
+
+console.log('\nEvidence: every constant has a status, every grounded one a reference');
+{
+  const { readFileSync, readdirSync, statSync } = await import('node:fs');
+  const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return statSync(p).isDirectory() ? walk(p) : p.endsWith('.ts') ? [p] : []; });
+  const src = walk('src/vp').filter((f) => !f.includes('/evidence/')).map((f) => readFileSync(f, 'utf8')).join('\n');
+  const issues = constantIssues();
+  ok('the constant registry has no errors (measured and derived constants cite references; derived and assumed ones show their working)', issues.length === 0, issues.join('; '));
+  const alias = { thyroid: 'THY', adrenal: 'ADR', calcium: 'CA' };
+  const unused = Object.values(CONSTANTS).filter((c) => alias[c.group] && !new RegExp(`\\b${alias[c.group]}\\.${c.id.split('.')[1]}\\b`).test(src)).map((c) => c.id);
+  ok('every registered constant is used by the model (no stale entries)', unused.length === 0, unused.join(', '));
+  const refsUsed = new Set(Object.values(CONSTANTS).flatMap((c) => c.refs ?? []));
+  const weak = Object.values(CONSTANTS).filter((c) => (c.status === 'measured' || c.status === 'derived') && (c.refs ?? []).every((r) => ['record', 'unverified'].includes(REFERENCES[r]?.verified))).map((c) => c.id);
+  const summary = groundingSummary();
+  console.log('    grounding:', Object.entries(summary).map(([g, n]) => `${g} ${n.measured + n.derived}/${n.measured + n.derived + n.assumed + n.ungrounded} grounded, ${n.assumed} assumed, ${n.ungrounded} ungrounded`).join('; '));
+  console.log('    awaiting a read of the original:', weak.join(', ') || 'none');
+  ok('references cited by constants exist and are recorded with how far they were checked', [...refsUsed].every((r) => REFERENCES[r] && REFERENCES[r].verified));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

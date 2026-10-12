@@ -1,3 +1,4 @@
+import { THY, CA } from '../evidence/endocrine.ts';
 import type { LocalizedText } from '../model/i18n.ts';
 import type { EquationDef, LiveContext, MathNode, ModelDef, VariableDef } from './types.ts';
 import type { PatientModel } from './state.ts';
@@ -743,11 +744,11 @@ const ENDOCRINE: ModelDef = {
   ],
   equations: [
     eq('tsh', 'textbook', L('TSH: the steep feedback', 'TSH: die steile Rückkopplung'),
-      [v('tsh')], ['2', '·', v('pituitary'), '·', { sup: [[paren(frac(['16'], [v('ft4')]))], ['4']] }],
-      L('Halve the free T4 and TSH rises sixteen-fold; double it and TSH falls below the limit of detection. A low TSH with a high T4 is primary hyperthyroidism; a high TSH with a low T4 primary hypothyroidism; both low, the pituitary. Severe illness lowers TSH without thyroid disease.',
-        'Halbiert sich das freie T4, steigt TSH sechzehnfach; verdoppelt es sich, fällt TSH unter die Nachweisgrenze. Niedriges TSH mit hohem T4 ist eine primäre Hyperthyreose, hohes TSH mit niedrigem T4 eine primäre Hypothyreose, beide niedrig: die Hypophyse. Schwere Krankheit senkt TSH ohne Schilddrüsenerkrankung.')),
+      [v('tsh')], [String(THY.tshNormal), '·', v('pituitary'), '·', { sup: [['10'], [`−${THY.tshLogSlope}·(fT₄/${THY.ft4Normal} − 1)`]] }],
+      L('Inverse log-linear (Spencer 1990): halve the free T4 and TSH rises about 13-fold; double it and TSH falls about 180-fold, below the limit of detection. A low TSH with a high T4 is primary hyperthyroidism; a high TSH with a low T4 primary hypothyroidism; both low, the pituitary. Severe illness lowers TSH without thyroid disease.',
+        'Invers log-linear (Spencer 1990): Halbiert sich das freie T4, steigt TSH etwa 13-fach; verdoppelt es sich, fällt TSH etwa 180-fach, unter die Nachweisgrenze. Niedriges TSH mit hohem T4 ist eine primäre Hyperthyreose, hohes TSH mit niedrigem T4 eine primäre Hypothyreose, beide niedrig: die Hypophyse. Schwere Krankheit senkt TSH ohne Schilddrüsenerkrankung.')),
     eq('t4', 'textbook', L('Thyroxine: TSH, antibodies, tablets', 'Thyroxin: TSH, Antikörper, Tabletten'),
-      [v('ft4')], ['16', '·', v('thyroidGland'), '·', { sup: [[paren(frac([v('tsh')], ['2']))], ['0.5']] }, '+', '45', '·', v('thyroidStimulation'), '+', { text: 'levothyroxine' }],
+      [v('ft4')], [String(THY.ft4Normal), '·', v('thyroidGland'), '·', { sup: [[paren(frac([v('tsh')], [String(THY.tshNormal)]))], [String(THY.glandTshExponent)]] }, '+', String(THY.gravesDrive), '·', v('thyroidStimulation'), '+', { text: 'levothyroxine' }],
       L('Graves’ antibodies stimulate the TSH receptor themselves, so the gland runs with TSH suppressed. A failing gland is driven harder by TSH, so T4 is held near normal at first (subclinical hypothyroidism: TSH high, T4 normal). Thyroxine’s half-life is a week: a dose change shows in six weeks.',
         'Basedow-Antikörper stimulieren den TSH-Rezeptor selbst, daher läuft die Drüse bei supprimiertem TSH. Eine versagende Drüse wird von TSH stärker angetrieben, sodass das T4 anfangs nahezu normal bleibt (latente Hypothyreose: TSH hoch, T4 normal). Thyroxin hat eine Halbwertszeit von einer Woche: Eine Dosisänderung zeigt sich nach sechs Wochen.')),
     eq('cort', 'textbook', L('Cortisol: ACTH, and the demand of illness', 'Cortisol: ACTH und der Bedarf der Krankheit'),
@@ -759,7 +760,7 @@ const ENDOCRINE: ModelDef = {
       L('Normally the kidney excretes the 5 mmol a day the gut absorbs. PTH raises all three: more absorbed, more released from bone, less excreted; calcium settles where excretion again matches input. Bone resorption from a tumour has to be excreted by the kidney, which can only do so by letting the calcium rise; a dry patient filtering less settles higher still. Saline (sodium drags calcium out) and bisphosphonates (stop the bone) treat it.',
         'Normalerweise scheidet die Niere die 5 mmol am Tag aus, die der Darm aufnimmt. PTH steigert alle drei: mehr aufgenommen, mehr aus dem Knochen freigesetzt, weniger ausgeschieden; das Calcium stellt sich dort ein, wo Ausscheidung und Zufuhr wieder gleich sind. Knochenabbau durch einen Tumor muss die Niere ausscheiden, und das kann sie nur, indem das Calcium steigt; ein exsikkierter Patient, der weniger filtriert, stellt sich noch höher ein. Kochsalz (Natrium zieht Calcium mit) und Bisphosphonate (stoppen den Knochenabbau) behandeln es.')),
     eq('pth', 'textbook', L('PTH: a calcium sensor', 'PTH: ein Calciumsensor'),
-      [v('pth')], ['0.6', '+', frac(['15.4'], ['1', '+', { sup: [[paren(frac([{ text: '[Ca²⁺]' }], ['1.21']))], ['51']] }]), '+', '12', '·', v('pthAutonomy')],
+      [v('pth')], [String(+(CA.pthMinFold * CA.pthNormal).toFixed(2)), '+', frac([String(+((CA.pthMaxFold - CA.pthMinFold) * CA.pthNormal).toFixed(2))], ['1', '+', { sup: [[paren(frac([{ text: '[Ca²⁺]' }], [String(CA.pthSetPoint)]))], [String(CA.pthSlope)]] }]), '+', String(CA.adenomaPth), '·', v('pthAutonomy')],
       L('A high calcium with a PTH that is not suppressed is primary hyperparathyroidism; with a suppressed PTH it is something else: malignancy (PTHrP, bone metastases), vitamin D, granulomas, thyrotoxicosis. A low calcium with a high PTH is vitamin D deficiency or kidney failure (secondary hyperparathyroidism).',
         'Ein hohes Calcium mit nicht supprimiertem PTH ist ein primärer Hyperparathyreoidismus; mit supprimiertem PTH etwas anderes: Malignom (PTHrP, Knochenmetastasen), Vitamin D, Granulome, Hyperthyreose. Ein niedriges Calcium mit hohem PTH ist ein Vitamin-D-Mangel oder Nierenversagen (sekundärer Hyperparathyreoidismus).')),
   ],
@@ -773,14 +774,8 @@ const ENDOCRINE: ModelDef = {
     };
   },
   diagram: 'endocrine',
-  sources: ['Spencer CA et al. Applications of a new chemiluminometric thyrotropin assay to subnormal measurement. J Clin Endocrinol Metab 1990;70:453–60.', 'Ross DS et al. 2016 American Thyroid Association guidelines for diagnosis and management of hyperthyroidism and other causes of thyrotoxicosis. Thyroid 2016;26:1343–421.', 'Bornstein SR et al. Diagnosis and treatment of primary adrenal insufficiency: an Endocrine Society clinical practice guideline. J Clin Endocrinol Metab 2016;101:364–89.', 'Annane D et al. Critical illness-related corticosteroid insufficiency. Crit Care Med 2017;45:2078–88.', 'Peacock M. Calcium metabolism in health and disease. Clin J Am Soc Nephrol 2010;5 Suppl 1:S23–30.', 'Stewart AF. Hypercalcemia associated with cancer. N Engl J Med 2005;352:373–9.',
-    'Effects of thyroid hormone on the cardiovascular system. Recent Prog Horm Res 2004;59:31–50, Table I (haemodynamics in overt thyroid dysfunction).',
-    'Hayashi A et al. Short-term change in resting energy expenditure and body compositions in therapeutic process for Graves’ disease. Intern Med 2020;59:1827–33.',
-    'Karmisholt J, Andersen S, Laurberg P. Weight loss after therapy of hypothyroidism is mainly caused by excretion of excess body water associated with myxoedema. J Clin Endocrinol Metab 2011 (doi:10.1210/jc.2010-1521).',
-    'Bellissant E, Annane D. Effect of hydrocortisone on phenylephrine–mean arterial pressure dose-response relationship in septic shock. Clin Pharmacol Ther 2000;68:293–303.',
-    'Interaction between hypotension and age on adrenal crisis diagnosis (152 admissions with primary adrenal insufficiency). PMC8029553.',
-    'Ramirez JA et al. Direct in vivo comparison of calcium-regulated parathyroid hormone secretion in normal volunteers and patients with secondary hyperparathyroidism. J Clin Endocrinol Metab 1993;76:1489–94.',
-    'Brown EM. Four-parameter model of the sigmoidal relationship between parathyroid hormone release and extracellular calcium concentration in normal and abnormal parathyroid tissue. J Clin Endocrinol Metab 1983;56:572–81.'],
+  constants: ['thyroid', 'adrenal', 'calcium'],
+  sources: ['Spencer CA et al. Applications of a new chemiluminometric thyrotropin assay to subnormal measurement. J Clin Endocrinol Metab 1990;70:453–60.', 'Ross DS et al. 2016 American Thyroid Association guidelines for diagnosis and management of hyperthyroidism and other causes of thyrotoxicosis. Thyroid 2016;26:1343–421.', 'Bornstein SR et al. Diagnosis and treatment of primary adrenal insufficiency: an Endocrine Society clinical practice guideline. J Clin Endocrinol Metab 2016;101:364–89.', 'Annane D et al. Critical illness-related corticosteroid insufficiency. Crit Care Med 2017;45:2078–88.', 'Peacock M. Calcium metabolism in health and disease. Clin J Am Soc Nephrol 2010;5 Suppl 1:S23–30.', 'Stewart AF. Hypercalcemia associated with cancer. N Engl J Med 2005;352:373–9.'],
 };
 
 /* Values a case may still clamp (no model produces them yet), and potassium and calcium, which the learner may clamp as an experiment. */

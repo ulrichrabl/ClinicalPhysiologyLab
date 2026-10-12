@@ -541,6 +541,21 @@ one level down; they are the equations the code runs.
 | Pupillary light reflex | afferent, pretectal, Edinger–Westphal, efferent, sympathetic | the pathway responding to a swinging light |
 | Nervous system | the lesion graph | pathways interrupted |
 
+**Evidence for every number.** Model constants live in a registry
+(`src/vp/evidence/`), not inline: each has a value, unit, meaning, a status
+(measured, derived, assumed, or not yet sourced), the references it rests on and,
+for derived and assumed values, the working. References record DOI/PMID and how
+far they were checked (full text, abstract, a secondary summary, or the
+bibliographic record only). Model code reads constants through typed objects, the
+chapter equations print them from the same source, and each chapter shows its
+constants with their status and references. The test suite fails if a measured
+or derived constant has no reference, if a derived or assumed one has no working,
+if a reference is unknown, or if a registered constant is no longer used; it
+prints how much of each model is grounded and which constants still await a read
+of the original. Migration: the endocrine models are in the registry; the
+remaining models still hold their numbers inline and are moved over model by
+model.
+
 **Where the endocrine constants come from.** Grounded in measurements: the cortisol
 permissive effect (vascular gain halved at a complete deficit, from hydrocortisone
 doubling the maximal α-agonist response with ED50 unchanged; basal resistance −20 %

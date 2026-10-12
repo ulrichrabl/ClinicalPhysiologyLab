@@ -62,4 +62,6 @@ export interface ModelDef {
   values: (ctx: LiveContext) => Record<string, number | string | boolean>;
   diagram: string;
   sources: string[];
+  /** Constant groups (evidence/constants.ts) this model's equations use: shown with their evidence. */
+  constants?: string[];
 }
