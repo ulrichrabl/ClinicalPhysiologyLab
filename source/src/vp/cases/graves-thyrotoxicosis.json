@@ -1,0 +1,411 @@
+{
+  "schema": "vp.case/1",
+  "id": "graves-thyrotoxicosis",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Racing heart, weight loss and staring eyes in a young woman: Graves’ disease",
+    "de": "Herzrasen, Gewichtsverlust und starrer Blick bei einer jungen Frau: Morbus Basedow"
+  },
+  "tags": [
+    "endocrine",
+    "thyroid",
+    "palpitations",
+    "outpatient"
+  ],
+  "difficulty": 1,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-12",
+    "sources": [
+      "Ross DS et al. 2016 American Thyroid Association guidelines for diagnosis and management of hyperthyroidism and other causes of thyrotoxicosis. Thyroid 2016;26:1343–421.",
+      "Smith TJ, Hegedüs L. Graves’ disease. N Engl J Med 2016;375:1552–65.",
+      "Bartalena L et al. The 2021 European Group on Graves’ orbitopathy (EUGOGO) clinical practice guidelines. Eur J Endocrinol 2021;185:G43–67."
+    ]
+  },
+  "patient": {
+    "name": "Sophie Neumann",
+    "age": 34,
+    "sex": "F",
+    "heightCm": 168,
+    "weightKg": 57,
+    "appearance": {
+      "skinTone": 2,
+      "hair": "brown, shoulder length",
+      "build": "slim"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ]
+  },
+  "setting": {
+    "place": {
+      "en": "Medical clinic, urgent appointment",
+      "de": "Internistische Ambulanz, dringender Termin"
+    },
+    "triage": {
+      "en": "Palpitations and weight loss for two months. GP found a pulse of 110.",
+      "de": "Seit zwei Monaten Herzrasen und Gewichtsverlust. Hausarzt fand einen Puls von 110."
+    }
+  },
+  "pathology": {
+    "chronic": {
+      "days": 60,
+      "body": {
+        "thyroidStimulation": 0.9,
+        "orbitopathy": 0.5
+      }
+    },
+    "body": {
+      "thyroidStimulation": 0.9,
+      "orbitopathy": 0.5,
+      "courseHours": 24
+    }
+  },
+  "initialState": {
+    "position": "sitting",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "full",
+    "exposure": []
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "palpitations",
+        "present": true
+      },
+      "say": {
+        "en": "My heart races all the time, even sitting still. And I’ve lost six kilos without trying.",
+        "de": "Mein Herz rast ständig, sogar im Sitzen. Und ich habe sechs Kilo abgenommen, ohne es zu wollen."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "say": {
+        "en": "It crept up over two, maybe three months.",
+        "de": "Es hat sich über zwei, vielleicht drei Monate eingeschlichen."
+      }
+    },
+    {
+      "id": "f-palp",
+      "topic": "sx.palpitations",
+      "assertion": {
+        "concept": "palpitations",
+        "present": true,
+        "attributes": {
+          "regular": true
+        }
+      },
+      "say": {
+        "en": "Fast and regular. Pounding, especially at night when I lie down.",
+        "de": "Schnell und regelmäßig. Pochend, vor allem nachts im Liegen."
+      }
+    },
+    {
+      "id": "f-weight",
+      "topic": "sx.weight",
+      "assertion": {
+        "concept": "weight-loss",
+        "present": true,
+        "attributes": {
+          "kg": 6,
+          "appetite": "increased"
+        }
+      },
+      "say": {
+        "en": "Six kilos in two months, and I’m eating more than ever. Always hungry.",
+        "de": "Sechs Kilo in zwei Monaten, und ich esse mehr denn je. Immer hungrig."
+      }
+    },
+    {
+      "id": "f-heat",
+      "topic": "sx.heat-cold",
+      "assertion": {
+        "concept": "heat-intolerance",
+        "present": true
+      },
+      "say": {
+        "en": "I can’t stand the heat. Everyone else wears a jumper and I’m in a T-shirt, sweating.",
+        "de": "Ich halte die Wärme nicht aus. Alle tragen Pullover, ich sitze im T-Shirt und schwitze."
+      }
+    },
+    {
+      "id": "f-tremor",
+      "topic": "sx.tremor",
+      "assertion": {
+        "concept": "tremor",
+        "present": true
+      },
+      "say": {
+        "en": "My hands shake. I spilt coffee at work.",
+        "de": "Meine Hände zittern. Ich habe bei der Arbeit Kaffee verschüttet."
+      }
+    },
+    {
+      "id": "f-eyes",
+      "topic": "sx.eyes",
+      "assertion": {
+        "concept": "eye-symptoms",
+        "present": true
+      },
+      "say": {
+        "en": "My eyes feel gritty, and my sister said I look as if I’m staring.",
+        "de": "Meine Augen fühlen sich sandig an, und meine Schwester sagt, ich starre."
+      }
+    },
+    {
+      "id": "f-bowel",
+      "topic": "sx.diarrhoea",
+      "assertion": {
+        "concept": "frequent-stools",
+        "present": true
+      },
+      "say": {
+        "en": "I go two or three times a day now. Not diarrhoea exactly.",
+        "de": "Ich muss jetzt zwei-, dreimal am Tag. Nicht direkt Durchfall."
+      }
+    },
+    {
+      "id": "f-mood",
+      "topic": "sx.mood",
+      "assertion": {
+        "concept": "anxiety",
+        "present": true
+      },
+      "say": {
+        "en": "On edge. Irritable with my partner, can’t sleep. I thought it was stress at work.",
+        "de": "Ständig angespannt. Gereizt mit meinem Partner, ich kann nicht schlafen. Ich dachte, es ist Stress bei der Arbeit."
+      }
+    },
+    {
+      "id": "f-periods",
+      "topic": "sx.periods",
+      "assertion": {
+        "concept": "oligomenorrhoea",
+        "present": true
+      },
+      "say": {
+        "en": "Lighter, and further apart. I’m not pregnant, I checked.",
+        "de": "Schwächer und seltener. Schwanger bin ich nicht, habe ich getestet."
+      }
+    },
+    {
+      "id": "f-neck",
+      "topic": "sx.neck-lump",
+      "assertion": {
+        "concept": "neck-swelling",
+        "present": true
+      },
+      "say": {
+        "en": "Now you mention it, my necklace feels tighter.",
+        "de": "Wo Sie es sagen: Meine Kette sitzt enger."
+      }
+    },
+    {
+      "id": "f-dysp",
+      "topic": "sx.dyspnoea",
+      "assertion": {
+        "concept": "exertional-dyspnoea",
+        "present": true
+      },
+      "say": {
+        "en": "Breathless on the stairs, which never used to happen.",
+        "de": "Kurzatmig auf der Treppe, das war früher nie so."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "say": {
+        "en": "Nothing. Healthy.",
+        "de": "Nichts. Gesund."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "say": {
+        "en": "Only the pill. No supplements, no slimming tablets.",
+        "de": "Nur die Pille. Keine Nahrungsergänzung, keine Schlankheitsmittel."
+      }
+    },
+    {
+      "id": "f-fhx",
+      "topic": "fhx",
+      "assertion": {
+        "concept": "family-autoimmune",
+        "present": true
+      },
+      "say": {
+        "en": "My mother has an underactive thyroid. My aunt has type 1 diabetes.",
+        "de": "Meine Mutter hat eine Unterfunktion der Schilddrüse. Meine Tante hat Typ-1-Diabetes."
+      }
+    },
+    {
+      "id": "f-smoke",
+      "topic": "shx.smoking",
+      "assertion": {
+        "concept": "smoker",
+        "present": true,
+        "attributes": {
+          "perDay": 10
+        }
+      },
+      "say": {
+        "en": "Ten a day. I know.",
+        "de": "Zehn am Tag. Ich weiß."
+      }
+    },
+    {
+      "id": "f-ice",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "Is it my heart? I’m scared I’m having a breakdown.",
+        "de": "Ist es das Herz? Ich habe Angst, dass ich einen Zusammenbruch habe."
+      }
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-tft",
+        "kind": "investigation",
+        "ref": "tft",
+        "weight": "essential",
+        "discriminates": [
+          "anxiety-disorder",
+          "phaeochromocytoma"
+        ],
+        "why": {
+          "en": "TSH suppressed with a high free T4: primary hyperthyroidism. The pituitary is doing the right thing.",
+          "de": "TSH supprimiert bei hohem fT4: primäre Hyperthyreose. Die Hypophyse reagiert richtig."
+        }
+      },
+      {
+        "id": "e-goitre",
+        "kind": "property",
+        "ref": "neck.thyroid",
+        "weight": "essential",
+        "discriminates": [
+          "toxic-multinodular-goitre",
+          "thyroiditis"
+        ],
+        "why": {
+          "en": "A smooth, diffuse goitre with a bruit: a gland driven as a whole and very vascular, which is Graves’ disease.",
+          "de": "Glatte, diffuse Struma mit Strömungsgeräusch: eine als Ganzes angetriebene, stark durchblutete Drüse — das ist der Morbus Basedow."
+        }
+      },
+      {
+        "id": "e-eyes",
+        "kind": "property",
+        "ref": "eyes.thyroid",
+        "weight": "essential",
+        "discriminates": [
+          "toxic-multinodular-goitre",
+          "thyroiditis"
+        ],
+        "why": {
+          "en": "Exophthalmos is specific to Graves’ disease; lid retraction and lag come with any thyrotoxicosis.",
+          "de": "Exophthalmus ist spezifisch für den Morbus Basedow; Lidretraktion und Graefe-Zeichen gibt es bei jeder Thyreotoxikose."
+        }
+      },
+      {
+        "id": "e-tremor",
+        "kind": "property",
+        "ref": "hands.tremor",
+        "weight": "supporting",
+        "why": {
+          "en": "A fine tremor of the outstretched fingers.",
+          "de": "Feinschlägiger Tremor der gespreizten Finger."
+        }
+      },
+      {
+        "id": "e-hr",
+        "kind": "property",
+        "ref": "vitals.hr",
+        "weight": "essential",
+        "why": {
+          "en": "A resting sinus tachycardia.",
+          "de": "Ruhe-Sinustachykardie."
+        }
+      },
+      {
+        "id": "e-ecg",
+        "kind": "investigation",
+        "ref": "ecg-12",
+        "weight": "discriminating",
+        "discriminates": [
+          "atrial-fibrillation"
+        ],
+        "why": {
+          "en": "Sinus rhythm: not (yet) atrial fibrillation, which thyrotoxicosis causes in older patients.",
+          "de": "Sinusrhythmus: (noch) kein Vorhofflimmern, das die Thyreotoxikose bei Älteren auslöst."
+        }
+      },
+      {
+        "id": "e-weight",
+        "kind": "fact",
+        "ref": "f-weight",
+        "weight": "supporting",
+        "discriminates": [
+          "anxiety-disorder"
+        ],
+        "why": {
+          "en": "Weight loss despite a large appetite: a raised metabolic rate.",
+          "de": "Gewichtsverlust trotz großem Appetit: ein gesteigerter Grundumsatz."
+        }
+      },
+      {
+        "id": "e-fhx",
+        "kind": "fact",
+        "ref": "f-fhx",
+        "weight": "supporting",
+        "why": {
+          "en": "Autoimmune disease runs in families.",
+          "de": "Autoimmunerkrankungen treten familiär gehäuft auf."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "property",
+        "ref": "vitals.hr",
+        "why": {
+          "en": "Start a beta-blocker (propranolol) for the symptoms and a thionamide (carbimazole or thiamazole), check TSH-receptor antibodies, warn about agranulocytosis (sore throat, fever: stop and check a blood count), refer to endocrinology and, for the eyes, ophthalmology; stop smoking (it worsens orbitopathy).",
+          "de": "Betablocker (Propranolol) gegen die Symptome und ein Thyreostatikum (Carbimazol oder Thiamazol) beginnen, TSH-Rezeptor-Antikörper bestimmen, über Agranulozytose aufklären (Halsschmerzen, Fieber: absetzen und Blutbild), Überweisung in die Endokrinologie und wegen der Augen in die Ophthalmologie; Rauchstopp (verschlechtert die Orbitopathie)."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 15,
+    "summary": {
+      "en": "A 34-year-old with two months of palpitations, six kilograms of weight loss despite a large appetite, heat intolerance, tremor, irritability, gritty eyes, frequent stools and lighter periods; a mother with hypothyroidism; smokes. Sinus tachycardia, warm and sweaty, fine tremor, a smooth diffuse goitre with a bruit, lid retraction and lag, bilateral exophthalmos. TSH suppressed, free T4 high. Graves’ disease: beta-blocker, thionamide with agranulocytosis warning, TSH-receptor antibodies, endocrinology and ophthalmology, stop smoking.",
+      "de": "Eine 34-Jährige mit zwei Monaten Herzrasen, sechs Kilo Gewichtsverlust trotz großem Appetit, Wärmeintoleranz, Tremor, Reizbarkeit, sandigen Augen, häufigem Stuhlgang und schwächerer Periode; Mutter mit Hypothyreose; Raucherin. Sinustachykardie, warm und schwitzig, feinschlägiger Tremor, glatte diffuse Struma mit Strömungsgeräusch, Lidretraktion und Graefe-Zeichen, beidseitiger Exophthalmus. TSH supprimiert, fT4 hoch. Morbus Basedow: Betablocker, Thyreostatikum mit Agranulozytose-Aufklärung, TRAK, Endokrinologie und Ophthalmologie, Rauchstopp."
+    }
+  },
+  "diagnosis": {
+    "primary": "graves-disease",
+    "accepted": [
+      "thyrotoxicosis"
+    ],
+    "differential": [
+      "anxiety-disorder",
+      "toxic-multinodular-goitre",
+      "thyroiditis",
+      "phaeochromocytoma",
+      "atrial-fibrillation"
+    ]
+  }
+}

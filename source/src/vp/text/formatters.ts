@@ -161,6 +161,13 @@ export const FORMATTERS: Record<string, Formatter> = {
     return parts.length ? `${cap(parts.join(', '))}.` : (de(l) ? 'Keine Leberhautzeichen.' : 'No signs of chronic liver disease.');
   },
   'mouth.mucosa': (v, _c, l, cat) => `${cap(lab(cat, 'mucosa', v.moisture, l))}.`,
+  'hands.tremor': (v, _c, l, cat) => `${cap(lab(cat, 'tremor', v.tremor, l))}.`,
+  'skin.pigmentation': (v, _c, l, cat) => `${cap(lab(cat, 'pigmentation', v.pigmentation, l))}.`,
+  'neck.thyroid': (v, _c, l, cat) => `${cap(lab(cat, 'goitre', v.goitre, l))}${v.bruit ? (de(l) ? '; darüber ein Strömungsgeräusch' : '; a bruit over it') : ''}.`,
+  'eyes.thyroid': (v, _c, l) => {
+    const parts = [v.lidRetraction && (de(l) ? 'Lidretraktion (Sklera über der Iris sichtbar)' : 'lid retraction (sclera visible above the iris)'), v.lidLag && (de(l) ? 'Graefe-Zeichen (Oberlid bleibt beim Blick nach unten zurück)' : 'lid lag on looking down'), v.exophthalmos && (de(l) ? 'beidseitiger Exophthalmus' : 'bilateral exophthalmos')].filter(Boolean) as string[];
+    return parts.length ? `${cap(parts.join('; '))}.` : (de(l) ? 'Lider und Bulbusstellung unauffällig.' : 'Lids and eye position normal.');
+  },
   'skin.turgor': (v, _c, l, cat) => `${cap(lab(cat, 'turgor', v.turgor, l))}.`,
   'breath.odour': (v, _c, l, cat) => `${cap(lab(cat, 'breath-odour', v.odour, l))}.`,
   'abdomen.palpation': (v, _c, l, cat) => {
@@ -447,7 +454,10 @@ export const FORMATTERS: Record<string, Formatter> = {
       glucose: ['glucose', 'Glukose', 'mmol/L'], betaHydroxybutyrate: ['β-hydroxybutyrate', 'β-Hydroxybutyrat', 'mmol/L'], osmolality: ['osmolality', 'Osmolalität', 'mosmol/kg'],
       mlPerHour: ['urine', 'Urin', 'mL/h'], bilirubin: ['bilirubin', 'Bilirubin', 'µmol/L'], alt: ['ALT', 'ALT', 'U/L'], alp: ['ALP', 'AP', 'U/L'], ggt: ['GGT', 'γGT', 'U/L'],
       inr: ['INR', 'INR', ''], aptt: ['APTT', 'aPTT', 's'], ammonia: ['ammonia', 'Ammoniak', 'µmol/L'], ferritin: ['ferritin', 'Ferritin', 'µg/L'], b12: ['B₁₂', 'B₁₂', 'pmol/L'], folate: ['folate', 'Folsäure', 'µg/L'],
-      reticulocytes: ['reticulocytes', 'Retikulozyten', '%'], ldh: ['LDH', 'LDH', 'U/L'], haptoglobin: ['haptoglobin', 'Haptoglobin', 'g/L'], bilirubinUnconjugated: ['unconjugated bilirubin', 'unkonjugiertes Bilirubin', 'µmol/L'], mlPerKgPerHour: ['', '', 'mL/kg/h'], phosphate: ['phosphate', 'Phosphat', 'mmol/L'], albumin: ['albumin', 'Albumin', 'g/L'],
+      reticulocytes: ['reticulocytes', 'Retikulozyten', '%'], ldh: ['LDH', 'LDH', 'U/L'], haptoglobin: ['haptoglobin', 'Haptoglobin', 'g/L'], bilirubinUnconjugated: ['unconjugated bilirubin', 'unkonjugiertes Bilirubin', 'µmol/L'], mlPerKgPerHour: ['', '', 'mL/kg/h'], tsh: ['TSH', 'TSH', 'mU/L'], ft4: ['free T4', 'fT4', 'pmol/L'], ft3: ['free T3', 'fT3', 'pmol/L'],
+      cortisol: ['cortisol', 'Cortisol', 'nmol/L'], acth: ['ACTH', 'ACTH', 'ng/L'], cortisol0: ['cortisol at 0 min', 'Cortisol bei 0 min', 'nmol/L'], cortisol30: ['cortisol at 30 min', 'Cortisol nach 30 min', 'nmol/L'],
+      renin: ['renin', 'Renin', 'mU/L'], aldosterone: ['aldosterone', 'Aldosteron', 'pmol/L'], calciumTotal: ['calcium (total)', 'Calcium (gesamt)', 'mmol/L'], calcium: ['calcium (adjusted)', 'Calcium (korrigiert)', 'mmol/L'],
+      pth: ['PTH', 'PTH', 'pmol/L'], vitaminD: ['25-OH vitamin D', '25-OH-Vitamin-D', 'nmol/L'], phosphate: ['phosphate', 'Phosphat', 'mmol/L'], albumin: ['albumin', 'Albumin', 'g/L'],
     };
     const inv = cat.investigations[ref.property];
     const range = (inv?.normal.range ?? {}) as Record<string, [number, number]>;
@@ -455,7 +465,7 @@ export const FORMATTERS: Record<string, Formatter> = {
       const [en, dn, unit] = names[k] ?? [k, k, ''];
       const r = range[k];
       const flag = r ? (x < r[0] ? ' ↓' : x > r[1] ? ' ↑' : '') : '';
-      return `${de(l) ? dn : en} ${num(x, l, k === 'arterialPH' || k === 'fio2' ? 2 : (Number.isInteger(x) ? 0 : 1))}${unit ? ' ' + unit : ''}${flag}`;
+      return `${de(l) ? dn : en} ${num(x, l, k === 'arterialPH' || k === 'fio2' || k === 'tsh' || k === 'calcium' || k === 'calciumTotal' || k === 'phosphate' ? 2 : (Number.isInteger(x) ? 0 : 1))}${unit ? ' ' + unit : ''}${flag}`;
     });
     return `${tr(inv?.label ?? { en: ref.property }, l)}: ${parts.join(', ')}.`;
   },

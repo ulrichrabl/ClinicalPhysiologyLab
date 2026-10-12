@@ -37,7 +37,10 @@ import urosepsis from './cases/urosepsis-septic-shock.json';
 import ugib from './cases/upper-gi-bleed-peptic-ulcer.json';
 import cirrhosis from './cases/decompensated-cirrhosis.json';
 import ida from './cases/iron-deficiency-anaemia-caecal.json';
+import graves from './cases/graves-thyrotoxicosis.json';
+import addisonian from './cases/addisonian-crisis.json';
+import hypercalcaemia from './cases/hypercalcaemia-malignancy.json';
 import type { CaseDef } from './model/types.ts';
 
 /** Cases are JSON documents; the validator, not the type system, vouches for them. */
-export const CASES: CaseDef[] = [vestibularNeuritisLeft, exertionalSyncopeAs, acuteStrokeLeftMca, footDropRightL5, pneumoniaRll, peAfterFlight, copdExacerbation, akiHyperkalaemia, diabeticKetoacidosis, hyponatraemiaThiazide, urosepsis, ugib, cirrhosis, ida] as unknown as CaseDef[];
+export const CASES: CaseDef[] = [vestibularNeuritisLeft, exertionalSyncopeAs, acuteStrokeLeftMca, footDropRightL5, pneumoniaRll, peAfterFlight, copdExacerbation, akiHyperkalaemia, diabeticKetoacidosis, hyponatraemiaThiazide, urosepsis, ugib, cirrhosis, ida, graves, addisonian, hypercalcaemia] as unknown as CaseDef[];

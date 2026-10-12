@@ -251,6 +251,30 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     reveals: [{ property: 'skin.liver-stigmata' }], requires: { exposure: ['chest', 'abdomen'] }, durationSeconds: 30,
   },
   {
+    id: 'test.tremor', verb: 'test', target: 'hands',
+    label: { en: 'Arms out straight, fingers spread (tremor)', de: 'Arme gestreckt vorhalten, Finger gespreizt (Tremor)' },
+    phrases: { en: ['tremor', 'fine tremor', 'shaky hands', 'fingers spread', 'paper on the hands'], de: ['tremor', 'zittern', 'feinschlägiger tremor', 'finger spreizen', 'blatt auf die hände'] },
+    reveals: [{ property: 'hands.tremor' }], durationSeconds: 15,
+  },
+  {
+    id: 'inspect.pigmentation', verb: 'inspect', target: 'skin',
+    label: { en: 'Look at the palmar creases and inside the cheeks (pigmentation)', de: 'Handlinien und Wangenschleimhaut ansehen (Pigmentierung)' },
+    phrases: { en: ['pigmentation', 'palmar creases', 'buccal pigmentation', 'tanned', 'skin colour', 'hyperpigmentation'], de: ['pigmentierung', 'handlinien', 'wangenschleimhaut', 'gebräunt', 'hautfarbe', 'hyperpigmentierung'] },
+    reveals: [{ property: 'skin.pigmentation' }], requires: { instrument: ['pen-torch'] }, durationSeconds: 20,
+  },
+  {
+    id: 'palpate.thyroid', verb: 'palpate', target: 'neck.thyroid',
+    label: { en: 'Examine the thyroid from behind, with a sip of water, and listen over it', de: 'Schilddrüse von hinten tasten, schlucken lassen und auskultieren' },
+    phrases: { en: ['thyroid', 'goitre', 'goiter', 'feel the neck', 'neck lump', 'thyroid bruit', 'swallow'], de: ['schilddrüse', 'struma', 'hals tasten', 'knoten am hals', 'schwirren', 'schlucken'] },
+    reveals: [{ property: 'neck.thyroid' }], requires: { instrument: ['hands', 'stethoscope-bell'], position: ['sitting'] }, durationSeconds: 60,
+  },
+  {
+    id: 'inspect.thyroid-eyes', verb: 'inspect', target: 'eyes',
+    label: { en: 'Look at the lids and eyes; follow my finger down (lid lag)', de: 'Lider und Augen ansehen; dem Finger nach unten folgen (Graefe-Zeichen)' },
+    phrases: { en: ['lid lag', 'lid retraction', 'exophthalmos', 'proptosis', 'stare', 'thyroid eyes', 'eye signs'], de: ['graefe', 'lidretraktion', 'exophthalmus', 'protrusio', 'starrer blick', 'augenzeichen'] },
+    reveals: [{ property: 'eyes.thyroid' }], durationSeconds: 30,
+  },
+  {
     id: 'inspect.mouth', verb: 'inspect', target: 'mouth',
     label: { en: 'Look in the mouth (mucous membranes)', de: 'Mundhöhle inspizieren (Schleimhäute)' },
     phrases: { en: ['look in the mouth', 'mucous membranes', 'mucosa', 'dry mouth', 'tongue dry', 'hydration'], de: ['mund ansehen', 'schleimhäute', 'mundschleimhaut', 'zunge trocken', 'exsikkose', 'hydratation'] },

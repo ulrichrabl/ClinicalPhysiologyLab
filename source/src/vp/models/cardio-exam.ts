@@ -188,6 +188,9 @@ export const CARDIO_RESOLVERS: Record<string, Resolver> = {
     /* Fever: the skin flushed and sweating as heat is shed (or pale and shivering while the set point is still being climbed). */
     const T = view.body?.temperature ?? 37;
     if (h.map >= 60 && T >= 38.3) return { value: { distress: 'mild', colour: 'flushed', sweating: true }, basis: `core temperature ${T.toFixed(1)} °C` };
+    /* Thyrotoxicosis: heat produced faster than it can be lost, shed through warm, flushed, sweating skin. */
+    const thy = view.body?.thyroidEffect ?? 1;
+    if (h.map >= 60 && thy >= 1.8) return { value: { distress: 'mild', colour: 'flushed', sweating: true }, basis: `thyroid hormone action ×${thy.toFixed(2)}: metabolic rate ×${(view.body?.metabolicMult ?? 1).toFixed(2)}` };
     if (h.map >= 60) return undefined;   // the case layer describes a well-perfused patient
     if ((view.body?.vasoplegia ?? 0) > 0.35) return { value: { distress: 'moderate', colour: 'flushed', sweating: true }, basis: `mean arterial pressure ${h.map.toFixed(0)} mmHg with dilated skin vessels (sepsis)` };
     return { value: { distress: 'moderate', colour: 'pale', sweating: true }, basis: `mean arterial pressure ${h.map.toFixed(0)} mmHg` };

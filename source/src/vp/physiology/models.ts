@@ -701,6 +701,81 @@ const INFLAMMATION: ModelDef = {
   sources: ['Singer M et al. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3). JAMA 2016;315:801–10.', 'Dinarello CA. Cytokines as endogenous pyrogens. J Infect Dis 1999;179 Suppl 2:S294–304.', 'Vigushin DM, Pepys MB, Hawkins PN. Metabolic and scintigraphic studies of radioiodinated human C-reactive protein in health and disease. J Clin Invest 1993;91:1351–7.', 'Landry DW, Oliver JA. The pathogenesis of vasodilatory shock. N Engl J Med 2001;345:588–95.'],
 };
 
+const ENDOCRINE: ModelDef = {
+  id: 'endocrine', title: L('Hormones: thyroid, adrenal cortex and calcium', 'Hormone: Schilddrüse, Nebennierenrinde und Calcium'),
+  summary: L('Three negative feedback loops. The pituitary’s TSH drives the thyroid; thyroxine suppresses TSH, so steeply that TSH is the sensitive test: it moves a hundred-fold for a two-fold change in free T4. Thyroid hormone sets the metabolic rate, the heart rate and the response to adrenaline, and makes the body hot and the vessels wide. ACTH drives cortisol and cortisol suppresses ACTH; illness drives ACTH up. Cortisol keeps glucose made, keeps vessels responsive to noradrenaline and restrains ADH; the adrenal cortex also makes aldosterone, under angiotensin and potassium rather than ACTH. Destroy the adrenal glands (Addison’s disease) and both go: salt and water are lost, potassium is kept, the blood pressure falls and does not answer to fluid alone until cortisol is given. Parathyroid hormone answers to the ionised calcium within minutes: it releases calcium from bone, keeps it in the kidney, has phosphate excreted and, through calcitriol, absorbed from the gut. A tumour’s PTH-related peptide does the same with no one to switch it off; a high calcium then blocks the kidney’s concentrating ability, the patient becomes dry, filters less, and the calcium climbs further.',
+    'Drei negative Rückkopplungsschleifen. TSH aus der Hypophyse treibt die Schilddrüse; Thyroxin hemmt TSH, und zwar so steil, dass TSH der empfindliche Test ist: Es ändert sich hundertfach bei einer Verdopplung des freien T4. Schilddrüsenhormon stellt den Grundumsatz, die Herzfrequenz und die Antwort auf Adrenalin ein, macht warm und weitet die Gefäße. ACTH treibt Cortisol, Cortisol hemmt ACTH; Krankheit treibt ACTH hoch. Cortisol hält die Glukoseproduktion aufrecht, hält die Gefäße für Noradrenalin empfindlich und bremst ADH; die Nebennierenrinde bildet außerdem Aldosteron — unter Angiotensin und Kalium, nicht unter ACTH. Werden die Nebennieren zerstört (Morbus Addison), fällt beides aus: Salz und Wasser gehen verloren, Kalium bleibt, der Blutdruck fällt und spricht auf Volumen allein nicht an, bis Cortisol gegeben wird. Parathormon antwortet binnen Minuten auf das ionisierte Calcium: Es setzt Calcium aus dem Knochen frei, hält es in der Niere zurück, lässt Phosphat ausscheiden und über Calcitriol Calcium aus dem Darm aufnehmen. Das PTH-related Peptide eines Tumors tut dasselbe, ohne dass es jemand abschaltet; ein hohes Calcium blockiert dann die Konzentrierfähigkeit der Niere, der Patient trocknet aus, filtriert weniger, und das Calcium steigt weiter.'),
+  groups: [
+    { id: 'thyroid', label: L('Thyroid', 'Schilddrüse') },
+    { id: 'adrenal', label: L('Adrenal cortex and pituitary', 'Nebennierenrinde und Hypophyse') },
+    { id: 'calcium', label: L('Calcium and bone', 'Calcium und Knochen') },
+  ],
+  variables: [
+    BP('endocrine', 'thyroid', 'thyroidGland', 'G_{thy}', L('Thyroid tissue able to make hormone (Hashimoto, thyroidectomy, radioiodine)', 'Hormonbildendes Schilddrüsengewebe (Hashimoto, Thyreoidektomie, Radiojod)'), '× normal', 0, 3, 0.02),
+    BP('endocrine', 'thyroid', 'thyroidStimulation', 'TRAb', L('TSH-receptor antibodies driving the gland (Graves’ disease)', 'TSH-Rezeptor-Antikörper, die die Drüse antreiben (Morbus Basedow)'), '0–1', 0, 1.5, 0.05),
+    BP('endocrine', 'thyroid', 'orbitopathy', 'orb', L('Thyroid eye disease (Graves’ orbitopathy)', 'Endokrine Orbitopathie'), '0–1', 0, 1, 0.05),
+    BP('endocrine', 'thyroid', 'antithyroid', 'CBZ', L('Antithyroid drug (carbimazole, thiamazole)', 'Thyreostatikum (Carbimazol, Thiamazol)'), '0–1', 0, 1, 0.05),
+    BP('endocrine', 'thyroid', 'thyroxineDose', 'L-T4', L('Levothyroxine', 'Levothyroxin'), 'µg/day', 0, 300, 12.5),
+    BP('endocrine', 'adrenal', 'pituitary', 'P', L('Anterior pituitary reserve (TSH, ACTH)', 'Hypophysenvorderlappen-Reserve (TSH, ACTH)'), '× normal', 0, 1.5, 0.05),
+    BP('endocrine', 'adrenal', 'adrenalFunction', 'A', L('Adrenal cortex (Addison’s disease destroys it)', 'Nebennierenrinde (beim Morbus Addison zerstört)'), '× normal', 0, 2, 0.01),
+    BP('endocrine', 'adrenal', 'hydrocortisoneDose', 'HC', L('Hydrocortisone (20 mg/day replaces normal secretion)', 'Hydrocortison (20 mg/Tag ersetzen die normale Sekretion)'), 'mg/day', 0, 400, 5),
+    BP('endocrine', 'adrenal', 'fludrocortisone', 'FC', L('Fludrocortisone (0.1 mg/day replaces aldosterone)', 'Fludrocortison (0,1 mg/Tag ersetzen Aldosteron)'), 'mg/day', 0, 0.4, 0.05),
+    BP('endocrine', 'calcium', 'pthAutonomy', 'PTH_{aut}', L('Parathyroid adenoma (PTH calcium cannot suppress)', 'Nebenschilddrüsenadenom (durch Calcium nicht supprimierbares PTH)'), '0–1', 0, 3, 0.05),
+    BP('endocrine', 'calcium', 'pthrp', 'PTHrP', L('PTH-related peptide from a tumour', 'PTH-related Peptide aus einem Tumor'), '0–1', 0, 2, 0.05),
+    BP('endocrine', 'calcium', 'boneResorption', 'OL', L('Osteolysis (bone metastases, myeloma)', 'Osteolyse (Knochenmetastasen, Myelom)'), '0–1', 0, 2, 0.05),
+    BP('endocrine', 'calcium', 'vitaminD', 'D', L('Vitamin D status', 'Vitamin-D-Status'), '× normal', 0, 3, 0.05),
+    BP('endocrine', 'calcium', 'bisphosphonate', 'BP', L('Bisphosphonate (osteoclasts blocked)', 'Bisphosphonat (Osteoklasten gehemmt)'), '0–1', 0, 1, 0.05),
+    S('endocrine', 'tsh', 'TSH', L('TSH', 'TSH'), 'mU/L', 2),
+    S('endocrine', 'ft4', 'fT_4', L('Free thyroxine', 'Freies Thyroxin'), 'pmol/L', 1),
+    S('endocrine', 'thyroidEffect', 'f_{thy}', L('Thyroid hormone action', 'Schilddrüsenhormonwirkung'), '× normal', 2),
+    S('endocrine', 'metabolicMult', 'BMR', L('Basal metabolic rate', 'Grundumsatz'), '× normal', 2),
+    S('endocrine', 'hrMult', 'f_{HR}', L('Sinus rate set by thyroid hormone', 'Sinusfrequenz durch Schilddrüsenhormon'), '× normal', 2),
+    S('endocrine', 'acth', 'ACTH', L('ACTH', 'ACTH'), 'ng/L', 0),
+    S('endocrine', 'cortisol', '[cortisol]', L('Cortisol', 'Cortisol'), 'nmol/L', 0),
+    S('endocrine', 'cortisolDeficit', 'δ_{cort}', L('Cortisol missing for what the illness demands', 'Fehlendes Cortisol für den Bedarf der Erkrankung'), '0–1', 2),
+    S('endocrine', 'renin', 'renin', L('Renin', 'Renin'), '× normal', 1),
+    S('endocrine', 'aldosterone', 'Aldo', L('Aldosterone', 'Aldosteron'), 'pmol/L', 0),
+    S('endocrine', 'calcium', '[Ca]_{adj}', L('Calcium (albumin-adjusted)', 'Calcium (albuminkorrigiert)'), 'mmol/L', 2),
+    S('endocrine', 'ionisedCalcium', '[Ca^{2+}]', L('Ionised calcium', 'Ionisiertes Calcium'), 'mmol/L', 2),
+    S('endocrine', 'pth', 'PTH', L('Parathyroid hormone', 'Parathormon'), 'pmol/L', 1),
+    S('endocrine', 'phosphate', '[PO_4]', L('Phosphate', 'Phosphat'), 'mmol/L', 2),
+    S('endocrine', 'GFR', 'GFR', L('Glomerular filtration rate', 'Glomeruläre Filtrationsrate'), 'mL/min', 0),
+  ],
+  equations: [
+    eq('tsh', 'textbook', L('TSH: the steep feedback', 'TSH: die steile Rückkopplung'),
+      [v('tsh')], ['2', '·', v('pituitary'), '·', { sup: [[paren(frac(['16'], [v('ft4')]))], ['4']] }],
+      L('Halve the free T4 and TSH rises sixteen-fold; double it and TSH falls below the limit of detection. A low TSH with a high T4 is primary hyperthyroidism; a high TSH with a low T4 primary hypothyroidism; both low, the pituitary. Severe illness lowers TSH without thyroid disease.',
+        'Halbiert sich das freie T4, steigt TSH sechzehnfach; verdoppelt es sich, fällt TSH unter die Nachweisgrenze. Niedriges TSH mit hohem T4 ist eine primäre Hyperthyreose, hohes TSH mit niedrigem T4 eine primäre Hypothyreose, beide niedrig: die Hypophyse. Schwere Krankheit senkt TSH ohne Schilddrüsenerkrankung.')),
+    eq('t4', 'textbook', L('Thyroxine: TSH, antibodies, tablets', 'Thyroxin: TSH, Antikörper, Tabletten'),
+      [v('ft4')], ['16', '·', v('thyroidGland'), '·', { sup: [[paren(frac([v('tsh')], ['2']))], ['0.5']] }, '+', '45', '·', v('thyroidStimulation'), '+', { text: 'levothyroxine' }],
+      L('Graves’ antibodies stimulate the TSH receptor themselves, so the gland runs with TSH suppressed. A failing gland is driven harder by TSH, so T4 is held near normal at first (subclinical hypothyroidism: TSH high, T4 normal). Thyroxine’s half-life is a week: a dose change shows in six weeks.',
+        'Basedow-Antikörper stimulieren den TSH-Rezeptor selbst, daher läuft die Drüse bei supprimiertem TSH. Eine versagende Drüse wird von TSH stärker angetrieben, sodass das T4 anfangs nahezu normal bleibt (latente Hypothyreose: TSH hoch, T4 normal). Thyroxin hat eine Halbwertszeit von einer Woche: Eine Dosisänderung zeigt sich nach sechs Wochen.')),
+    eq('cort', 'textbook', L('Cortisol: ACTH, and the demand of illness', 'Cortisol: ACTH und der Bedarf der Krankheit'),
+      [v('acth')], [v('pituitary'), '·', paren('1', '+', '4', '·', { text: 'stress' }), '·', { sup: [[{ text: 'cortisol' }], ['−1.5']] }],
+      L('Illness drives ACTH and cortisol up two- to three-fold. A patient without adrenal glands cannot respond: a cortisol that would be adequate at rest is a deficit in illness, and a gastroenteritis becomes an adrenal crisis. ACTH, made from the same precursor as melanocyte-stimulating hormone, darkens the skin in primary adrenal failure, not in pituitary failure.',
+        'Krankheit treibt ACTH und Cortisol auf das Zwei- bis Dreifache. Ein Patient ohne Nebennieren kann nicht antworten: Ein Cortisol, das in Ruhe genügt, ist bei Krankheit ein Mangel — eine Gastroenteritis wird zur Addison-Krise. ACTH, aus derselben Vorstufe wie das melanozytenstimulierende Hormon, dunkelt die Haut beim primären Nebennierenversagen, nicht beim hypophysären.')),
+    eq('ca', 'textbook', L('Calcium: gut, bone and kidney', 'Calcium: Darm, Knochen und Niere'),
+      [{ text: 'd(Ca)/dt' }], [{ text: 'gut (calcitriol)' }, '+', { text: 'bone (PTH, PTHrP, metastases)' }, '−', v('GFR'), '·', { text: '0.6·Ca' }, '·', { text: 'FE_Ca' }],
+      L('Normally the kidney excretes the 5 mmol a day the gut absorbs. PTH raises all three: more absorbed, more released from bone, less excreted; calcium settles where excretion again matches input. Bone resorption from a tumour has to be excreted by the kidney, which can only do so by letting the calcium rise; a dry patient filtering less settles higher still. Saline (sodium drags calcium out) and bisphosphonates (stop the bone) treat it.',
+        'Normalerweise scheidet die Niere die 5 mmol am Tag aus, die der Darm aufnimmt. PTH steigert alle drei: mehr aufgenommen, mehr aus dem Knochen freigesetzt, weniger ausgeschieden; das Calcium stellt sich dort ein, wo Ausscheidung und Zufuhr wieder gleich sind. Knochenabbau durch einen Tumor muss die Niere ausscheiden, und das kann sie nur, indem das Calcium steigt; ein exsikkierter Patient, der weniger filtriert, stellt sich noch höher ein. Kochsalz (Natrium zieht Calcium mit) und Bisphosphonate (stoppen den Knochenabbau) behandeln es.')),
+    eq('pth', 'textbook', L('PTH: a calcium sensor', 'PTH: ein Calciumsensor'),
+      [v('pth')], ['4', '·', { sup: [['e'], ['−12·([Ca²⁺] − 1.18)']] }, '+', '12', '·', v('pthAutonomy')],
+      L('A high calcium with a PTH that is not suppressed is primary hyperparathyroidism; with a suppressed PTH it is something else: malignancy (PTHrP, bone metastases), vitamin D, granulomas, thyrotoxicosis. A low calcium with a high PTH is vitamin D deficiency or kidney failure (secondary hyperparathyroidism).',
+        'Ein hohes Calcium mit nicht supprimiertem PTH ist ein primärer Hyperparathyreoidismus; mit supprimiertem PTH etwas anderes: Malignom (PTHrP, Knochenmetastasen), Vitamin D, Granulome, Hyperthyreose. Ein niedriges Calcium mit hohem PTH ist ein Vitamin-D-Mangel oder Nierenversagen (sekundärer Hyperparathyreoidismus).')),
+  ],
+  values: (ctx) => {
+    const b = bod(ctx);
+    return {
+      ...Object.fromEntries(Object.entries(ctx.model.body)),
+      tsh: bn(ctx, 'tsh'), ft4: bn(ctx, 'ft4'), thyroidEffect: bn(ctx, 'thyroidEffect'), metabolicMult: bn(ctx, 'metabolicMult'), hrMult: bn(ctx, 'hrMult'),
+      acth: bn(ctx, 'acth'), cortisol: bn(ctx, 'cortisol'), cortisolDeficit: typeof b.cortisolDeficit === 'number' ? b.cortisolDeficit : NaN, renin: bn(ctx, 'renin'), aldosterone: bn(ctx, 'aldosteronePmol'),
+      calcium: bn(ctx, 'calcium'), ionisedCalcium: bn(ctx, 'ionisedCalcium'), pth: bn(ctx, 'pth'), phosphate: bn(ctx, 'phosphate'), GFR: bn(ctx, 'GFR'),
+    };
+  },
+  diagram: 'endocrine',
+  sources: ['Spencer CA et al. Applications of a new chemiluminometric thyrotropin assay to subnormal measurement. J Clin Endocrinol Metab 1990;70:453–60.', 'Ross DS et al. 2016 American Thyroid Association guidelines for diagnosis and management of hyperthyroidism and other causes of thyrotoxicosis. Thyroid 2016;26:1343–421.', 'Bornstein SR et al. Diagnosis and treatment of primary adrenal insufficiency: an Endocrine Society clinical practice guideline. J Clin Endocrinol Metab 2016;101:364–89.', 'Annane D et al. Critical illness-related corticosteroid insufficiency. Crit Care Med 2017;45:2078–88.', 'Peacock M. Calcium metabolism in health and disease. Clin J Am Soc Nephrol 2010;5 Suppl 1:S23–30.', 'Stewart AF. Hypercalcemia associated with cancer. N Engl J Med 2005;352:373–9.'],
+};
+
 /* Values a case may still clamp (no model produces them yet), and potassium and calcium, which the learner may clamp as an experiment. */
 const CLAMPS: Array<[string, string, LocalizedText, string, number, number, number]> = [
   ['potassium', 'K^+', L('Potassium', 'Kalium'), 'mmol/L', 1.5, 9, 0.1], ['calcium', 'Ca^{2+}', L('Calcium', 'Kalzium'), 'mmol/L', 1.2, 3.5, 0.02],
@@ -1102,7 +1177,7 @@ const CONTROL: ModelDef = {
   sources: ['Cherniack NS, Longobardo GS. Mathematical models of periodic breathing and their usefulness in understanding cardiovascular and respiratory disorders. Exp Physiol 2006;91:295–305.', 'Albert M, Dell R, Winters RW. Quantitative displacement of acid–base equilibrium in metabolic acidosis. Ann Intern Med 1967;66:312–22.', 'Duffin J. Measuring the respiratory chemoreflexes in humans. Respir Physiol Neurobiol 2011;177:71–9.'],
 };
 
-export const MODELS: ModelDef[] = [PATIENT, HAEMODYNAMICS, BAROREFLEX, ELECTRICAL, MECHANICS, GAS_EXCHANGE, CONTROL, WATER, KIDNEY, FLUIDS, FUELS, INFLAMMATION, BLOOD, LIVER, VOR, PUPIL, NERVOUS];
+export const MODELS: ModelDef[] = [PATIENT, HAEMODYNAMICS, BAROREFLEX, ELECTRICAL, MECHANICS, GAS_EXCHANGE, CONTROL, WATER, KIDNEY, FLUIDS, FUELS, INFLAMMATION, BLOOD, LIVER, ENDOCRINE, VOR, PUPIL, NERVOUS];
 export const MODEL_BY_ID: Record<string, ModelDef> = Object.fromEntries(MODELS.map((m) => [m.id, m]));
 export const VARIABLE_BY_ID: Record<string, VariableDef> = Object.fromEntries(MODELS.flatMap((m) => m.variables.map((x) => [x.id, x])));
 /** Parameters by where they live in the PatientModel ('respiratory.FiO2'). */
