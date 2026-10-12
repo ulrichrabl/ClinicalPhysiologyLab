@@ -1,4 +1,5 @@
 import type { Resolved, Resolver, RuntimeView } from '../engine/observe.ts';
+import { ADR } from '../evidence/endocrine.ts';
 
 /* ===========================================================================
    Signs of the internal milieu at the bedside, and the tests of it.
@@ -142,7 +143,7 @@ export const BODY_LAB_RESOLVERS: Record<string, Resolver> = {
   },
   'body.pigmentation': (view): Resolved | undefined => {
     const b = body(view); if (!b) return undefined;
-    return { value: { pigmentation: b.acth >= 150 ? 'increased' : 'none' }, basis: `ACTH ${b.acth.toFixed(0)} ng/L (pigmentation needs months of ACTH several times normal)` };
+    return { value: { pigmentation: b.acth >= ADR.pigmentationActh ? 'increased' : 'none' }, basis: `ACTH ${b.acth.toFixed(0)} ng/L (pigmentation needs months of ACTH several times normal)` };
   },
   'body.thyroid': (view): Resolved | undefined => {
     const b = body(view); if (!b) return undefined;
@@ -166,7 +167,7 @@ export const BODY_LAB_RESOLVERS: Record<string, Resolver> = {
     const b = body(view); if (!b) return undefined;
     const p = b.params;
     const reserve = Math.min(1.5, p.adrenalFunction ?? 1) * Math.min(1, p.pituitary ?? 1) ** 0.7;
-    return { value: { cortisol0: r1(b.cortisol), cortisol30: r1(b.cortisol + 600 * reserve) }, basis: `adrenal reserve ×${reserve.toFixed(2)}` };
+    return { value: { cortisol0: r1(b.cortisol), cortisol30: r1(b.cortisol + ADR.synacthenRise * reserve) }, basis: `adrenal reserve ×${reserve.toFixed(2)}` };
   },
   'body.renin': (view): Resolved | undefined => {
     const b = body(view); if (!b) return undefined;

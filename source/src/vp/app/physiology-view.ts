@@ -6,6 +6,9 @@ import type { LivePatient } from '../live/live-patient.ts';
 import type { RuntimeView } from '../engine/observe.ts';
 import { equationMathML, equationVariables, fmtValue, symbolMathML } from './math.ts';
 import { runDiagram, type Lang } from './diagrams.ts';
+import { CONSTANTS, type ConstantStatus } from '../evidence/constants.ts';
+import { REFERENCES, type Reference } from '../evidence/references.ts';
+import '../evidence/endocrine.ts';
 
 /* ---------------------------------------------------------------------------
    The physiology layer: one chapter per model, opened on this patient.
@@ -26,6 +29,8 @@ const T: Record<string, Record<Lang, string>> = {
   observed: { en: 'Observed through', de: 'Beobachtet durch' },
   observedHint: { en: 'Nothing in this chapter is seen directly. These examinations and tests measure it, each through its own physics.', de: 'Nichts in diesem Kapitel ist direkt sichtbar. Diese Untersuchungen und Tests messen es, jede mit ihrer eigenen Physik.' },
   sources: { en: 'Sources', de: 'Quellen' },
+  constants: { en: 'Constants and their evidence', de: 'Konstanten und ihre Evidenz' },
+  constantsHint: { en: 'Every number the model uses, what it rests on, and how far that source has been checked. Ungrounded constants are not yet sourced.', de: 'Jede Zahl, die das Modell verwendet, worauf sie beruht und wie weit die Quelle geprüft ist. Ungeprüfte Konstanten sind noch nicht belegt.' },
   examination: { en: 'examination', de: 'Untersuchung' }, test: { en: 'test', de: 'Test' },
 };
 
@@ -44,6 +49,39 @@ export function valuesOf(model: ModelDef, live: LivePatient, view: RuntimeView):
 }
 
 export interface ChapterHandle { stop(): void; tick(): void }
+
+const STATUS: Record<ConstantStatus, Record<Lang, string>> = {
+  measured: { en: 'measured', de: 'gemessen' }, derived: { en: 'derived', de: 'abgeleitet' },
+  assumed: { en: 'assumed', de: 'angenommen' }, ungrounded: { en: 'not yet sourced', de: 'noch unbelegt' },
+};
+const VERIFIED: Record<Reference['verified'], Record<Lang, string>> = {
+  'full-text': { en: 'checked in the full text', de: 'im Volltext geprüft' }, abstract: { en: 'checked in the abstract', de: 'im Abstract geprüft' },
+  secondary: { en: 'taken from a summary', de: 'aus einer Zusammenfassung' }, record: { en: 'record only; figure not yet read', de: 'nur Eintrag; Zahl noch nicht gelesen' },
+  unverified: { en: 'unverified', de: 'ungeprüft' },
+};
+let refLang: Lang = 'en';
+const refHtml = (r: Reference) => {
+  const link = r.doi ? `https://doi.org/${r.doi}` : r.url;
+  const cite = `${esc(r.authors)}. ${esc(r.title)}. <i>${esc(r.journal)}</i> ${r.year}${r.volume ? `;${esc(r.volume)}` : ''}${r.pages ? `:${esc(r.pages)}` : ''}.`;
+  return `${cite} ${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${r.doi ? `doi:${esc(r.doi)}` : 'link'}</a>` : ''} <span class="muted">(${VERIFIED[r.verified][refLang]})</span>`;
+};
+function citedBy(groups: string[]): Reference[] {
+  const ids = new Set(Object.values(CONSTANTS).filter((c) => groups.includes(c.group)).flatMap((c) => c.refs ?? []));
+  return [...ids].map((id) => REFERENCES[id]).filter(Boolean);
+}
+function constantsHtml(groups: string[], lang: Lang): string {
+  refLang = lang;
+  const list = Object.values(CONSTANTS).filter((c) => groups.includes(c.group));
+  if (!list.length) return '';
+  const n = (s: ConstantStatus) => list.filter((c) => c.status === s).length;
+  const tally = (['measured', 'derived', 'assumed', 'ungrounded'] as ConstantStatus[]).map((s) => `${n(s)} ${STATUS[s][lang]}`).join(' · ');
+  const short = (id: string) => { const r = REFERENCES[id]; return r ? `<a href="#ref-${r.id}">${esc(r.authors.split(',')[0].split(' ')[0])} ${r.year}</a>` : esc(id); };
+  return `<section class="constants"><h2>${T.constants[lang]}</h2><p class="layer-note">${T.constantsHint[lang]} ${tally}.</p>
+    <table class="const-table"><thead><tr><th></th><th>${lang === 'de' ? 'Wert' : 'Value'}</th><th>${lang === 'de' ? 'Status' : 'Status'}</th><th>${lang === 'de' ? 'Quelle' : 'Source'}</th></tr></thead><tbody>
+    ${list.map((c) => `<tr class="st-${c.status}"><td>${esc(c.means)}${c.derivation ? `<details><summary>${lang === 'de' ? 'Herleitung' : 'How'}</summary>${esc(c.derivation)}</details>` : ''}</td>
+      <td class="num">${c.value} ${esc(c.unit)}</td><td><span class="st">${STATUS[c.status][lang]}</span></td><td>${(c.refs ?? []).map(short).join(', ')}</td></tr>`).join('')}
+    </tbody></table></section>`;
+}
 
 export function renderChapter(host: HTMLElement, id: string, live: LivePatient, view: () => RuntimeView, lang: Lang, onVariable?: (id: string) => void): ChapterHandle {
   const m = MODEL_BY_ID[id];
@@ -70,7 +108,8 @@ export function renderChapter(host: HTMLElement, id: string, live: LivePatient, 
     ${full.length ? `<details class="full"><summary>${T.full[lang]}</summary><div class="eqs">${full.map(eqHtml).join('')}</div></details>` : ''}
     ${observers.length ? `<section class="observed"><h2>${T.observed[lang]}</h2><p class="layer-note">${T.observedHint[lang]}</p><ul>${observers.map((o) => `<li><b>${esc(tr(o.label, lang))} <span class="muted" style="font-weight:400">· ${T[o.kind][lang]}</span></b><p>${esc(tr(o.m.physics, lang))}</p>
       <div class="measures">${o.m.measures.map((x) => VARIABLE_BY_ID[x]).filter(Boolean).map((v) => `<span>${symbolMathML(v.symbol)} ${esc(tr(v.label, lang))}</span>`).join('')}</div></li>`).join('')}</ul></section>` : ''}
-    ${m.sources.length ? `<section class="sources"><h2>${T.sources[lang]}</h2><ul>${m.sources.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></section>` : ''}
+    ${constantsHtml(m.constants ?? [], lang)}
+    ${(() => { const refs = citedBy(m.constants ?? []); return m.sources.length || refs.length ? `<section class="sources"><h2>${T.sources[lang]}</h2><ul>${refs.map((r) => `<li id="ref-${r.id}">${refHtml(r)}</li>`).join('')}${m.sources.filter((s) => !refs.some((r) => s.includes(r.title.slice(0, 40)))).map((s) => `<li>${esc(s)}</li>`).join('')}</ul></section>` : ''; })()}
   </div>`;
   const stopDiagram = runDiagram(host.querySelector('canvas')!, m.diagram, () => ({ live, view: view(), lang }));
   const tick = () => {
