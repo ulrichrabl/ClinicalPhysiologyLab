@@ -66,18 +66,22 @@
   },
   "pathology": {
     "chronic": {
-      "days": 180,
+      "days": 365,
       "body": {
-        "liverFunction": 0.25,
-        "portalHypertension": 0.85,
+        "liverFunction": 0.4,
+        "portalHypertension": 0.55,
         "alcohol": 0.9,
         "proteinIntake": 60
       }
     },
     "body": {
+      "liverFunction": 0.25,
+      "portalHypertension": 0.85,
+      "alcohol": 0.9,
+      "proteinIntake": 60,
       "infection": 0.35,
       "foodIntake": 0.6,
-      "courseHours": 72
+      "courseHours": 240
     }
   },
   "initialState": {

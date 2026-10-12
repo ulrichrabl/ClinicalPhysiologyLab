@@ -39,6 +39,7 @@
 =========================================================================== */
 
 import { THY, ADR, CA } from '../../evidence/endocrine.ts';
+import { WAT, KID } from '../../evidence/renal.ts';
 
 export interface BodyParams {
   /** How long the present illness has acted, hours. */
@@ -134,8 +135,8 @@ export interface BodyInputs {
 export interface BodyPerson { age: number; sex: 'F' | 'M'; heightCm: number; weightKg: number }
 
 /* Composition of losses, mmol/L. Gastric juice is HCl with some NaCl and KCl; stool water in diarrhoea carries bicarbonate. */
-const VOMIT = { Na: 60, K: 12, Cl: 130, H: 60 };
-const STOOL = { Na: 80, K: 35, Cl: 75, HCO3: 40 };
+const VOMIT = { Na: WAT.vomitNa, K: WAT.vomitK, Cl: WAT.vomitCl, H: WAT.vomitH };
+const STOOL = { Na: WAT.stoolNa, K: WAT.stoolK, Cl: WAT.stoolCl, HCO3: WAT.stoolHco3 };
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 const relax = (x: number, target: number, dt: number, tau: number) => x + (target - x) * (1 - Math.exp(-dt / tau));
@@ -162,7 +163,7 @@ export interface BodyState {
   /* fast hormones */
   I: number;        // plasma insulin, mU/L
   Idep: number;     // injected insulin still being absorbed: the plasma level it supplies, mU/L
-  AngII: number; Ald: number; ADH: number;          // AngII and aldosterone × normal, ADH pg/mL
+  PRA: number; AngII: number; Ald: number; ADH: number;   // renin activity, AngII and aldosterone × normal, ADH pg/mL
   GFRad: number;    // the filtration the tubules have adapted to over days (L/h)
   /* inflammation */
   IL: number;       // circulating inflammatory signal (cytokines), × the response to a systemic infection
@@ -253,21 +254,21 @@ export class Body {
   /** A healthy person's amounts (close to, not exactly at, steady state: a few days on a normal diet finish that). */
   reset(bloodVolume = 5000) {
     const { weightKg: BW, sex, age, heightCm } = this.person;
-    const tbwFrac = (sex === 'F' ? 0.5 : 0.6) - (age > 60 ? 0.05 : 0);
+    const tbwFrac = (sex === 'F' ? WAT.tbwFractionF : WAT.tbwFractionM) - (age > 60 ? WAT.tbwAgeLoss : 0);
     const TBW = BW * tbwFrac;
-    const ECF = TBW / 3, ICF = TBW - ECF;
+    const ECF = TBW * WAT.ecfFraction, ICF = TBW - ECF;
     const hct = sex === 'F' ? 0.41 : 0.45;
     const Vp = (bloodVolume / 1000) * (1 - hct), RCV = (bloodVolume / 1000) * hct;
     const bsa = Math.sqrt(heightCm * BW / 3600);
-    const GFR = 0.125 * 60 * (bsa / 1.73) * (age > 40 ? 1 - 0.008 * (age - 40) : 1) * (sex === 'F' ? 0.92 : 1);   // L/h
-    const creatProd = BW * (sex === 'F' ? 0.16 : 0.21) * (age > 50 ? 1 - 0.006 * (age - 50) : 1) / 24;           // mmol/h
-    this.ref = { TBW, ICF, ECF, Vp, ISF: ECF - Vp, RCV, Oi: 285.2 * ICF, GFR, BW, Alb: 42 * Vp, creatProd, Vorg0: 1.2 * ECF };
+    const GFR = (KID.gfrYoung / 1000) * 60 * (bsa / 1.73) * (age > 40 ? 1 - KID.gfrAgeLoss * (age - 40) : 1) * (sex === 'F' ? KID.gfrFemale : 1);   // L/h
+    const creatProd = BW * (sex === 'F' ? KID.creatProdF : KID.creatProdM) * (age > 50 ? 1 - KID.creatAgeLoss * (age - 50) : 1) / 24;           // mmol/h
+    this.ref = { TBW, ICF, ECF, Vp, ISF: ECF - Vp, RCV, Oi: WAT.cellOsmolality * ICF, GFR, BW, Alb: WAT.albuminNormal * Vp, creatProd, Vorg0: WAT.organicSpace * ECF };
     this.s = {
-      TBW, Vp, Na: 140 * ECF, K: 4.0 * (ECF + 35 * ICF), B: 24 * 2 * ECF,
-      G: 5.2 * ECF, Ket: 0.08 * 1.2 * ECF, Lac: 0.9 * 1.2 * ECF, UA: 0.45 * ECF, P: 1.0 * ECF,
-      Urea: 5.0 * TBW, Cr: 0.075 * TBW, Alb: 42 * Vp, RCV, RCVlost: 0,
+      TBW, Vp, Na: WAT.sodiumNormal * ECF, K: 4.0 * (ECF + 35 * ICF), B: 24 * 2 * ECF,
+      G: 5.2 * ECF, Ket: 0.08 * WAT.organicSpace * ECF, Lac: 0.9 * WAT.organicSpace * ECF, UA: 0.45 * ECF, P: 1.0 * ECF,
+      Urea: 5.0 * TBW, Cr: 0.075 * TBW, Alb: WAT.albuminNormal * Vp, RCV, RCVlost: 0,
       Fe: sex === 'F' ? 400 : 900, MCV: 90, EPO: 1, BilU: 8 * ECF, BilC: 2 * ECF, ALT: 25, ALP: 80, GGT: 30, INR: 1.0, NH3: 30, Asc: 0,
-      I: 9, Idep: 0, GFRad: GFR, IL: 0, T: 36.9, CRP: 3, WCC: 7, Plt: 250, AngII: 1, Ald: 1, ADH: 1.5, urineL: 0, hours: 0,
+      I: 9, Idep: 0, GFRad: GFR, IL: 0, T: 36.9, CRP: 3, WCC: 7, Plt: 250, PRA: 1, AngII: 1, Ald: 1, ADH: 1.5, urineL: 0, hours: 0,
       T4: THY.ft4Normal, TSH: THY.tshNormal, Cort: 1, ACTH: 1, Ca: CA.calciumNormal, PTH: CA.pthNormal,
     };
   }
@@ -287,11 +288,11 @@ export class Body {
   conc() {
     const s = this.s, r = this.ref;
     const { ICF, ECF, posm } = this.volumes();
-    const Vorg = 1.2 * ECF;
+    const Vorg = WAT.organicSpace * ECF;
     const Na = s.Na / ECF, G = s.G / ECF;
     const alb = s.Alb / s.Vp;
     // Low albumin removes weak acid: bicarbonate rises (and the anion gap falls) by about a quarter of the deficit.
-    const SBC = s.B / (2 * ECF) + 0.12 * (42 - alb);
+    const SBC = s.B / (2 * ECF) + 0.12 * (WAT.albuminNormal - alb);
     const HCO3 = SBC + 0.75 * (this.inp.PaCO2 - 5.33);
     const pH = pHof(HCO3, this.inp.PaCO2);
     const urea = s.Urea / s.TBW;
@@ -339,6 +340,19 @@ export class Body {
        (anaemia) is not sensed as hypovolaemia once plasma has refilled, losing whole blood is. */
     const bvRel = s.Vp / r.Vp;
     const hypo = Math.max(0, 1 - bvRel) / 0.1;           // tenths of blood volume lost
+    /* The effective arterial volume: what the baroreceptors and the kidney actually sense. In cirrhosis the splanchnic bed
+       dilates and holds blood out of the arterial circulation's reach, so this is low while the total extracellular volume
+       is expanded — which is why those patients retain sodium and water with a raised renin and aldosterone, and go on
+       accumulating ascites (the peripheral arterial vasodilatation hypothesis). */
+    const splanchnic = KID.splanchnicPool * clamp(p.portalHypertension, 0, 1) * clamp(1 - p.liverFunction, 0, 1);
+    /* The kidney and the baroreceptors sense arterial filling, i.e. the blood in the vessels, not the extracellular fluid as
+       a whole: fluid that has leaked into the tissues (sepsis, low albumin) or pooled in the splanchnic bed is not sensed.
+       Red cells lost slowly are replaced by plasma (anaemia is not hypovolaemia), so the blood volume is what counts. */
+    const vEff = (s.Vp + s.RCV) / (r.Vp + r.RCV) - splanchnic;
+    /* What the arterial baroreceptors are short of: blood actually lost, or an arterial bed the splanchnic circulation
+       has drained. Vasopressin answers to this, not to the plasma volume, which is why cirrhosis and heart failure hold
+       water and become hyponatraemic while their plasma volume is expanded. */
+    const arterial = Math.max(hypo, WAT.adhArterialGain * Math.max(0, 1 - vEff));
 
     /* -- infection and inflammation: cytokines, fever, the acute-phase response, and what severe sepsis does -- */
     const ilTarget = 2.2 * Math.max(0, p.infection) ** 1.5;
@@ -420,32 +434,42 @@ export class Body {
 
     /* -- hormones -- */
     const sym = Math.max(0, i.sympathetic - 0.47);
-    const angTarget = clamp(Math.exp(-0.035 * (i.MAP - 93)) * Math.exp(-5 * (ve - 1)) * (1 + 1.5 * sym), 0.05, 30) * (1 - 0.85 * clamp(p.aceInhibitor, 0, 1));
-    s.AngII = relax(s.AngII, angTarget, dt, 0.4);
+    /* Renin: arterial pressure (the afferent baroreceptor), effective volume, renal nerves, and the salt reaching the macula
+       densa (read as last step's sodium excretion against a normal diet's). */
+    const macula = clamp((this.f.naDistal ?? KID.sodiumIntake / 24) / (KID.sodiumIntake / 24), 0.05, 5);
+    /* Angiotensin II also suppresses renin release (the short loop), so blocking its formation raises renin. */
+    s.PRA ??= 1;
+    const reninTarget = clamp(Math.exp(-KID.reninPressure * (i.MAP - 93)) * Math.exp(-KID.reninVolume * (vEff - 1)) * (1 + KID.reninSympathetic * sym) * macula ** -KID.reninMaculaDensa
+      * Math.max(0.05, s.AngII) ** -KID.reninShortLoop, 0.05, 60);
+    s.PRA = relax(s.PRA, reninTarget, dt, KID.angiotensinTau);
+    /* Angiotensin II rises far less than renin: conversion saturates (renin ×20 gives angiotensin II ×3 in healthy people
+       under maximal stimulation). An ACE inhibitor blocks the conversion. */
+    const angTarget = s.PRA ** KID.angiotensinFromRenin * (1 - KID.aceBlock * clamp(p.aceInhibitor, 0, 1)) * (1 - KID.septicAceLoss * sev);   // septic shock impairs conversion
+    s.AngII = relax(s.AngII, angTarget, dt, KID.angiotensinTau);
     /* Aldosterone follows angiotensin II and potassium; on an ACE inhibitor it partly escapes ('breakthrough'). */
     /* The zona glomerulosa needs ACTH only permissively: pituitary failure spares aldosterone, adrenal failure does not. */
-    const aldTarget = clamp((0.3 + 0.7 * Math.max(0.05, s.AngII)) ** 1.3 * (c.K / 4) ** 2, 0.03, 15) * clamp(p.adrenalFunction, 0, 2) ** ADR.aldosteroneAdrenalExponent;
-    s.Ald = relax(s.Ald, Math.max(0.002, aldTarget), dt, 1.0);
+    const aldTarget = clamp((1 - KID.aldosteroneAngiotensinShare + KID.aldosteroneAngiotensinShare * Math.max(0.05, s.AngII)) ** KID.aldosteroneAngiotensinExponent * (c.K / 4) ** KID.aldosteronePotassiumExponent, 0.03, 15) * clamp(p.adrenalFunction, 0, 2) ** ADR.aldosteroneAdrenalExponent;
+    s.Ald = relax(s.Ald, Math.max(0.002, aldTarget), dt, KID.aldosteroneTau);
     /* Mineralocorticoid effect: aldosterone, fludrocortisone, and the spill-over of large doses of hydrocortisone. */
-    const aldEff = (s.Ald + Math.max(0, p.fludrocortisone) / ADR.fludrocortisoneReplacement + ADR.hydrocortisoneMineralo * cortExo) * (1 - 0.9 * clamp(p.spironolactone, 0, 1));
+    const aldEff = (s.Ald + Math.max(0, p.fludrocortisone) / ADR.fludrocortisoneReplacement + ADR.hydrocortisoneMineralo * cortExo) * (1 - KID.spironolactoneBlock * clamp(p.spironolactone, 0, 1));
     // ADH: tonicity above a threshold that falls with hypovolaemia, a steep non-osmotic limb, nausea, and any inappropriate secretion.
-    const nausea = clamp(p.vomiting / 1.5, 0, 1);
-    const hypoA = Math.min(hypo, 1.6);
-    const adhTarget = Math.max(0, 0.38 * (c.tonicity - (284 - 4 * hypoA))) + 1.2 * hypoA * hypoA * clamp((c.tonicity - 250) / 25, 0.25, 1) + 6 * nausea + 2 * st + p.siadh + 0.4
+    const nausea = clamp(p.vomiting / WAT.nauseaVomiting, 0, 1);
+    const hypoA = Math.min(arterial, WAT.adhVolumeCap);
+    const adhTarget = Math.max(0, WAT.adhOsmoticSlope * (c.tonicity - (WAT.adhThreshold - WAT.adhVolumeShift * hypoA))) + WAT.adhVolumeSteep * hypoA * hypoA * clamp((c.tonicity - WAT.adhHypotonicOnset) / 25, WAT.adhHypotonicFloor, 1)
+      + WAT.adhNausea * nausea + WAT.adhStress * st + p.siadh + WAT.adhBasal
       + (ADR.adhPerDeficit * cortDef + THY.hypoAdh * Math.max(0, 1 - thy)) * clamp((c.tonicity - 245) / 30, 0.1, 1);   // cortisol restrains ADH (and CRH co-releases it); hypothyroidism lowers free water clearance
-    s.ADH = relax(s.ADH, adhTarget, dt, 0.25);
+    s.ADH = relax(s.ADH, adhTarget, dt, WAT.adhTau);
 
     /* -- kidney: filtration -- */
     const rpp = i.MAP - Math.max(0, i.CVP);
     /* The lower limit of autoregulation rises when the defences against a falling perfusion are blocked, the more so the drier the patient. */
-    const dry = hypo + 8 * Math.max(0, 1 - ve);
-    const Plow = 72 + 22 * clamp(p.aceInhibitor, 0, 1) * (1 + dry) + 18 * clamp(p.nsaid, 0, 1) * (1 + dry);
-    const auto = clamp((rpp - 35) / (Plow - 35), 0, 1) ** 0.8;
+    const dry = hypo + KID.autoregulationDryWeight * Math.max(0, 1 - vEff);
+    const Plow = KID.autoregulationLow + KID.autoregulationAce * clamp(p.aceInhibitor, 0, 1) * (1 + dry) + KID.autoregulationNsaid * clamp(p.nsaid, 0, 1) * (1 + dry);
+    const auto = clamp((rpp - KID.filtrationZeroPressure) / (Plow - KID.filtrationZeroPressure), 0, 1) ** KID.autoregulationExponent;
     const caHigh = Math.max(0, s.Ca - CA.hyperThreshold);                                  // hypercalcaemia: afferent constriction, nephrogenic diabetes insipidus
-    const GFR = r.GFR * clamp(p.nephronMass, 0.01, 1.2) * clamp(thy, 0.3, 2.5) ** THY.gfrExponent * (1 - CA.gfrLoss * Math.min(1, caHigh)) * (1 - 0.9 * clamp(p.tubularInjury, 0, 1)) * (1 - clamp(p.obstruction, 0, 1))
-      * auto * (1 - 0.06 * clamp(p.aceInhibitor, 0, 1)) * (1 - 0.3 * clamp(sym, 0, 0.5) * 2) * (1 - 0.012 * Math.max(0, i.CVP - 10))
-      * (1 - 0.3 * Math.min(1, hypo / 2.5)) * (1 - 0.3 * sev) * (1 - 0.35 * ph * clamp(1 - lf, 0, 1) ** 1.5);   // hepatorenal                                  // septic kidney injury                                                    // renal sympathetic and afferent constriction in hypovolaemia
-    const tub = 1 - 0.85 * clamp(p.tubularInjury, 0, 1);
+    const GFR = r.GFR * clamp(p.nephronMass, 0.01, 1.2) * clamp(thy, 0.3, 2.5) ** THY.gfrExponent * (1 - CA.gfrLoss * Math.min(1, caHigh)) * (1 - KID.atnFiltrationLoss * clamp(p.tubularInjury, 0, 1)) * (1 - clamp(p.obstruction, 0, 1))
+      * auto * (1 - KID.aceFiltrationLoss * clamp(p.aceInhibitor, 0, 1)) * (1 - KID.sympatheticFiltrationLoss * clamp(sym, 0, 0.5) * 2) * (1 - KID.venousCongestion * Math.max(0, i.CVP - 10))
+      * (1 - KID.hypovolaemicFiltrationLoss * Math.min(1, hypo / 2.5)) * (1 - KID.septicFiltrationLoss * sev) * (1 - KID.hepatorenalFiltrationLoss * ph * clamp(1 - lf, 0, 1) ** 1.5);   // hepatorenal                                  // septic kidney injury                                                    // renal sympathetic and afferent constriction in hypovolaemia
     const nm = clamp(p.nephronMass, 0.01, 1.2);
 
     /* -- glucose and insulin -- */
@@ -466,13 +490,13 @@ export class Body {
     const uBrain = 0.33 * BW * (g / (g + 1)) / (5.2 / 6.2);
     const uIns = 0.2 * BW * Ieff * g / (g + 5);
     const uMass = 0.1 * BW * g / (g + 10);                                            // insulin-independent tissue uptake
-    const glucU = GFR * Math.max(0, g - 10) * 0.9;
+    const glucU = GFR * Math.max(0, g - KID.glucoseThreshold) * KID.glucoseSpill;
 
     /* -- ketones -- */
     const fasting = 1 - clamp(food, 0, 1);
     const ketoProd = 0.3 * BW * (9 / (s.I * s.I * clamp(p.insulinSensitivity, 0.2, 2) + 9)) * (1 + st) * (0.4 + 1.6 * fasting);
     const ketoOx = 0.6 * BW * c.Ket / (c.Ket + 1.2);
-    const ketoU = GFR * Math.max(0, c.Ket - 0.3) * 0.5;
+    const ketoU = GFR * Math.max(0, c.Ket - KID.ketoneThreshold) * KID.ketoneSpill;
 
     /* -- lactate -- */
     const ER = i.VO2 / Math.max(50, i.DO2);
@@ -484,11 +508,11 @@ export class Body {
     /* -- urea, creatinine, phosphate, fixed acid -- */
     const proteinIn = p.proteinIntake * food;
     const ureaProd = ((proteinIn * 5.7 + 160 * st + 250 * fasting) / 24) * Math.min(1, lf + 0.3) + 1000 * Math.max(0, p.upperGIBleed) / 1000 * 0.9;   // digested blood: ~0.9 mmol urea per mL
-    const flowSlow = clamp((s.ADH - 2) / 8, 0, 1);
-    const ureaU = GFR * c.urea * Math.max(0.15, 0.47 - 0.15 * flowSlow - 0.06 * Math.min(2, hypo));
-    const crU = GFR * c.Cr * 1.15;
+    const flowSlow = clamp((s.ADH - 2) / 8, 0, 1);   // vasopressin from 2 to 10 pg/mL: urine flow from free to slow
+    const ureaU = GFR * c.urea * Math.max(KID.ureaReabsorptionDry, KID.ureaReabsorption - KID.ureaFlowEffect * flowSlow - KID.ureaVolumeEffect * Math.min(2, hypo));
+    const crU = GFR * c.Cr * KID.creatSecretion;
     const uaProd = (proteinIn * 1.1 + 25 * fasting + 40 * st) / 24 + Math.max(0, p.toxicAcid);           // sulfuric (and other fixed) acid: H⁺ with an anion
-    const uaU = GFR * c.UA * 0.9;
+    const uaU = GFR * c.UA * KID.fixedAnionExcretion;
     const pIn = (30 * food * 0.7 + 8 + 15 * st) / 24 * (0.5 + 0.5 * vitDEff) + 0.25 * Math.max(0, caBone);   // bone resorbed releases phosphate with its calcium                          // gut, and bone and cell turnover
     const pU = GFR * Math.max(0, c.Pi - 0.72) * 0.55 * (1 + 2 * (1 - nm)) * clamp(pthEff / CA.pthNormal / (1 + CA.glandCkd * (1 - Math.min(1, nm))), 0.2, 40) ** CA.phosphaturiaExponent;   // PTH (and PTHrP) block phosphate reabsorption (the CKD rise is already in the adaptation)
 
@@ -497,30 +521,33 @@ export class Body {
     /* Pressure and volume natriuresis, opposed by aldosterone and angiotensin. A diuretic blocks a fraction of tubular
        reabsorption, but the volume it removes switches the opposing hormones on: the 'braking' that limits its effect. */
     /* Cirrhosis: splanchnic vasodilatation and the hepatorenal reflex hold sodium. */
-    const natri = (1 + CA.natriuresis * caHigh) * (1 - 0.6 * ph * clamp(1 - lf, 0, 1)) * Math.exp(18 * (ve - 1)) * Math.exp(0.015 * (i.MAP - 93)) * Math.max(0.25, aldEff) ** -0.4 * Math.max(0.05, s.AngII) ** -0.2;
-    let naU = (150 / 24) * natri * (1 + 0.8 * clamp(p.loopDiuretic, 0, 1) + 0.25 * clamp(p.thiazide, 0, 1));
-    naU += 0.08 * glucU + 0.35 * ketoU;
-    naU = clamp(naU, FL * (0.0005 + 0.04 * clamp(p.tubularInjury, 0, 1)), FL * 0.3);
+    const natri = (1 + CA.natriuresis * caHigh) * (1 - KID.hepatorenalRetention * ph * clamp(1 - lf, 0, 1)) * (vEff <= 1 ? Math.exp(KID.natriuresisVolume * (vEff - 1)) : 1 + KID.natriuresisVolume * KID.natriuresisExpansion * (vEff - 1)) * Math.exp(KID.natriuresisPressure * (i.MAP - 93)) * Math.max(0.25, aldEff) ** KID.natriuresisAldosterone * Math.max(0.05, s.AngII) ** KID.natriuresisAngiotensin;
+    let naU = (KID.sodiumIntake / 24) * natri * (1 + KID.loopDiuretic * clamp(p.loopDiuretic, 0, 1) + KID.thiazide * clamp(p.thiazide, 0, 1));
+    naU += KID.glucoseNatriuresis * glucU + KID.ketoneNatriuresis * ketoU;
+    naU = clamp(naU, FL * (KID.feNaMin + KID.feNaAtn * clamp(p.tubularInjury, 0, 1)), FL * KID.feNaMax);
+    /* What reaches the macula densa: the sodium excreted before the collecting duct's aldosterone-dependent reabsorption
+       (aldosterone acts downstream of it, so it must not feed back on its own signal). Loop diuretics block the sensor. */
+    const naDistal = naU / Math.max(0.25, aldEff) ** KID.natriuresisAldosterone;
 
     /* -- potassium -- */
-    const distal = (naU / (150 / 24)) ** 0.45;
+    const distal = (naU / (KID.sodiumIntake / 24)) ** KID.kSecretionFlow;
     /* Surviving nephrons adapt over a week or two to secrete more each; an acute fall in filtration (and in distal flow) is what stops secretion. */
-    s.GFRad = relax(s.GFRad ?? GFR, GFR, dt, 240);
-    const kTub = (1 - 0.8 * clamp(p.tubularInjury, 0, 1)) * (0.25 + 0.75 * Math.min(1, nm * 4)) * Math.min(1, GFR / Math.max(0.05, s.GFRad));
-    const kU = (70 / 24) * (c.K / 4) ** 2 * Math.max(0.03, aldEff) ** 0.3 * distal * kTub * (1 + 0.5 * clamp(p.loopDiuretic, 0, 1) + 0.4 * clamp(p.thiazide, 0, 1));
+    s.GFRad = relax(s.GFRad ?? GFR, GFR, dt, KID.nephronAdaptationTau);
+    const kTub = (1 - KID.atnPotassiumLoss * clamp(p.tubularInjury, 0, 1)) * (1 - KID.ckdPotassiumLoss + KID.ckdPotassiumLoss * Math.min(1, nm * 4)) * Math.min(1, GFR / Math.max(0.05, s.GFRad));
+    const kU = (KID.potassiumIntake / 24) * (c.K / 4) ** KID.kSecretionPotassium * Math.max(0.03, aldEff) ** KID.kSecretionAldosterone * distal * kTub * (1 + KID.loopKaliuresis * clamp(p.loopDiuretic, 0, 1) + KID.thiazideKaliuresis * clamp(p.thiazide, 0, 1));
 
     /* -- acid: ammonium and bicarbonaturia -- */
-    const NH4max = (320 / 24) * nm ** 0.7 * (1 - 0.85 * clamp(p.tubularInjury, 0, 1)) * Math.exp(-0.15 * (c.K - 4));
-    const drive = (28 / 24) * Math.exp(6 * (7.4 - c.pH) + 0.1 * (24 - c.SBC)) * Math.exp(-0.15 * (c.K - 4));
-    const nh4U = drive * NH4max / (drive + NH4max) * 1.09 * (GFR > 0.05 ? 1 : 0.2);
-    const Tm = 25.5 + 2.6 * Math.max(0, i.PaCO2 - 5.33) + 2 * Math.min(2, hypo) + 10 * Math.max(0, 1 - ve) + 1 * Math.max(0, 4 - c.K) + 0.1 * Math.max(0, 100 - c.Cl);
-    const hco3U = GFR * Math.max(0, c.HCO3 - Tm) * 0.6;
+    const NH4max = (KID.nh4Max / 24) * nm ** KID.nh4NephronExponent * (1 - KID.atnAmmoniumLoss * clamp(p.tubularInjury, 0, 1)) * Math.exp(-KID.nh4Potassium * (c.K - 4));
+    const drive = (KID.nh4Basal / 24) * Math.exp(KID.nh4PhSlope * (7.4 - c.pH) + KID.nh4Bicarbonate * (24 - c.SBC)) * Math.exp(-KID.nh4Potassium * (c.K - 4));
+    const nh4U = drive * NH4max / (drive + NH4max) * KID.nh4BalanceScale * (GFR > 0.05 ? 1 : 0.2);
+    const Tm = KID.bicarbonateTm + KID.bicarbonateTmCo2 * Math.max(0, i.PaCO2 - 5.33) + KID.bicarbonateTmBleed * Math.min(2, hypo) + KID.bicarbonateTmVolume * Math.max(0, 1 - vEff) + KID.bicarbonateTmPotassium * Math.max(0, 4 - c.K) + KID.bicarbonateTmChloride * Math.max(0, 100 - c.Cl);
+    const hco3U = GFR * Math.max(0, c.HCO3 - Tm) * KID.bicarbonateSpill;
 
     /* -- chloride: what electroneutral urine has left to carry -- */
     /* Poorly reabsorbable anions in the distal tubule (bicarbonate, ketoanions) pull K⁺ out with them; secretion saturates at about 6 mmol/h. */
-    const kU2 = Math.min(6, kU * (1 + 0.3 * (hco3U + ketoU) / (naU + 1)));
+    const kU2 = Math.min(KID.kSecretionCap, kU * (1 + KID.anionKaliuresis * (hco3U + ketoU) / (naU + 1)));
     let clU = naU + kU2 + nh4U - uaU - hco3U - ketoU;
-    clU = Math.max(0.05 * naU, clU);
+    clU = Math.max(KID.urineChlorideFloor * naU, clU);
 
     /* -- calcium excretion: about 2 % of the filtered (ultrafilterable) calcium escapes; PTH lowers that, sodium excretion and
        loop diuretics raise it, thiazides lower it, and a high calcium switches its own reabsorption off. -- */
@@ -529,30 +556,30 @@ export class Body {
     const caU = GFR * CA.ultrafilterable * s.Ca * clamp(feCa, 0.001, 0.6);
 
     /* -- water -- */
-    const ageConc = this.person.age > 30 ? 1 - 0.004 * (this.person.age - 30) : 1;
-    const Umax = 1200 * ageConc * (1 - 0.7 * clamp(p.tubularInjury, 0, 1)) * (0.3 + 0.7 * nm ** 1.5) * (1 - 0.5 * clamp(p.loopDiuretic, 0, 1)) / (1 + CA.concentratingLoss * caHigh);
-    const Umin = 50 + 2 * Math.max(0, this.person.age - 50) + 120 * clamp(p.thiazide, 0, 1) + 220 * (1 - nm) ** 2 + 150 * clamp(p.tubularInjury, 0, 1);
-    const osmU = 2 * (naU + kU2) + ureaU + glucU + 2.5;
+    const ageConc = this.person.age > 30 ? 1 - KID.urineMaxAgeLoss * (this.person.age - 30) : 1;
+    const Umax = KID.urineMaxOsm * ageConc * (1 - KID.atnConcentratingLoss * clamp(p.tubularInjury, 0, 1)) * (1 - KID.ckdConcentratingLoss + KID.ckdConcentratingLoss * nm ** 1.5) * (1 - KID.loopConcentratingLoss * clamp(p.loopDiuretic, 0, 1)) / (1 + CA.concentratingLoss * caHigh);
+    const Umin = KID.urineMinOsm + KID.urineMinAge * Math.max(0, this.person.age - 50) + KID.thiazideDilutingLoss * clamp(p.thiazide, 0, 1) + KID.ckdDilutingLoss * (1 - nm) ** 2 + KID.atnDilutingLoss * clamp(p.tubularInjury, 0, 1);
+    const osmU = 2 * (naU + kU2) + ureaU + glucU + KID.otherUrineSolute;
     /* A large solute load (glucose, urea) washes out the medulla: an osmotic diuresis is never very concentrated. */
-    const UmaxEff = 300 + (Umax - 300) / (1 + Math.max(0, osmU - 40) / 80);
-    const uOsm = clamp(50 + 300 * Math.max(0, s.ADH - 0.4), Umin, Math.max(Umin + 10, UmaxEff));
+    const UmaxEff = KID.isosthenuria + (Umax - KID.isosthenuria) / (1 + Math.max(0, osmU - 40) / KID.medullaWashout);
+    const uOsm = clamp(KID.urineMinOsm + KID.urineOsmPerAdh * Math.max(0, s.ADH - WAT.adhBasal), Umin, Math.max(Umin + 10, UmaxEff));
     const obstructed = 1 - clamp(p.obstruction, 0, 1);
     const waterU = osmU / uOsm * obstructed;
     /* Thirst: tonicity, and volume — but a hypotonic plasma switches volume thirst off. */
-    const thirst = p.canDrink > 0 ? (Math.max(0, c.tonicity - 290) * 0.06 + 0.04 * Math.min(3, hypo) * clamp((c.tonicity - 268) / 18, 0, 1)) * (1 - 0.5 * nausea) : 0;
-    const insensible = (0.8 / 24) * (1 + 0.13 * Math.max(0, s.T - 37) * 1.5) * Math.max(0.5, BW / 70) * clamp(thy, 0.7, 2.5) ** THY.insensibleExponent;   // fever and sweating
-    const metabolicWater = 0.3 / 24;
-    const waterIn = p.fluidIntake / 24 * (1 - 0.4 * nausea) + thirst + metabolicWater;
+    const thirst = p.canDrink > 0 ? (Math.max(0, c.tonicity - WAT.thirstThreshold) * WAT.thirstGain + WAT.thirstVolume * Math.min(3, arterial) * clamp((c.tonicity - WAT.thirstHypotonicOff) / 18, 0, 1)) * (1 - WAT.nauseaThirst * nausea) : 0;
+    const insensible = (WAT.insensible / 24) * (1 + WAT.insensibleFever * Math.max(0, s.T - 37)) * Math.max(0.5, BW / 70) * clamp(thy, 0.7, 2.5) ** THY.insensibleExponent;   // fever and sweating
+    const metabolicWater = WAT.metabolicWater / 24;
+    const waterIn = p.fluidIntake / 24 * (1 - WAT.nauseaIntake * nausea) + thirst + metabolicWater;
     const vomit = Math.max(0, p.vomiting) / 24, stool = Math.max(0, p.diarrhoea) / 24;
 
     /* -- distribution between plasma and interstitium (Starling; settles in about half an hour) -- */
-    const veShape = ve >= 1 ? 1 + 0.35 * (ve - 1) : ve ** 0.75;
+    const veShape = ve >= 1 ? 1 + WAT.plasmaEcfGain * (ve - 1) : ve ** WAT.plasmaEcfExponent;
     /* Fewer red cells: the plasma expands to keep the blood volume (anaemia is not hypovolaemia). */
-    const anaemiaFill = 1 + 0.7 * Math.max(0, r.RCV - s.RCV) / r.Vp;
-    const VpTarget = r.Vp * veShape * anaemiaFill * clamp(c.alb / 42, 0.3, 1.5) ** 0.25 * (1 - 0.01 * Math.max(0, i.CVP - 8)) * (1 - 0.22 * sev) * Math.max(0.2, Math.min(5, thy)) ** THY.plasmaVolumeExponent;   // blood volume 105.5 % in overt hyperthyroidism (Klein & Danzi); the 84.5 % of hypothyroidism is not reproduced: lowering it here reads as hypovolaemia, since the model has no fall in venous capacity or demand to go with it   // capillary leak
+    const anaemiaFill = 1 + WAT.anaemiaFill * Math.max(0, r.RCV - s.RCV) / r.Vp;
+    const VpTarget = r.Vp * veShape * anaemiaFill * clamp(c.alb / WAT.albuminNormal, 0.3, 1.5) ** WAT.plasmaAlbumin * (1 - WAT.plasmaCvp * Math.max(0, i.CVP - 8)) * (1 - WAT.capillaryLeak * sev);
 
     return {
-      c, GFR, auto, Plow, gfrMax: auto > 1e-3 ? GFR / auto : GFR, rpp, naU, kU: kU2, clU, nh4U, hco3U, ureaU, crU, uaU, uaProd, pIn, pU, glucU, ketoU, ketoProd, ketoOx, hgo, uBrain, uIns, uMass, carbIn,
+      c, naDistal, GFR, auto, Plow, gfrMax: auto > 1e-3 ? GFR / auto : GFR, rpp, naU, kU: kU2, clU, nh4U, hco3U, ureaU, crU, uaU, uaProd, pIn, pU, glucU, ketoU, ketoProd, ketoOx, hgo, uBrain, uIns, uMass, carbIn,
       prodRBC, destrRBC, ironAbs, bleed, caGut, caBone, caU, mcvNew, bilProd, conj, bileOut, bilUrine, ph, lf,
       lacProd, lacClear, ureaProd, waterU, waterIn, insensible, vomit, stool, VpTarget, uOsm, food, obstructed,
     };
@@ -578,7 +605,7 @@ export class Body {
 
     const iv = Math.max(0, p.ivSaline) / 24;
     s.TBW += (iv + f.waterIn - f.waterU - f.insensible - f.vomit - f.stool) * dt;
-    s.Na += (154 * iv + naIn - f.naU * o - VOMIT.Na * f.vomit - STOOL.Na * f.stool) * dt;
+    s.Na += (WAT.salineNa * iv + naIn - f.naU * o - VOMIT.Na * f.vomit - STOOL.Na * f.stool) * dt;
     s.K += (kIn - f.kU * o - VOMIT.K * f.vomit - STOOL.K * f.stool) * dt;
     s.B += (0.7 * kIn - f.uaProd - f.ketoProd + f.ketoOx - f.lacProd + f.lacClear + f.nh4U * o - f.hco3U * o
       + VOMIT.H * f.vomit - STOOL.HCO3 * f.stool) * dt;
@@ -591,12 +618,16 @@ export class Body {
     s.Ca = clamp(s.Ca + (f.caGut + f.caBone - f.caU * o) / (CA.exchangeablePool * f.c.ECF) * dt, 1.0, 5);
     s.Urea += (f.ureaProd - f.ureaU * o) * dt;
     s.Cr += (this.ref.creatProd - f.crU * o) * dt;
-    s.Vp = relax(s.Vp, f.VpTarget, dt, f.VpTarget > s.Vp ? 2 : 0.5);
+    s.Vp = relax(s.Vp, f.VpTarget, dt, f.VpTarget > s.Vp ? WAT.plasmaTauFill : WAT.plasmaTauDrain);
     s.RCV = Math.max(0.15, s.RCV + (f.prodRBC - f.destrRBC) * dt);
     s.Fe = Math.max(0, s.Fe + (1100 * (f.destrRBC - f.prodRBC) + f.ironAbs - 1 / 24) * dt);   // 1.1 mg iron per mL of red cells; recycled when destroyed
     if (f.prodRBC > 1e-9) s.MCV += (f.mcvNew - s.MCV) * Math.min(1, f.prodRBC * dt / s.RCV);
     /* Ascites: with portal hypertension, much of any interstitial fluid gained collects in the peritoneum. */
-    { const c1 = f.c; s.Asc = Math.min(relax(s.Asc, 8 * f.ph ** 2 * clamp(1 - f.lf, 0, 1) * clamp(42 / c1.alb, 0.8, 2.5) ** 0.5, dt, 120), Math.max(0, c1.ISF - 2)); }
+    /* Ascites: with portal hypertension, most of any extracellular fluid gained collects in the peritoneum instead of
+       refilling the circulation — which is why the kidney keeps seeing an underfilled arterial bed and keeps retaining. */
+    { const c1 = f.c; const portal = f.ph ** 2 * clamp(1 - f.lf, 0, 1);
+      const target = portal * (KID.ascitesBase * clamp(WAT.albuminNormal / c1.alb, 0.8, 2.5) ** 0.5 + KID.ascitesShare * Math.max(0, c1.ECF - this.ref.ECF));
+      s.Asc = Math.min(relax(s.Asc, target, dt, 120), Math.max(0, c1.ISF - 2)); }
     s.BilU = Math.max(0, s.BilU + (f.bilProd - f.conj) * dt);
     s.BilC = Math.max(0, s.BilC + (f.conj - f.bileOut - f.bilUrine) * dt);
     if (f.bleed > 0) this.addBlood(-f.bleed * dt * 1000);   // the iron goes with the red cells; the stores then pay for their replacement
@@ -607,7 +638,7 @@ export class Body {
     s.B = clamp(s.B, 2 * 2 * this.ref.ECF * 0.3, 2 * 60 * this.ref.ECF);
     if (!Number.isFinite(s.TBW + s.Na + s.K + s.B + s.G + s.Ket + s.Lac)) throw new Error('body model diverged');
     this.f = {
-      GFR: f.GFR, auto: f.auto, Plow: f.Plow, gfrMax: f.gfrMax, rpp: f.rpp, naU: f.naU * o, kU: f.kU * o, clU: f.clU * o, nh4U: f.nh4U * o, hco3U: f.hco3U * o, glucU: f.glucU * o, ketoU: f.ketoU * o,
+      GFR: f.GFR, auto: f.auto, Plow: f.Plow, gfrMax: f.gfrMax, rpp: f.rpp, naU: f.naU * o, naDistal: f.naDistal, kU: f.kU * o, clU: f.clU * o, nh4U: f.nh4U * o, hco3U: f.hco3U * o, glucU: f.glucU * o, ketoU: f.ketoU * o,
       prodRBC: f.prodRBC / (this.ref.RCV / 2880), waterU: f.waterU, uOsm: f.uOsm, hgo: f.hgo, gU: f.uBrain + f.uIns + f.uMass, ketoProd: f.ketoProd, ketoOx: f.ketoOx,
       lacProd: f.lacProd, lacClear: f.lacClear, waterIn: f.waterIn, waterOut: f.waterU + f.insensible + f.vomit + f.stool, FL: f.GFR * f.c.Na,
     };
@@ -670,11 +701,11 @@ export class Body {
   ventilatoryDrive(): number { return 1.0 * this.sepsis() + 0.25 * Math.min(1, this.s.IL) + 0.08 * Math.max(0, this.s.T - 37.5); }
   /** Angiotensin II and vasopressin constrict arterioles and veins; the constriction they add needs cortisol as
       noradrenaline's does (the same receptor-to-IP₃ pathway in the vessel wall), so it is scaled by the same gain. */
-  private hormonalTone(): number { const h = Math.max(0.05, this.s.AngII) ** 0.12 * Math.max(0.3, this.s.ADH / 1.5) ** 0.04; return h > 1 ? 1 + (h - 1) * this.adrenergicResponse() : h; }
+  private hormonalTone(): number { const h = Math.max(0.05, this.s.AngII) ** KID.angiotensinVascular * Math.max(0.3, this.s.ADH / 1.5) ** KID.vasopressinVascular; return h > 1 ? 1 + (h - 1) * this.adrenergicResponse() : h; }
   rsysMult(): number { return clamp(this.hormonalTone(), 0.6, 1.8) * (1 - 0.6 * this.vasoplegia()) * (1 - 0.3 * clamp(this.p.portalHypertension, 0, 1) * clamp(1 - this.p.liverFunction, 0, 1))
       * (this.thyroidEffect() >= 1 ? Math.min(5, this.thyroidEffect()) ** THY.svrHyperExponent : Math.max(0.2, this.thyroidEffect()) ** THY.svrHypoExponent)   // with the reflex and blood volume: SVR 0.6× and 1.5× in overt hyper- and hypothyroidism (Klein & Danzi)
       * (1 - ADR.basalResistanceLoss * this.cortisolDeficit()); }   // glucocorticoid receptor blockade lowers basal resistance about 20 % with output unchanged (RU 486 in rats)
-  v0svMult(): number { const ven = -0.05 * Math.log(Math.max(0.05, this.s.AngII)) - 0.02 * Math.log(Math.max(0.3, this.s.ADH / 1.5)); return clamp(1 + (ven < 0 ? ven * this.adrenergicResponse() : ven), 0.8, 1.15) * (1 + 0.2 * this.vasoplegia()); }
+  v0svMult(): number { const ven = -KID.angiotensinVenous * Math.log(Math.max(0.05, this.s.AngII)) - KID.vasopressinVenous * Math.log(Math.max(0.3, this.s.ADH / 1.5)); return clamp(1 + (ven < 0 ? ven * this.adrenergicResponse() : ven), 0.8, 1.15) * (1 + 0.2 * this.vasoplegia()); }
 
   snapshot(): BodySnapshot {
     const c = this.conc(), s = this.s, r = this.ref, f = this.f;
@@ -698,7 +729,7 @@ export class Body {
       bilirubin: (s.BilU + s.BilC) / c.ECF, bilirubinConjugated: s.BilC / c.ECF, alt: s.ALT, alp: s.ALP, ggt: s.GGT, inr: s.INR, ammonia: s.NH3, ascites: s.Asc,
       encephalopathy: clamp((s.NH3 - 50) / 40 + CA.encephalopathyPerMmol * Math.max(0, s.Ca - 3.0) + ADR.encephalopathy * this.cortisolDeficit() ** 2 + THY.encephalopathy * Math.max(0, 0.4 - this.thyroidEffect()) / 0.4 + 0.5 * Math.min(1, s.IL) * (this.p.liverFunction < 0.6 ? 1 : 0.2) + 0.8 * this.sepsis() + 0.3 * Math.max(0, 3.2 - c.K) + 0.04 * Math.max(0, 128 - c.Na), 0, 4),
       tsh: s.TSH, ft4: s.T4, ft3: THY.ft3Normal * this.thyroidEffect() ** THY.ft3Exponent, thyroidEffect: this.thyroidEffect(),
-      cortisol: ADR.cortisolNormal * s.Cort, acth: ADR.acthNormal * s.ACTH, renin: 1.5 * Math.max(0.05, s.AngII) / (1 - 0.85 * clamp(this.p.aceInhibitor, 0, 1)), aldosteronePmol: 300 * s.Ald,
+      cortisol: ADR.cortisolNormal * s.Cort, acth: ADR.acthNormal * s.ACTH, renin: 1.5 * (s.PRA ?? 1), aldosteronePmol: KID.aldosteroneNormal * s.Ald,
       calcium: s.Ca, calciumTotal: s.Ca - 0.02 * (40 - c.alb), ionisedCalcium: s.Ca * CA.ionisedFraction * (1 + CA.ionisedPhSlope * (7.4 - c.pH)), pth: s.PTH,
       vitaminD25: CA.vitaminDNormal * clamp(this.p.vitaminD, 0, 3), cortisolEffect: s.Cort, cortisolDeficit: this.cortisolDeficit(), metabolicMult: this.metabolicMult(), hrMult: this.hrMult(),
       inflammation: s.IL, temperature: s.T, crp: s.CRP, whiteCellCount: s.WCC, platelets: s.Plt, sepsis: this.sepsis(), vasoplegia: this.vasoplegia(),

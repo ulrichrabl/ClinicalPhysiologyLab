@@ -781,8 +781,8 @@ console.log('\nThe internal milieu: water, salt, potassium, acid–base, the kid
     && H.b.urineMlPerH * 24 >= 1000 && H.b.urineMlPerH * 24 <= 2200,
     `Na ${f1(H.ch.sodium)} K ${f1(H.ch.potassium)} HCO3 ${f1(H.ch.bicarbonate)} urea ${f1(H.ch.urea)} crea ${f1(H.ch.creatinine)} glc ${f1(H.ch.glucose)} AG ${f1(H.ch.anionGap)} urine ${f1(H.b.urineMlPerH * 24)} mL/d`);
   const LS = B((m) => Object.assign(m.body, { saltIntake: 20, courseHours: 240 }));
-  ok('a low-salt diet: the ECF shrinks by 5–15 %, aldosterone rises, the urine holds sodium',
-    LS.b.dECF / LS.b.ECF < -0.04 && LS.b.dECF / (LS.b.ECF - LS.b.dECF) > -0.16 && LS.b.aldosterone > 1.5 && LS.b.urineNa < 30, `ECF ${f1(LS.b.dECF)} L, aldosterone ×${f1(LS.b.aldosterone)}, urine Na ${f1(LS.b.urineNa)}`);
+  ok('a low-salt diet: the ECF shrinks, aldosterone rises, the urine holds sodium (the size of the ECF change is not yet sourced)',
+    LS.b.dECF < -0.1 && LS.b.aldosterone > 1.5 && LS.b.urineNa < 30, `ECF ${f1(LS.b.dECF)} L, aldosterone ×${f1(LS.b.aldosterone)}, urine Na ${f1(LS.b.urineNa)}`);
   const SI = B((m) => Object.assign(m.body, { siadh: 6, courseHours: 120 }));
   ok('inappropriate ADH: hyponatraemia with a concentrated, salty urine and a near-normal ECF',
     SI.ch.sodium < 132 && SI.b.urineOsm > 300 && SI.b.urineNa > 30 && Math.abs(SI.b.dECF) < 0.6, `Na ${f1(SI.ch.sodium)}, urine osm ${f1(SI.b.urineOsm)}, urine Na ${f1(SI.b.urineNa)}, ECF ${f1(SI.b.dECF)}`);
@@ -792,10 +792,10 @@ console.log('\nThe internal milieu: water, salt, potassium, acid–base, the kid
     `HCO3 ${f1(VO.ch.bicarbonate)} Cl ${f1(VO.ch.chloride)} K ${f1(VO.ch.potassium)} pH ${VO.ch.arterialPH.toFixed(2)} PaCO2 ${f1(VO.ch.paCO2)}`);
   const DI = B((m) => Object.assign(m.body, { diarrhoea: 3, foodIntake: 0.5, courseHours: 72 }));
   ok('diarrhoea: a normal-anion-gap (hyperchloraemic) acidosis with low potassium',
-    DI.ch.bicarbonate < 21 && DI.ch.anionGap < 18 && DI.ch.potassium < 3.6 && DI.ch.chloride > 103, `HCO3 ${f1(DI.ch.bicarbonate)} AG ${f1(DI.ch.anionGap)} K ${f1(DI.ch.potassium)} Cl ${f1(DI.ch.chloride)}`);
+    DI.ch.bicarbonate < 21 && DI.ch.anionGap < 18 && DI.ch.potassium < 3.6 && DI.ch.sodium - DI.ch.chloride <= 36, `HCO3 ${f1(DI.ch.bicarbonate)} AG ${f1(DI.ch.anionGap)} K ${f1(DI.ch.potassium)} Na−Cl ${f1(DI.ch.sodium - DI.ch.chloride)} (healthy about 38; chloride is high for the sodium)`);
   const CK = B((m) => Object.assign(m.body, { nephronMass: 0.1, courseHours: 1440 }));
-  ok('advanced chronic kidney disease: creatinine above 400, a raised-gap acidosis, high phosphate, a urine that can neither concentrate nor dilute',
-    CK.ch.creatinine > 400 && CK.ch.bicarbonate < 22 && CK.ch.anionGap > H.ch.anionGap + 2 && CK.b.phosphate > 1.4 && CK.b.urineOsm > 250 && CK.b.urineOsm < 480,
+  ok('advanced chronic kidney disease: creatinine above 400, a raised (albumin-corrected) anion gap acidosis, high phosphate, a urine that can neither concentrate nor dilute',
+    CK.ch.creatinine > 400 && CK.ch.bicarbonate < 22 && CK.ch.anionGap + 0.25 * (42 - CK.b.albumin) > H.ch.anionGap + 0.25 * (42 - H.b.albumin) + 2 && CK.b.phosphate > 1.4 && CK.b.urineOsm > 250 && CK.b.urineOsm < 480,
     `crea ${f1(CK.ch.creatinine)} HCO3 ${f1(CK.ch.bicarbonate)} AG ${f1(CK.ch.anionGap)} PO4 ${CK.b.phosphate.toFixed(2)} urine osm ${f1(CK.b.urineOsm)}`);
   const AT = B((m) => Object.assign(m.body, { tubularInjury: 0.85, courseHours: 72 }));
   ok('acute tubular necrosis: creatinine climbing over days, the tubule leaking sodium (FENa > 2 %) into an unconcentrated urine',
@@ -816,8 +816,8 @@ console.log('\nThe internal milieu: water, salt, potassium, acid–base, the kid
   const A = run('aki-hyperkalaemia-triple-whammy');
   const Abase = run('aki-hyperkalaemia-triple-whammy', (m) => { Object.assign(m.body, { nsaid: 0, diarrhoea: 0, foodIntake: 1, fluidIntake: 2 }); });
   const ac = A.view.chemistry, bc = Abase.view.chemistry;
-  ok('triple whammy: potassium above 6 (the ECG sees it), creatinine well above baseline with a disproportionate urea, a concentrated urine, a postural drop',
-    ac.potassium >= 6.2 && Math.abs(A.snap.K - ac.potassium) < 0.1 && A.snap.ecgMetrics.PR > 153 && ac.creatinine >= 1.5 * bc.creatinine && 1000 * ac.urea / ac.creatinine > 55 && A.b.urineOsm > 500
+  ok('triple whammy: potassium above 6 (the ECG sees it), acute kidney injury by KDIGO (creatinine ×1.5 or +26.5 µmol/L) with a disproportionate urea, a concentrated urine, a postural drop',
+    ac.potassium >= 6.2 && Math.abs(A.snap.K - ac.potassium) < 0.1 && A.snap.ecgMetrics.PR > 153 && (ac.creatinine >= 1.5 * bc.creatinine || ac.creatinine - bc.creatinine >= 26.5) && 1000 * ac.urea / ac.creatinine > 55 && A.b.urineOsm > 500
     && obs(A.c, A.view, 'vitals.bp.R', { position: 'standing' }).value.systolic <= obs(A.c, A.view, 'vitals.bp.R').value.systolic - 10 && obs(A.c, A.view, 'mouth.mucosa').value.moisture !== 'moist',
     `K ${f1(ac.potassium)} PR ${A.snap.ecgMetrics.PR}, crea ${f1(bc.creatinine)} → ${f1(ac.creatinine)}, urea ${f1(ac.urea)}, urine osm ${f1(A.b.urineOsm)}`);
   const D = run('diabetic-ketoacidosis');
@@ -864,8 +864,15 @@ console.log('\nInfection, inflammation and sepsis');
   ok('CRP lags the white cells: six hours in, white cells are up and CRP still modest; two days in, CRP is high',
     early.ch.whiteCellCount > 10 && early.ch.crp < 70 && later.ch.crp > 150, `6 h: WCC ${f1(early.ch.whiteCellCount)} CRP ${f1(early.ch.crp)}; 48 h: CRP ${f1(later.ch.crp)}`);
   const sh = B((m) => Object.assign(m.body, { infection: 0.92, courseHours: 36, foodIntake: 0.3, fluidIntake: 0.8 }));
-  ok('septic shock: hypotension from lost resistance with output preserved, tachycardia, tachypnoea, lactate, kidney injury, falling platelets',
-    sh.snap.metrics.Pmean < 70 && sh.snap.metrics.SVR < 0.85 * H.snap.metrics.SVR && sh.snap.metrics.CO > 0.6 * H.snap.metrics.CO && sh.snap.ecgMetrics.HR > 110
+  /* Untreated, septic shock is a low-output state (leak, no intake); after 30 mL/kg of crystalloid (Surviving Sepsis) the output is
+     normal or high with the resistance still low (Parker 1984), and the pressure may still need a vasopressor. */
+  const shFluid = (() => { const m = healthyModel(); Object.assign(m.body, { infection: 0.92, courseHours: 36, foodIntake: 0.3, fluidIntake: 0.8 }); const r = createCirculation(m); r.settle(12);
+    r.apply({ ...m, body: { ...m.body, ivSaline: 24 * 2.1 / 3 } }); for (let k = 0; k < 6; k++) { r.body.integrate(0.5); r.settleFast(4); } r.settleFast(30); return r.sim.metrics; })();
+  ok('septic shock after 30 mL/kg: output normal or high with resistance still low (Parker 1984), pressure still low',
+    shFluid.CO >= 0.75 * H.snap.metrics.CO && shFluid.SVR < 0.8 * H.snap.metrics.SVR && shFluid.Pmean < 75,
+    `after fluid: MAP ${f1(shFluid.Pmean)} CO ${f1(shFluid.CO)} SVR ${f1(shFluid.SVR)} (healthy CO ${f1(H.snap.metrics.CO)}, SVR ${f1(H.snap.metrics.SVR)})`);
+  ok('septic shock untreated: hypotension from lost resistance, tachycardia, tachypnoea, lactate, kidney injury, falling platelets',
+    sh.snap.metrics.Pmean < 70 && sh.snap.metrics.SVR < 0.85 * H.snap.metrics.SVR && sh.snap.ecgMetrics.HR > 110
     && sh.snap.resp.RR >= 22 && sh.ch.lactate > 2 && sh.ch.creatinine > 1.4 * H.ch.creatinine && sh.ch.platelets < 200,
     `MAP ${f1(sh.snap.metrics.Pmean)} SVR ${f1(sh.snap.metrics.SVR)} vs ${f1(H.snap.metrics.SVR)} CO ${f1(sh.snap.metrics.CO)} HR ${sh.snap.ecgMetrics.HR} RR ${f1(sh.snap.resp.RR)} lac ${f1(sh.ch.lactate)} crea ${f1(sh.ch.creatinine)} plt ${f1(sh.ch.platelets)}`);
   const c = caseById('urosepsis-septic-shock'); const snap = settleModel(modelFromCase(c), 16).snapshot;
@@ -966,9 +973,9 @@ console.log('\nHormones: thyroid, adrenal cortex and calcium');
     && inv(Gc, 'tft').tsh < 0.1 && inv(Gc, 'tft').ft4 > 30, JSON.stringify({ hr: obs(Gc.c, Gc.view, 'vitals.hr').value, tft: inv(Gc, 'tft') }));
   const Ac = run('addisonian-crisis');
   const bpLie = obs(Ac.c, Ac.view, 'vitals.bp.R').value, bpStand = obs(Ac.c, Ac.view, 'vitals.bp.R', { position: 'standing' }).value;
-  ok('Addisonian crisis case: a postural fall of 20 or more (lying pressure in the range of half of real crises), pigmentation, sodium low and potassium high, cortisol low with ACTH high, a failed Synacthen test',
+  ok('Addisonian crisis case: a postural fall of 20 or more (lying pressure in the range of half of real crises), pigmentation, sodium low and potassium high-normal (frank hyperkalaemia in only a fifth of admissions: Rushworth), cortisol low with ACTH high, a failed Synacthen test',
     bpLie.systolic <= 110 && bpStand.systolic <= bpLie.systolic - 20 && obs(Ac.c, Ac.view, 'skin.pigmentation').value.pigmentation === 'increased'
-    && Ac.view.chemistry.sodium < 134 && Ac.view.chemistry.potassium > 5 && inv(Ac, 'cortisol').cortisol < 150 && inv(Ac, 'cortisol').acth > 150 && inv(Ac, 'synacthen').cortisol30 < 300,
+    && Ac.view.chemistry.sodium < 134 && Ac.view.chemistry.potassium >= 4.5 && inv(Ac, 'cortisol').cortisol < 150 && inv(Ac, 'cortisol').acth > 150 && inv(Ac, 'synacthen').cortisol30 < 300,
     JSON.stringify({ bpLie, bpStand, na: Ac.view.chemistry.sodium, k: Ac.view.chemistry.potassium, cort: inv(Ac, 'cortisol') }));
   /* The defining test of an adrenal crisis: a litre of saline barely moves the pressure, hydrocortisone restores it within an hour. */
   {
@@ -999,7 +1006,7 @@ console.log('\nEvidence: every constant has a status, every grounded one a refer
   const src = walk('src/vp').filter((f) => !f.includes('/evidence/')).map((f) => readFileSync(f, 'utf8')).join('\n');
   const issues = constantIssues();
   ok('the constant registry has no errors (measured and derived constants cite references; derived and assumed ones show their working)', issues.length === 0, issues.join('; '));
-  const alias = { thyroid: 'THY', adrenal: 'ADR', calcium: 'CA' };
+  const alias = { thyroid: 'THY', adrenal: 'ADR', calcium: 'CA', water: 'WAT', kidney: 'KID' };
   const unused = Object.values(CONSTANTS).filter((c) => alias[c.group] && !new RegExp(`\\b${alias[c.group]}\\.${c.id.split('.')[1]}\\b`).test(src)).map((c) => c.id);
   ok('every registered constant is used by the model (no stale entries)', unused.length === 0, unused.join(', '));
   const refsUsed = new Set(Object.values(CONSTANTS).flatMap((c) => c.refs ?? []));

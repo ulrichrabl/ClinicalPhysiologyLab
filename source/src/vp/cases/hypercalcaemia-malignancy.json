@@ -77,7 +77,7 @@
       "boneResorption": 0.3,
       "fluidIntake": 0.9,
       "foodIntake": 0.4,
-      "vomiting": 0.3,
+      "vomiting": 0.5,
       "courseHours": 336
     }
   },

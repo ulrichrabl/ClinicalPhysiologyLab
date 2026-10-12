@@ -36,10 +36,14 @@ export const CONSTANTS: Record<string, ConstantEntry> = {};
 /** Register a group of constants; returns their values, typed by name. */
 export function defineConstants<K extends string>(group: string, specs: Record<K, ConstantSpec>): Record<K, number> {
   const out = {} as Record<K, number>;
+  /* Calibration scripts (never the app) may set globalThis.__CONSTANT_OVERRIDES = { 'group.name': value } before the
+     model loads, to fit constants against data; the registry records the value actually in use. */
+  const overrides = (globalThis as any).__CONSTANT_OVERRIDES as Record<string, number> | undefined;
   for (const [k, spec] of Object.entries(specs) as Array<[K, ConstantSpec]>) {
     const id = `${group}.${k}`;
-    CONSTANTS[id] = { ...spec, id, group };
-    out[k] = spec.value;
+    const value = overrides?.[id] ?? spec.value;
+    CONSTANTS[id] = { ...spec, value, id, group };
+    out[k] = value;
   }
   return Object.freeze(out);
 }

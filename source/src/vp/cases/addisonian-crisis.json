@@ -330,8 +330,8 @@
           "hyponatraemia"
         ],
         "why": {
-          "en": "Low sodium and high potassium together: aldosterone is missing as well as cortisol. Urea raised: dry.",
-          "de": "Niedriges Natrium und hohes Kalium zusammen: Neben Cortisol fehlt auch Aldosteron. Harnstoff erhöht: exsikkiert."
+          "en": "Low sodium with potassium at the top of the range: aldosterone is missing as well as cortisol, though diarrhoea carries potassium away, which is why only about a fifth of admissions are frankly hyperkalaemic (half are hyponatraemic). Urea raised: dry.",
+          "de": "Niedriges Natrium mit Kalium am oberen Rand: Neben Cortisol fehlt auch Aldosteron, doch der Durchfall trägt Kalium fort; deshalb ist nur etwa jede fünfte Aufnahme deutlich hyperkaliämisch (die Hälfte hyponatriämisch). Harnstoff erhöht: exsikkiert."
         }
       },
       {
@@ -400,8 +400,8 @@
     ],
     "timeBudgetMinutes": 15,
     "summary": {
-      "en": "A 41-year-old with autoimmune hypothyroidism and vitiligo, months of fatigue, weight loss, postural dizziness, salt craving and tanned skin, now three days of gastroenteritis and a collapse. Hypotension with a postural fall despite a litre of saline, tachycardia, dry, pigmented palmar creases and buccal mucosa. Low sodium, high potassium, raised urea, low-normal glucose; cortisol inappropriately low with a very high ACTH, high renin and low aldosterone. Adrenal crisis in previously undiagnosed autoimmune Addison’s disease, precipitated by gastroenteritis: hydrocortisone now, saline, glucose, then lifelong hydrocortisone and fludrocortisone with sick-day rules.",
-      "de": "Ein 41-Jähriger mit Autoimmunhypothyreose und Vitiligo, seit Monaten Müdigkeit, Gewichtsverlust, Schwindel beim Aufstehen, Salzhunger und gebräunter Haut, jetzt drei Tage Gastroenteritis und ein Kollaps. Hypotonie mit orthostatischem Abfall trotz einem Liter Kochsalz, Tachykardie, exsikkiert, pigmentierte Handlinien und Wangenschleimhaut. Natrium niedrig, Kalium hoch, Harnstoff erhöht, Glukose niedrig-normal; Cortisol inadäquat niedrig bei sehr hohem ACTH, hohes Renin, niedriges Aldosteron. Addison-Krise bei bisher unerkanntem autoimmunem Morbus Addison, ausgelöst durch eine Gastroenteritis: sofort Hydrocortison, Kochsalz, Glukose, dann lebenslang Hydrocortison und Fludrocortison mit Regeln für Krankheitstage."
+      "en": "A 41-year-old with autoimmune hypothyroidism and vitiligo, months of fatigue, weight loss, postural dizziness, salt craving and tanned skin, now three days of gastroenteritis and a collapse. Hypotension with a postural fall despite a litre of saline, tachycardia, dry, pigmented palmar creases and buccal mucosa. Low sodium, potassium high-normal, raised urea, low-normal glucose; cortisol inappropriately low with a very high ACTH, high renin and low aldosterone. Adrenal crisis in previously undiagnosed autoimmune Addison’s disease, precipitated by gastroenteritis: hydrocortisone now, saline, glucose, then lifelong hydrocortisone and fludrocortisone with sick-day rules.",
+      "de": "Ein 41-Jähriger mit Autoimmunhypothyreose und Vitiligo, seit Monaten Müdigkeit, Gewichtsverlust, Schwindel beim Aufstehen, Salzhunger und gebräunter Haut, jetzt drei Tage Gastroenteritis und ein Kollaps. Hypotonie mit orthostatischem Abfall trotz einem Liter Kochsalz, Tachykardie, exsikkiert, pigmentierte Handlinien und Wangenschleimhaut. Natrium niedrig, Kalium hochnormal, Harnstoff erhöht, Glukose niedrig-normal; Cortisol inadäquat niedrig bei sehr hohem ACTH, hohes Renin, niedriges Aldosteron. Addison-Krise bei bisher unerkanntem autoimmunem Morbus Addison, ausgelöst durch eine Gastroenteritis: sofort Hydrocortison, Kochsalz, Glukose, dann lebenslang Hydrocortison und Fludrocortison mit Regeln für Krankheitstage."
     }
   },
   "diagnosis": {
