@@ -541,6 +541,27 @@ one level down; they are the equations the code runs.
 | Pupillary light reflex | afferent, pretectal, Edinger–Westphal, efferent, sympathetic | the pathway responding to a swinging light |
 | Nervous system | the lesion graph | pathways interrupted |
 
+**Where the endocrine constants come from.** Grounded in measurements: the cortisol
+permissive effect (vascular gain halved at a complete deficit, from hydrocortisone
+doubling the maximal α-agonist response with ED50 unchanged; basal resistance −20 %
+from glucocorticoid-receptor blockade), applied to sympathetic, angiotensin II and
+vasopressin constriction alike; thyroid action on metabolic rate (Graves' patients
+before and during treatment; hypothyroid patients before and after levothyroxine),
+on heart rate, SVR and blood volume (Table I of the Recent Progress in Hormone
+Research review); the PTH–ionised calcium sigmoid (Brown's four-parameter form
+through Ramirez's clamps). Checked against outcomes rather than fitted: adrenal
+crisis presenting pressure (about half of crises present with systolic ≤100;
+saline barely moves it, hydrocortisone raises it within an hour), typical calcium
+and PTH in primary hyperparathyroidism, malignancy and vitamin D deficiency.
+Assumptions and known gaps: overt disease is taken as free T4 2.8× and 0.3× normal;
+the model's resting ionised calcium is read as 1.24 mmol/L; the thyroid
+temperature effect, cortisol's effects on ADH and glucose output, the renal
+effects of hypercalcaemia and the potency scales of PTHrP and osteolysis are not
+yet grounded; hypothyroid blood volume stays about 92 % of normal (measured
+84.5 %), because lowering it reads as hypovolaemia in a circulation with no fall in
+venous capacity; untreated Addison's raises renin only about 1.4×, because the
+kidney's floor on aldosterone-dependent sodium loss is too high.
+
 `PatientModel` (`physiology/state.ts`) holds every parameter in one object:
 patient, circulation, electrical, respiratory, vestibular, lesions, chemistry pins.
 
