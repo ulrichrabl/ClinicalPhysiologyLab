@@ -116,7 +116,8 @@ export const CARDIO_RESOLVERS: Record<string, Resolver> = {
     const h = hemo(view); if (!h) return undefined;
     if (ctx.position === 'standing' && view.body) {
       const o = orthostatic(view);
-      return { value: { systolic: r(h.sys + o.dSys), diastolic: r(h.dia + o.dDia) }, basis: `lying ${h.sys.toFixed(0)}/${h.dia.toFixed(0)} mmHg; ${o.basis}` };
+      const sys = r(h.sys + o.dSys), dia = Math.min(r(h.dia + o.dDia), sys - 8);
+      return { value: { systolic: sys, diastolic: dia }, basis: `lying ${h.sys.toFixed(0)}/${h.dia.toFixed(0)} mmHg; ${o.basis}` };
     }
     return { value: { systolic: r(h.sys), diastolic: r(h.dia) }, basis: `aortic pressure ${h.sys.toFixed(0)}/${h.dia.toFixed(0)}, mean ${h.map.toFixed(0)} mmHg` };
   },
@@ -166,8 +167,10 @@ export const CARDIO_RESOLVERS: Record<string, Resolver> = {
   },
   'circulation.crt': (view): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;
-    const crt = h.map < 55 ? 5 : h.map < 65 ? 3.5 : 2;
-    return { value: crt, basis: `mean arterial pressure ${h.map.toFixed(0)} mmHg` };
+    /* In vasodilatory (septic) shock the skin vessels are open too: warm peripheries and a brisk refill, until late. */
+    const warm = (view.body?.vasoplegia ?? 0) > 0.35;
+    const crt = h.map < 50 ? 5 : h.map < 65 ? (warm ? 2 : 3.5) : 2;
+    return { value: crt, basis: `mean arterial pressure ${h.map.toFixed(0)} mmHg${warm ? '; skin vessels dilated by sepsis' : ''}` };
   },
   'circulation.oedema': (view): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;
@@ -182,7 +185,11 @@ export const CARDIO_RESOLVERS: Record<string, Resolver> = {
   },
   'general.appearance': (view): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;
+    /* Fever: the skin flushed and sweating as heat is shed (or pale and shivering while the set point is still being climbed). */
+    const T = view.body?.temperature ?? 37;
+    if (h.map >= 60 && T >= 38.3) return { value: { distress: 'mild', colour: 'flushed', sweating: true }, basis: `core temperature ${T.toFixed(1)} °C` };
     if (h.map >= 60) return undefined;   // the case layer describes a well-perfused patient
+    if ((view.body?.vasoplegia ?? 0) > 0.35) return { value: { distress: 'moderate', colour: 'flushed', sweating: true }, basis: `mean arterial pressure ${h.map.toFixed(0)} mmHg with dilated skin vessels (sepsis)` };
     return { value: { distress: 'moderate', colour: 'pale', sweating: true }, basis: `mean arterial pressure ${h.map.toFixed(0)} mmHg` };
   },
 };

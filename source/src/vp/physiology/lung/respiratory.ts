@@ -92,6 +92,8 @@ export interface RespiratoryInputs {
   sbc: number;           // mmol/L, metabolic (standard) bicarbonate
   albumin: number;       // g/L
   temp: number;          // °C
+  /** Drive from outside the lungs and chemoreceptors: cytokines and fever in sepsis. */
+  sysDrive?: number;
 }
 export const DEFAULT_INPUTS: RespiratoryInputs = { CO: 5.2, Pla: 7, Ppa: 15, Hb: 150, sbc: 24, albumin: 42, temp: 37 };
 
@@ -299,7 +301,7 @@ export class Respiratory {
     const dP = PaCO2 - NORMAL_PACO2 * csfHCO3 / 24, dH = hPlus(pH) - 40;
     const chem = p.gCO2 * dP * (dP < 0 ? 0.3 : 1) + p.gH * dH * (dH < 0 ? 0.5 : 1);
     const hyp = Math.min(3, p.gO2 * 20 * Math.max(-0.003, 1 / Math.max(4, Pmm - 25) - 1 / 65));
-    const stim = 1 + d * chem + hyp + this.afferent(m);
+    const stim = 1 + d * chem + hyp + this.afferent(m) + (this.inp.sysDrive ?? 0);
     return 6.4 * (VCO2 / 200) * d * clamp(stim, 0.15, 10);
   }
   private capacity(m = this.mechanics()) {
@@ -322,7 +324,7 @@ export class Respiratory {
     const Cn = 0.1 * (this.pred.TLC / 6.8);
     // Stiff lungs (not floppy ones) make breathing fast and shallow; so does a load near capacity and drive from the lung itself.
     const load = Math.min(1.5, VE / Math.max(1, this.capacity(m)));
-    const RR = clamp(13.5 * (VE / 6.4) ** 0.5 * Math.max(1, Cn / Math.max(0.01, m.Crs)) ** 0.3 * (1 + 0.25 * this.afferent(m)) * (1 + 0.6 * load * load)
+    const RR = clamp(13.5 * (VE / 6.4) ** 0.5 * Math.max(1, Cn / Math.max(0.01, m.Crs)) ** 0.3 * (1 + 0.25 * this.afferent(m) + 0.45 * (this.inp.sysDrive ?? 0)) * (1 + 0.6 * load * load)
       / clamp(this.p.muscleStrength, 0.2, 1.2) ** 0.3, 5, 50);
     const VT = VE / RR;
     const Ttot = 60 / RR;

@@ -13,7 +13,7 @@ import type { BodySnapshot } from './body/body.ts';
    Henderson–Hasselbalch, and the bicarbonate a laboratory measures is the
    metabolic level plus what CO₂ itself generates by buffering.
 
-   What no model yet produces (white cells, CRP, troponin, platelets) comes
+   What no model yet produces (troponin, MCV) comes
    from the case's clamped values or the healthy default; natriuretic
    peptide is still derived from cardiac wall stress. The learner may clamp
    any value in the Model Lab as an experiment; a case may only clamp what no
@@ -33,7 +33,7 @@ export type Chemistry = ChemistryPublicState & {
 };
 
 /** Plasma values the body model produces: a case cannot clamp them, only set their causes. */
-export const BODY_OUTPUTS = ['sodium', 'potassium', 'chloride', 'bicarbonate', 'glucose', 'urea', 'creatinine', 'lactate', 'albumin', 'haemoglobin', 'phosphate', 'ketones', 'osmolality'];
+export const BODY_OUTPUTS = ['sodium', 'potassium', 'chloride', 'bicarbonate', 'glucose', 'urea', 'creatinine', 'lactate', 'albumin', 'haemoglobin', 'phosphate', 'ketones', 'osmolality', 'whiteCellCount', 'crp', 'platelets'];
 
 /** Simulation snapshot → chemistry. */
 export function chemistryState(snapshot: Record<string, any> | undefined, pins: Record<string, number> = {}, resp?: RespSnapshot): Chemistry {
@@ -52,6 +52,7 @@ export function chemistryState(snapshot: Record<string, any> | undefined, pins: 
       sodium: b.sodium, potassium: b.potassium, chloride: b.chloride, bicarbonate: b.standardBicarbonate, glucose: b.glucose,
       urea: b.urea, creatinine: b.creatinine, lactate: b.lactate, albumin: b.albumin, haemoglobin: b.haemoglobin,
       ketones: b.ketones, betaHydroxybutyrate: b.betaHydroxybutyrate, phosphate: b.phosphate, osmolality: b.osmolality,
+      whiteCellCount: b.whiteCellCount, crp: b.crp, platelets: b.platelets, temperature: b.temperature,
     });
     derived.push('body');
   }
