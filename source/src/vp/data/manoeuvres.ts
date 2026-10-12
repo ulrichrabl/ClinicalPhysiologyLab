@@ -215,6 +215,32 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     reveals: [{ property: 'legs.oedema' }], requires: { instrument: ['hands'] }, durationSeconds: 15,
   },
   {
+    id: 'inspect.mouth', verb: 'inspect', target: 'mouth',
+    label: { en: 'Look in the mouth (mucous membranes)', de: 'Mundhöhle inspizieren (Schleimhäute)' },
+    phrases: { en: ['look in the mouth', 'mucous membranes', 'mucosa', 'dry mouth', 'tongue dry', 'hydration'], de: ['mund ansehen', 'schleimhäute', 'mundschleimhaut', 'zunge trocken', 'exsikkose', 'hydratation'] },
+    reveals: [{ property: 'mouth.mucosa' }], requires: { instrument: ['pen-torch'] }, durationSeconds: 15,
+  },
+  {
+    id: 'test.turgor', verb: 'palpate', target: 'skin',
+    label: { en: 'Pinch the skin for turgor', de: 'Hautfalte abheben (Turgor)' },
+    phrases: { en: ['skin turgor', 'turgor', 'pinch the skin', 'skin fold'], de: ['hautturgor', 'turgor', 'hautfalte', 'stehende hautfalten'] },
+    reveals: [{ property: 'skin.turgor' }], requires: { instrument: ['hands'] }, durationSeconds: 10,
+  },
+  {
+    id: 'smell.breath', verb: 'inspect', target: 'mouth',
+    label: { en: 'Smell the breath', de: 'Atemgeruch prüfen' },
+    phrases: { en: ['smell the breath', 'breath smell', 'ketones on breath', 'acetone', 'fetor'], de: ['atemgeruch', 'foetor', 'aceton', 'azetongeruch', 'mundgeruch'] },
+    reveals: [{ property: 'breath.odour' }], durationSeconds: 5,
+  },
+  {
+    id: 'measure.bp.lying-standing', verb: 'measure', target: 'arm', paired: true,
+    label: { en: 'Lying and standing blood pressure', de: 'Blutdruck im Liegen und im Stehen (Schellong)' },
+    phrases: { en: ['lying and standing', 'postural blood pressure', 'orthostatic', 'standing blood pressure', 'postural drop'], de: ['schellong', 'orthostase', 'blutdruck im stehen', 'liegend und stehend', 'orthostatischer'] },
+    reveals: [{ property: 'vitals.bp', side: 'same', context: { position: 'supine' } }, { property: 'vitals.hr', context: { position: 'supine' } },
+      { property: 'vitals.bp', side: 'same', context: { position: 'standing' } }, { property: 'vitals.hr', context: { position: 'standing' } }],
+    requires: { instrument: ['bp-cuff'], exposure: ['arm'], ability: ['can-stand'] }, durationSeconds: 300,
+  },
+  {
     id: 'palpate.abdomen', verb: 'palpate', target: 'abdomen',
     label: { en: 'Palpate the abdomen', de: 'Abdomen palpieren' },
     phrases: { en: ['palpate the abdomen', 'feel the abdomen', 'feel the tummy', 'abdominal examination'], de: ['bauch abtasten', 'abdomen palpieren', 'bauch untersuchen'] },

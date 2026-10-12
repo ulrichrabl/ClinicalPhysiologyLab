@@ -1,5 +1,6 @@
 import type { ExamContext } from '../model/types.ts';
 import type { Resolved, Resolver, RuntimeView } from '../engine/observe.ts';
+import { orthostatic } from './body-exam.ts';
 
 /* ===========================================================================
    Cardiovascular examination model.
@@ -106,12 +107,17 @@ export function heartSounds(h: Hemodynamics, ctx: ExamContext) {
 const r = Math.round;
 
 export const CARDIO_RESOLVERS: Record<string, Resolver> = {
-  'circulation.hr': (view): Resolved | undefined => {
+  'circulation.hr': (view, _ref, ctx): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;
+    if (ctx.position === 'standing' && view.body) { const o = orthostatic(view); return { value: r(h.hr + o.dHR), basis: `beat-to-beat rate ${h.hr.toFixed(0)}/min lying; ${o.basis}` }; }
     return { value: r(h.hr), basis: `beat-to-beat rate ${h.hr.toFixed(0)}/min` };
   },
-  'circulation.bp': (view): Resolved | undefined => {
+  'circulation.bp': (view, _ref, ctx): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;
+    if (ctx.position === 'standing' && view.body) {
+      const o = orthostatic(view);
+      return { value: { systolic: r(h.sys + o.dSys), diastolic: r(h.dia + o.dDia) }, basis: `lying ${h.sys.toFixed(0)}/${h.dia.toFixed(0)} mmHg; ${o.basis}` };
+    }
     return { value: { systolic: r(h.sys), diastolic: r(h.dia) }, basis: `aortic pressure ${h.sys.toFixed(0)}/${h.dia.toFixed(0)}, mean ${h.map.toFixed(0)} mmHg` };
   },
   'circulation.pulse': (view, ref): Resolved | undefined => {
@@ -165,8 +171,14 @@ export const CARDIO_RESOLVERS: Record<string, Resolver> = {
   },
   'circulation.oedema': (view): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;
-    if (h.cvp < 10) return undefined;
-    return { value: { extent: h.cvp >= 16 ? 'knee' : h.cvp >= 13 ? 'shin' : 'ankle' }, basis: `mean right atrial pressure ${h.cvp.toFixed(1)} mmHg` };
+    /* Oedema is interstitial fluid gained (2–3 L before it pits at the ankle), pushed out by venous pressure or held by too little albumin. */
+    const isf = view.body?.dISF ?? 0;
+    const scale = Math.max(0.6, (view.patient.weightKg ?? 70) / 70);
+    const byIsf = isf >= 7 * scale ? 3 : isf >= 4.5 * scale ? 2 : isf >= 2.5 * scale ? 1 : 0;
+    const byCvp = h.cvp >= 16 ? 3 : h.cvp >= 13 ? 2 : h.cvp >= 10 ? 1 : 0;
+    const g = Math.max(byIsf, byCvp);
+    if (!g) return undefined;
+    return { value: { extent: ['none', 'ankle', 'shin', 'knee'][g] }, basis: `interstitial fluid ${isf >= 0 ? '+' : ''}${isf.toFixed(1)} L; mean right atrial pressure ${h.cvp.toFixed(1)} mmHg` };
   },
   'general.appearance': (view): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;

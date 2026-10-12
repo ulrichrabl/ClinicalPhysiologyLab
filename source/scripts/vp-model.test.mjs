@@ -770,5 +770,85 @@ console.log('\nPulmonary cases: what the model makes of their parameters');
     `PaCO2 ${C.snap.resp.PaCO2.toFixed(2)} / ${C28.snap.resp.PaCO2.toFixed(2)} / ${C80.snap.resp.PaCO2.toFixed(2)}, SpO2 on 28 % ${obs(C28.c, C28.view, 'vitals.spo2').value.spo2}`);
 }
 
+console.log('\nThe internal milieu: water, salt, potassium, acid–base, the kidney, fuels');
+{
+  const B = (mut, person) => { const m = healthyModel(); if (person) m.patient = { ...m.patient, ...person }; mut?.(m); const snap = settleModel(m, 16).snapshot; return { snap, b: snap.body, ch: chemistryState(snap, m.chemistry) }; };
+  const f1 = (x) => (typeof x === 'number' ? x.toFixed(1) : x);
+  const H = B();
+  ok('healthy steady state: plasma values in their reference ranges, a litre or two of urine',
+    H.ch.sodium >= 136 && H.ch.sodium <= 145 && H.ch.potassium >= 3.6 && H.ch.potassium <= 4.6 && H.ch.bicarbonate >= 22 && H.ch.bicarbonate <= 27 && H.ch.urea >= 3 && H.ch.urea <= 7
+    && H.ch.creatinine >= 55 && H.ch.creatinine <= 100 && H.ch.glucose >= 4 && H.ch.glucose <= 6.5 && H.ch.lactate < 1.6 && H.ch.anionGap >= 8 && H.ch.anionGap <= 16
+    && H.b.urineMlPerH * 24 >= 1000 && H.b.urineMlPerH * 24 <= 2200,
+    `Na ${f1(H.ch.sodium)} K ${f1(H.ch.potassium)} HCO3 ${f1(H.ch.bicarbonate)} urea ${f1(H.ch.urea)} crea ${f1(H.ch.creatinine)} glc ${f1(H.ch.glucose)} AG ${f1(H.ch.anionGap)} urine ${f1(H.b.urineMlPerH * 24)} mL/d`);
+  const LS = B((m) => Object.assign(m.body, { saltIntake: 20, courseHours: 240 }));
+  ok('a low-salt diet: the ECF shrinks by 5–15 %, aldosterone rises, the urine holds sodium',
+    LS.b.dECF / LS.b.ECF < -0.04 && LS.b.dECF / (LS.b.ECF - LS.b.dECF) > -0.16 && LS.b.aldosterone > 1.5 && LS.b.urineNa < 30, `ECF ${f1(LS.b.dECF)} L, aldosterone ×${f1(LS.b.aldosterone)}, urine Na ${f1(LS.b.urineNa)}`);
+  const SI = B((m) => Object.assign(m.body, { siadh: 6, courseHours: 120 }));
+  ok('inappropriate ADH: hyponatraemia with a concentrated, salty urine and a near-normal ECF',
+    SI.ch.sodium < 132 && SI.b.urineOsm > 300 && SI.b.urineNa > 30 && Math.abs(SI.b.dECF) < 0.6, `Na ${f1(SI.ch.sodium)}, urine osm ${f1(SI.b.urineOsm)}, urine Na ${f1(SI.b.urineNa)}, ECF ${f1(SI.b.dECF)}`);
+  const VO = B((m) => Object.assign(m.body, { vomiting: 1.5, foodIntake: 0.2, courseHours: 72 }));
+  ok('vomiting: metabolic alkalosis with low chloride and low potassium (and a raised CO2: the lungs compensate)',
+    VO.ch.bicarbonate > 28 && VO.ch.chloride < 98 && VO.ch.potassium < 3.7 && VO.ch.arterialPH > 7.44 && VO.ch.paCO2 > 5.6,
+    `HCO3 ${f1(VO.ch.bicarbonate)} Cl ${f1(VO.ch.chloride)} K ${f1(VO.ch.potassium)} pH ${VO.ch.arterialPH.toFixed(2)} PaCO2 ${f1(VO.ch.paCO2)}`);
+  const DI = B((m) => Object.assign(m.body, { diarrhoea: 3, foodIntake: 0.5, courseHours: 72 }));
+  ok('diarrhoea: a normal-anion-gap (hyperchloraemic) acidosis with low potassium',
+    DI.ch.bicarbonate < 21 && DI.ch.anionGap < 18 && DI.ch.potassium < 3.6 && DI.ch.chloride > 103, `HCO3 ${f1(DI.ch.bicarbonate)} AG ${f1(DI.ch.anionGap)} K ${f1(DI.ch.potassium)} Cl ${f1(DI.ch.chloride)}`);
+  const CK = B((m) => Object.assign(m.body, { nephronMass: 0.1, courseHours: 1440 }));
+  ok('advanced chronic kidney disease: creatinine above 400, a raised-gap acidosis, high phosphate, a urine that can neither concentrate nor dilute',
+    CK.ch.creatinine > 400 && CK.ch.bicarbonate < 22 && CK.ch.anionGap > H.ch.anionGap + 2 && CK.b.phosphate > 1.4 && CK.b.urineOsm > 250 && CK.b.urineOsm < 480,
+    `crea ${f1(CK.ch.creatinine)} HCO3 ${f1(CK.ch.bicarbonate)} AG ${f1(CK.ch.anionGap)} PO4 ${CK.b.phosphate.toFixed(2)} urine osm ${f1(CK.b.urineOsm)}`);
+  const AT = B((m) => Object.assign(m.body, { tubularInjury: 0.85, courseHours: 72 }));
+  ok('acute tubular necrosis: creatinine climbing over days, the tubule leaking sodium (FENa > 2 %) into an unconcentrated urine',
+    AT.ch.creatinine > 250 && AT.b.FENa > 2 && AT.b.urineOsm < 450, `crea ${f1(AT.ch.creatinine)} FENa ${f1(AT.b.FENa)} urine osm ${f1(AT.b.urineOsm)}`);
+  const LA = B((m) => { m.circulation.Emax = 0.35; m.body.courseHours = 3; });
+  ok('a failing circulation makes lactate, and the anion gap rises at least as much as bicarbonate falls',
+    LA.ch.lactate > 2.5 && (LA.ch.anionGap - H.ch.anionGap) >= 0.9 * (H.ch.standardBicarbonate - LA.ch.standardBicarbonate),
+    `lactate ${f1(LA.ch.lactate)} ΔAG ${f1(LA.ch.anionGap - H.ch.anionGap)} ΔSBC ${f1(H.ch.standardBicarbonate - LA.ch.standardBicarbonate)} CO ${f1(LA.snap.metrics.CO)}`);
+  const BL = B((m) => { m.circulation.bloodVolume = 4000; m.body.courseHours = 0.05; });
+  const BL6 = B((m) => { m.circulation.bloodVolume = 4000; m.body.courseHours = 6; });
+  ok('a litre of blood lost: haemoglobin unchanged at first, then diluted over hours as interstitial fluid refills the plasma',
+    Math.abs(BL.ch.haemoglobin - H.ch.haemoglobin) < 4 && BL6.ch.haemoglobin < BL.ch.haemoglobin - 6 && BL6.b.plasma > BL.b.plasma + 0.2,
+    `Hb ${f1(BL.ch.haemoglobin)} → ${f1(BL6.ch.haemoglobin)}, plasma ${BL.b.plasma.toFixed(2)} → ${BL6.b.plasma.toFixed(2)} L`);
+  const T2 = B((m) => Object.assign(m.body, { betaCell: 0.5, insulinSensitivity: 0.4, courseHours: 240 }));
+  ok('type 2 diabetes: hyperglycaemia with high insulin and no ketosis', T2.ch.glucose > 7 && T2.b.insulin > 15 && T2.ch.ketones < 0.5, `glc ${f1(T2.ch.glucose)} insulin ${f1(T2.b.insulin)} ket ${f1(T2.ch.ketones)}`);
+
+  const run = (id, mut) => { const c = caseById(id); const m = modelFromCase(c); mut?.(m); const snap = settleModel(m, 16).snapshot; return { c, m, snap, b: snap.body, view: buildView(c, { circulation: snap, state: { ...c.initialState, exposure: ['chest', 'arm', 'neck'] } }) }; };
+  const A = run('aki-hyperkalaemia-triple-whammy');
+  const Abase = run('aki-hyperkalaemia-triple-whammy', (m) => { Object.assign(m.body, { nsaid: 0, diarrhoea: 0, foodIntake: 1, fluidIntake: 2 }); });
+  const ac = A.view.chemistry, bc = Abase.view.chemistry;
+  ok('triple whammy: potassium above 6 (the ECG sees it), creatinine well above baseline with a disproportionate urea, a concentrated urine, a postural drop',
+    ac.potassium >= 6.2 && Math.abs(A.snap.K - ac.potassium) < 0.1 && A.snap.ecgMetrics.PR > 153 && ac.creatinine >= 1.5 * bc.creatinine && 1000 * ac.urea / ac.creatinine > 55 && A.b.urineOsm > 500
+    && obs(A.c, A.view, 'vitals.bp.R', { position: 'standing' }).value.systolic <= obs(A.c, A.view, 'vitals.bp.R').value.systolic - 10 && obs(A.c, A.view, 'mouth.mucosa').value.moisture !== 'moist',
+    `K ${f1(ac.potassium)} PR ${A.snap.ecgMetrics.PR}, crea ${f1(bc.creatinine)} → ${f1(ac.creatinine)}, urea ${f1(ac.urea)}, urine osm ${f1(A.b.urineOsm)}`);
+  const D = run('diabetic-ketoacidosis');
+  const dc = D.view.chemistry;
+  const winters = (1.5 * dc.bicarbonate + 8) / 7.5;
+  const k0 = 4 * (D.b.ECF - D.b.dECF) + 140 * (D.b.ICF);
+  ok('DKA: hyperglycaemia, ketones above 3, a raised-gap acidosis compensated as Winters predicts, potassium normal-high on a depleted body',
+    dc.glucose > 14 && D.b.betaHydroxybutyrate > 3 && dc.arterialPH < 7.3 && dc.bicarbonate < 15 && dc.anionGap > 18 && Math.abs(dc.paCO2 - winters) < 0.6
+    && dc.potassium >= 4.3 && D.b.Kbody < k0 - 120,
+    `glc ${f1(dc.glucose)} βOHB ${f1(D.b.betaHydroxybutyrate)} pH ${dc.arterialPH.toFixed(2)} HCO3 ${f1(dc.bicarbonate)} AG ${f1(dc.anionGap)} PaCO2 ${dc.paCO2.toFixed(2)} (Winters ${winters.toFixed(2)}) K ${f1(dc.potassium)} body K ${D.b.Kbody.toFixed(0)}`);
+  ok('…Kussmaul breathing, acetone on the breath, glucose and ketones in the urine, a dry mouth, tachycardia',
+    obs(D.c, D.view, 'breathing.pattern').value.depth === 'deep' && obs(D.c, D.view, 'breath.odour').value.odour === 'ketones'
+    && ['2+', '3+', '4+'].includes(REGISTRY.resolvers['body.urinalysis'](D.view, { property: 'urinalysis' }, {}).value.glucose)
+    && REGISTRY.resolvers['body.urinalysis'](D.view, { property: 'urinalysis' }, {}).value.ketones !== 'negative'
+    && obs(D.c, D.view, 'mouth.mucosa').value.moisture !== 'moist' && D.snap.ecgMetrics.HR > 100);
+  const Di = run('diabetic-ketoacidosis', (m) => { m.body.insulinDose = 160; m.body.courseHours = 46; m.body.vomiting = 0; m.body.stress = 0.3; });
+  ok('…insulin drives potassium into the cells and stops ketogenesis: potassium falls, ketones fall, glucose falls',
+    Di.view.chemistry.potassium < dc.potassium - 0.5 && Di.b.betaHydroxybutyrate < D.b.betaHydroxybutyrate && Di.view.chemistry.glucose < dc.glucose,
+    `K ${f1(dc.potassium)} → ${f1(Di.view.chemistry.potassium)}, βOHB ${f1(D.b.betaHydroxybutyrate)} → ${f1(Di.b.betaHydroxybutyrate)}`);
+  const N = run('hyponatraemia-thiazide');
+  ok('thiazide hyponatraemia: sodium below 125, low potassium, low osmolality, a urine that is not maximally dilute',
+    N.view.chemistry.sodium < 125 && N.view.chemistry.potassium < 3.5 && N.b.osmolality < 270 && N.b.urineOsm > 100,
+    `Na ${f1(N.view.chemistry.sodium)} K ${f1(N.view.chemistry.potassium)} osm ${f1(N.b.osmolality)} urine osm ${f1(N.b.urineOsm)}`);
+  const Nn = run('hyponatraemia-thiazide', (m) => { m.body.thiazide = 0; });
+  ok('…without the thiazide the same tea and toast leave the sodium near normal (the kidney can dilute)', Nn.view.chemistry.sodium > 130, `Na ${f1(Nn.view.chemistry.sodium)}`);
+  const bad = clone(caseById('diabetic-ketoacidosis'));
+  bad.pathology.chemistry = { potassium: 6, crp: 40 };
+  bad.pathology.body = { ...bad.pathology.body, flux: 1, nephronMass: 3 };
+  const bi = errors(validateCase(bad, CATALOG, REGISTRY)).map((i) => `${i.path}: ${i.message}`).join('\n');
+  ok('validator: body parameters must exist and be in range; plasma values the body produces cannot be clamped', /chemistry\.potassium/.test(bi) && !/chemistry\.crp/.test(bi) && /unknown body parameter flux/.test(bi) && /nephronMass: expected/.test(bi), bi);
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

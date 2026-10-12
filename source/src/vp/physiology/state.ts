@@ -90,14 +90,18 @@ export function modelFromCase(c: CaseDef): PatientModel {
 
 /** Write a model back as a case's pathology (only what differs from healthy). */
 export function pathologyOf(m: PatientModel): CaseDef['pathology'] {
+  /* What the illness changes is written against the chronic state it acts on. */
+  const baseC: Record<string, number> = { ...CIRCULATION_DEFAULTS, ...(m.chronic?.circulation ?? {}) };
+  const baseR: Record<string, unknown> = { ...RESPIRATORY_DEFAULTS, ...(m.chronic?.respiratory ?? {}) };
+  const baseB: Record<string, unknown> = { ...BODY_DEFAULTS, ...(m.chronic?.body ?? {}) };
   const physiology: Record<string, number> = {};
-  for (const [k, v] of Object.entries(m.circulation)) if (CIRCULATION_DEFAULTS[k] !== v && !(k === 'K' && m.chemistry.potassium === v)) physiology[k] = v;
+  for (const [k, v] of Object.entries(m.circulation)) if (baseC[k] !== v && !(k === 'K' && m.chemistry.potassium === v)) physiology[k] = v;
   const electrical: Record<string, number | string> = {};
   for (const [k, v] of Object.entries(m.electrical)) if ((ELECTRICAL_DEFAULTS as any)[k] !== v) electrical[k] = v;
   const respiratory: Record<string, number> = {};
-  for (const [k, v] of Object.entries(m.respiratory)) if ((RESPIRATORY_DEFAULTS as any)[k] !== v) respiratory[k] = v;
+  for (const [k, v] of Object.entries(m.respiratory)) if (baseR[k] !== v) respiratory[k] = v;
   const body: Record<string, number> = {};
-  for (const [k, v] of Object.entries(m.body)) if ((BODY_DEFAULTS as any)[k] !== v) body[k] = v;
+  for (const [k, v] of Object.entries(m.body)) if (baseB[k] !== v) body[k] = v;
   const p: CaseDef['pathology'] = {};
   if (Object.keys(physiology).length) p.physiology = physiology;
   if (Object.keys(electrical).length) p.electrical = electrical;

@@ -119,6 +119,7 @@ export interface BodyState {
   I: number;        // plasma insulin, mU/L
   Idep: number;     // injected insulin still being absorbed: the plasma level it supplies, mU/L
   AngII: number; Ald: number; ADH: number;          // AngII and aldosterone × normal, ADH pg/mL
+  GFRad: number;    // the filtration the tubules have adapted to over days (L/h)
   /* bookkeeping */
   urineL: number; hours: number;
 }
@@ -157,6 +158,7 @@ export class Body {
   inp: BodyInputs = { MAP: 93, CO: 5.2, CVP: 3.5, sympathetic: 0.47, PaCO2: 5.33, DO2: 1000, VO2: 250, tempC: 37 };
   /** Normal values for this person: the reference the controllers defend. */
   ref!: { TBW: number; ICF: number; ECF: number; Vp: number; ISF: number; RCV: number; Oi: number; GFR: number; BW: number; Alb: number; creatProd: number; Vorg0: number };
+  private kGuess = 4;
   /** Last flux evaluation, for the snapshot. */
   private f: Record<string, number> = {};
 
@@ -201,7 +203,7 @@ export class Body {
       TBW, Vp, Na: 140 * ECF, K: 4.0 * (ECF + 35 * ICF), B: 24 * 2 * ECF,
       G: 5.2 * ECF, Ket: 0.08 * 1.2 * ECF, Lac: 0.9 * 1.2 * ECF, UA: 0.45 * ECF, P: 1.0 * ECF,
       Urea: 5.0 * TBW, Cr: 0.075 * TBW, Alb: 42 * Vp, RCV, RCVlost: 0,
-      I: 9, Idep: 0, AngII: 1, Ald: 1, ADH: 1.5, urineL: 0, hours: 0,
+      I: 9, Idep: 0, GFRad: GFR, AngII: 1, Ald: 1, ADH: 1.5, urineL: 0, hours: 0,
     };
   }
 
@@ -228,10 +230,22 @@ export class Body {
     const HCO3 = SBC + 0.75 * (this.inp.PaCO2 - 5.33);
     const pH = pHof(HCO3, this.inp.PaCO2);
     const urea = s.Urea / s.TBW;
-    // Potassium: the pump holds about 35× more inside the cells than out. Insulin and catecholamines drive it in;
-    // acidaemia and hypertonicity (solvent drag) let it out.
-    const ratio = 35 * (0.75 + 0.25 * s.I / (s.I + 3)) / 0.9375 * Math.exp(0.9 * (pH - 7.4)) * Math.exp(-0.006 * Math.max(0, posm - 290)) * (1 + 0.1 * this.p.stress);
-    const K = s.K / (ECF + ratio * ICF);
+    /* Potassium: the cells hold about 140 mmol/L, the ECF about 4. The pump keeps the cells' share; it rises a little as
+       the plasma level rises (cells take up part of a load) and is moved by insulin and adrenaline (in), acidaemia and
+       hypertonicity (out). Solved for the plasma level: each mmol/L is about 300 mmol of body potassium. */
+    /* The cells' K⁺ concentration moves with tonicity (their K⁺ amount is what they hold; their water follows osmolality). */
+    const f = (posm / 290) * (0.92 + 0.107 * s.I / (s.I + 3)) * Math.exp(0.18 * (pH - 7.4)) * Math.exp(-0.0015 * Math.max(0, posm - 290)) * (1 + 0.02 * this.p.stress);
+    let K = this.kGuess;
+    for (let it = 0; it < 8; it++) {
+      const ki = 140 * f * Math.pow(Math.max(0.3, K) / 4, 0.3);
+      const g = K * ECF + ki * ICF - s.K;
+      const dg = ECF + 0.3 * ki * ICF / Math.max(0.3, K);
+      const next = clamp(K - g / dg, 0.5, 15);
+      if (Math.abs(next - K) < 1e-6) { K = next; break; }
+      K = next;
+    }
+    this.kGuess = K;
+    const ratio = 140 * f * Math.pow(K / 4, 0.3) / K;
     const Lac = s.Lac / Vorg, Ket = s.Ket / Vorg, UA = s.UA / ECF, Pi = s.P / ECF;
     /* Chloride is what electroneutrality leaves: the cations (Na⁺, K⁺, and Ca²⁺ and Mg²⁺ at about 3.5 mEq/L)
        less bicarbonate, albumin and phosphate (their charge at pH 7.4), lactate, ketoanions, sulfate and the
@@ -262,7 +276,8 @@ export class Body {
     const sym = Math.max(0, i.sympathetic - 0.47);
     const angTarget = clamp(Math.exp(-0.035 * (i.MAP - 93)) * Math.exp(-5 * (ve - 1)) * (1 + 1.5 * sym), 0.05, 30) * (1 - 0.85 * clamp(p.aceInhibitor, 0, 1));
     s.AngII = relax(s.AngII, angTarget, dt, 0.4);
-    const aldTarget = clamp(Math.max(0.05, s.AngII) ** 1.3 * (c.K / 4) ** 2, 0.03, 15);
+    /* Aldosterone follows angiotensin II and potassium; on an ACE inhibitor it partly escapes ('breakthrough'). */
+    const aldTarget = clamp((0.3 + 0.7 * Math.max(0.05, s.AngII)) ** 1.3 * (c.K / 4) ** 2, 0.03, 15);
     s.Ald = relax(s.Ald, aldTarget, dt, 1.0);
     const aldEff = s.Ald * (1 - 0.9 * clamp(p.spironolactone, 0, 1));
     // ADH: tonicity above a threshold that falls with hypovolaemia, a steep non-osmotic limb, nausea, and any inappropriate secretion.
@@ -272,10 +287,13 @@ export class Body {
 
     /* -- kidney: filtration -- */
     const rpp = i.MAP - Math.max(0, i.CVP);
-    const Plow = 72 + 16 * clamp(p.aceInhibitor, 0, 1) * (1 + hypo) + 12 * clamp(p.nsaid, 0, 1) * (1 + hypo);
+    /* The lower limit of autoregulation rises when the defences against a falling perfusion are blocked, the more so the drier the patient. */
+    const dry = hypo + 8 * Math.max(0, 1 - ve);
+    const Plow = 72 + 22 * clamp(p.aceInhibitor, 0, 1) * (1 + dry) + 18 * clamp(p.nsaid, 0, 1) * (1 + dry);
     const auto = clamp((rpp - 35) / (Plow - 35), 0, 1) ** 0.8;
     const GFR = r.GFR * clamp(p.nephronMass, 0.01, 1.2) * (1 - 0.9 * clamp(p.tubularInjury, 0, 1)) * (1 - clamp(p.obstruction, 0, 1))
-      * auto * (1 - 0.06 * clamp(p.aceInhibitor, 0, 1)) * (1 - 0.3 * clamp(sym, 0, 0.5) * 2) * (1 - 0.012 * Math.max(0, i.CVP - 10));
+      * auto * (1 - 0.06 * clamp(p.aceInhibitor, 0, 1)) * (1 - 0.3 * clamp(sym, 0, 0.5) * 2) * (1 - 0.012 * Math.max(0, i.CVP - 10))
+      * (1 - 0.3 * Math.min(1, hypo / 2.5));                                                    // renal sympathetic and afferent constriction in hypovolaemia
     const tub = 1 - 0.85 * clamp(p.tubularInjury, 0, 1);
     const nm = clamp(p.nephronMass, 0.01, 1.2);
 
@@ -327,16 +345,17 @@ export class Body {
     const FL = GFR * c.Na;
     /* Pressure and volume natriuresis, opposed by aldosterone and angiotensin. A diuretic blocks a fraction of tubular
        reabsorption, but the volume it removes switches the opposing hormones on: the 'braking' that limits its effect. */
-    const natri = Math.exp(14 * (ve - 1)) * Math.exp(0.015 * (i.MAP - 93)) * Math.max(0.25, aldEff) ** -0.4 * Math.max(0.05, s.AngII) ** -0.2;
+    const natri = Math.exp(18 * (ve - 1)) * Math.exp(0.015 * (i.MAP - 93)) * Math.max(0.25, aldEff) ** -0.4 * Math.max(0.05, s.AngII) ** -0.2;
     let naU = (150 / 24) * natri * (1 + 0.8 * clamp(p.loopDiuretic, 0, 1) + 0.25 * clamp(p.thiazide, 0, 1));
     naU += 0.08 * glucU + 0.35 * ketoU;
-    naU = clamp(naU, FL * (0.002 + 0.04 * clamp(p.tubularInjury, 0, 1)), FL * 0.3);
+    naU = clamp(naU, FL * (0.0005 + 0.04 * clamp(p.tubularInjury, 0, 1)), FL * 0.3);
 
     /* -- potassium -- */
     const distal = (naU / (150 / 24)) ** 0.45;
-    /* Surviving nephrons secrete more K⁺ each, and the colon takes a share, until very late chronic disease; an acute fall in filtration (low distal flow) is what stops secretion. */
-    const kTub = (1 - 0.8 * clamp(p.tubularInjury, 0, 1)) * (0.25 + 0.75 * Math.min(1, nm * 4)) * Math.min(1, GFR / (r.GFR * nm) * 1.3);
-    const kU = (70 / 24) * (c.K / 4) ** 2 * Math.max(0.03, aldEff) ** 0.5 * distal * kTub * (1 + 0.6 * clamp(p.loopDiuretic, 0, 1) + 0.6 * clamp(p.thiazide, 0, 1));
+    /* Surviving nephrons adapt over a week or two to secrete more each; an acute fall in filtration (and in distal flow) is what stops secretion. */
+    s.GFRad = relax(s.GFRad ?? GFR, GFR, dt, 240);
+    const kTub = (1 - 0.8 * clamp(p.tubularInjury, 0, 1)) * (0.25 + 0.75 * Math.min(1, nm * 4)) * Math.min(1, GFR / Math.max(0.05, s.GFRad));
+    const kU = (70 / 24) * (c.K / 4) ** 2 * Math.max(0.03, aldEff) ** 0.3 * distal * kTub * (1 + 0.5 * clamp(p.loopDiuretic, 0, 1) + 0.4 * clamp(p.thiazide, 0, 1));
 
     /* -- acid: ammonium and bicarbonaturia -- */
     const NH4max = (320 / 24) * nm ** 0.7 * (1 - 0.85 * clamp(p.tubularInjury, 0, 1)) * Math.exp(-0.15 * (c.K - 4));
@@ -346,15 +365,15 @@ export class Body {
     const hco3U = GFR * Math.max(0, c.HCO3 - Tm) * 0.6;
 
     /* -- chloride: what electroneutral urine has left to carry -- */
-    /* Poorly reabsorbable anions in the distal tubule (bicarbonate, ketoanions) pull K⁺ out with them; secretion saturates at about 10 mmol/h. */
-    const kU2 = Math.min(10, kU * (1 + 0.5 * (hco3U + ketoU) / (naU + 1)));
+    /* Poorly reabsorbable anions in the distal tubule (bicarbonate, ketoanions) pull K⁺ out with them; secretion saturates at about 6 mmol/h. */
+    const kU2 = Math.min(6, kU * (1 + 0.3 * (hco3U + ketoU) / (naU + 1)));
     let clU = naU + kU2 + nh4U - uaU - hco3U - ketoU;
     clU = Math.max(0.05 * naU, clU);
 
     /* -- water -- */
     const ageConc = this.person.age > 30 ? 1 - 0.004 * (this.person.age - 30) : 1;
     const Umax = 1200 * ageConc * (1 - 0.7 * clamp(p.tubularInjury, 0, 1)) * (0.3 + 0.7 * nm ** 1.5) * (1 - 0.5 * clamp(p.loopDiuretic, 0, 1));
-    const Umin = 50 + 120 * clamp(p.thiazide, 0, 1) + 220 * (1 - nm) ** 2 + 150 * clamp(p.tubularInjury, 0, 1);
+    const Umin = 50 + 2 * Math.max(0, this.person.age - 50) + 120 * clamp(p.thiazide, 0, 1) + 220 * (1 - nm) ** 2 + 150 * clamp(p.tubularInjury, 0, 1);
     const osmU = 2 * (naU + kU2) + ureaU + glucU + 2.5;
     /* A large solute load (glucose, urea) washes out the medulla: an osmotic diuresis is never very concentrated. */
     const UmaxEff = 300 + (Umax - 300) / (1 + Math.max(0, osmU - 40) / 80);
@@ -450,7 +469,7 @@ export class Body {
   /** Adrenaline from the adrenal medulla: illness, hypoglycaemia, severe acidaemia. Drives rate and contractility (0–1). */
   adrenergic(): number {
     const c = this.conc();
-    return clamp(0.5 * this.p.stress + Math.max(0, 3.5 - c.G) / 1.5 + Math.max(0, 7.25 - c.pH) * 2, 0, 1.2);
+    return clamp(0.8 * this.p.stress + Math.max(0, 3.5 - c.G) / 1.5 + Math.max(0, 7.3 - c.pH) * 4, 0, 1.2);
   }
   /** Angiotensin II and vasopressin constrict arterioles and veins. */
   rsysMult(): number { return clamp(Math.max(0.05, this.s.AngII) ** 0.12 * Math.max(0.3, this.s.ADH / 1.5) ** 0.04, 0.6, 1.8); }
