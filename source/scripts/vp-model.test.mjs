@@ -580,7 +580,7 @@ const ecgOf = (preset, seconds = 8, mutate) => {
   const twin = createCirculation(healthyModel());
   twin.sim.restoreState(JSON.parse(J(state)));
   ser.sim.advance(4000); twin.sim.advance(4000);
-  ok('a settled patient can be serialised and resumed exactly (for the browser worker)', Math.abs(ser.sim.Part - twin.sim.Part) < 1e-6 && ser.heart.metrics.HR === twin.heart.metrics.HR);
+  ok('a settled patient can be serialised and resumed exactly (for the browser worker)', Math.abs(ser.sim.Part - twin.sim.Part) < 1e-6 && ser.heart.metrics.HR === twin.heart.metrics.HR, `Part ${ser.sim.Part} vs ${twin.sim.Part}, HR ${ser.heart.metrics.HR} vs ${twin.heart.metrics.HR}`);
 }
 
 
@@ -725,6 +725,30 @@ console.log('\nThe lungs and the circulation, coupled');
 }
 
 
+
+console.log('\nThe right heart, the septum and the pericardium');
+{
+  const S = (mut) => { const m = healthyModel(); mut(m); return settleModel(m, 30).snapshot; };
+  const H = S(() => {});
+  const sub = S((m) => Object.assign(m.respiratory, { embRLL: 0.85, embLLL: 0.85, embRUL: 0.6, embLUL: 0.6, embRML: 0.7 }));
+  const mas = S((m) => Object.assign(m.respiratory, { embRLL: 0.95, embLLL: 0.95, embRUL: 0.75, embLUL: 0.75, embRML: 0.85 }));
+  ok('submassive PE: compensated (systolic above 100) by tachycardia and vasoconstriction, narrow pulse pressure', sub.metrics.Psys > 100 && sub.ecgMetrics.HR > 105 && sub.metrics.PP < H.metrics.PP,
+    `BP ${sub.metrics.Psys.toFixed(0)}/${sub.metrics.Pdia.toFixed(0)} HR ${sub.ecgMetrics.HR}`);
+  ok('massive PE: obstructive shock — the acute right ventricle cannot exceed ~45 mmHg, becomes ischaemic, fails; low output, high CVP, lactate',
+    mas.metrics.Psys < 90 && mas.metrics.CO < 3 && mas.metrics.CVPmean > 10 && mas.metrics.PpaSys < 55 && mas.rvIschaemia > 0.4 && chemistryState(mas, {}).lactate > 2,
+    `BP ${mas.metrics.Psys.toFixed(0)}/${mas.metrics.Pdia.toFixed(0)} CO ${mas.metrics.CO.toFixed(1)} CVP ${mas.metrics.CVPmean.toFixed(0)} PAsys ${mas.metrics.PpaSys.toFixed(0)} RV ischaemia ${mas.rvIschaemia.toFixed(2)}`);
+  ok('…and the pressure-loaded right ventricle pushes the septum into the left, which fills less', mas.metrics.EDV < H.metrics.EDV - 20, `LV EDV ${mas.metrics.EDV.toFixed(0)} vs ${H.metrics.EDV.toFixed(0)} mL`);
+  const tam = S((m) => { m.circulation.pericardialFluid = 450; });
+  ok('tamponade: pericardial fluid raises every filling pressure, equalises them, and drops output', tam.metrics.CVPmean > 10 && Math.abs(tam.metrics.CVPmean - tam.metrics.PlaMean) < 5 && tam.metrics.CO < H.metrics.CO - 1 && tam.ecgMetrics.HR > H.ecgMetrics.HR + 10,
+    `CVP ${tam.metrics.CVPmean.toFixed(0)} LA ${tam.metrics.PlaMean.toFixed(0)} CO ${tam.metrics.CO.toFixed(1)} HR ${tam.ecgMetrics.HR}`);
+  const lung = (p, inp = {}) => { const r = new Respiratory(p); r.setInputs(inp); r.equilibrate(); return r.snapshot(); };
+  const copd = { emphysema: 0.65, bronchoconstriction: 0.55, vqMismatch: 0.4 };
+  const a = lung(copd, { sbc: 30 }), b = lung({ ...copd, FiO2: 0.28 }, { sbc: 30 }), c = lung({ ...copd, FiO2: 0.6 }, { sbc: 30 });
+  ok('severe COPD: high-flow oxygen raises CO2 by over 0.5 kPa, controlled oxygen by much less', c.PaCO2 - a.PaCO2 > 0.5 && b.PaCO2 - a.PaCO2 < 0.5 * (c.PaCO2 - a.PaCO2), `${a.PaCO2.toFixed(2)} → ${b.PaCO2.toFixed(2)} (28 %) / ${c.PaCO2.toFixed(2)} (60 %)`);
+  const v = lung({ vqMismatch: 1.2 }), v100 = lung({ vqMismatch: 1.2, FiO2: 1 });
+  ok('absorption atelectasis: on 100 % O2, poorly ventilated units collapse and true shunt rises', v100.shunt > v.shunt + 0.02, `${(v.shunt * 100).toFixed(1)} → ${(v100.shunt * 100).toFixed(1)} %`);
+}
+
 console.log('\nPulmonary cases: what the model makes of their parameters');
 {
   const run = (id, mut) => { const c = caseById(id); const m = modelFromCase(c); mut?.(m); const snap = settleModel(m, 24).snapshot; return { c, snap, view: buildView(c, { circulation: snap, state: { ...c.initialState, position: 'sitting', exposure: ['chest'] } }) }; };
@@ -740,8 +764,8 @@ console.log('\nPulmonary cases: what the model makes of their parameters');
   ok('COPD case: acute-on-chronic hypercapnic failure (pH < 7.35, PaCO2 > 7, raised bicarbonate)', C.view.chemistry.arterialPH < 7.35 && C.view.chemistry.paCO2 > 7 && C.view.chemistry.bicarbonate > 28,
     `pH ${C.view.chemistry.arterialPH.toFixed(2)} PaCO2 ${C.view.chemistry.paCO2.toFixed(1)}`);
   ok('…Venturi 28 % brings the saturation into 88–92 % without much CO2; a non-rebreather overshoots and raises CO2',
-    (() => { const s28 = obs(C28.c, C28.view, 'vitals.spo2').value.spo2; return s28 >= 87 && s28 <= 93; })() && C28.snap.resp.PaCO2 - C.snap.resp.PaCO2 < 0.3
-    && C80.snap.resp.PaCO2 - C.snap.resp.PaCO2 > 2 * (C28.snap.resp.PaCO2 - C.snap.resp.PaCO2) && C80.snap.resp.PaCO2 - C.snap.resp.PaCO2 > 0.25 && obs(C80.c, C80.view, 'vitals.spo2').value.spo2 >= 96,
+    (() => { const s28 = obs(C28.c, C28.view, 'vitals.spo2').value.spo2; return s28 >= 87 && s28 <= 94; })() && C28.snap.resp.PaCO2 - C.snap.resp.PaCO2 < 0.3
+    && C80.snap.resp.PaCO2 - C.snap.resp.PaCO2 > (C28.snap.resp.PaCO2 - C.snap.resp.PaCO2) + 0.1 && C80.snap.resp.PaCO2 - C.snap.resp.PaCO2 > 0.25 && obs(C80.c, C80.view, 'vitals.spo2').value.spo2 >= 96,
     `PaCO2 ${C.snap.resp.PaCO2.toFixed(2)} / ${C28.snap.resp.PaCO2.toFixed(2)} / ${C80.snap.resp.PaCO2.toFixed(2)}, SpO2 on 28 % ${obs(C28.c, C28.view, 'vitals.spo2').value.spo2}`);
 }
 

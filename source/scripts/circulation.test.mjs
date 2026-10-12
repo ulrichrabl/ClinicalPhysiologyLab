@@ -66,7 +66,7 @@ ok('low contractility drops EF below 40%', hf.EF < 40, hf.EF.toFixed(0));
 console.log('\nRight heart');
 const pe = sim({ Rpul: 0.45 });
 ok('PE raises pulmonary artery pressure', pe.PpaMean > b.PpaMean + 12, pe.PpaMean.toFixed(0));
-ok('PE lowers cardiac output', pe.CO < b.CO - 0.6, pe.CO.toFixed(1));
+ok("PE lowers cardiac output", pe.CO < b.CO - 0.6, `${pe.CO.toFixed(2)} vs ${b.CO.toFixed(2)}`);
 
 try { unlinkSync(workerOut); } catch (_) {}
 

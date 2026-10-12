@@ -51,6 +51,8 @@ export const LOBE_VOLUME: Record<LobeId, number> = { RUL: 0.19, RML: 0.09, RLL: 
 const LOBE_VENT: Record<LobeId, number> = { RUL: 0.18, RML: 0.09, RLL: 0.25, LUL: 0.21, LLL: 0.27 };
 const LOBE_PERF: Record<LobeId, number> = { RUL: 0.15, RML: 0.09, RLL: 0.27, LUL: 0.19, LLL: 0.30 };
 /** How much gravity loads each lobe with fluid (semi-recumbent: bases first). */
+/** Standard normal quantiles at the midpoints of eight equal-probability bins: the V/Q units inside each lobe. */
+const VQ_Z = [-1.534, -0.887, -0.489, -0.157, 0.157, 0.489, 0.887, 1.534];
 const LOBE_GRAVITY: Record<LobeId, number> = { RUL: 0.55, RML: 1.0, RLL: 1.35, LUL: 0.6, LLL: 1.35 };
 
 export interface RespiratoryParams {
@@ -344,7 +346,7 @@ export class Respiratory {
     const Hb = inp.Hb;
     const embBurden = LOBES.reduce((a, id) => a + LOBE_PERF[id] * clamp((p as any)[`emb${id}`] ?? 0, 0, 1), 0);
     // V/Q spread: narrowed airways, destroyed and scarred lung, interstitial water, and the flow an embolus diverts onto lung not ventilated for it
-    const sigma = 0.22 + 0.8 * p.bronchoconstriction + 0.35 * p.emphysema + 0.6 * p.fibrosis + 0.7 * this.interstitial + 1.6 * embBurden + clamp(p.vqMismatch, 0, 2);
+    const sigma = 0.22 + 0.8 * p.bronchoconstriction + 0.35 * p.emphysema + 0.6 * p.fibrosis + 0.7 * this.interstitial + 2.6 * embBurden + clamp(p.vqMismatch, 0, 2);
     // Diffusion: the fraction of the alveolar–capillary O2 gap left at the end of the capillary; shorter transit at high flow
     const uDiff = Math.exp((-4 * Math.max(0.01, m.DL)) / (Q / 5.2));
 
@@ -431,12 +433,23 @@ export class Respiratory {
         if (dead > 0 && vaL > 0) units.push({ lobe: i, VA: vaL * dead, Q: 0, kind: 'dead', PO2: PIO2, PCO2: 0, diffU: 0 });
         const vaP = vaL * (1 - dead);
         if (vaP > 1e-6 || qAer > 1e-6) {
-          // a low and a high V/Q unit, ventilation split by the spread; hypoxic vasoconstriction acts unit by unit,
-          // holding back blood from the poorly ventilated one (and releasing it when the inspired O2 rises)
-          const w1 = Math.exp(-sigma), w2 = Math.exp(sigma), ws = w1 + w2;
-          const hLo = hpvC(this.warm.get(`${i}:lo`)?.[0] ?? lobePAO2[i]), hHi = hpvC(this.warm.get(`${i}:hi`)?.[0] ?? lobePAO2[i]);
-          units.push({ lobe: i, VA: vaP * w1 / ws, Q: qAer * hLo / (hLo + hHi), kind: 'vq', PO2: 0, PCO2: 0, diffU: uDiff, key: `${i}:lo` });
-          units.push({ lobe: i, VA: vaP * w2 / ws, Q: qAer * hHi / (hLo + hHi), kind: 'vq', PO2: 0, PCO2: 0, diffU: uDiff, key: `${i}:hi` });
+          /* A continuous spread of V/Q within the lobe (Wagner's log-normal), discretised into equal-perfusion units:
+             unit k gets ventilation ∝ e^(σ·z_k). Hypoxic vasoconstriction then acts on each unit by its own alveolar
+             O2, holding blood back from the poorly ventilated ones (and releasing it when the inspired O2 rises).
+             On a high FiO2, units below a critical inspired V/Q absorb their gas faster than it is replaced and
+             collapse: absorption atelectasis turns them into shunt. */
+          const wsum = VQ_Z.reduce((a, z) => a + Math.exp(sigma * z), 0);
+          const hs = VQ_Z.map((_, k) => hpvC(this.warm.get(`${i}:${k}`)?.[0] ?? lobePAO2[i]));
+          const hsum = hs.reduce((a, x) => a + x, 0);
+          const crit = 0.1 * Math.max(0, (clamp(p.FiO2, 0.21, 1) - 0.21) / 0.79) ** 2;
+          let absorbed = 0;
+          VQ_Z.forEach((z, k) => {
+            let va = vaP * Math.exp(sigma * z) / wsum, q = qAer * hs[k] / hsum;
+            const vq = va / Math.max(1e-6, qAer / VQ_Z.length);
+            if (crit > 0 && vq < crit) { const f = clamp((crit - vq) / crit, 0, 1) * 0.8; absorbed += q * f; va *= 1 - f; q *= 1 - f; }
+            units.push({ lobe: i, VA: va, Q: q, kind: 'vq', PO2: 0, PCO2: 0, diffU: uDiff, key: `${i}:${k}` });
+          });
+          if (absorbed > 1e-7) units.push({ lobe: i, VA: 0, Q: absorbed, kind: 'shunt', PO2: PvO2, PCO2: PvCO2, diffU: 0 });
         }
       });
       let j = 0;

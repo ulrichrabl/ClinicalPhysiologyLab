@@ -20,6 +20,7 @@ export const CIRCULATION_DEFAULTS: Record<string, number> = {
   Rmitral: 0.01, Raortic: 0.02, Rtricuspid: 0.009, Rpulmonic: 0.02,
   regMitral: 0, regAortic: 0, regTricuspid: 0, regPulmonic: 0,
   bloodVolume: 5000, HR: 72, K: 4,
+  pericardialFluid: 0, periV0: 420, septalShift: 1.5,
   baroEnabled: 1, Pn: 95, tauS: 2.5, tauP: 0.3, gS: 0.5, gP: 0.4, gR: 0.6, gV: 0.26, gE: 0.45,
 };
 

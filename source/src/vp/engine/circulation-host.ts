@@ -59,9 +59,17 @@ export function createCirculation(m: PatientModel): CirculationRun {
     sim.Rpul = model.circulation.Rpul * resp.rpulMult();
     /* Blood viscosity rises with haematocrit: anaemic blood flows more easily, so resistance falls and output rises. */
     sim.Rsys = model.circulation.Rsys * (0.6 + 0.4 * Math.min(1.6, chem.Hb / 150));
-    /* A right ventricle facing an acute rise in pulmonary pressure outgrows its coronary supply and weakens. */
-    const overload = Math.max(0, Math.min(1, ((mt?.PpaMean ?? 15) - 25) / 20));
-    sim.EmaxRv = model.circulation.EmaxRv * (1 - 0.7 * overload);
+    /* The right ventricle's own blood supply. Its coronary perfusion pressure is aortic pressure minus the
+       pressure in its wall; its demand rises with the pressure it must generate. When supply falls short it
+       becomes ischaemic and weakens, which lowers aortic pressure and raises its own: the spiral of massive PE.
+       Ischaemia builds and resolves over tens of seconds. */
+    if (mt) {
+      const rvWall = ((mt.PpaSys ?? 20) + (mt.CVPmean ?? 3)) / 2;
+      const ratio = ((mt.Pmean ?? 90) - rvWall) / Math.max(10, mt.PpaSys ?? 20);
+      const target = Math.max(0, Math.min(0.75, (2.2 - ratio) / 1.8));
+      sim.rvIschaemia = (sim.rvIschaemia ?? 0) + (target - (sim.rvIschaemia ?? 0)) * (1 - Math.exp(-COUPLE_S / 12));
+    }
+    sim.EmaxRv = model.circulation.EmaxRv * (1 - (sim.rvIschaemia ?? 0));
     sim.chemoDrive = resp.chemoDrive();
   };
 
@@ -79,7 +87,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     if (!!sim.baroEnabled !== !!c.baroEnabled) sim.toggleBaro();
     resp.setParams(next.respiratory, body());
     sim.Rpul = c.Rpul * resp.rpulMult();
-    sim.EmaxRv = c.EmaxRv;
+    sim.EmaxRv = c.EmaxRv * (1 - (sim.rvIschaemia ?? 0));
     sim.Rsys = c.Rsys;
   };
 

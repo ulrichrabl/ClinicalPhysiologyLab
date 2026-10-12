@@ -65,6 +65,7 @@ const HAEMODYNAMICS: ModelDef = {
   groups: [
     { id: 'lv', label: L('Left ventricle', 'Linker Ventrikel') }, { id: 'rv', label: L('Right ventricle and atria', 'Rechter Ventrikel und Vorhöfe') },
     { id: 'valves', label: L('Valves', 'Klappen') }, { id: 'vessels', label: L('Vessels', 'Gefäße') }, { id: 'volume', label: L('Blood volume', 'Blutvolumen') },
+    { id: 'pericardium', label: L('Pericardium and septum', 'Perikard und Septum') },
   ],
   variables: [
     C('lv', 'Emax', 'E_{max}', L('End-systolic elastance (contractility)', 'Endsystolische Elastanz (Kontraktilität)'), 'mmHg/mL', 0.3, 6, 0.05),
@@ -87,6 +88,9 @@ const HAEMODYNAMICS: ModelDef = {
     C('vessels', 'Csv', 'C_{v}', L('Venous compliance', 'Venöse Compliance'), 'mL/mmHg', 20, 120, 1),
     C('vessels', 'Rpul', 'R_{pul}', L('Pulmonary vascular resistance', 'Pulmonaler Gefäßwiderstand'), 'mmHg·s/mL', 0.02, 0.8, 0.005),
     C('volume', 'bloodVolume', 'V_{blood}', L('Total blood volume', 'Gesamtblutvolumen'), 'mL', 2000, 8000, 50),
+    C('pericardium', 'pericardialFluid', 'V_{peri}', L('Pericardial fluid (tamponade)', 'Perikarderguss (Tamponade)'), 'mL', 0, 1500, 10),
+    C('pericardium', 'periV0', 'V_{0,peri}', L('Pericardial reserve volume (larger when chronically stretched)', 'Perikardiale Reserve (größer bei chronischer Dehnung)'), 'mL', 300, 1200, 10),
+    C('pericardium', 'septalShift', 'k_{sep}', L('Septal shift per mmHg of trans-septal pressure', 'Septumverlagerung pro mmHg transseptalem Druck'), 'mL/mmHg', 0, 5, 0.1),
     state('haemodynamics', { key: 'Plv', symbol: 'P_{LV}', label: L('Left ventricular pressure', 'Druck linker Ventrikel'), unit: 'mmHg', digits: 0 }),
     state('haemodynamics', { key: 'Vlv', symbol: 'V_{LV}', label: L('Left ventricular volume', 'Volumen linker Ventrikel'), unit: 'mL', digits: 0 }),
     state('haemodynamics', { key: 'E', symbol: 'E(t)', label: L('Instantaneous elastance', 'Momentane Elastanz'), unit: 'mmHg/mL', digits: 2 }),
