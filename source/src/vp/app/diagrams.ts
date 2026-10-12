@@ -829,7 +829,44 @@ const fuels: Draw = (g, w, h, c) => {
   g.fillStyle = css('--accent'); g.fillRect(gx, fy - 9, clamp(b.insulin / 40, 0, 1) * 120, 10);
 };
 
+/* Inflammation: the thermostat and the core, and what the response is doing to blood and vessels. */
+const inflammation: Draw = (g, w, h, c) => {
+  const b = bodyOf(c);
+  if (!Number.isFinite(b.temperature)) return;
+  const m = c.live.snap.metrics ?? {};
+  const IL = b.inflammation ?? 0, Tset = 36.9 + 2.6 * IL / (IL + 0.6);
+  // thermometer
+  const tx = 40, ty0 = 30, ty1 = h - 50;
+  const Y = (t: number) => ty1 - ((clamp(t, 34, 42) - 34) / 8) * (ty1 - ty0);
+  g.fillStyle = css('--sunk'); rrect(g, tx - 7, ty0 - 6, 14, ty1 - ty0 + 12, 7); g.fill();
+  g.fillStyle = C.art; g.fillRect(tx - 4, Y(b.temperature), 8, ty1 - Y(b.temperature));
+  g.beginPath(); g.arc(tx, ty1 + 14, 13, 0, Math.PI * 2); g.fill();
+  for (let t = 35; t <= 41; t++) { g.fillStyle = css('--muted'); g.fillRect(tx - 15, Y(t), 6, 1); text(g, String(t), tx - 18, Y(t) + 4, { size: 9, mono: true, color: css('--muted'), align: 'right' }); }
+  g.strokeStyle = css('--fg'); g.setLineDash([4, 3]); g.beginPath(); g.moveTo(tx - 16, Y(Tset)); g.lineTo(tx + 50, Y(Tset)); g.stroke(); g.setLineDash([]);
+  text(g, L(c, `set point ${num(c, Tset, 1)}`, `Sollwert ${num(c, Tset, 1)}`), tx + 54, Y(Tset) + 4, { size: 10, weight: 700 });
+  text(g, `${num(c, b.temperature, 1)} °C`, tx + 54, Y(b.temperature) + 18, { size: 12, mono: true, weight: 700, color: C.art });
+  // bars
+  const bx = Math.min(200, w * 0.35), bw = w - bx - 20;
+  const rows: Array<[string, number, number, number, number, string]> = [
+    [L(c, 'cytokines', 'Zytokine'), IL, 0, 2.5, 1, '#b7a36a'],
+    [L(c, 'white cells (10⁹/L)', 'Leukozyten (10⁹/l)'), b.whiteCellCount, 0, 30, 11, '#6a8fb8'],
+    ['CRP (mg/L)', b.crp, 0, 350, 5, '#8a6bb8'],
+    [L(c, 'platelets (10⁹/L)', 'Thrombozyten (10⁹/l)'), b.platelets, 0, 400, 150, '#7fb08a'],
+    [L(c, 'vascular resistance (×normal)', 'Gefäßwiderstand (×normal)'), (m.SVR ?? 1600) / 1600, 0, 2, 1, C.ven],
+    [L(c, 'lactate (mmol/L)', 'Laktat (mmol/l)'), b.lactate, 0, 8, 2, C.art],
+  ];
+  rows.forEach(([lab, v, lo, hi, ref, col], i) => {
+    const y = 34 + i * ((h - 60) / rows.length);
+    text(g, lab, bx, y, { size: 11 }); text(g, num(c, v, v < 10 ? 2 : 0), bx + bw, y, { size: 11, align: 'right', mono: true });
+    g.fillStyle = css('--sunk'); g.fillRect(bx, y + 5, bw, 9);
+    g.fillStyle = col; g.fillRect(bx, y + 5, (clamp((v - lo) / (hi - lo), 0, 1)) * bw, 9);
+    g.fillStyle = css('--fg'); g.fillRect(bx + clamp((ref - lo) / (hi - lo), 0, 1) * bw - 1, y + 2, 2, 15);
+  });
+  text(g, L(c, `sepsis ${num(c, b.sepsis, 2)} · tick: upper normal`, `Sepsis ${num(c, b.sepsis, 2)} · Strich: obere Norm`), bx, h - 10, { size: 10, color: css('--muted') });
+};
+
 export const DIAGRAMS: Record<string, { draw: Draw; height: (w: number) => number }> = {
+  inflammation: { draw: inflammation, height: () => 300 },
   water: { draw: water, height: (w) => (w >= 600 ? 300 : 520) },
   kidney: { draw: kidney, height: (w) => (w >= 620 ? 320 : 560) },
   fuels: { draw: fuels, height: (w) => (w >= 640 ? 230 : 560) },

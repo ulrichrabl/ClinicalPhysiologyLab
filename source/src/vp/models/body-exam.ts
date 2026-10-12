@@ -26,6 +26,10 @@ const deficit = (v: RuntimeView) => {
 const step = (x: number, cuts: number[], codes: string[]) => { let i = 0; while (i < cuts.length && x >= cuts[i]) i++; return codes[i]; };
 
 export const BODY_EXAM_RESOLVERS: Record<string, Resolver> = {
+  'body.temp': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: r1(b.temperature, 1), basis: `core temperature ${b.temperature.toFixed(1)} °C; inflammatory signal ×${b.inflammation.toFixed(2)}` };
+  },
   'body.mucosa': (view): Resolved | undefined => {
     const b = body(view); if (!b) return undefined;
     const isf0 = Math.max(4, b.ISF - b.dISF);
@@ -58,7 +62,11 @@ export const BODY_LAB_RESOLVERS: Record<string, Resolver> = {
     const ketones = step(0.3 * b.ketonuria, [0.5, 1.5, 4, 8], ['negative', 'trace', '1+', '2+', '3+']);
     const sg = r1(1.0 + 0.000033 * b.urineOsm + (b.glucosuria > 50 ? 0.004 : 0), 3);
     const ph = r1(Math.min(8.5, Math.max(4.6, 6.0 + 1.6 * b.bicarbonaturia / (b.bicarbonaturia + 25) - 0.9 * Math.log10(Math.max(4, b.NH4) / 28))) * 2, 0) / 2;
-    return { value: { voided: true, glucose, ketones, protein: 'negative', blood: 'negative', leukocytes: 'negative', nitrites: 'negative', sg, ph },
+    /* An infected urine: white cells (leukocyte esterase), nitrite from Gram-negative bacteria, some blood and protein from the inflamed urothelium. */
+    const uti = (b.params.urinarySource ?? 0) > 0 && (b.params.infection ?? 0) > 0.15;
+    const inf = b.params.infection ?? 0;
+    return { value: { voided: true, glucose, ketones, protein: uti ? '1+' : 'negative', blood: uti ? (inf > 0.5 ? '2+' : '1+') : 'negative',
+      leukocytes: uti ? (inf > 0.5 ? '3+' : '2+') : 'negative', nitrites: uti ? '1+' : 'negative', sg, ph },
       basis: `urine glucose ${b.glucosuria.toFixed(0)} mmol/L, ketones ${b.ketonuria.toFixed(1)} mmol/L, osmolality ${b.urineOsm.toFixed(0)} mosmol/kg` };
   },
   'body.urine-chem': (view): Resolved | undefined => {

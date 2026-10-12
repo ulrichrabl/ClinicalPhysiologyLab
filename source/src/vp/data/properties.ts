@@ -64,7 +64,7 @@ export const PROPERTIES: PropertyDef[] = [
   {
     id: 'vitals.temp', structure: 'vitals', label: { en: 'Temperature', de: 'Temperatur' },
     value: q('Cel', 30, 44), normal: { value: 36.8, range: [36.0, 37.9] },
-    source: 'case', formatter: 'vitals.temp', codes: { loinc: '8310-5' },
+    source: 'model-or-case', resolver: 'body.temp', formatter: 'vitals.temp', codes: { loinc: '8310-5' },
   },
 
   /* ---- cardiovascular ------------------------------------------------------- */

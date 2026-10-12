@@ -54,6 +54,8 @@ export const DIAGNOSES: DiagnosisDef[] = [
   d('acute-appendicitis', 'Acute appendicitis', 'Akute Appendizitis', ['appendicitis'], ['blinddarmentzündung', 'appendizitis']),
   d('acute-pancreatitis', 'Acute pancreatitis', 'Akute Pankreatitis', ['pancreatitis'], ['pankreatitis', 'bauchspeicheldrüsenentzündung']),
   d('sepsis', 'Sepsis', 'Sepsis', ['septic shock', 'septicaemia'], ['septischer schock', 'blutvergiftung']),
+  d('urosepsis', 'Urosepsis with septic shock', 'Urosepsis mit septischem Schock', ['urinary sepsis', 'septic shock from a urinary tract infection', 'pyelonephritis with sepsis'], ['urosepsis', 'septischer schock bei harnwegsinfekt']),
+  d('acute-pyelonephritis', 'Acute pyelonephritis', 'Akute Pyelonephritis', ['pyelonephritis', 'kidney infection'], ['pyelonephritis', 'nierenbeckenentzündung']),
   d('lactic-acidosis', 'Lactic acidosis', 'Laktatazidose', ['type a lactic acidosis', 'metformin-associated lactic acidosis'], ['laktatazidose']),
   // dizziness and the eyes
   d('vestibular-neuritis', 'Vestibular neuritis', 'Neuritis vestibularis', ['vestibular neuronitis', 'acute unilateral vestibulopathy'], ['akute einseitige vestibulopathie', 'neuropathia vestibularis']),

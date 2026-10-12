@@ -92,9 +92,6 @@
         "colour": "pale",
         "sweating": true
       }
-    },
-    "vitals.temp": {
-      "value": 36.9
     }
   },
   "investigations": {},

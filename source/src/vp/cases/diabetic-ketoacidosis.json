@@ -75,6 +75,7 @@
     "body": {
       "insulinDose": 0,
       "stress": 0.5,
+      "infection": 0.15,
       "foodIntake": 0.1,
       "vomiting": 1.5,
       "fluidIntake": 1.0,
@@ -93,9 +94,6 @@
     }
   },
   "observables": {
-    "vitals.temp": {
-      "value": 37.4
-    },
     "abdomen.palpation": {
       "value": {
         "tenderness": "mild",

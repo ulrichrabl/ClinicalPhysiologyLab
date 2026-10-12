@@ -555,6 +555,57 @@ const KIDNEY: ModelDef = {
   sources: ['Carlström M, Wilcox CS, Arendshorst WJ. Renal autoregulation in health and disease. Physiol Rev 2015;95:405–511.', 'Lapi F et al. Concurrent use of diuretics, angiotensin converting enzyme inhibitors, and angiotensin receptor blockers with NSAIDs and risk of acute kidney injury. BMJ 2013;346:e8525.', 'Palmer BF, Clegg DJ. Physiology and pathophysiology of potassium homeostasis. Adv Physiol Educ 2016;40:480–90.', 'Waikar SS, Bonventre JV. Creatinine kinetics and the definition of acute kidney injury. J Am Soc Nephrol 2009;20:672–9.'],
 };
 
+const INFLAMMATION: ModelDef = {
+  id: 'inflammation', title: L('Infection, inflammation and fever', 'Infektion, Entzündung und Fieber'),
+  summary: L('A bacterial infection releases cytokines (interleukin-1, -6, tumour necrosis factor). They reset the hypothalamic thermostat upward (fever, reached by shivering and vasoconstriction: rigors), raise the metabolic rate, release neutrophils from the marrow and make the liver produce acute-phase proteins such as CRP, which rises over a day or two and falls with a half-life of about 19 hours. When the response is large enough to injure the host’s own organs, it is sepsis: nitric oxide dilates arterioles and veins (low resistance, a bounding pulse, warm peripheries), capillaries leak albumin and water into the tissues, the heart is depressed, the kidney fails, lactate rises and platelets are consumed. Septic shock is hypotension that fluid alone does not correct.',
+    'Eine bakterielle Infektion setzt Zytokine frei (Interleukin-1, -6, Tumornekrosefaktor). Sie stellen den hypothalamischen Thermostat höher (Fieber, erreicht durch Kältezittern und Vasokonstriktion: Schüttelfrost), steigern den Stoffwechsel, mobilisieren Neutrophile aus dem Knochenmark und lassen die Leber Akute-Phase-Proteine wie CRP bilden, das über ein, zwei Tage ansteigt und mit einer Halbwertszeit von etwa 19 Stunden abfällt. Schädigt die Antwort die eigenen Organe, ist es eine Sepsis: Stickstoffmonoxid weitet Arteriolen und Venen (niedriger Widerstand, hebender Puls, warme Peripherie), Kapillaren lassen Albumin und Wasser ins Gewebe, das Herz wird gedämpft, die Niere versagt, Laktat steigt, Thrombozyten werden verbraucht. Der septische Schock ist eine Hypotonie, die Flüssigkeit allein nicht behebt.'),
+  groups: [{ id: 'infection', label: L('Infection', 'Infektion') }],
+  variables: [
+    BP('inflammation', 'infection', 'infection', 'inf', L('Bacterial infection (0.3 local, 0.6 systemic, 0.9 overwhelming)', 'Bakterielle Infektion (0,3 lokal, 0,6 systemisch, 0,9 überwältigend)'), '0–1', 0, 1, 0.05),
+    BP('inflammation', 'infection', 'urinarySource', 'UTI', L('Source in the urinary tract', 'Fokus in den Harnwegen'), '0/1', 0, 1, 1),
+    S('inflammation', 'IL', 'IL', L('Inflammatory signal (cytokines)', 'Entzündungssignal (Zytokine)'), '× systemic', 2),
+    S('inflammation', 'Tset', 'T_{set}', L('Hypothalamic set point', 'Hypothalamischer Sollwert'), '°C', 1),
+    S('inflammation', 'T', 'T', L('Core temperature', 'Kerntemperatur'), '°C', 1),
+    S('inflammation', 'crp', '[CRP]', L('C-reactive protein', 'C-reaktives Protein'), 'mg/L', 0),
+    S('inflammation', 'wcc', 'WCC', L('White cell count', 'Leukozyten'), '10⁹/L', 1),
+    S('inflammation', 'platelets', 'plt', L('Platelets', 'Thrombozyten'), '10⁹/L', 0),
+    S('inflammation', 'sepsis', 'σ_{sepsis}', L('Organ dysfunction (sepsis)', 'Organdysfunktion (Sepsis)'), '0–1', 2),
+    S('inflammation', 'vaso', 'NO', L('Vasodilatation (fraction of resistance lost)', 'Vasodilatation (verlorener Widerstandsanteil)'), '', 2),
+    S('inflammation', 'SVR', 'SVR', L('Systemic vascular resistance', 'Systemischer Gefäßwiderstand'), 'dyn·s/cm⁵', 0),
+    S('inflammation', 'MAP', 'MAP', L('Mean arterial pressure', 'Arterieller Mitteldruck'), 'mmHg', 0),
+    S('inflammation', 'lactate', '[lac]', L('Lactate', 'Laktat'), 'mmol/L', 1),
+  ],
+  equations: [
+    eq('il', 'textbook', L('The response: cytokines follow the infection', 'Die Antwort: Zytokine folgen der Infektion'),
+      [v('IL')], ['2.2', '·', { sup: [[v('infection')], ['1.5']] }, { text: '  (settling over about 4 h)' }],
+      L('A local infection (a cellulitis, a cystitis) gives a little; a bacteraemia a lot. The steepness is the point: beyond a threshold the host’s response, not the organism, does the damage.',
+        'Eine lokale Infektion (Erysipel, Zystitis) gibt wenig, eine Bakteriämie viel. Die Steilheit ist der Punkt: Jenseits einer Schwelle richtet die Antwort des Wirts, nicht der Erreger, den Schaden an.')),
+    eq('fever', 'textbook', L('Fever: the thermostat reset', 'Fieber: der verstellte Thermostat'),
+      [v('Tset')], ['36.9', '+', '2.6', '·', frac([v('IL')], [v('IL'), '+', '0.6'])],
+      L('Fever is regulated, not a failure of regulation: the body heats itself to a higher set point (shivering, skin vasoconstriction: rigors) and sweats when it falls. Each degree raises the metabolic rate about 10 %, the heart rate about 10/min and the insensible water loss. In overwhelming sepsis with shock the temperature can fall instead, a bad sign.',
+        'Fieber ist geregelt, kein Versagen der Regulation: Der Körper heizt sich auf einen höheren Sollwert (Kältezittern, Hautvasokonstriktion: Schüttelfrost) und schwitzt, wenn er fällt. Jedes Grad steigert den Stoffwechsel um etwa 10 %, die Herzfrequenz um etwa 10/min und die Perspiratio. Bei überwältigender Sepsis mit Schock kann die Temperatur stattdessen fallen, ein schlechtes Zeichen.')),
+    eq('crp', 'textbook', L('CRP: made by the liver, cleared with a half-life of 19 h', 'CRP: von der Leber gebildet, mit 19 h Halbwertszeit geklärt'),
+      [{ text: 'd(CRP)/dt' }], ['8', '·', v('IL'), '−', frac([{ text: 'ln 2' }], ['19 h']), '·', v('crp')],
+      L('CRP lags: twelve hours into an infection it may still be modest, and it keeps rising for a day after the infection is controlled. A white cell count moves within hours.',
+        'Das CRP hinkt hinterher: Zwölf Stunden nach Beginn einer Infektion kann es noch mäßig sein, und es steigt noch einen Tag weiter, nachdem die Infektion beherrscht ist. Die Leukozyten ändern sich innerhalb von Stunden.')),
+    eq('vaso', 'textbook', L('Septic shock: lost resistance', 'Septischer Schock: verlorener Widerstand'),
+      [v('SVR')], [{ text: 'SVR₀' }, '·', paren('1', '−', '0.55', '·', v('vaso')), '·', { text: 'AngII, ADH' }],
+      L('Nitric oxide relaxes vascular smooth muscle: resistance falls, the veins hold more blood, and the pressure falls with a high or normal cardiac output. Leaking capillaries shrink the plasma. Fluid refills the veins; a vasoconstrictor (noradrenaline) restores the resistance.',
+        'Stickstoffmonoxid entspannt die glatte Gefäßmuskulatur: Der Widerstand fällt, die Venen fassen mehr Blut, und der Druck fällt bei hohem oder normalem Herzzeitvolumen. Undichte Kapillaren verkleinern das Plasma. Flüssigkeit füllt die Venen wieder; ein Vasokonstriktor (Noradrenalin) stellt den Widerstand wieder her.')),
+  ],
+  values: (ctx) => {
+    const b = bod(ctx);
+    const IL = typeof b.inflammation === 'number' ? b.inflammation : NaN;
+    return {
+      ...Object.fromEntries(Object.entries(ctx.model.body)),
+      IL, Tset: 36.9 + 2.6 * IL / (IL + 0.6), T: bn(ctx, 'temperature'), crp: bn(ctx, 'crp'), wcc: bn(ctx, 'whiteCellCount'), platelets: bn(ctx, 'platelets'),
+      sepsis: bn(ctx, 'sepsis'), vaso: bn(ctx, 'vasoplegia'), SVR: metric(ctx, 'SVR'), MAP: metric(ctx, 'Pmean'), lactate: bn(ctx, 'lactate'),
+    };
+  },
+  diagram: 'inflammation',
+  sources: ['Singer M et al. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3). JAMA 2016;315:801–10.', 'Dinarello CA. Cytokines as endogenous pyrogens. J Infect Dis 1999;179 Suppl 2:S294–304.', 'Vigushin DM, Pepys MB, Hawkins PN. Metabolic and scintigraphic studies of radioiodinated human C-reactive protein in health and disease. J Clin Invest 1993;91:1351–7.', 'Landry DW, Oliver JA. The pathogenesis of vasodilatory shock. N Engl J Med 2001;345:588–95.'],
+};
+
 /* Values a case may still clamp (no model produces them yet), and potassium and calcium, which the learner may clamp as an experiment. */
 const CLAMPS: Array<[string, string, LocalizedText, string, number, number, number]> = [
   ['potassium', 'K^+', L('Potassium', 'Kalium'), 'mmol/L', 1.5, 9, 0.1], ['calcium', 'Ca^{2+}', L('Calcium', 'Kalzium'), 'mmol/L', 1.2, 3.5, 0.02],
@@ -956,7 +1007,7 @@ const CONTROL: ModelDef = {
   sources: ['Cherniack NS, Longobardo GS. Mathematical models of periodic breathing and their usefulness in understanding cardiovascular and respiratory disorders. Exp Physiol 2006;91:295–305.', 'Albert M, Dell R, Winters RW. Quantitative displacement of acid–base equilibrium in metabolic acidosis. Ann Intern Med 1967;66:312–22.', 'Duffin J. Measuring the respiratory chemoreflexes in humans. Respir Physiol Neurobiol 2011;177:71–9.'],
 };
 
-export const MODELS: ModelDef[] = [PATIENT, HAEMODYNAMICS, BAROREFLEX, ELECTRICAL, MECHANICS, GAS_EXCHANGE, CONTROL, WATER, KIDNEY, FLUIDS, FUELS, VOR, PUPIL, NERVOUS];
+export const MODELS: ModelDef[] = [PATIENT, HAEMODYNAMICS, BAROREFLEX, ELECTRICAL, MECHANICS, GAS_EXCHANGE, CONTROL, WATER, KIDNEY, FLUIDS, FUELS, INFLAMMATION, VOR, PUPIL, NERVOUS];
 export const MODEL_BY_ID: Record<string, ModelDef> = Object.fromEntries(MODELS.map((m) => [m.id, m]));
 export const VARIABLE_BY_ID: Record<string, VariableDef> = Object.fromEntries(MODELS.flatMap((m) => m.variables.map((x) => [x.id, x])));
 /** Parameters by where they live in the PatientModel ('respiratory.FiO2'). */

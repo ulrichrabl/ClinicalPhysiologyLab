@@ -97,9 +97,6 @@
     "exposure": []
   },
   "observables": {
-    "vitals.temp": {
-      "value": 36.9
-    },
     "abdomen.palpation": {
       "value": {
         "tenderness": "none",

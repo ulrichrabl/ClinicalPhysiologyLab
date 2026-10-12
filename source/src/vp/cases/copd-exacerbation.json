@@ -68,11 +68,7 @@
       "emphysema": 0.52,
       "bronchoconstriction": 0.39,
       "vqMismatch": 0.15,
-      "metabolicRate": 1.1
-    },
-    "chemistry": {
-      "whiteCellCount": 11.8,
-      "crp": 42
+      "metabolicRate": 1.0
     },
     "chronic": {
       "days": 60,
@@ -88,7 +84,8 @@
     "body": {
       "courseHours": 96,
       "stress": 0.3,
-      "foodIntake": 0.6
+      "foodIntake": 0.6,
+      "infection": 0.25
     }
   },
   "initialState": {
@@ -98,11 +95,7 @@
     "cooperation": "full",
     "exposure": []
   },
-  "observables": {
-    "vitals.temp": {
-      "value": 37.8
-    }
-  },
+  "observables": {},
   "history": [
     {
       "id": "f-pc",

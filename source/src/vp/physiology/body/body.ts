@@ -70,6 +70,9 @@ export interface BodyParams {
   insulinSensitivity: number;  // × normal
   insulinDose: number;         // injected insulin, units/day
   stress: number;              // counter-regulatory hormones: 0 rest, 1 severe illness
+  /* infection */
+  infection: number;           // bacterial infection: 0 none, 0.3 local, 0.6 systemic, 0.9 overwhelming
+  urinarySource: number;       // 1 = the infection is in the urinary tract
   /* blood */
   redCellMass: number;         // × normal
 }
@@ -82,6 +85,7 @@ export const BODY_DEFAULTS: BodyParams = {
   aceInhibitor: 0, nsaid: 0, loopDiuretic: 0, thiazide: 0, spironolactone: 0,
   siadh: 0,
   betaCell: 1, insulinSensitivity: 1, insulinDose: 0, stress: 0,
+  infection: 0, urinarySource: 0,
   redCellMass: 1,
 };
 
@@ -120,6 +124,10 @@ export interface BodyState {
   Idep: number;     // injected insulin still being absorbed: the plasma level it supplies, mU/L
   AngII: number; Ald: number; ADH: number;          // AngII and aldosterone × normal, ADH pg/mL
   GFRad: number;    // the filtration the tubules have adapted to over days (L/h)
+  /* inflammation */
+  IL: number;       // circulating inflammatory signal (cytokines), × the response to a systemic infection
+  T: number;        // core temperature, °C
+  CRP: number; WCC: number; Plt: number;
   /* bookkeeping */
   urineL: number; hours: number;
 }
@@ -140,6 +148,8 @@ export interface BodySnapshot {
   Plow: number; gfrMax: number; perfusion: number;
   /* hormones */
   insulin: number; angII: number; aldosterone: number; adh: number;
+  /* inflammation */
+  inflammation: number; temperature: number; crp: number; whiteCellCount: number; platelets: number; sepsis: number; vasoplegia: number;
   /* fluxes, mmol/h or L/h */
   hgo: number; glucoseUptake: number; ketogenesis: number; ketoneOxidation: number; lactateProduction: number; lactateClearance: number;
   waterIn: number; waterOut: number;
@@ -196,7 +206,8 @@ export class Body {
     const tbwFrac = (sex === 'F' ? 0.5 : 0.6) - (age > 60 ? 0.05 : 0);
     const TBW = BW * tbwFrac;
     const ECF = TBW / 3, ICF = TBW - ECF;
-    const Vp = (bloodVolume / 1000) * 0.55, RCV = (bloodVolume / 1000) * 0.45;
+    const hct = sex === 'F' ? 0.41 : 0.45;
+    const Vp = (bloodVolume / 1000) * (1 - hct), RCV = (bloodVolume / 1000) * hct;
     const bsa = Math.sqrt(heightCm * BW / 3600);
     const GFR = 0.125 * 60 * (bsa / 1.73) * (age > 40 ? 1 - 0.008 * (age - 40) : 1) * (sex === 'F' ? 0.92 : 1);   // L/h
     const creatProd = BW * (sex === 'F' ? 0.16 : 0.21) * (age > 50 ? 1 - 0.006 * (age - 50) : 1) / 24;           // mmol/h
@@ -205,7 +216,7 @@ export class Body {
       TBW, Vp, Na: 140 * ECF, K: 4.0 * (ECF + 35 * ICF), B: 24 * 2 * ECF,
       G: 5.2 * ECF, Ket: 0.08 * 1.2 * ECF, Lac: 0.9 * 1.2 * ECF, UA: 0.45 * ECF, P: 1.0 * ECF,
       Urea: 5.0 * TBW, Cr: 0.075 * TBW, Alb: 42 * Vp, RCV, RCVlost: 0,
-      I: 9, Idep: 0, GFRad: GFR, AngII: 1, Ald: 1, ADH: 1.5, urineL: 0, hours: 0,
+      I: 9, Idep: 0, GFRad: GFR, IL: 0, T: 36.9, CRP: 3, WCC: 7, Plt: 250, AngII: 1, Ald: 1, ADH: 1.5, urineL: 0, hours: 0,
     };
   }
 
@@ -236,7 +247,7 @@ export class Body {
        the plasma level rises (cells take up part of a load) and is moved by insulin and adrenaline (in), acidaemia and
        hypertonicity (out). Solved for the plasma level: each mmol/L is about 300 mmol of body potassium. */
     /* The cells' K⁺ concentration moves with tonicity (their K⁺ amount is what they hold; their water follows osmolality). */
-    const f = (posm / 290) * (0.92 + 0.107 * s.I / (s.I + 3)) * Math.exp(0.18 * (pH - 7.4)) * Math.exp(-0.0015 * Math.max(0, posm - 290)) * (1 + 0.02 * this.p.stress);
+    const f = (posm / 290) * (0.92 + 0.107 * s.I / (s.I + 3)) * Math.exp(0.18 * (pH - 7.4)) * Math.exp(-0.0015 * Math.max(0, posm - 290)) * (1 + 0.02 * this.stressEff());
     let K = this.kGuess;
     for (let it = 0; it < 8; it++) {
       const ki = 140 * f * Math.pow(Math.max(0.3, K) / 4, 0.3);
@@ -274,6 +285,18 @@ export class Body {
     const bvRel = c.BV / ((r.Vp + r.RCV) * 1000);
     const hypo = Math.max(0, 1 - bvRel) / 0.1;           // tenths of blood volume lost
 
+    /* -- infection and inflammation: cytokines, fever, the acute-phase response, and what severe sepsis does -- */
+    const ilTarget = 2.2 * Math.max(0, p.infection) ** 1.5;
+    s.IL = relax(s.IL, ilTarget, dt, 4);
+    const sev = clamp((s.IL - 0.8) / 1.2, 0, 1);                       // organ dysfunction: sepsis
+    const Tset = 36.9 + 2.6 * s.IL / (s.IL + 0.6) - 2.2 * sev * sev * clamp((65 - i.MAP) / 20, 0, 1);
+    s.T = relax(s.T, Tset, dt, 1.5);
+    s.CRP += (0.11 + 8 * s.IL - 0.0365 * s.CRP) * dt;
+    s.WCC = relax(s.WCC, 7 + 13 * s.IL / (s.IL + 0.5) - 12 * Math.max(0, sev - 0.7), dt, 8);
+    s.Plt = relax(s.Plt, 250 * (1 - 0.5 * sev), dt, 24);
+    s.Alb = relax(s.Alb, r.Alb * (1 - 0.45 * sev - 0.1 * Math.min(1, s.IL)), dt, 30);   // leak into the tissues, less synthesis
+    const st = this.stressEff();
+
     /* -- hormones -- */
     const sym = Math.max(0, i.sympathetic - 0.47);
     const angTarget = clamp(Math.exp(-0.035 * (i.MAP - 93)) * Math.exp(-5 * (ve - 1)) * (1 + 1.5 * sym), 0.05, 30) * (1 - 0.85 * clamp(p.aceInhibitor, 0, 1));
@@ -284,7 +307,7 @@ export class Body {
     const aldEff = s.Ald * (1 - 0.9 * clamp(p.spironolactone, 0, 1));
     // ADH: tonicity above a threshold that falls with hypovolaemia, a steep non-osmotic limb, nausea, and any inappropriate secretion.
     const nausea = clamp(p.vomiting / 1.5, 0, 1);
-    const adhTarget = Math.max(0, 0.38 * (c.tonicity - (284 - 4 * hypo))) + 1.2 * hypo * hypo + 6 * nausea + 2 * p.stress + p.siadh + 0.4;
+    const adhTarget = Math.max(0, 0.38 * (c.tonicity - (284 - 4 * hypo))) + 1.2 * hypo * hypo + 6 * nausea + 2 * st + p.siadh + 0.4;
     s.ADH = relax(s.ADH, adhTarget, dt, 0.25);
 
     /* -- kidney: filtration -- */
@@ -295,7 +318,7 @@ export class Body {
     const auto = clamp((rpp - 35) / (Plow - 35), 0, 1) ** 0.8;
     const GFR = r.GFR * clamp(p.nephronMass, 0.01, 1.2) * (1 - 0.9 * clamp(p.tubularInjury, 0, 1)) * (1 - clamp(p.obstruction, 0, 1))
       * auto * (1 - 0.06 * clamp(p.aceInhibitor, 0, 1)) * (1 - 0.3 * clamp(sym, 0, 0.5) * 2) * (1 - 0.012 * Math.max(0, i.CVP - 10))
-      * (1 - 0.3 * Math.min(1, hypo / 2.5));                                                    // renal sympathetic and afferent constriction in hypovolaemia
+      * (1 - 0.3 * Math.min(1, hypo / 2.5)) * (1 - 0.3 * sev);                                  // septic kidney injury                                                    // renal sympathetic and afferent constriction in hypovolaemia
     const tub = 1 - 0.85 * clamp(p.tubularInjury, 0, 1);
     const nm = clamp(p.nephronMass, 0.01, 1.2);
 
@@ -313,7 +336,7 @@ export class Body {
     const IhepEff = Math.max(0, s.I - Iexo * 0.5) * clamp(p.insulinSensitivity, 0.05, 2);
     const carbIn = p.carbIntake * 5.55 * food / 24 * (1 - clamp(p.vomiting / 2, 0, 0.9));
     const H0 = 0.67 * BW;
-    const hgo = H0 * (2 * 8 / (IhepEff + 8)) * (1 + 0.5 * p.stress);
+    const hgo = H0 * (2 * 8 / (IhepEff + 8)) * (1 + 0.5 * st);
     const uBrain = 0.33 * BW * (g / (g + 1)) / (5.2 / 6.2);
     const uIns = 0.2 * BW * Ieff * g / (g + 5);
     const uMass = 0.1 * BW * g / (g + 10);                                            // insulin-independent tissue uptake
@@ -321,26 +344,26 @@ export class Body {
 
     /* -- ketones -- */
     const fasting = 1 - clamp(food, 0, 1);
-    const ketoProd = 0.3 * BW * (9 / (s.I * s.I * clamp(p.insulinSensitivity, 0.2, 2) + 9)) * (1 + p.stress) * (0.4 + 1.6 * fasting);
+    const ketoProd = 0.3 * BW * (9 / (s.I * s.I * clamp(p.insulinSensitivity, 0.2, 2) + 9)) * (1 + st) * (0.4 + 1.6 * fasting);
     const ketoOx = 0.6 * BW * c.Ket / (c.Ket + 1.2);
     const ketoU = GFR * Math.max(0, c.Ket - 0.3) * 0.5;
 
     /* -- lactate -- */
     const ER = i.VO2 / Math.max(50, i.DO2);
     /* Anaerobic glycolysis once oxygen extraction nears its limit; tissues also turn their demand down, so production saturates. */
-    const lacProd = 0.75 * BW + 2.2 * BW * Math.tanh(Math.max(0, ER - 0.45) ** 1.5 / 0.25) + 20 * p.stress;
+    const lacProd = 0.75 * BW + 2.2 * BW * Math.tanh(Math.max(0, ER - 0.45) ** 1.5 / 0.25) + 20 * st + 0.5 * BW * sev;   // and in sepsis, from adrenaline and the microcirculation
     const hepatic = clamp(i.CO / 5.2, 0.15, 1.3) ** 0.5 * clamp((i.MAP - 25) / 45, 0.2, 1);
     const lacClear = (0.75 * BW / 0.9) * hepatic * c.Lac / (1 + c.Lac / 12);
 
     /* -- urea, creatinine, phosphate, fixed acid -- */
     const proteinIn = p.proteinIntake * food;
-    const ureaProd = (proteinIn * 5.7 + 160 * p.stress + 250 * fasting) / 24;
+    const ureaProd = (proteinIn * 5.7 + 160 * st + 250 * fasting) / 24;
     const flowSlow = clamp((s.ADH - 2) / 8, 0, 1);
     const ureaU = GFR * c.urea * Math.max(0.15, 0.47 - 0.15 * flowSlow - 0.06 * Math.min(2, hypo));
     const crU = GFR * c.Cr * 1.15;
-    const uaProd = (proteinIn * 1.1 + 25 * fasting + 40 * p.stress) / 24 + Math.max(0, p.toxicAcid);           // sulfuric (and other fixed) acid: H⁺ with an anion
+    const uaProd = (proteinIn * 1.1 + 25 * fasting + 40 * st) / 24 + Math.max(0, p.toxicAcid);           // sulfuric (and other fixed) acid: H⁺ with an anion
     const uaU = GFR * c.UA * 0.9;
-    const pIn = (30 * food * 0.7 + 8 + 15 * p.stress) / 24;                          // gut, and bone and cell turnover
+    const pIn = (30 * food * 0.7 + 8 + 15 * st) / 24;                          // gut, and bone and cell turnover
     const pU = GFR * Math.max(0, c.Pi - 0.72) * 0.55 * (1 + 2 * (1 - nm));
 
     /* -- sodium -- */
@@ -383,14 +406,14 @@ export class Body {
     const obstructed = 1 - clamp(p.obstruction, 0, 1);
     const waterU = osmU / uOsm * obstructed;
     const thirst = p.canDrink > 0 ? (Math.max(0, c.tonicity - 290) * 0.06 + 0.04 * Math.min(3, hypo)) * (1 - 0.5 * nausea) : 0;
-    const insensible = (0.8 / 24) * (1 + 0.13 * (i.tempC - 37)) * Math.max(0.5, BW / 70);
+    const insensible = (0.8 / 24) * (1 + 0.13 * Math.max(0, s.T - 37) * 1.5) * Math.max(0.5, BW / 70);   // fever and sweating
     const metabolicWater = 0.3 / 24;
     const waterIn = p.fluidIntake / 24 * (1 - 0.4 * nausea) + thirst + metabolicWater;
     const vomit = Math.max(0, p.vomiting) / 24, stool = Math.max(0, p.diarrhoea) / 24;
 
     /* -- distribution between plasma and interstitium (Starling; settles in about half an hour) -- */
     const veShape = ve >= 1 ? 1 + 0.35 * (ve - 1) : ve ** 0.75;
-    const VpTarget = r.Vp * veShape * clamp(c.alb / 42, 0.3, 1.5) ** 0.45 * (1 - 0.01 * Math.max(0, i.CVP - 8));
+    const VpTarget = r.Vp * veShape * clamp(c.alb / 42, 0.3, 1.5) ** 0.45 * (1 - 0.01 * Math.max(0, i.CVP - 8)) * (1 - 0.22 * sev);   // capillary leak
 
     return {
       c, GFR, auto, Plow, gfrMax: auto > 1e-3 ? GFR / auto : GFR, rpp, naU, kU: kU2, clU, nh4U, hco3U, ureaU, crU, uaU, uaProd, pIn, pU, glucU, ketoU, ketoProd, ketoOx, hgo, uBrain, uIns, uMass, carbIn,
@@ -468,14 +491,23 @@ export class Body {
     void frac;
   }
 
-  /** Adrenaline from the adrenal medulla: illness, hypoglycaemia, severe acidaemia. Drives rate and contractility (0–1). */
+  /** Counter-regulatory hormones: what the case sets, or what an infection raises. */
+  stressEff(): number { return Math.max(this.p.stress, Math.min(1, 0.6 * this.s.IL)); }
+  /** Severity of sepsis (organ dysfunction), 0–1. */
+  sepsis(): number { return clamp((this.s.IL - 0.8) / 1.2, 0, 1); }
+  /** Adrenaline from the adrenal medulla: illness, fever, hypoglycaemia, severe acidaemia. Drives rate and contractility (0–1). */
   adrenergic(): number {
     const c = this.conc();
-    return clamp(0.8 * this.p.stress + Math.max(0, 3.5 - c.G) / 1.5 + Math.max(0, 7.3 - c.pH) * 4, 0, 1.2);
+    return clamp(0.8 * this.stressEff() + 0.12 * Math.max(0, this.s.T - 37.2) + Math.max(0, 3.5 - c.G) / 1.5 + Math.max(0, 7.3 - c.pH) * 4, 0, 1.4);
   }
+  /** Sepsis: nitric oxide dilates arterioles and veins, and the myocardium is depressed. */
+  vasoplegia(): number { return this.sepsis() ** 1.3; }
+  contractility(): number { return 1 - 0.2 * this.sepsis(); }
+  /** Cytokines and fever drive breathing: the tachypnoea of sepsis comes before any acidosis. */
+  ventilatoryDrive(): number { return 1.0 * this.sepsis() + 0.25 * Math.min(1, this.s.IL) + 0.08 * Math.max(0, this.s.T - 37.5); }
   /** Angiotensin II and vasopressin constrict arterioles and veins. */
-  rsysMult(): number { return clamp(Math.max(0.05, this.s.AngII) ** 0.12 * Math.max(0.3, this.s.ADH / 1.5) ** 0.04, 0.6, 1.8); }
-  v0svMult(): number { return clamp(1 - 0.05 * Math.log(Math.max(0.05, this.s.AngII)) - 0.02 * Math.log(Math.max(0.3, this.s.ADH / 1.5)), 0.8, 1.15); }
+  rsysMult(): number { return clamp(Math.max(0.05, this.s.AngII) ** 0.12 * Math.max(0.3, this.s.ADH / 1.5) ** 0.04, 0.6, 1.8) * (1 - 0.6 * this.vasoplegia()); }
+  v0svMult(): number { return clamp(1 - 0.05 * Math.log(Math.max(0.05, this.s.AngII)) - 0.02 * Math.log(Math.max(0.3, this.s.ADH / 1.5)), 0.8, 1.15) * (1 + 0.2 * this.vasoplegia()); }
 
   snapshot(): BodySnapshot {
     const c = this.conc(), s = this.s, r = this.ref, f = this.f;
@@ -493,6 +525,7 @@ export class Body {
       glucosuria: (f.glucU ?? 0) / wU, ketonuria: (f.ketoU ?? 0) / wU, uNaRate: (f.naU ?? 6) * 24, uKRate: (f.kU ?? 3) * 24,
       autoregulation: f.auto ?? 1, Plow: f.Plow ?? 72, gfrMax: (f.gfrMax ?? r.GFR) / 0.06, perfusion: f.rpp ?? 90,
       insulin: s.I, angII: s.AngII, aldosterone: s.Ald, adh: s.ADH,
+      inflammation: s.IL, temperature: s.T, crp: s.CRP, whiteCellCount: s.WCC, platelets: s.Plt, sepsis: this.sepsis(), vasoplegia: this.vasoplegia(),
       hgo: f.hgo ?? 0, glucoseUptake: f.gU ?? 0, ketogenesis: f.ketoProd ?? 0, ketoneOxidation: f.ketoOx ?? 0, lactateProduction: f.lacProd ?? 0, lactateClearance: f.lacClear ?? 0,
       waterIn: (f.waterIn ?? 0) * 24, waterOut: (f.waterOut ?? 0) * 24,
       RsysMult: this.rsysMult(), V0svMult: this.v0svMult(),

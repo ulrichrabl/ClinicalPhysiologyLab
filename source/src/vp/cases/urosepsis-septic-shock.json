@@ -1,0 +1,445 @@
+{
+  "schema": "vp.case/1",
+  "id": "urosepsis-septic-shock",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Rigors, confusion and low blood pressure after three days of burning urine: urosepsis with septic shock",
+    "de": "Schüttelfrost, Verwirrtheit und niedriger Blutdruck nach drei Tagen Brennen beim Wasserlassen: Urosepsis mit septischem Schock"
+  },
+  "tags": [
+    "infection",
+    "sepsis",
+    "shock",
+    "kidney",
+    "emergency"
+  ],
+  "difficulty": 3,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-12",
+    "sources": [
+      "Singer M et al. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3). JAMA 2016;315:801–10.",
+      "Evans L et al. Surviving Sepsis Campaign: international guidelines for management of sepsis and septic shock 2021. Crit Care Med 2021;49:e1063–143.",
+      "Wagenlehner FME et al. Diagnosis and management for urosepsis. Int J Urol 2013;20:963–70."
+    ]
+  },
+  "patient": {
+    "name": "Margarete Schulz",
+    "age": 74,
+    "sex": "F",
+    "heightCm": 162,
+    "weightKg": 68,
+    "appearance": {
+      "skinTone": 2,
+      "hair": "grey, short",
+      "build": "average"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ],
+    "companion": {
+      "name": "Werner Schulz",
+      "relation": {
+        "en": "husband",
+        "de": "Ehemann"
+      }
+    }
+  },
+  "setting": {
+    "place": {
+      "en": "Emergency department, resus bay 1",
+      "de": "Notaufnahme, Schockraum 1"
+    },
+    "triage": {
+      "en": "Shaking, hot, muddled since this morning. Burning urine for three days. BP low on the ambulance.",
+      "de": "Seit heute früh Schüttelfrost, heiß, durcheinander. Seit drei Tagen Brennen beim Wasserlassen. Blutdruck im Rettungswagen niedrig."
+    }
+  },
+  "pathology": {
+    "chronic": {
+      "days": 60,
+      "body": {
+        "betaCell": 0.6,
+        "insulinSensitivity": 0.5
+      }
+    },
+    "body": {
+      "infection": 0.88,
+      "urinarySource": 1,
+      "foodIntake": 0.3,
+      "fluidIntake": 0.8,
+      "courseHours": 40
+    }
+  },
+  "initialState": {
+    "position": "reclined-45",
+    "avpu": "A",
+    "orientation": "confused",
+    "cooperation": "limited",
+    "exposure": []
+  },
+  "observables": {
+    "abdomen.palpation": {
+      "value": {
+        "tenderness": "mild",
+        "mass": false,
+        "guarding": false
+      }
+    },
+    "general.appearance": {
+      "value": {
+        "distress": "moderate",
+        "colour": "flushed",
+        "sweating": true
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "rigors",
+        "present": true
+      },
+      "say": {
+        "en": "I’m so cold… then so hot. Where am I?",
+        "de": "Mir ist so kalt… dann so heiß. Wo bin ich?"
+      }
+    },
+    {
+      "id": "f-husband",
+      "topic": "hpc.onset",
+      "assertion": {
+        "concept": "dysuria",
+        "present": true,
+        "attributes": {
+          "days": 3
+        }
+      },
+      "say": {
+        "en": "She’s had a water infection since the weekend, burning and going every half hour. This morning she started shaking all over and didn’t know what day it was.",
+        "de": "Sie hat seit dem Wochenende eine Blasenentzündung, brennt und muss jede halbe Stunde. Heute früh hat sie am ganzen Körper gezittert und wusste nicht, welcher Tag ist."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-urine",
+      "topic": "sx.urine",
+      "assertion": {
+        "concept": "dysuria",
+        "present": true
+      },
+      "say": {
+        "en": "It burns. All the time. And it smells.",
+        "de": "Es brennt. Ständig. Und es riecht."
+      }
+    },
+    {
+      "id": "f-fever",
+      "topic": "sx.fever",
+      "assertion": {
+        "concept": "fever",
+        "present": true,
+        "attributes": {
+          "rigors": true
+        }
+      },
+      "say": {
+        "en": "Shaking like a leaf this morning. Teeth chattering.",
+        "de": "Heute früh gezittert wie Espenlaub. Mit Zähneklappern."
+      }
+    },
+    {
+      "id": "f-pain",
+      "topic": "sx.abdominal-pain",
+      "assertion": {
+        "concept": "loin-pain",
+        "present": true,
+        "attributes": {
+          "side": "right"
+        }
+      },
+      "say": {
+        "en": "My back, here on the right side. And low down in the tummy.",
+        "de": "Der Rücken, hier rechts. Und unten im Bauch."
+      }
+    },
+    {
+      "id": "f-intake",
+      "topic": "sx.intake",
+      "say": {
+        "en": "Nothing since yesterday. A few sips of tea.",
+        "de": "Seit gestern nichts. Ein paar Schlucke Tee."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-vomit",
+      "topic": "sx.vomiting",
+      "assertion": {
+        "concept": "vomiting",
+        "present": true
+      },
+      "say": {
+        "en": "Once, this morning.",
+        "de": "Einmal, heute früh."
+      }
+    },
+    {
+      "id": "f-dysp",
+      "topic": "sx.dyspnoea",
+      "assertion": {
+        "concept": "dyspnoea",
+        "present": false
+      },
+      "say": {
+        "en": "Not really. I’m breathing quickly, aren’t I.",
+        "de": "Eigentlich nicht. Ich atme schnell, oder?"
+      }
+    },
+    {
+      "id": "f-cough",
+      "topic": "sx.cough",
+      "assertion": {
+        "concept": "cough",
+        "present": false
+      },
+      "say": {
+        "en": "No cough.",
+        "de": "Kein Husten."
+      }
+    },
+    {
+      "id": "f-chest",
+      "topic": "sx.chest-pain",
+      "assertion": {
+        "concept": "chest-pain",
+        "present": false
+      },
+      "say": {
+        "en": "No.",
+        "de": "Nein."
+      }
+    },
+    {
+      "id": "f-confusion",
+      "topic": "sx.confusion",
+      "assertion": {
+        "concept": "acute-confusion",
+        "present": true
+      },
+      "say": {
+        "en": "She was quite clear yesterday. This morning she called me by her brother’s name.",
+        "de": "Gestern war sie noch ganz klar. Heute früh hat sie mich mit dem Namen ihres Bruders angesprochen."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "assertion": {
+        "concept": "type-2-diabetes",
+        "present": true
+      },
+      "say": {
+        "en": "Diabetes, type 2, tablets. Blood pressure. Water infections now and then, two last year.",
+        "de": "Diabetes Typ 2, mit Tabletten. Blutdruck. Ab und zu Blasenentzündungen, letztes Jahr zweimal."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "say": {
+        "en": "Metformin twice a day, ramipril, and a cranberry tablet.",
+        "de": "Metformin zweimal täglich, Ramipril und eine Cranberry-Tablette."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-allergy",
+      "topic": "allergies",
+      "assertion": {
+        "concept": "trimethoprim-allergy",
+        "present": true
+      },
+      "say": {
+        "en": "Trimethoprim gave her a rash once.",
+        "de": "Von Trimethoprim hatte sie einmal Ausschlag."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-living",
+      "topic": "shx.living",
+      "say": {
+        "en": "We live together. She does everything herself normally.",
+        "de": "Wir wohnen zusammen. Normalerweise macht sie alles selbst."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-ice",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "Is it the blood poisoning? My sister died of that.",
+        "de": "Ist es eine Blutvergiftung? Daran ist meine Schwester gestorben."
+      },
+      "speaker": "companion"
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-bp",
+        "kind": "property",
+        "ref": "vitals.bp.R",
+        "weight": "essential",
+        "discriminates": [
+          "acute-coronary-syndrome",
+          "pulmonary-embolism"
+        ],
+        "why": {
+          "en": "Hypotension with a wide pulse pressure and warm, flushed skin: the vessels have dilated (vasodilatory shock), not a failing pump or an empty tank alone.",
+          "de": "Hypotonie mit großer Blutdruckamplitude und warmer, geröteter Haut: Die Gefäße sind weit gestellt (vasodilatatorischer Schock), nicht nur eine versagende Pumpe oder ein leerer Tank."
+        }
+      },
+      {
+        "id": "e-temp",
+        "kind": "property",
+        "ref": "vitals.temp",
+        "weight": "essential",
+        "why": {
+          "en": "Fever with rigors: a bacteraemia until shown otherwise.",
+          "de": "Fieber mit Schüttelfrost: eine Bakteriämie, bis das Gegenteil bewiesen ist."
+        }
+      },
+      {
+        "id": "e-hr",
+        "kind": "property",
+        "ref": "vitals.hr",
+        "weight": "supporting",
+        "why": {
+          "en": "Tachycardia: fever, adrenaline and a falling pressure.",
+          "de": "Tachykardie: Fieber, Adrenalin und ein fallender Druck."
+        }
+      },
+      {
+        "id": "e-rr",
+        "kind": "property",
+        "ref": "vitals.rr",
+        "weight": "supporting",
+        "why": {
+          "en": "Tachypnoea, altered mentation and a systolic pressure of 100 or less: qSOFA 3, a high risk of death.",
+          "de": "Tachypnoe, Bewusstseinsveränderung und ein systolischer Druck von 100 oder weniger: qSOFA 3, hohes Sterberisiko."
+        }
+      },
+      {
+        "id": "e-dip",
+        "kind": "investigation",
+        "ref": "urinalysis",
+        "weight": "essential",
+        "discriminates": [
+          "community-acquired-pneumonia",
+          "gastroenteritis"
+        ],
+        "why": {
+          "en": "Leukocytes and nitrite: a Gram-negative urinary infection, the source.",
+          "de": "Leukozyten und Nitrit: ein gramnegativer Harnwegsinfekt, der Fokus."
+        }
+      },
+      {
+        "id": "e-lactate",
+        "kind": "investigation",
+        "ref": "blood-gas",
+        "weight": "essential",
+        "why": {
+          "en": "Lactate above 2 with a metabolic acidosis: tissue hypoperfusion. Lactate above 2 with hypotension needing vasopressors despite fluid is septic shock.",
+          "de": "Laktat über 2 mit metabolischer Azidose: Gewebeminderperfusion. Laktat über 2 und eine trotz Volumen vasopressorpflichtige Hypotonie ist ein septischer Schock."
+        }
+      },
+      {
+        "id": "e-fbc",
+        "kind": "investigation",
+        "ref": "fbc",
+        "weight": "supporting",
+        "why": {
+          "en": "Neutrophilia, and platelets falling as they are consumed.",
+          "de": "Neutrophilie und fallende Thrombozyten durch Verbrauch."
+        }
+      },
+      {
+        "id": "e-ue",
+        "kind": "investigation",
+        "ref": "electrolytes",
+        "weight": "supporting",
+        "why": {
+          "en": "Acute kidney injury: septic, and from the low pressure. Metformin should be stopped.",
+          "de": "Akute Nierenschädigung: septisch und durch den niedrigen Druck. Metformin absetzen."
+        }
+      },
+      {
+        "id": "e-crp",
+        "kind": "investigation",
+        "ref": "crp",
+        "weight": "supporting",
+        "why": {
+          "en": "CRP high: an inflammatory response at least a day old.",
+          "de": "CRP hoch: eine Entzündungsreaktion, mindestens einen Tag alt."
+        }
+      },
+      {
+        "id": "e-hist",
+        "kind": "fact",
+        "ref": "f-husband",
+        "weight": "essential",
+        "why": {
+          "en": "Three days of cystitis symptoms, then rigors and confusion: an ascending infection that has entered the blood.",
+          "de": "Drei Tage Zystitis-Beschwerden, dann Schüttelfrost und Verwirrtheit: eine aufsteigende Infektion, die ins Blut übergetreten ist."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "property",
+        "ref": "vitals.bp.R",
+        "why": {
+          "en": "Septic shock: blood cultures, then antibiotics within the hour (mind the trimethoprim allergy), 30 mL/kg crystalloid, lactate, urine output; noradrenaline if the mean pressure stays below 65.",
+          "de": "Septischer Schock: Blutkulturen, dann Antibiose innerhalb einer Stunde (Trimethoprim-Allergie beachten), 30 ml/kg Kristalloid, Laktat, Urinausscheidung; Noradrenalin, wenn der Mitteldruck unter 65 bleibt."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 15,
+    "summary": {
+      "en": "A 74-year-old with type 2 diabetes on metformin and ramipril, three days of dysuria and frequency, then rigors, right loin pain and acute confusion. Febrile, tachycardic, tachypnoeic, hypotensive with a wide pulse pressure and flushed warm skin. Urine: leukocytes and nitrite. Lactate raised with a metabolic acidosis, neutrophilia, falling platelets, high CRP, acute kidney injury. Urosepsis with septic shock: cultures, early antibiotics, fluid, vasopressor for a mean pressure below 65, stop metformin and ramipril, image the renal tract for obstruction.",
+      "de": "Eine 74-Jährige mit Typ-2-Diabetes unter Metformin und Ramipril, drei Tage Dysurie und Pollakisurie, dann Schüttelfrost, Flankenschmerz rechts und akute Verwirrtheit. Fieber, tachykard, tachypnoeisch, hypoton mit großer Amplitude und warmer, geröteter Haut. Urin: Leukozyten und Nitrit. Laktat erhöht mit metabolischer Azidose, Neutrophilie, fallende Thrombozyten, hohes CRP, akute Nierenschädigung. Urosepsis mit septischem Schock: Kulturen, frühe Antibiose, Volumen, Vasopressor bei Mitteldruck unter 65, Metformin und Ramipril absetzen, Harntrakt auf Abflussbehinderung untersuchen."
+    }
+  },
+  "diagnosis": {
+    "primary": "urosepsis",
+    "accepted": [
+      "sepsis",
+      "acute-pyelonephritis"
+    ],
+    "differential": [
+      "community-acquired-pneumonia",
+      "acute-coronary-syndrome",
+      "pulmonary-embolism",
+      "hyperosmolar-hyperglycaemic-state",
+      "gastroenteritis",
+      "adrenal-insufficiency",
+      "lactic-acidosis"
+    ]
+  }
+}

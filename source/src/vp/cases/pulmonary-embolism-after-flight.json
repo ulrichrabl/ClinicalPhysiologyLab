@@ -75,11 +75,7 @@
     "cooperation": "full",
     "exposure": []
   },
-  "observables": {
-    "vitals.temp": {
-      "value": 37.4
-    }
-  },
+  "observables": {},
   "history": [
     {
       "id": "f-pc",

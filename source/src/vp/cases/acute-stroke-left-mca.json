@@ -104,9 +104,6 @@
         "colour": "normal",
         "sweating": false
       }
-    },
-    "vitals.temp": {
-      "value": 36.6
     }
   },
   "investigations": {

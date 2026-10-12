@@ -79,13 +79,17 @@ export function createCirculation(m: PatientModel): CirculationRun {
     const out = bodyOut();
     resp.setInputs({
       CO: mt?.CO && mt.CO > 0.3 ? mt.CO : 5.2, Pla: mt?.PlaMean ?? 7, Ppa: mt?.PpaMean ?? 15,
-      Hb: out.Hb, sbc: out.sbc, albumin: out.albumin,
+      Hb: out.Hb, sbc: out.sbc, albumin: out.albumin, temp: milieu.s.T, sysDrive: milieu.ventilatoryDrive(),
     });
     sim.Rpul = model.circulation.Rpul * resp.rpulMult();
     /* Blood viscosity rises with haematocrit: anaemic blood flows more easily, so resistance falls and output rises.
        Angiotensin II and vasopressin constrict arterioles and capacitance veins. */
     sim.Rsys = model.circulation.Rsys * (0.6 + 0.4 * Math.min(1.6, out.Hb / 150)) * milieu.rsysMult();
     sim.V0sv = model.circulation.V0sv * milieu.v0svMult();
+    sim.Emax = model.circulation.Emax * milieu.contractility();
+    /* Septic vessels respond poorly to sympathetic drive as well. */
+    const vp = milieu.vasoplegia();
+    sim.gR = model.circulation.gR * (1 - 0.7 * vp); sim.gV = model.circulation.gV * (1 - 0.6 * vp);
     const bv = milieu.bloodVolume();
     if (Math.abs(bv - sim.bloodVolume) > 0.5) sim.setBloodVolume(Math.max(1500, bv));
     if (!(Math.abs(out.K - lastK) < 0.02)) { heart.setPotassium(out.K); sim.K = heart.K; lastK = out.K; }
@@ -113,7 +117,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     heart.setParams(next.electrical);
     const c = next.circulation;
     for (const [k, v] of Object.entries(c)) {
-      if (k === 'baroEnabled' || k === 'K' || k === 'Rpul' || k === 'EmaxRv' || k === 'Rsys' || k === 'V0sv' || k === 'bloodVolume') continue;
+      if (k === 'baroEnabled' || k === 'K' || k === 'Rpul' || k === 'EmaxRv' || k === 'Rsys' || k === 'V0sv' || k === 'bloodVolume' || k === 'Emax' || k === 'gR' || k === 'gV') continue;
       if ((sim as any)[k] !== v) sim.setParam(k, v);
     }
     milieu.setParams(next.body, body());
@@ -128,6 +132,8 @@ export function createCirculation(m: PatientModel): CirculationRun {
     sim.EmaxRv = c.EmaxRv * (1 - (sim.rvIschaemia ?? 0));
     sim.Rsys = c.Rsys * milieu.rsysMult();
     sim.V0sv = c.V0sv * milieu.v0svMult();
+    sim.Emax = c.Emax * milieu.contractility();
+    sim.gR = c.gR * (1 - 0.7 * milieu.vasoplegia()); sim.gV = c.gV * (1 - 0.6 * milieu.vasoplegia());
     const bv = milieu.bloodVolume();
     if (Math.abs(bv - sim.bloodVolume) > 0.5) sim.setBloodVolume(Math.max(1500, bv));
   };
@@ -161,7 +167,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     let seen = { bv: NaN, K: NaN, Hb: NaN, sbc: NaN, rs: NaN };
     for (let k = 0; k < n; k++) {
       const out = bodyOut();
-      const now = { bv: milieu.bloodVolume(), K: out.K, Hb: out.Hb, sbc: out.sbc, rs: milieu.rsysMult() };
+      const now = { bv: milieu.bloodVolume(), K: out.K, Hb: out.Hb, sbc: out.sbc, rs: milieu.rsysMult() * milieu.contractility() + 0.05 * milieu.s.T };
       const moved = !(Math.abs(now.bv - seen.bv) < 60 && Math.abs(now.K - seen.K) < 0.15 && Math.abs(now.Hb - seen.Hb) < 3
         && Math.abs(now.sbc - seen.sbc) < 0.7 && Math.abs(now.rs - seen.rs) < 0.02);
       if (moved) { couple(); advance(2.5); equilibrate(); milieu.anchor(); seen = now; yield; }

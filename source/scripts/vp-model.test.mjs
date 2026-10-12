@@ -568,7 +568,7 @@ const ecgOf = (preset, seconds = 8, mutate) => {
     let s = 0, k = 0; for (let i = 1; i < a.length - 60; i++) if (Math.abs(leads.II[i] - leads.II[i - 1]) > 0.05 && Math.abs(leads.II[i] - leads.II[i - 1]) >= Math.abs(leads.II[i + 1] - leads.II[i])) { s += a[i + 50]; k++; i += 150; } return s / Math.max(1, k); };
   ok('anterior injury current: ST elevation in V2–V3', st(ant.V2) - st(leads.V2) > 0.15 && st(ant.V3) - st(leads.V3) > 0.15, `${(st(ant.V2) - st(leads.V2)).toFixed(2)} mV`);
 
-  const bleed = settleModel((() => { const m = healthyModel(); m.circulation.bloodVolume = 3800; return m; })(), 25).snapshot;
+  const bleed = settleModel((() => { const m = healthyModel(); m.circulation.bloodVolume = 3800; m.body.courseHours = 0.1; return m; })(), 25).snapshot;
   const rest = settleModel(healthyModel(), 25).snapshot;
   ok('haemorrhage: the baroreflex drives the sinus node faster', bleed.ecgMetrics.HR > rest.ecgMetrics.HR + 8, `${rest.ecgMetrics.HR} → ${bleed.ecgMetrics.HR}`);
   const off = settleModel((() => { const m = healthyModel(); m.circulation.bloodVolume = 3800; m.circulation.baroEnabled = 0; return m; })(), 25).snapshot;
@@ -844,10 +844,37 @@ console.log('\nThe internal milieu: water, salt, potassium, acid–base, the kid
   const Nn = run('hyponatraemia-thiazide', (m) => { m.body.thiazide = 0; });
   ok('…without the thiazide the same tea and toast leave the sodium near normal (the kidney can dilute)', Nn.view.chemistry.sodium > 130, `Na ${f1(Nn.view.chemistry.sodium)}`);
   const bad = clone(caseById('diabetic-ketoacidosis'));
-  bad.pathology.chemistry = { potassium: 6, crp: 40 };
+  bad.pathology.chemistry = { potassium: 6, crp: 40, troponin: 30 };
   bad.pathology.body = { ...bad.pathology.body, flux: 1, nephronMass: 3 };
   const bi = errors(validateCase(bad, CATALOG, REGISTRY)).map((i) => `${i.path}: ${i.message}`).join('\n');
-  ok('validator: body parameters must exist and be in range; plasma values the body produces cannot be clamped', /chemistry\.potassium/.test(bi) && !/chemistry\.crp/.test(bi) && /unknown body parameter flux/.test(bi) && /nephronMass: expected/.test(bi), bi);
+  ok('validator: body parameters must exist and be in range; plasma values the body produces cannot be clamped', /chemistry\.potassium/.test(bi) && /chemistry\.crp/.test(bi) && !/chemistry\.troponin/.test(bi) && /unknown body parameter flux/.test(bi) && /nephronMass: expected/.test(bi), bi);
+}
+
+console.log('\nInfection, inflammation and sepsis');
+{
+  const B = (mut) => { const m = healthyModel(); mut?.(m); const snap = settleModel(m, 16).snapshot; return { snap, b: snap.body, ch: chemistryState(snap, m.chemistry) }; };
+  const f1 = (x) => (typeof x === 'number' ? x.toFixed(1) : x);
+  const H = B();
+  const loc = B((m) => Object.assign(m.body, { infection: 0.3, courseHours: 72 }));
+  ok('a local infection: low fever, neutrophilia, a raised CRP, a normal blood pressure',
+    loc.b.temperature > 37.5 && loc.b.temperature < 38.5 && loc.ch.whiteCellCount > 11 && loc.ch.crp > 30 && loc.snap.metrics.Psys > 100,
+    `T ${f1(loc.b.temperature)} WCC ${f1(loc.ch.whiteCellCount)} CRP ${f1(loc.ch.crp)} SBP ${f1(loc.snap.metrics.Psys)}`);
+  const early = B((m) => Object.assign(m.body, { infection: 0.6, courseHours: 6 }));
+  const later = B((m) => Object.assign(m.body, { infection: 0.6, courseHours: 48 }));
+  ok('CRP lags the white cells: six hours in, white cells are up and CRP still modest; two days in, CRP is high',
+    early.ch.whiteCellCount > 10 && early.ch.crp < 70 && later.ch.crp > 150, `6 h: WCC ${f1(early.ch.whiteCellCount)} CRP ${f1(early.ch.crp)}; 48 h: CRP ${f1(later.ch.crp)}`);
+  const sh = B((m) => Object.assign(m.body, { infection: 0.92, courseHours: 36, foodIntake: 0.3, fluidIntake: 0.8 }));
+  ok('septic shock: hypotension from lost resistance with output preserved, tachycardia, tachypnoea, lactate, kidney injury, falling platelets',
+    sh.snap.metrics.Pmean < 70 && sh.snap.metrics.SVR < 0.85 * H.snap.metrics.SVR && sh.snap.metrics.CO > 0.6 * H.snap.metrics.CO && sh.snap.ecgMetrics.HR > 110
+    && sh.snap.resp.RR >= 22 && sh.ch.lactate > 2 && sh.ch.creatinine > 1.4 * H.ch.creatinine && sh.ch.platelets < 200,
+    `MAP ${f1(sh.snap.metrics.Pmean)} SVR ${f1(sh.snap.metrics.SVR)} vs ${f1(H.snap.metrics.SVR)} CO ${f1(sh.snap.metrics.CO)} HR ${sh.snap.ecgMetrics.HR} RR ${f1(sh.snap.resp.RR)} lac ${f1(sh.ch.lactate)} crea ${f1(sh.ch.creatinine)} plt ${f1(sh.ch.platelets)}`);
+  const c = caseById('urosepsis-septic-shock'); const snap = settleModel(modelFromCase(c), 16).snapshot;
+  const view = buildView(c, { circulation: snap, state: { ...c.initialState, exposure: ['arm'] } });
+  const dip = REGISTRY.resolvers['body.urinalysis'](view, { property: 'urinalysis' }, {}).value;
+  ok('urosepsis case: qSOFA 3 (rate, pressure, mentation), fever, warm and flushed, an infected urine',
+    obs(c, view, 'vitals.rr').value >= 22 && obs(c, view, 'vitals.bp.R').value.systolic <= 100 && c.initialState.orientation === 'confused'
+    && obs(c, view, 'vitals.temp').value >= 38 && obs(c, view, 'general.appearance').value.colour === 'flushed' && dip.leukocytes !== 'negative' && dip.nitrites !== 'negative',
+    J({ ga: obs(c, view, 'general.appearance'), rr: obs(c, view, 'vitals.rr').value, bp: obs(c, view, 'vitals.bp.R').value, t: obs(c, view, 'vitals.temp').value, dip }));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

@@ -59,11 +59,7 @@
   "pathology": {
     "respiratory": {
       "consRLL": 0.85,
-      "metabolicRate": 1.4
-    },
-    "chemistry": {
-      "whiteCellCount": 17.4,
-      "crp": 186
+      "metabolicRate": 1.15
     },
     "chronic": {
       "days": 60,
@@ -76,7 +72,8 @@
       "courseHours": 72,
       "foodIntake": 0.4,
       "fluidIntake": 1.0,
-      "stress": 0.6
+      "stress": 0.6,
+      "infection": 0.6
     }
   },
   "initialState": {
@@ -86,11 +83,7 @@
     "cooperation": "full",
     "exposure": []
   },
-  "observables": {
-    "vitals.temp": {
-      "value": 38.9
-    }
-  },
+  "observables": {},
   "history": [
     {
       "id": "f-pc",
