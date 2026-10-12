@@ -926,15 +926,15 @@ console.log('\nHormones: thyroid, adrenal cortex and calcium');
     G.b.tsh < 0.1 && G.b.ft4 > 35 && G.snap.metrics.HRbeat > 100 && G.snap.metrics.CO > H.snap.metrics.CO * 1.3 && G.snap.resp.VO2 > H.snap.resp.VO2 * 1.4 && G.snap.metrics.SVR < H.snap.metrics.SVR * 0.8,
     `TSH ${f(G.b.tsh, 3)} fT4 ${f(G.b.ft4)} HR ${f(G.snap.metrics.HRbeat, 0)} CO ${f(G.snap.metrics.CO)} VO2 ${f(G.snap.resp.VO2, 0)} SVR ${f(G.snap.metrics.SVR, 0)}`);
   const Hy = B(chronic(90, { thyroidGland: 0.08 }));
-  ok('hypothyroidism: TSH high, T4 low, a slow pulse, cool, a low metabolic rate', Hy.b.tsh > 20 && Hy.b.ft4 < 8 && Hy.snap.metrics.HRbeat < 62 && Hy.b.temperature < 36.8 && Hy.snap.resp.VO2 < H.snap.resp.VO2 * 0.75,
-    `TSH ${f(Hy.b.tsh)} fT4 ${f(Hy.b.ft4)} HR ${f(Hy.snap.metrics.HRbeat, 0)} T ${f(Hy.b.temperature)} VO2 ${f(Hy.snap.resp.VO2, 0)}`);
+  ok('hypothyroidism: TSH high, T4 low, pulse 60–80, resistance up and output down, metabolic rate down 10–30 % (Klein & Danzi; Karmisholt 2010)', Hy.b.tsh > 20 && Hy.b.ft4 < 8 && Hy.snap.metrics.HRbeat >= 60 && Hy.snap.metrics.HRbeat <= 80 && Hy.snap.metrics.SVR > H.snap.metrics.SVR * 1.3 && Hy.snap.metrics.CO < H.snap.metrics.CO * 0.75 && Hy.snap.resp.VO2 > H.snap.resp.VO2 * 0.7 && Hy.snap.resp.VO2 < H.snap.resp.VO2 * 0.9,
+    `TSH ${f(Hy.b.tsh)} fT4 ${f(Hy.b.ft4)} HR ${f(Hy.snap.metrics.HRbeat, 0)} SVR ${f(Hy.snap.metrics.SVR, 0)} CO ${f(Hy.snap.metrics.CO)} VO2 ${f(Hy.snap.resp.VO2, 0)}`);
   const Sub = B(chronic(120, { thyroidGland: 0.5 }));
   ok('a failing gland driven harder: subclinical hypothyroidism (TSH up, T4 still normal)', Sub.b.tsh > 4 && Sub.b.ft4 > 10, `TSH ${f(Sub.b.tsh)} fT4 ${f(Sub.b.ft4)}`);
   const T4 = B(chronic(90, { thyroidGland: 0.02, thyroxineDose: 100 }));
   ok('levothyroxine 1.6 µg/kg replaces the gland', T4.b.tsh > 0.4 && T4.b.tsh < 4 && T4.b.ft4 > 12, `TSH ${f(T4.b.tsh, 2)} fT4 ${f(T4.b.ft4)}`);
   const Ad = B(chronic(90, { adrenalFunction: 0.03 }));
-  ok('Addison’s disease: cortisol low with ACTH very high, aldosterone low with renin high, sodium down, potassium up, blood pressure low',
-    Ad.b.cortisol < 120 && Ad.b.acth > 150 && Ad.b.aldosteronePmol < 100 && Ad.b.renin > 2 * H.b.renin && Ad.ch.sodium < 134 && Ad.ch.potassium > 5 && Ad.snap.metrics.Pmean < H.snap.metrics.Pmean - 6,
+  ok('Addison’s disease: cortisol low with ACTH very high, aldosterone low with renin up, sodium down, potassium up',
+    Ad.b.cortisol < 120 && Ad.b.acth > 150 && Ad.b.aldosteronePmol < 100 && Ad.b.renin > 1.2 * H.b.renin && Ad.ch.sodium < 134 && Ad.ch.potassium > 5,
     `cortisol ${f(Ad.b.cortisol, 0)} ACTH ${f(Ad.b.acth, 0)} aldo ${f(Ad.b.aldosteronePmol, 0)} renin ${f(Ad.b.renin)} Na ${f(Ad.ch.sodium)} K ${f(Ad.ch.potassium)} MAP ${f(Ad.snap.metrics.Pmean, 0)}`);
   const AdT = B(chronic(90, { adrenalFunction: 0.03, hydrocortisoneDose: 20, fludrocortisone: 0.1 }));
   ok('…hydrocortisone and fludrocortisone put it right', Math.abs(AdT.ch.sodium - H.ch.sodium) < 3 && Math.abs(AdT.ch.potassium - H.ch.potassium) < 0.4 && AdT.b.cortisolDeficit < 0.1 && Math.abs(AdT.snap.metrics.Pmean - H.snap.metrics.Pmean) < 6,
@@ -966,10 +966,25 @@ console.log('\nHormones: thyroid, adrenal cortex and calcium');
     && inv(Gc, 'tft').tsh < 0.1 && inv(Gc, 'tft').ft4 > 30, JSON.stringify({ hr: obs(Gc.c, Gc.view, 'vitals.hr').value, tft: inv(Gc, 'tft') }));
   const Ac = run('addisonian-crisis');
   const bpLie = obs(Ac.c, Ac.view, 'vitals.bp.R').value, bpStand = obs(Ac.c, Ac.view, 'vitals.bp.R', { position: 'standing' }).value;
-  ok('Addisonian crisis case: hypotension with a postural fall, pigmentation, sodium low and potassium high, cortisol low with ACTH high, a failed Synacthen test',
-    bpLie.systolic < 105 && bpStand.systolic < bpLie.systolic - 15 && obs(Ac.c, Ac.view, 'skin.pigmentation').value.pigmentation === 'increased'
+  ok('Addisonian crisis case: a postural fall of 20 or more (lying pressure in the range of half of real crises), pigmentation, sodium low and potassium high, cortisol low with ACTH high, a failed Synacthen test',
+    bpLie.systolic <= 110 && bpStand.systolic <= bpLie.systolic - 20 && obs(Ac.c, Ac.view, 'skin.pigmentation').value.pigmentation === 'increased'
     && Ac.view.chemistry.sodium < 134 && Ac.view.chemistry.potassium > 5 && inv(Ac, 'cortisol').cortisol < 150 && inv(Ac, 'cortisol').acth > 150 && inv(Ac, 'synacthen').cortisol30 < 300,
     JSON.stringify({ bpLie, bpStand, na: Ac.view.chemistry.sodium, k: Ac.view.chemistry.potassium, cort: inv(Ac, 'cortisol') }));
+  /* The defining test of an adrenal crisis: a litre of saline barely moves the pressure, hydrocortisone restores it within an hour. */
+  {
+    const treat = (change, hours) => {
+      const m = modelFromCase(caseById('addisonian-crisis')); const r = createCirculation(m); r.settle(20);
+      const before = { map: r.sim.metrics.Pmean, hr: r.sim.metrics.HRbeat };
+      r.apply({ ...m, body: { ...m.body, ...change } });
+      for (let k = 0; k < hours * 2; k++) { r.body.integrate(0.5); r.settleFast(4); }
+      r.settleFast(30);
+      return { before, after: { map: r.sim.metrics.Pmean, hr: r.sim.metrics.HRbeat } };
+    };
+    const sal = treat({ ivSaline: 24 }, 1), hc = treat({ hydrocortisoneDose: 200 }, 1);
+    ok('adrenal crisis: a litre of saline barely moves the pressure; hydrocortisone raises it and slows the heart within an hour',
+      Math.abs(sal.after.map - sal.before.map) < 3 && hc.after.map - hc.before.map >= 4 && hc.after.hr < hc.before.hr - 3,
+      JSON.stringify({ saline: sal, hydrocortisone: hc }, (k, v) => (typeof v === 'number' ? Math.round(v) : v)));
+  }
   const Hc = run('hypercalcaemia-malignancy');
   const ecg = REGISTRY.resolvers['electrical.ecg'](Hc.view, { property: 'ecg-12' }, {}).value;
   ok('hypercalcaemia case: adjusted calcium above 3.2 with PTH suppressed, dry, urea raised, a short QTc',

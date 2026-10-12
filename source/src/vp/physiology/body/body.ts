@@ -50,6 +50,7 @@ export interface BodyParams {
   proteinIntake: number;       // g/day on a full diet
   carbIntake: number;          // g/day on a full diet
   canDrink: number;            // 1 = thirst can be acted on
+  ivSaline: number;            // intravenous 0.9 % sodium chloride, L/day (154 mmol/L each of Na⁺ and Cl⁻)
   /* losses */
   vomiting: number;            // L/day
   diarrhoea: number;           // L/day
@@ -107,7 +108,7 @@ export interface BodyParams {
 
 export const BODY_DEFAULTS: BodyParams = {
   courseHours: 24,
-  fluidIntake: 2.0, foodIntake: 1, saltIntake: 150, potassiumIntake: 70, toxicAcid: 0, proteinIntake: 70, carbIntake: 250, canDrink: 1,
+  fluidIntake: 2.0, foodIntake: 1, saltIntake: 150, potassiumIntake: 70, toxicAcid: 0, proteinIntake: 70, carbIntake: 250, canDrink: 1, ivSaline: 0,
   vomiting: 0, diarrhoea: 0,
   nephronMass: 1, tubularInjury: 0, obstruction: 0,
   aceInhibitor: 0, nsaid: 0, loopDiuretic: 0, thiazide: 0, spironolactone: 0,
@@ -372,7 +373,11 @@ export class Body {
        in the loop of Henle, as do loop diuretics; thiazides increase it). PTH answers to ionised calcium within minutes. -- */
     const nmCa = clamp(p.nephronMass, 0.01, 1.2);
     const iCa = s.Ca * 0.5 * (1 + 0.16 * (7.4 - c.pH)) * (1 + 0.004 * (c.alb - 42));
-    const pthTarget = 4 * Math.exp(-12 * (iCa - 1.175)) * (1 + 0.6 * clamp(1 - p.vitaminD, 0, 1)) * Math.max(0.6, c.Pi) ** 0.7 * (1 + 1.5 * (1 - Math.min(1, nmCa)))
+    /* Four-parameter sigmoid (Brown 1983) through human calcium clamps (Ramirez 1993): set point 1.21 mmol/L ionised,
+       maximum about 4× and minimum under a quarter of the resting level (4 pmol/L at rest). Low vitamin D, phosphate
+       retention and lost nephrons enlarge the gland (raise the maximum): secondary hyperparathyroidism. */
+    const glandMass = (1 + 0.6 * clamp(1 - p.vitaminD, 0, 1)) * Math.max(0.6, c.Pi) ** 0.7 * (1 + 1.5 * (1 - Math.min(1, nmCa)));
+    const pthTarget = glandMass * (0.6 + 15.4 / (1 + (Math.max(0.3, iCa) * (1.24 / 1.175) / 1.21) ** 51))   // the model's resting ionised 1.175 read as a typical 1.24 (an assumption); steepness from basal at a quarter of the range
       + 12 * clamp(p.pthAutonomy, 0, 3);
     s.PTH = relax(s.PTH, clamp(pthTarget, 0.2, 300), dt, 0.3);
     const pthEff = s.PTH + 40 * clamp(p.pthrp, 0, 2);
@@ -539,7 +544,7 @@ export class Body {
     const veShape = ve >= 1 ? 1 + 0.35 * (ve - 1) : ve ** 0.75;
     /* Fewer red cells: the plasma expands to keep the blood volume (anaemia is not hypovolaemia). */
     const anaemiaFill = 1 + 0.7 * Math.max(0, r.RCV - s.RCV) / r.Vp;
-    const VpTarget = r.Vp * veShape * anaemiaFill * clamp(c.alb / 42, 0.3, 1.5) ** 0.25 * (1 - 0.01 * Math.max(0, i.CVP - 8)) * (1 - 0.22 * sev) * clamp(thy, 0.5, 3) ** 0.1;   // capillary leak
+    const VpTarget = r.Vp * veShape * anaemiaFill * clamp(c.alb / 42, 0.3, 1.5) ** 0.25 * (1 - 0.01 * Math.max(0, i.CVP - 8)) * (1 - 0.22 * sev) * Math.max(0.2, Math.min(3, thy)) ** 0.1;   // blood volume 105.5 % in overt hyperthyroidism (Klein & Danzi); the 84.5 % of hypothyroidism is not reproduced: lowering it here reads as hypovolaemia, since the model has no fall in venous capacity or demand to go with it   // capillary leak
 
     return {
       c, GFR, auto, Plow, gfrMax: auto > 1e-3 ? GFR / auto : GFR, rpp, naU, kU: kU2, clU, nh4U, hco3U, ureaU, crU, uaU, uaProd, pIn, pU, glucU, ketoU, ketoProd, ketoOx, hgo, uBrain, uIns, uMass, carbIn,
@@ -566,8 +571,9 @@ export class Body {
     const naIn = p.saltIntake * food / 24 * (1 - clamp(p.vomiting / 2, 0, 0.9));
     const kIn = p.potassiumIntake * food / 24 * (1 - clamp(p.vomiting / 2, 0, 0.9));
 
-    s.TBW += (f.waterIn - f.waterU - f.insensible - f.vomit - f.stool) * dt;
-    s.Na += (naIn - f.naU * o - VOMIT.Na * f.vomit - STOOL.Na * f.stool) * dt;
+    const iv = Math.max(0, p.ivSaline) / 24;
+    s.TBW += (iv + f.waterIn - f.waterU - f.insensible - f.vomit - f.stool) * dt;
+    s.Na += (154 * iv + naIn - f.naU * o - VOMIT.Na * f.vomit - STOOL.Na * f.stool) * dt;
     s.K += (kIn - f.kU * o - VOMIT.K * f.vomit - STOOL.K * f.stool) * dt;
     s.B += (0.7 * kIn - f.uaProd - f.ketoProd + f.ketoOx - f.lacProd + f.lacClear + f.nh4U * o - f.hco3U * o
       + VOMIT.H * f.vomit - STOOL.HCO3 * f.stool) * dt;
@@ -639,21 +645,31 @@ export class Body {
   thyroidEffect(): number { return clamp((this.s.T4 ?? 16) / 16, 0.1, 5); }
   /** Cortisol missing for what the illness demands, 0–1 (severe illness needs two to three times the resting level): vessels lose their response to catecholamines, the liver its gluconeogenesis. */
   cortisolDeficit(): number { return clamp(1 - (this.s.Cort ?? 1) / (1 + 0.75 * this.stressEff()), 0, 1); }
-  /** Oxygen consumption, × normal: thyroid hormone sets the basal metabolic rate. */
-  metabolicMult(): number { const t = this.thyroidEffect(); return t >= 1 ? t ** 0.45 : t ** 0.35; }
-  /** The sinus rate, × normal: thyroid hormone acts on the node directly. */
-  hrMult(): number { const t = this.thyroidEffect(); return t >= 1 ? Math.min(1.8, t ** 0.4) : t ** 0.25; }
+  /** Oxygen consumption, × normal: thyroid hormone sets the basal metabolic rate. Saturating above normal, fitted through
+      Graves' patients measured at diagnosis and during treatment (free T4 4.7× → 1.55×, 1.9× → 1.30×; Hayashi 2020); below
+      normal through the 12–22 % rise after a year of levothyroxine (Karmisholt 2010), taking overt hypothyroidism as free
+      T4 about 0.4× (an assumption). */
+  metabolicMult(): number { const t = this.thyroidEffect(); return t >= 1 ? 1 + 0.74 * (t - 1) / (t - 1 + 1.25) : t ** 0.18; }
+  /** The sinus rate, × normal: thyroid hormone acts on the node directly. Through resting rates of 88–130 (hyper) and
+      60–80 (hypo) against 72–84 (Klein & Danzi), taking overt disease as free T4 2.8× and 0.3× (an assumption). */
+  hrMult(): number { const t = this.thyroidEffect(); return t >= 1 ? Math.min(1.8, t ** 0.33) : t ** 0.09; }
   /** Vascular response to sympathetic drive, × normal: cortisol is permissive for catecholamines. */
-  adrenergicResponse(): number { return 1 - 0.7 * this.cortisolDeficit() ** 1.2; }
+  /* Grounded (see the endocrine chapter's sources): hydrocortisone roughly doubles the maximal pressor response to an
+     α-agonist in cortisol-deficient patients with the ED50 unchanged (Bellissant & Annane 2000; Annane 1998), so the
+     vascular gain is about halved at a complete deficit. Linear in the deficit is an assumption. */
+  adrenergicResponse(): number { return 1 - 0.5 * this.cortisolDeficit(); }
   /** Sepsis: nitric oxide dilates arterioles and veins, and the myocardium is depressed. */
   vasoplegia(): number { return this.sepsis() ** 1.3; }
-  contractility(): number { return (1 - 0.2 * this.sepsis()) * clamp(this.thyroidEffect(), 0.3, 3) ** 0.45 * (1 - 0.15 * this.cortisolDeficit()); }
+  contractility(): number { return (1 - 0.2 * this.sepsis()) * clamp(this.thyroidEffect(), 0.3, 3) ** 0.45; }
   /** Cytokines and fever drive breathing: the tachypnoea of sepsis comes before any acidosis. */
   ventilatoryDrive(): number { return 1.0 * this.sepsis() + 0.25 * Math.min(1, this.s.IL) + 0.08 * Math.max(0, this.s.T - 37.5); }
-  /** Angiotensin II and vasopressin constrict arterioles and veins. */
-  rsysMult(): number { return clamp(Math.max(0.05, this.s.AngII) ** 0.12 * Math.max(0.3, this.s.ADH / 1.5) ** 0.04, 0.6, 1.8) * (1 - 0.6 * this.vasoplegia()) * (1 - 0.3 * clamp(this.p.portalHypertension, 0, 1) * clamp(1 - this.p.liverFunction, 0, 1))
-      * clamp(this.thyroidEffect(), 0.3, 3) ** -0.4 * (1 - 0.5 * this.cortisolDeficit() ** 1.5); }
-  v0svMult(): number { return clamp(1 - 0.05 * Math.log(Math.max(0.05, this.s.AngII)) - 0.02 * Math.log(Math.max(0.3, this.s.ADH / 1.5)), 0.8, 1.15) * (1 + 0.2 * this.vasoplegia()) * (1 + 0.15 * this.cortisolDeficit()); }
+  /** Angiotensin II and vasopressin constrict arterioles and veins; the constriction they add needs cortisol as
+      noradrenaline's does (the same receptor-to-IP₃ pathway in the vessel wall), so it is scaled by the same gain. */
+  private hormonalTone(): number { const h = Math.max(0.05, this.s.AngII) ** 0.12 * Math.max(0.3, this.s.ADH / 1.5) ** 0.04; return h > 1 ? 1 + (h - 1) * this.adrenergicResponse() : h; }
+  rsysMult(): number { return clamp(this.hormonalTone(), 0.6, 1.8) * (1 - 0.6 * this.vasoplegia()) * (1 - 0.3 * clamp(this.p.portalHypertension, 0, 1) * clamp(1 - this.p.liverFunction, 0, 1))
+      * (this.thyroidEffect() >= 1 ? Math.min(3, this.thyroidEffect()) ** -0.4 : Math.max(0.2, this.thyroidEffect()) ** -0.3)   // with the reflex and blood volume: SVR 0.6× and 1.5× in overt hyper- and hypothyroidism (Klein & Danzi)
+      * (1 - 0.2 * this.cortisolDeficit()); }   // glucocorticoid receptor blockade lowers basal resistance about 20 % with output unchanged (RU 486 in rats)
+  v0svMult(): number { const ven = -0.05 * Math.log(Math.max(0.05, this.s.AngII)) - 0.02 * Math.log(Math.max(0.3, this.s.ADH / 1.5)); return clamp(1 + (ven < 0 ? ven * this.adrenergicResponse() : ven), 0.8, 1.15) * (1 + 0.2 * this.vasoplegia()); }
 
   snapshot(): BodySnapshot {
     const c = this.conc(), s = this.s, r = this.ref, f = this.f;
