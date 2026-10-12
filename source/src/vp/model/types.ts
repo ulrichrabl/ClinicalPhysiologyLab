@@ -206,6 +206,8 @@ export interface ManoeuvreDef {
   /** Doing this in these states is harmful (recorded in the debrief, never blocked). */
   hazards?: Array<{ ifState: StatePredicate; code: string; why: LocalizedText }>;
   renderer?: string;
+  /** Reached through a focused view (tap another site) or by typing; not listed in the region menu. */
+  hidden?: boolean;
 }
 
 /* ---- Patient state (non-physiological, changes during an encounter) ------- */
@@ -221,6 +223,8 @@ export interface PatientState {
   exposure?: string[];
   immobilised?: string[];                  // e.g. ['spine.cervical']
   abilities?: Ability[];                   // overrides derived abilities
+  /** Supplemental oxygen: the device and the inspired fraction it gives. The respiratory model breathes this. */
+  oxygen?: { device: string; fio2: number };
 }
 
 export type StatePredicate = Partial<{
@@ -347,6 +351,7 @@ export interface CaseDef {
     conditions?: Array<{ id: string; params?: Record<string, unknown> }>;
     physiology?: Record<string, number>;           // circulation parameters (lesson vocabulary)
     electrical?: Record<string, number | string>;  // the heart's electrical substrate (physiology/heart/electrical.ts)
+    respiratory?: Record<string, number>;          // lungs, pleura, airways, inspired gas, control of breathing (physiology/lung/respiratory.ts)
     chemistry?: Record<string, number>;
     lesions?: Array<{ nodes: string[]; complete?: boolean; label?: string }>;
   };

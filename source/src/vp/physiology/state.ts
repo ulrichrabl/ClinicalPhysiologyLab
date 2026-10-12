@@ -1,6 +1,7 @@
 import type { CaseDef } from '../model/types.ts';
 import { CHEMISTRY_DEFAULTS } from '../../models/chemistry/public-state.ts';
 import { ELECTRICAL_DEFAULTS, ELECTRICAL_PRESETS, type ElectricalParams } from './heart/electrical.ts';
+import { RESPIRATORY_DEFAULTS, type RespiratoryParams } from './lung/respiratory.ts';
 
 /* ===========================================================================
    The patient's model state: every parameter of every physiological model,
@@ -28,6 +29,8 @@ export interface PatientModel {
   circulation: Record<string, number>;
   /** The heart's electrical substrate: rhythm, conduction, mass, ischaemia. */
   electrical: ElectricalParams;
+  /** Lungs, pleura, airways, inspired gas, the control of breathing. */
+  respiratory: RespiratoryParams;
   /** Peripheral vestibular function. */
   vestibular: { side: 'none' | 'L' | 'R'; severity: number; daysSinceOnset: number };
   /** Lesioned nodes of the nervous-system graph. */
@@ -41,6 +44,7 @@ export function healthyModel(): PatientModel {
     patient: { age: 45, sex: 'M', heightCm: 176, weightKg: 76 },
     circulation: { ...CIRCULATION_DEFAULTS },
     electrical: { ...ELECTRICAL_DEFAULTS },
+    respiratory: { ...RESPIRATORY_DEFAULTS },
     vestibular: { side: 'none', severity: 0.8, daysSinceOnset: 1 },
     lesions: { nodes: [], complete: true },
     chemistry: {},
@@ -63,6 +67,7 @@ export function modelFromCase(c: CaseDef): PatientModel {
   m.patient = { age: c.patient.age, sex: c.patient.sex, heightCm: c.patient.heightCm ?? 170, weightKg: c.patient.weightKg ?? 72 };
   m.circulation = { ...CIRCULATION_DEFAULTS, ...(c.pathology.physiology ?? {}) };
   m.electrical = { ...ELECTRICAL_DEFAULTS, ...((c.pathology.electrical ?? {}) as Partial<ElectricalParams>) };
+  m.respiratory = { ...RESPIRATORY_DEFAULTS, ...((c.pathology.respiratory ?? {}) as Partial<RespiratoryParams>) };
   const vh = c.pathology.conditions?.find((x) => x.id === 'vestibular-hypofunction');
   if (vh) m.vestibular = { side: (vh.params?.side as 'L' | 'R') ?? 'L', severity: Number(vh.params?.severity ?? 0.8), daysSinceOnset: Number(vh.params?.daysSinceOnset ?? 1) };
   const lesions = c.pathology.lesions ?? [];
@@ -78,9 +83,12 @@ export function pathologyOf(m: PatientModel): CaseDef['pathology'] {
   for (const [k, v] of Object.entries(m.circulation)) if (CIRCULATION_DEFAULTS[k] !== v && !(k === 'K' && m.chemistry.potassium === v)) physiology[k] = v;
   const electrical: Record<string, number | string> = {};
   for (const [k, v] of Object.entries(m.electrical)) if ((ELECTRICAL_DEFAULTS as any)[k] !== v) electrical[k] = v;
+  const respiratory: Record<string, number> = {};
+  for (const [k, v] of Object.entries(m.respiratory)) if ((RESPIRATORY_DEFAULTS as any)[k] !== v) respiratory[k] = v;
   const p: CaseDef['pathology'] = {};
   if (Object.keys(physiology).length) p.physiology = physiology;
   if (Object.keys(electrical).length) p.electrical = electrical;
+  if (Object.keys(respiratory).length) p.respiratory = respiratory;
   if (m.vestibular.side !== 'none') p.conditions = [{ id: 'vestibular-hypofunction', params: { side: m.vestibular.side, severity: m.vestibular.severity, daysSinceOnset: m.vestibular.daysSinceOnset } }];
   if (m.lesions.nodes.length) p.lesions = [{ nodes: [...m.lesions.nodes], complete: m.lesions.complete }];
   if (Object.keys(m.chemistry).length) p.chemistry = { ...m.chemistry };
@@ -96,4 +104,4 @@ export function caseWithModel(base: CaseDef, m: PatientModel): CaseDef {
   };
 }
 
-export { CHEMISTRY_DEFAULTS, ELECTRICAL_DEFAULTS };
+export { CHEMISTRY_DEFAULTS, ELECTRICAL_DEFAULTS, RESPIRATORY_DEFAULTS };

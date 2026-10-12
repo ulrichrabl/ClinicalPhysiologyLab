@@ -45,16 +45,23 @@ export class LivePatient {
 
   /** Run ahead without drawing, in slices, so the page stays responsive. */
   async settle(seconds: number, slice = 2): Promise<void> {
-    for (let done = 0; done < seconds; done += slice) {
-      this.advance(Math.min(slice, seconds - done));
-      await new Promise((r) => setTimeout(r, 0));
-    }
+    /* In passes, as settleModel does: the lungs change the circulation and the circulation the lungs. */
+    const pass = async (s: number) => {
+      for (let done = 0; done < s; done += slice) {
+        this.advance(Math.min(slice, s - done));
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    };
+    await pass(seconds * 0.5); this.run.equilibrate();
+    await pass(seconds * 0.35); this.run.equilibrate();
+    await pass(seconds * 0.15);
+    this.snap = this.capture();
+    this.chemistry = chemistryState(this.snap, this.model.chemistry) as unknown as Record<string, number>;
   }
 
   advance(seconds: number): void {
     if (seconds <= 0) return;
-    const sim = this.run.sim;
-    sim.advance(Math.max(1, Math.round(seconds / sim.dt)));
+    this.run.advance(seconds);
     this.t += seconds;
     this.snap = this.capture();
     this.chemistry = chemistryState(this.snap, this.model.chemistry) as unknown as Record<string, number>;
@@ -111,6 +118,7 @@ export class LivePatient {
     }
     delete s.ecgLeads;
     s.electrical = this.run.heart.p;
+    s.resp = this.run.resp.snapshot();
     return s;
   }
 }

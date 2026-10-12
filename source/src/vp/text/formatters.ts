@@ -49,6 +49,19 @@ const DERMATOME_AREA: Record<string, [string, string]> = {
   L3: ['medial knee', 'Knieinnenseite'], L4: ['medial shin', 'Unterschenkelinnenseite'], L5: ['dorsum of the foot and big toe', 'Fußrücken und Großzehe'], S1: ['lateral foot and sole', 'Fußaußenrand und Fußsohle'],
 };
 
+
+const LUNG_SITE_NAME: Record<string, [string, string]> = {
+  'upper-zone': ['upper zone', 'Oberfeld'], 'mid-zone': ['mid zone', 'Mittelfeld'], axilla: ['axilla', 'Axilla'], 'upper-back': ['upper back', 'oberer Rücken'], 'lung-base': ['base', 'Basis'],
+};
+/** 'Right base' / 'Basis rechts'. */
+const chestSite = (ctx: ExamContext, l: Locale, short = false): string => {
+  const m = /^chest\.([a-z-]+?)(?:\.(L|R))?$/.exec(ctx.site ?? '');
+  const n = LUNG_SITE_NAME[m?.[1] ?? 'lung-base'] ?? LUNG_SITE_NAME['lung-base'];
+  const side = m?.[2] as Side | undefined;
+  void short;
+  return de(l) ? `${n[1]}${side ? ` ${sideAdj(side, l)}` : ''}` : `${side ? `${cap(sideAdj(side, l))} ` : ''}${side ? n[0] : cap(n[0])}`;
+};
+
 export const FORMATTERS: Record<string, Formatter> = {
   /* ---- general and vitals --------------------------------------------------- */
   'general.appearance': (v, _c, l, cat) => de(l)
@@ -59,7 +72,11 @@ export const FORMATTERS: Record<string, Formatter> = {
     ? `Blutdruck ${v.systolic}/${v.diastolic} mmHg${ref.side ? ` (${sideAdj(ref.side, l, 'linke')}r Arm)` : ''}.`
     : `Blood pressure ${v.systolic}/${v.diastolic} mmHg${ref.side ? ` (${sideAdj(ref.side, l)} arm)` : ''}.`,
   'vitals.rr': (v, _c, l) => (de(l) ? `Atemfrequenz ${num(v, l)}/min.` : `Respiratory rate ${num(v, l)}/min.`),
-  'vitals.spo2': (v, _c, l) => (de(l) ? `SpO₂ ${num(v, l)} % unter Raumluft.` : `SpO₂ ${num(v, l)}% on room air.`),
+  'vitals.spo2': (v, _c, l) => {
+    const sp = typeof v === 'number' ? v : v.spo2, f = typeof v === 'number' ? 0.21 : v.fio2 ?? 0.21;
+    const on = f <= 0.215 ? (de(l) ? 'unter Raumluft' : 'on room air') : (de(l) ? `unter FiO₂ ${num(f, l, 2)}` : `on FiO₂ ${num(f, l, 2)}`);
+    return de(l) ? `SpO₂ ${num(sp, l)} % ${on}.` : `SpO₂ ${num(sp, l)}% ${on}.`;
+  },
   'vitals.temp': (v, _c, l) => (de(l) ? `Temperatur ${num(v, l, 1)} °C.` : `Temperature ${num(v, l, 1)} °C.`),
 
   /* ---- cardiovascular ------------------------------------------------------- */
@@ -107,12 +124,29 @@ export const FORMATTERS: Record<string, Formatter> = {
     return `${where}: ${sounds.join(', ')}.${tail}`;
   },
   'lung.sounds': (v, ctx, l, cat) => {
-    const side = /\.(L|R)$/.exec(ctx.site ?? '')?.[1] as Side | undefined;
-    const where = de(l) ? `Lungenbasis ${sideAdj(side, l)}` : `${cap(sideAdj(side, l))} lung base`;
+    const where = chestSite(ctx, l);
     const added = v.added?.length ? join(v.added.map((a: string) => lab(cat, 'added-lung', a, l)), l) : '';
-    return de(l)
-      ? `${where}: Atemgeräusch ${lab(cat, 'breath-sounds', v.breath, l)}, ${added ? `Nebengeräusche: ${added}` : 'keine Nebengeräusche'}.`
-      : `${where}: ${lab(cat, 'breath-sounds', v.breath, l)} breath sounds, ${added || 'no added sounds'}.`;
+    if (de(l)) {
+      const b = v.breath === 'bronchial' ? 'Bronchialatmen' : v.breath === 'absent' ? 'Atemgeräusch aufgehoben' : `Atemgeräusch ${lab(cat, 'breath-sounds', v.breath, l)}`;
+      return `${where}: ${b}, ${added ? added : 'keine Nebengeräusche'}.`;
+    }
+    const b = v.breath === 'absent' ? 'no breath sounds' : `${lab(cat, 'breath-sounds', v.breath, l)} breath sounds`;
+    return `${where}: ${b}, ${added || 'no added sounds'}.`;
+  },
+  'chest.percussion': (v, ctx, l, cat) => (de(l) ? `Perkussion ${chestSite(ctx, l, true)}: ${lab(cat, 'percussion', v.note, l)}.` : `Percussion, ${chestSite(ctx, l, true).toLowerCase()}: ${lab(cat, 'percussion', v.note, l)}.`),
+  'chest.resonance': (v, ctx, l, cat) => (de(l) ? `Bronchophonie ${chestSite(ctx, l, true)}: ${lab(cat, 'vocal-resonance', v.resonance, l)}.` : `Vocal resonance, ${chestSite(ctx, l, true).toLowerCase()}: ${lab(cat, 'vocal-resonance', v.resonance, l)}.`),
+  'chest.expansion': (v, _c, l, cat, ref) => (de(l) ? `Thoraxexkursion ${sideAdj(ref.side, l)}: ${lab(cat, 'expansion', v.expansion, l)}.` : `Chest expansion on the ${sideAdj(ref.side, l)}: ${lab(cat, 'expansion', v.expansion, l)}.`),
+  'trachea.position': (v, _c, l, cat) => (de(l) ? `Trachea ${lab(cat, 'trachea', v.position, l)}.` : `Trachea ${lab(cat, 'trachea', v.position, l)}.`),
+  'breathing.pattern': (v, _c, l, cat) => {
+    const parts: string[] = [];
+    parts.push(lab(cat, 'speech-breath', v.speech, l));
+    if (v.depth !== 'normal') parts.push(de(l) ? `Atmung ${lab(cat, 'breath-depth', v.depth, l)}` : `${lab(cat, 'breath-depth', v.depth, l)} breathing`);
+    if (v.accessory) parts.push(de(l) ? 'Einsatz der Atemhilfsmuskulatur' : 'using the accessory muscles');
+    if (v.pursedLips) parts.push(de(l) ? 'Lippenbremse' : 'pursed-lip breathing');
+    if (v.hyperinflated) parts.push(de(l) ? 'Fassthorax' : 'hyperinflated (barrel) chest');
+    if (v.paradoxical) parts.push(de(l) ? 'paradoxe abdominelle Atembewegung' : 'paradoxical abdominal movement');
+    if (parts.length === 1 && v.speech === 'sentences') parts.push(de(l) ? 'keine erhöhte Atemarbeit' : 'no increased work of breathing');
+    return `${cap(join(parts, l))}.`;
   },
 
   'hands.crt': (v, _c, l) => (de(l) ? `Rekapillarisierungszeit ${num(v, l, 1)} s.` : `Capillary refill ${num(v, l, 1)} s.`),
@@ -397,6 +431,7 @@ export const FORMATTERS: Record<string, Formatter> = {
       urea: ['urea', 'Harnstoff', 'mmol/L'], creatinine: ['creatinine', 'Kreatinin', 'µmol/L'], arterialPH: ['pH', 'pH', ''], paCO2: ['PaCO₂', 'PaCO₂', 'kPa'],
       paO2: ['PaO₂', 'PaO₂', 'kPa'], lactate: ['lactate', 'Laktat', 'mmol/L'], haemoglobin: ['Hb', 'Hb', 'g/L'], whiteCellCount: ['WCC', 'Leukozyten', '×10⁹/L'],
       platelets: ['platelets', 'Thrombozyten', '×10⁹/L'], mcv: ['MCV', 'MCV', 'fL'], troponin: ['troponin', 'Troponin', 'ng/L'], bnp: ['BNP', 'BNP', 'ng/L'],
+      baseExcess: ['BE', 'BE', 'mmol/L'], saO2: ['SaO₂', 'SaO₂', '%'], coHb: ['COHb', 'COHb', '%'], metHb: ['MetHb', 'MetHb', '%'], fio2: ['FiO₂', 'FiO₂', ''],
     };
     const inv = cat.investigations[ref.property];
     const range = (inv?.normal.range ?? {}) as Record<string, [number, number]>;
@@ -404,10 +439,16 @@ export const FORMATTERS: Record<string, Formatter> = {
       const [en, dn, unit] = names[k] ?? [k, k, ''];
       const r = range[k];
       const flag = r ? (x < r[0] ? ' ↓' : x > r[1] ? ' ↑' : '') : '';
-      return `${de(l) ? dn : en} ${num(x, l, k === 'arterialPH' ? 2 : (Number.isInteger(x) ? 0 : 1))}${unit ? ' ' + unit : ''}${flag}`;
+      return `${de(l) ? dn : en} ${num(x, l, k === 'arterialPH' || k === 'fio2' ? 2 : (Number.isInteger(x) ? 0 : 1))}${unit ? ' ' + unit : ''}${flag}`;
     });
     return `${tr(inv?.label ?? { en: ref.property }, l)}: ${parts.join(', ')}.`;
   },
   'inv.imaging': (v, _c, l, cat, ref) => `${tr(cat.investigations[ref.property]?.label ?? { en: ref.property }, l)}: ${(v.findings ?? []).map((x: string) => lab(cat, 'imaging', x, l)).join('; ')}.`,
   'inv.glucose': (v, _c, l) => (de(l) ? `Blutzucker ${num(v, l, 1)} mmol/l.` : `Glucose ${num(v, l, 1)} mmol/L.`),
+  'inv.ddimer': (v, _c, l) => (de(l) ? `D-Dimere ${num(v, l, 2)} mg/l FEU${v > 0.5 ? ' ↑' : ''}.` : `D-dimer ${num(v, l, 2)} mg/L FEU${v > 0.5 ? ' ↑' : ''}.`),
+  'inv.peakflow': (v, _c, l) => (de(l) ? `Peak-Flow ${v.pef} l/min (${v.pefPct} % des Sollwerts), bester von drei Versuchen.` : `Peak flow ${v.pef} L/min (${v.pefPct}% predicted), best of three.`),
+  'inv.spirometry': (v, _c, l) => de(l)
+    ? `Spirometrie: FEV₁ ${num(v.fev1, l, 2)} l (${v.fev1Pct} % Soll), FVC ${num(v.fvc, l, 2)} l (${v.fvcPct} % Soll), FEV₁/FVC ${num(v.ratio, l, 2)}, PEF ${v.pef} l/min.`
+    : `Spirometry: FEV₁ ${num(v.fev1, l, 2)} L (${v.fev1Pct}% predicted), FVC ${num(v.fvc, l, 2)} L (${v.fvcPct}% predicted), FEV₁/FVC ${num(v.ratio, l, 2)}, PEF ${v.pef} L/min.`,
+  'inv.chest-imaging': (v, _c, l, cat, ref) => `${tr(cat.investigations[ref.property]?.label ?? { en: ref.property }, l)}: ${(v.findings ?? []).map((x: string) => lab(cat, 'chest-imaging', x, l)).join('; ')}.`,
 };

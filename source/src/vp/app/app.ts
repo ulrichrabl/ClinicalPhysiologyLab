@@ -225,6 +225,7 @@ export function mount(root: HTMLElement) {
     if (!s || !live) return;
     s.view.circulation = live.snap;
     s.view.chemistry = live.chemistry;
+    s.view.respiratory = live.snap.resp;
   };
   const applyModel = (m: PatientModel) => {
     if (!s || !live) return;

@@ -20,6 +20,7 @@ export { MODELS, MODEL_BY_ID, VARIABLE_BY_ID, getPath, setPath } from './physiol
 export { HeartElectrical, ELECTRICAL_DEFAULTS, ELECTRICAL_PRESETS, type ElectricalParams } from './physiology/heart/electrical.ts';
 export { recordLeads, leadVectors, measuredAxis, misplaced, standardPlacement, STANDARD_SITES, LEAD_NAMES } from './measurements/ecg.ts';
 export { chemistryState } from './physiology/chemistry.ts';
+export { Respiratory, RESPIRATORY_DEFAULTS, LOBES, satO2, pulseOximeter, predicted, type RespiratoryParams, type RespSnapshot } from './physiology/lung/respiratory.ts';
 
 import vestibularNeuritisLeft from './cases/vestibular-neuritis-left.json';
 import exertionalSyncopeAs from './cases/exertional-syncope-as.json';

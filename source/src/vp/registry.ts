@@ -6,6 +6,8 @@ import { CARDIO_RESOLVERS } from './models/cardio-exam.ts';
 import { NEURO_LIMB_RESOLVERS } from './models/neuro-limb.ts';
 import { CIRCULATION_DEFAULTS } from './physiology/state.ts';
 import { LAB_RESOLVERS } from './measurements/labs.ts';
+import { RESP_RESOLVERS } from './models/resp-exam.ts';
+import { RESP_LAB_RESOLVERS } from './measurements/respiratory.ts';
 
 /* ---------------------------------------------------------------------------
    The code side of the data model. Data refers to these by id; the validator
@@ -24,9 +26,9 @@ export interface Registry {
 }
 
 export const REGISTRY: Registry = {
-  resolvers: { ...NEURO_RESOLVERS, ...NEURO_LIMB_RESOLVERS, ...CARDIO_RESOLVERS, ...LAB_RESOLVERS },
+  resolvers: { ...NEURO_RESOLVERS, ...NEURO_LIMB_RESOLVERS, ...CARDIO_RESOLVERS, ...RESP_RESOLVERS, ...LAB_RESOLVERS, ...RESP_LAB_RESOLVERS },
   formatters: FORMATTERS,
-  renderers: ['svg.eyes', 'svg.face', 'svg.dermatomes', 'svg.field', 'svg.fundus', 'svg.patient', 'svg.pulse', 'svg.neck', 'audio.heart', 'audio.lung'],
+  renderers: ['svg.eyes', 'svg.face', 'svg.dermatomes', 'svg.field', 'svg.fundus', 'svg.patient', 'svg.pulse', 'svg.neck', 'audio.heart', 'audio.lung', 'audio.percussion', 'canvas.cxr', 'canvas.spirometry'],
   conditions: { ...NEURO_CONDITIONS },
   physiologyKeys: Object.keys(CIRCULATION_DEFAULTS),
 };

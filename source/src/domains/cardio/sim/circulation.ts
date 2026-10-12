@@ -62,7 +62,7 @@ export class Circulation {
     this.Pn = c.Pn; this.tauS = c.tauS; this.tauP = c.tauP; this.gS = c.gS; this.gP = c.gP;
     this.gR = c.gR; this.gV = c.gV; this.gE = c.gE;
     this.dt = c.dt;
-    this.sigmaS = 0.5; this.sigmaP = 0.5;
+    this.sigmaS = 0.5; this.sigmaP = 0.5; this.chemoDrive = 0;
     this.effRsys = c.Rsys; this.effV0sv = c.V0sv; this.effEmax = c.Emax;
 
     /* Total blood volume. Scaling this is haemorrhage or transfusion, and it
@@ -129,7 +129,8 @@ export class Circulation {
   baroFiring(P) { return 2.5 + (47 - 2.5) / (1 + Math.exp(-0.07 * (P - this.Pn))); }
 
   modulatedHR() {
-    const hr = this.HR * (1 + this.gS * this.sigmaS - this.gP * this.sigmaP);
+    // Hyperpnoea itself withdraws vagal tone from the sinus node (the lung-inflation reflex, central respiratory–cardiac coupling).
+    const hr = this.HR * (1 + this.gS * this.sigmaS - this.gP * this.sigmaP + 0.35 * (this.chemoDrive || 0));
     return Math.max(30, Math.min(200, hr));
   }
 
@@ -280,8 +281,11 @@ export class Circulation {
     d[S_VSV] = Qsys - Qven;
     d[S_VPA] = Qpv2 - Qpulcap;
     d[S_VPV] = Qpulcap - Qpvret;
-    d[S_SS] = (1 - norm - y[S_SS]) / this.tauS;
-    d[S_SP] = (norm - y[S_SP]) / this.tauP;
+    /* Carotid-body (chemoreceptor) and dyspnoeic drive add sympathetic and withdraw vagal tone:
+       hypoxaemia and breathlessness are tachycardic even at a normal blood pressure. */
+    const chemo = this.chemoDrive || 0;
+    d[S_SS] = (Math.min(1, 1 - norm + 0.25 * chemo) - y[S_SS]) / this.tauS;
+    d[S_SP] = (Math.max(0, norm - 0.6 * chemo) - y[S_SP]) / this.tauP;
 
     return {
       d,
@@ -702,7 +706,7 @@ export class Circulation {
       avConduction: this.avConduction ?? 1,
       lbbConduction: this.lbbConduction ?? 1,
       rbbConduction: this.rbbConduction ?? 1,
-      baroEnabled: this.baroEnabled, firingRate: this.firingRate,
+      baroEnabled: this.baroEnabled, firingRate: this.firingRate, chemoDrive: this.chemoDrive || 0,
       sympathetic: this.sigmaS, parasympathetic: this.sigmaP,
       pathology: this.engine?.peek().pathology ?? 'normal',
       ecgValue: this.ecgValue,

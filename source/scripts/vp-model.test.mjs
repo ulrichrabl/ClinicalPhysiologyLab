@@ -15,7 +15,7 @@ unlinkSync(bundle);
 const { CATALOG, REGISTRY, CASES, buildView, observe, startEncounter, perform, order, ask, opening, parseAction, autoNote, describe,
   validateCatalog, validateCase, evaluate, interpret, commit, figureSvg, lerpPose, POSES, eyeAngles, measuredSlowPhaseVelocity, exportCatalog,
   settleCirculation, settleModel, createCirculation, healthyModel, modelFromCase, pathologyOf, caseWithModel, applyPreset, MODELS, VARIABLE_BY_ID,
-  recordLeads, measuredAxis, misplaced, standardPlacement, chemistryState, parseRef } = vp;
+  recordLeads, measuredAxis, misplaced, standardPlacement, chemistryState, parseRef, Respiratory, pulseOximeter, perform: performM } = vp;
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => {
@@ -498,7 +498,7 @@ console.log('\nModels and measurements');
   ok('variable ids are unique', new Set(ids).size === ids.length);
   ok('cases author no finding a model produces (pathology is parameters only)', CASES.every((c) =>
     Object.keys(c.observables ?? {}).every((ref) => CATALOG.properties[parseRef(ref).property]?.source !== 'model'
-      && !['vitals.hr', 'vitals.bp', 'pulse.radial', 'pulse.carotid'].includes(parseRef(ref).property))));
+      && !['vitals.hr', 'vitals.bp', 'vitals.rr', 'vitals.spo2', 'pulse.radial', 'pulse.carotid'].includes(parseRef(ref).property))));
   for (const c of CASES) {
     const m = modelFromCase(c);
     ok(`${c.id}: case → model → pathology round-trips`, J(modelFromCase({ ...c, pathology: pathologyOf(m) })) === J(m));
@@ -546,7 +546,10 @@ const ecgOf = (preset, seconds = 8, mutate) => {
   { const run = createCirculation(applyPreset(healthyModel(), 'af')); let last = null; for (let i = 0; i < 40000; i++) { run.sim.step(); const m = run.heart.metrics; if (m.RR !== last) { rr.push(m.RR); last = m.RR; } } }
   const sd = Math.sqrt(rr.slice(2).reduce((a, x, _, arr) => a + (x - arr.reduce((p, q) => p + q, 0) / arr.length) ** 2, 0) / Math.max(1, rr.length - 2));
   ok('atrial fibrillation: no PR, irregularly irregular RR', af.metrics.PR == null && sd > 80, `RR sd ${sd.toFixed(0)} ms`);
-  ok('atrial fibrillation: the atrial kick is lost and cardiac output falls', af.snap.metrics.CO < n.snap.metrics.CO);
+  // Average over many beats: in AF each beat differs. Stroke volume falls (no atrial kick, short filling); the reflex restores output with rate.
+  const mean = (preset, k0) => { const run = createCirculation(applyPreset(healthyModel(), preset)); run.sim.advance(12000); let last = null; const acc = { SV: 0, CO: 0, HR: 0, n: 0 }; for (let i = 0; i < 60000; i++) { run.sim.step(); const mt = run.sim.metrics; if (mt && mt !== last) { acc.SV += mt.SV; acc.CO += mt.CO; acc.HR += mt.HRbeat; acc.n++; last = mt; } } return { SV: acc.SV / acc.n, CO: acc.CO / acc.n, HR: acc.HR / acc.n }; };
+  const mAF = mean('af'), mSR = mean('normal');
+  ok('atrial fibrillation: the atrial kick is lost and mean stroke volume falls', mAF.SV < mSR.SV - 5, `SV ${mAF.SV.toFixed(0)} vs ${mSR.SV.toFixed(0)} mL, HR ${mAF.HR.toFixed(0)} vs ${mSR.HR.toFixed(0)}, CO ${mAF.CO.toFixed(2)} vs ${mSR.CO.toFixed(2)}`);
   const afView = buildView(caseById('acute-stroke-left-mca'), { circulation: af.snap });
   ok('…and the pulse feels irregularly irregular', obs(caseById('acute-stroke-left-mca'), afView, 'pulse.radial.R').value.rhythm === 'irregularly-irregular');
 
@@ -578,6 +581,147 @@ const ecgOf = (preset, seconds = 8, mutate) => {
   twin.sim.restoreState(JSON.parse(J(state)));
   ser.sim.advance(4000); twin.sim.advance(4000);
   ok('a settled patient can be serialised and resumed exactly (for the browser worker)', Math.abs(ser.sim.Part - twin.sim.Part) < 1e-6 && ser.heart.metrics.HR === twin.heart.metrics.HR);
+}
+
+
+/* ---- respiratory system ------------------------------------------------------------------ */
+console.log('\nRespiratory system: mechanics, gas exchange, control');
+{
+  const lung = (p = {}, inp = {}) => { const r = new Respiratory(p); r.setInputs(inp); r.equilibrate(); return r.snapshot(); };
+  const n = lung();
+  ok('healthy adult at sea level: normal blood gases, small A–a difference, normal dead space and rate',
+    n.PaO2 > 11 && n.PaO2 < 13.5 && Math.abs(n.PaCO2 - 5.33) < 0.3 && Math.abs(n.pH - 7.4) < 0.03 && n.SaO2 > 0.95 && n.AaGradient < 2.5 && n.VDVT > 0.25 && n.VDVT < 0.4 && n.RR >= 12 && n.RR <= 18,
+    `PaO2 ${n.PaO2.toFixed(1)} PaCO2 ${n.PaCO2.toFixed(2)} pH ${n.pH.toFixed(2)} A–a ${n.AaGradient.toFixed(1)} VD/VT ${n.VDVT.toFixed(2)} RR ${n.RR.toFixed(0)}`);
+  ok('alveolar gas equation: ideal PAO2 = FiO2·(PB − PH2O) − PaCO2/R', Math.abs(n.PAO2ideal - (0.21 * (101.3 - 6.27) - n.PaCO2 / 0.8)) < 0.4);
+  ok('forced expiration: FEV1, FVC and PEF near predicted, FEV1/FVC about 0.8',
+    Math.abs(n.FEV1 / n.pred.FEV1 - 1) < 0.12 && Math.abs(n.FVC / n.pred.FVC - 1) < 0.12 && Math.abs(n.FEV1 / n.FVC - 0.81) < 0.06 && Math.abs(n.PEF / n.pred.PEF - 1) < 0.15,
+    `FEV1 ${n.FEV1.toFixed(2)}/${n.pred.FEV1.toFixed(2)} FVC ${n.FVC.toFixed(2)}/${n.pred.FVC.toFixed(2)} PEF ${(n.PEF * 60).toFixed(0)}/${(n.pred.PEF * 60).toFixed(0)}`);
+
+  const alt = lung({ Pb: 66 });
+  ok('altitude (3500 m): hypoxaemia with a normal A–a difference, and hyperventilation lowers CO2', alt.PaO2 < 8 && alt.AaGradient < 1.5 && alt.PaCO2 < n.PaCO2 - 0.3 && alt.RpulMult > 1.2,
+    `PaO2 ${alt.PaO2.toFixed(1)} A–a ${alt.AaGradient.toFixed(1)} PaCO2 ${alt.PaCO2.toFixed(2)} PVR ×${alt.RpulMult.toFixed(2)}`);
+  const op = lung({ drive: 0.25 });
+  ok('depressed drive (opioid): hypercapnia, slow rate, normal A–a difference — pure hypoventilation', op.PaCO2 > 7.5 && op.RR < n.RR && op.AaGradient < 2.5,
+    `PaCO2 ${op.PaCO2.toFixed(2)} RR ${op.RR.toFixed(0)} A–a ${op.AaGradient.toFixed(1)}`);
+
+  // Shunt does not respond to oxygen; V/Q mismatch does.
+  const sh = lung({ consRLL: 0.95, consLLL: 0.9 }), shO2 = lung({ consRLL: 0.95, consLLL: 0.9, FiO2: 1 });
+  const vq = lung({ vqMismatch: 1.1 }), vqO2 = lung({ vqMismatch: 1.1, FiO2: 1 });
+  ok('shunt (two consolidated lobes): breathing 100 % O2 leaves PaO2 far below the alveolar value', shO2.PaO2 < 35 && shO2.AaGradient > 40 && sh.shunt > 0.2,
+    `room air ${sh.PaO2.toFixed(1)}, on 100 % ${shO2.PaO2.toFixed(1)} kPa, shunt ${(sh.shunt * 100).toFixed(0)} %`);
+  ok('V/Q mismatch with a similar room-air PaO2: 100 % O2 corrects it', vq.PaO2 < 9 && vqO2.PaO2 > 55, `room air ${vq.PaO2.toFixed(1)}, on 100 % ${vqO2.PaO2.toFixed(1)} kPa`);
+
+  // Metabolic acidosis: the respiratory compensation that comes out of the controller is Winters' formula.
+  for (const sbc of [12, 18]) {
+    const w = lung({}, { sbc }); const exp = (1.5 * sbc + 8) / 7.5;
+    ok(`metabolic acidosis (HCO3 ${sbc}): PaCO2 within 2 mmHg of Winters' formula`, Math.abs(w.PaCO2 - exp) < 0.27, `${w.PaCO2.toFixed(2)} vs ${exp.toFixed(2)} kPa`);
+  }
+
+  const copd = { emphysema: 0.65, bronchoconstriction: 0.55, vqMismatch: 0.4 };
+  const c0 = lung(copd, { sbc: 30 }), c6 = lung({ ...copd, FiO2: 0.6 }, { sbc: 30 });
+  ok('COPD: obstruction (FEV1/FVC < 0.7, low PEF), hypoxaemia, raised CO2 with near-normal pH (chronic bicarbonate)',
+    c0.FEV1 / c0.FVC < 0.7 && c0.PEF < 0.4 * c0.pred.PEF && c0.PaO2 < 8 && c0.PaCO2 > 6 && c0.pH > 7.33, `ratio ${(c0.FEV1 / c0.FVC).toFixed(2)} PaO2 ${c0.PaO2.toFixed(1)} PaCO2 ${c0.PaCO2.toFixed(2)} pH ${c0.pH.toFixed(2)}`);
+  ok('…high-flow oxygen raises its CO2 (released hypoxic vasoconstriction, Haldane effect, less drive)', c6.PaCO2 > c0.PaCO2 + 0.3, `${c0.PaCO2.toFixed(2)} → ${c6.PaCO2.toFixed(2)} kPa`);
+  { const r = new Respiratory(copd); r.setInputs({ sbc: 30 }); r.equilibrate(); r.advance(30); const s = r.snapshot();
+    ok('…and the lung cannot empty between breaths: dynamic hyperinflation and intrinsic PEEP', s.iPEEP > 2 && s.tauE * 3 > s.Te, `PEEPi ${s.iPEEP.toFixed(1)} cmH2O, τE ${s.tauE.toFixed(2)} s, TE ${s.Te.toFixed(2)} s`); }
+  const fib = lung({ fibrosis: 0.6 });
+  ok('fibrosis: restriction (small FVC, high FEV1/FVC), rapid shallow breathing, lower diffusing capacity', fib.FVC < 0.8 * fib.pred.FVC && fib.FEV1 / fib.FVC > 0.8 && fib.RR > n.RR && fib.DLCOpct < 60,
+    `FVC ${(100 * fib.FVC / fib.pred.FVC).toFixed(0)} %, ratio ${(fib.FEV1 / fib.FVC).toFixed(2)}, RR ${fib.RR.toFixed(0)}, DLCO ${fib.DLCOpct.toFixed(0)} %`);
+  const fibEx = lung({ fibrosis: 0.6, metabolicRate: 3 }, { CO: 13 });
+  ok('…and desaturates on exertion (shorter capillary transit, diffusion limitation)', fibEx.SaO2 < fib.SaO2 - 0.015, `${(fib.SaO2 * 100).toFixed(1)} → ${(fibEx.SaO2 * 100).toFixed(1)} %`);
+  const gbs = lung({ muscleStrength: 0.15 });
+  ok('respiratory muscle weakness: vital capacity falls and CO2 rises (ventilatory failure)', gbs.FVC < 0.5 * gbs.pred.FVC && gbs.PaCO2 > 7, `FVC ${(100 * gbs.FVC / gbs.pred.FVC).toFixed(0)} %, PaCO2 ${gbs.PaCO2.toFixed(2)}`);
+
+  const co = lung({ COHb: 0.3 }), met = lung({ metHb: 0.3 });
+  ok('carbon monoxide: the pulse oximeter reads normal while the co-oximeter shows the O2-carrying fraction is low', pulseOximeter(co).SpO2 >= 93 && co.FO2Hb < 0.72,
+    `SpO2 ${pulseOximeter(co).SpO2.toFixed(0)} %, O2Hb ${(co.FO2Hb * 100).toFixed(0)} %`);
+  ok('methaemoglobin pulls the oximeter toward 85 % whatever the PaO2', Math.abs(pulseOximeter(met).SpO2 - 86) < 5 && met.PaO2 > 11, `SpO2 ${pulseOximeter(met).SpO2.toFixed(0)} %`);
+  const an = lung({}, { Hb: 70 });
+  ok('anaemia: normal PaO2 and saturation, O2 content halved', an.PaO2 > 11 && an.SaO2 > 0.95 && an.CaO2 < 0.55 * n.CaO2, `CaO2 ${an.CaO2.toFixed(1)} vs ${n.CaO2.toFixed(1)} mL/dL`);
+}
+
+console.log('\nThe lungs and the circulation, coupled');
+{
+  const settled = (mut) => { const m = healthyModel(); mut?.(m); return { m, s: settleModel(m, 24).snapshot }; };
+  const base = caseById('exertional-syncope-as');
+  const viewOf = ({ m, s }, state) => buildView(caseWithModel(base, m), { circulation: s, state: { ...base.initialState, position: 'sitting', exposure: ['chest'], ...(state ?? {}) } });
+  const at = (v, prop, site) => obs(base, v, prop, site ? { site } : {}).value;
+  const H = settled();
+  const hv = viewOf(H);
+  ok('healthy: resonant, vesicular, no added sounds at every site; trachea central; normal chest X-ray', ['upper-zone', 'mid-zone', 'axilla', 'upper-back', 'lung-base'].every((k) => ['L', 'R'].every((sd) => {
+    const s = `chest.${k}.${sd}`; const b = at(hv, 'lung.sounds', s);
+    return at(hv, 'chest.percussion', s).note === 'resonant' && b.breath === 'vesicular' && b.added.length === 0;
+  })) && at(hv, 'trachea.position').position === 'central' && J(REGISTRY.resolvers['resp.cxr'](hv, { property: 'cxr' }, {}).value.findings) === J(['normal']));
+  ok('healthy: SpO2 on room air 95–99 %, RR 12–18', (() => { const v = at(hv, 'vitals.spo2'); return v.spo2 >= 95 && v.spo2 <= 99 && v.fio2 === 0.21; })() && at(hv, 'vitals.rr') >= 12 && at(hv, 'vitals.rr') <= 18);
+
+  const P = settled((m) => Object.assign(m.respiratory, { consRLL: 0.8 }));
+  const pv = viewOf(P);
+  const rb = at(pv, 'lung.sounds', 'chest.lung-base.R');
+  ok('right lower lobe pneumonia: right base dull, bronchial breathing, coarse crackles, increased vocal resonance',
+    at(pv, 'chest.percussion', 'chest.lung-base.R').note === 'dull' && rb.breath === 'bronchial' && rb.added.includes('coarse-crackles') && at(pv, 'chest.resonance', 'chest.lung-base.R').resonance === 'increased', J(rb));
+  ok('…the left base is normal, and the chest X-ray shows right lower lobe consolidation', at(pv, 'chest.percussion', 'chest.lung-base.L').note === 'resonant'
+    && REGISTRY.resolvers['resp.cxr'](pv, { property: 'cxr' }, {}).value.findings.includes('consolidation-RLL'));
+  ok('…tachypnoea, hypoxaemia and a low CO2 (type 1 respiratory failure)', P.s.resp.RR > H.s.resp.RR + 3 && P.s.resp.PaO2 < 10 && P.s.resp.PaCO2 < H.s.resp.PaCO2,
+    `RR ${P.s.resp.RR.toFixed(0)} PaO2 ${P.s.resp.PaO2.toFixed(1)} PaCO2 ${P.s.resp.PaCO2.toFixed(2)}`);
+
+  const E = settled((m) => { m.respiratory.effusionR = 2500; });
+  const ev = viewOf(E);
+  ok('large right effusion: stony dull, absent breath sounds at the base, trachea pushed left, right expansion reduced',
+    at(ev, 'chest.percussion', 'chest.lung-base.R').note === 'stony-dull' && at(ev, 'lung.sounds', 'chest.lung-base.R').breath === 'absent' && at(ev, 'trachea.position').position === 'L'
+    && obs(base, ev, 'chest.expansion.R').value.expansion === 'reduced' && obs(base, ev, 'chest.expansion.L').value.expansion === 'normal');
+  const X = settled((m) => { m.respiratory.ptxL = 0.6; });
+  const xv = viewOf(X);
+  ok('left pneumothorax: hyper-resonant, absent breath sounds on the left; the X-ray shows it', at(xv, 'chest.percussion', 'chest.upper-zone.L').note === 'hyper-resonant'
+    && ['absent', 'reduced'].includes(at(xv, 'lung.sounds', 'chest.upper-zone.L').breath) && REGISTRY.resolvers['resp.cxr'](xv, { property: 'cxr' }, {}).value.findings.includes('pneumothorax-L'));
+  const C = settled((m) => { m.respiratory.collRUL = 0.95; });
+  ok('right upper lobe collapse pulls the trachea to the right', at(viewOf(C), 'trachea.position').position === 'R');
+
+  const PE = settled((m) => Object.assign(m.respiratory, { embRLL: 0.6, embLLL: 0.6 }));
+  const pev = viewOf(PE);
+  ok('pulmonary embolism: pulmonary vascular resistance and arterial pressure rise, the heart speeds up, the chest is clear',
+    PE.s.resp.RpulMult > 1.6 && PE.s.metrics.PpaMean > H.s.metrics.PpaMean + 3 && PE.s.ecgMetrics.HR > H.s.ecgMetrics.HR + 6
+    && at(pev, 'lung.sounds', 'chest.lung-base.R').added.length === 0, `PVR ×${PE.s.resp.RpulMult.toFixed(2)} PA ${PE.s.metrics.PpaMean.toFixed(0)} HR ${PE.s.ecgMetrics.HR}`);
+  ok('…hypoxaemia and hypocapnia, with end-tidal CO2 far below arterial (alveolar dead space)', PE.s.resp.PaO2 < 10 && PE.s.resp.PaCO2 < 5.1 && PE.s.resp.PaCO2 - PE.s.resp.EtCO2 > 1,
+    `PaO2 ${PE.s.resp.PaO2.toFixed(1)} PaCO2 ${PE.s.resp.PaCO2.toFixed(2)} EtCO2 ${PE.s.resp.EtCO2.toFixed(2)}`);
+  ok('…D-dimer raised, CTPA shows both lower lobe arteries occluded, the chest X-ray shows no consolidation',
+    REGISTRY.resolvers['resp.ddimer'](pev, { property: 'd-dimer' }, {}).value > 0.5
+    && ['pe-RLL', 'pe-LLL'].every((x) => REGISTRY.resolvers['resp.ctpa'](pev, { property: 'ctpa' }, {}).value.findings.includes(x))
+    && !REGISTRY.resolvers['resp.cxr'](pev, { property: 'cxr' }, {}).value.findings.some((x) => x.startsWith('consolidation')));
+
+  const HF = settled((m) => Object.assign(m.circulation, { Emax: 0.9, bloodVolume: 6000 }));
+  const hfv = viewOf(HF);
+  ok('left heart failure: left atrial pressure floods the lungs from the bottom: fine crackles at the bases, oedema on the X-ray',
+    HF.s.metrics.PlaMean > 20 && at(hfv, 'lung.sounds', 'chest.lung-base.R').added.includes('fine-crackles') && REGISTRY.resolvers['resp.cxr'](hfv, { property: 'cxr' }, {}).value.findings.some((x) => x.startsWith('oedema')),
+    `LA ${HF.s.metrics.PlaMean.toFixed(0)} mmHg`);
+  ok('…hypoxaemia and tachypnoea follow from the water, not from a rule', HF.s.resp.PaO2 < H.s.resp.PaO2 - 2 && HF.s.resp.RR > H.s.resp.RR + 5);
+
+  const blue = settled((m) => Object.assign(m.respiratory, { consRLL: 0.95, consLLL: 0.95, consRML: 0.9 }));
+  const bv = viewOf(blue);
+  const anaemicBlue = settled((m) => { Object.assign(m.respiratory, { consRLL: 0.95, consLLL: 0.95, consRML: 0.9 }); m.chemistry.haemoglobin = 75; });
+  ok('central cyanosis follows deoxygenated haemoglobin: present when hypoxaemic, absent at the same saturation when anaemic',
+    at(bv, 'general.appearance').colour === 'cyanosed' && at(viewOf(anaemicBlue), 'general.appearance').colour !== 'cyanosed',
+    `deoxyHb ${blue.s.resp.deoxyHb.toFixed(0)} vs ${anaemicBlue.s.resp.deoxyHb.toFixed(0)} g/L`);
+
+  const As = settled((m) => { m.respiratory.bronchoconstriction = 0.4; });
+  const Sil = settled((m) => { m.respiratory.bronchoconstriction = 0.85; });
+  ok('asthma: wheeze everywhere; in the most severe, a silent chest (too little flow to wheeze)', at(viewOf(As), 'lung.sounds', 'chest.upper-zone.R').added.includes('wheeze')
+    && !at(viewOf(Sil), 'lung.sounds', 'chest.upper-zone.R').added.includes('wheeze') && at(viewOf(Sil), 'lung.sounds', 'chest.upper-zone.R').breath === 'reduced');
+  ok('…peak flow falls with the airways', REGISTRY.resolvers['resp.peakflow'](viewOf(As), { property: 'peak-flow' }, {}).value.pefPct < 70);
+
+  // Oxygen is an intervention: the encounter records the device, the model breathes the fraction.
+  const s0 = startEncounter(CATALOG, REGISTRY, base, buildView(base, { circulation: P.s }));
+  const r = performM(s0, 'give.oxygen.venturi-35');
+  ok('giving oxygen is a manoeuvre that sets the device and its FiO2 on the patient', r.outcome === 'performed' && s0.state.oxygen?.fio2 === 0.35);
+  const PO = settled((m) => Object.assign(m.respiratory, { consRLL: 0.8, FiO2: 0.35 }));
+  const spo = at(viewOf(PO), 'vitals.spo2');
+  ok('…and the saturation it reads is taken on that FiO2', spo.fio2 === 0.35 && spo.spo2 > at(pv, 'vitals.spo2').spo2 && /FiO₂ 0,35/.test(text({ property: 'vitals.spo2', value: spo, context: {} }, 'de')),
+    `${at(pv, 'vitals.spo2').spo2} → ${spo.spo2} %`);
+
+  const bad = clone(base);
+  bad.pathology.respiratory = { consRLL: 1.4, flux: 1 };
+  bad.pathology.chemistry = { ...(bad.pathology.chemistry ?? {}), paO2: 9 };
+  const bi = errors(validateCase(bad, CATALOG, REGISTRY)).map((i) => `${i.path}: ${i.message}`).join('\n');
+  ok('validator: respiratory parameters must exist and be in range; blood gases cannot be pinned (they are outputs)', /consRLL: expected 0–1/.test(bi) && /unknown respiratory parameter flux/.test(bi) && /chemistry\.paO2/.test(bi), bi);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

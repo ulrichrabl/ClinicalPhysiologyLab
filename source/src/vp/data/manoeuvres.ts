@@ -29,6 +29,53 @@ const auscultate = (
   ...extra,
 });
 
+
+/* ---- the lungs: five sites a side, each listened to, percussed and tested for vocal resonance ---------- */
+type LungSite = [string, string, string, string, string[], string[], 'front' | 'back' | 'side', boolean];
+const LUNG_SITES: LungSite[] = [
+  ['chest.upper-zone', 'upper-zone', 'upper zone', 'Lungenoberfeld', ['upper zone', 'apex', 'below the clavicle'], ['oberfeld', 'lungenspitze', 'infraklavikulär'], 'front', true],
+  ['chest.mid-zone', 'mid-zone', 'mid zone', 'Lungenmittelfeld', ['mid zone', 'middle zone', 'front of the chest'], ['mittelfeld', 'vorne'], 'front', false],
+  ['chest.axilla', 'axilla', 'axilla', 'Axilla', ['axilla', 'side of the chest', 'armpit'], ['axilla', 'achsel', 'seitlich'], 'side', false],
+  ['chest.upper-back', 'upper-back', 'upper back', 'oberen Rücken', ['upper back', 'between the scapulae'], ['oberer rücken', 'interskapulär'], 'back', false],
+  ['chest.lung-base', 'base', 'lung base', 'Lungenbasis', ['lung base', 'bases', 'back of the chest', 'lower zone'], ['lungenbasis', 'basal', 'unterfeld', 'rücken'], 'back', true],
+];
+const BACK: ManoeuvreDef['requires'] = { position: ['sitting', 'sitting-forward', 'standing'], exposure: ['chest'] };
+function lungManoeuvres([site, key, en, de, enPh, dePh, face, listed]: LungSite): ManoeuvreDef[] {
+  const reach = face === 'back' ? BACK : { exposure: ['chest'] };
+  const base = { target: site, paired: true, durationSeconds: 15, hidden: !listed } as const;
+  return [
+    { ...base, id: key === 'base' ? 'auscultate.lung-base' : `auscultate.lung-${key}`, verb: 'auscultate',
+      label: { en: `Listen to the lungs: ${en}`, de: `Lunge abhören: ${de}` },
+      phrases: { en: [...enPh.map((p) => `listen ${p}`), ...(key === 'base' ? ['listen to the lungs', 'breath sounds', 'chest auscultation', 'auscultate lungs'] : [])],
+        de: [...dePh.map((p) => `abhören ${p}`), ...(key === 'base' ? ['lunge abhören', 'atemgeräusch', 'lunge auskultieren'] : [])] },
+      reveals: [{ property: 'lung.sounds', context: { site } }],
+      context: { site, instrument: 'stethoscope-diaphragm', respiration: 'quiet' },
+      requires: { instrument: ['stethoscope-diaphragm'], ...reach }, durationSeconds: 20 },
+    { ...base, id: `percuss.lung-${key}`, verb: 'percuss',
+      label: { en: `Percuss: ${en}`, de: `Perkutieren: ${de}` },
+      phrases: { en: [...enPh.map((p) => `percuss ${p}`), ...(key === 'base' ? ['percuss the chest', 'percussion', 'percuss the lungs'] : [])],
+        de: [...dePh.map((p) => `perkutieren ${p}`), ...(key === 'base' ? ['thorax perkutieren', 'perkussion', 'lunge perkutieren', 'klopfschall'] : [])] },
+      reveals: [{ property: 'chest.percussion', context: { site } }], context: { site },
+      requires: { instrument: ['hands'], ...reach } },
+    { ...base, id: `resonance.lung-${key}`, verb: 'auscultate', hidden: key !== 'base',
+      label: { en: `Vocal resonance: ${en}`, de: `Bronchophonie: ${de}` },
+      phrases: { en: [...enPh.map((p) => `vocal resonance ${p}`), ...(key === 'base' ? ['vocal resonance', 'say 99', 'tactile fremitus', 'vocal fremitus'] : [])],
+        de: [...dePh.map((p) => `bronchophonie ${p}`), ...(key === 'base' ? ['bronchophonie', 'stimmfremitus', '66 sagen', 'sechsundsechzig'] : [])] },
+      reveals: [{ property: 'chest.resonance', context: { site } }], context: { site, instrument: 'stethoscope-diaphragm' },
+      requires: { instrument: ['stethoscope-diaphragm', 'hands'], ability: ['follows-commands'], ...reach } },
+  ];
+}
+
+/* ---- oxygen: a device and the inspired fraction it gives ---------------------------------------------- */
+const OXYGEN: Array<[string, string, number, string, string, string[], string[]]> = [
+  ['nasal-2', 'nasal cannula 2 L/min', 0.28, 'Give oxygen: nasal cannula, 2 L/min', 'Sauerstoff geben: Nasenbrille, 2 l/min', ['nasal cannula', 'nasal specs', 'oxygen 2 litres', 'low flow oxygen'], ['nasenbrille', '2 liter sauerstoff', 'sauerstoff über nasenbrille']],
+  ['venturi-28', 'Venturi mask 28 %', 0.28, 'Give oxygen: Venturi mask 28 %', 'Sauerstoff geben: Venturi-Maske 28 %', ['venturi 28', '28 percent venturi', 'controlled oxygen'], ['venturi 28', 'venturimaske 28', 'kontrollierte sauerstoffgabe']],
+  ['venturi-35', 'Venturi mask 35 %', 0.35, 'Give oxygen: Venturi mask 35 %', 'Sauerstoff geben: Venturi-Maske 35 %', ['venturi 35', '35 percent venturi'], ['venturi 35', 'venturimaske 35']],
+  ['mask-6', 'simple face mask 6 L/min', 0.40, 'Give oxygen: face mask, 6 L/min', 'Sauerstoff geben: Gesichtsmaske, 6 l/min', ['face mask', 'oxygen mask', 'simple mask'], ['gesichtsmaske', 'sauerstoffmaske', 'maske 6 liter']],
+  ['nrb-15', 'non-rebreather mask 15 L/min', 0.80, 'Give oxygen: non-rebreather mask, 15 L/min', 'Sauerstoff geben: Maske mit Reservoir, 15 l/min', ['non-rebreather', 'reservoir mask', 'high flow oxygen', '15 litres', 'give oxygen'], ['reservoirmaske', 'maske mit reservoir', '15 liter sauerstoff', 'hochdosiert sauerstoff', 'sauerstoff geben']],
+  ['off', 'room air', 0.21, 'Stop the oxygen', 'Sauerstoff beenden', ['stop oxygen', 'room air', 'take the oxygen off'], ['sauerstoff beenden', 'raumluft', 'sauerstoff absetzen']],
+];
+
 export const MANOEUVRES: ManoeuvreDef[] = [
   /* ---- general and vital signs -------------------------------------------- */
   {
@@ -129,15 +176,31 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     context: { site: 'neck.carotid', instrument: 'stethoscope-bell', respiration: 'held-expiration' },
     requires: { instrument: ['stethoscope-bell', 'stethoscope-diaphragm'] }, durationSeconds: 15,
   },
+  ...LUNG_SITES.flatMap(lungManoeuvres),
   {
-    id: 'auscultate.lung-base', verb: 'auscultate', target: 'chest.lung-base', paired: true,
-    label: { en: 'Listen at the lung base', de: 'Lungenbasis abhören' },
-    phrases: { en: ['listen to the lungs', 'lung bases', 'breath sounds', 'chest auscultation'], de: ['lunge abhören', 'lungenbasis', 'atemgeräusch', 'lunge auskultieren'] },
-    reveals: [{ property: 'lung.sounds', context: { site: 'chest.lung-base' } }],
-    context: { site: 'chest.lung-base', instrument: 'stethoscope-diaphragm', respiration: 'quiet' },
-    requires: { instrument: ['stethoscope-diaphragm'], position: ['sitting', 'sitting-forward', 'standing'], exposure: ['chest'] },
-    durationSeconds: 20,
+    id: 'inspect.breathing', verb: 'inspect', target: 'chest',
+    label: { en: 'Watch the breathing', de: 'Atmung beobachten' },
+    phrases: { en: ['watch the breathing', 'look at the breathing', 'work of breathing', 'accessory muscles', 'respiratory pattern', 'is he breathless', 'is she breathless', 'can they speak'],
+      de: ['atmung beobachten', 'atemmuster', 'atemarbeit', 'atemhilfsmuskulatur', 'dyspnoe beurteilen', 'sprechdyspnoe'] },
+    reveals: [{ property: 'breathing.pattern' }, { property: 'vitals.rr' }], durationSeconds: 30,
   },
+  {
+    id: 'palpate.trachea', verb: 'palpate', target: 'neck.trachea',
+    label: { en: 'Feel the position of the trachea', de: 'Lage der Trachea tasten' },
+    phrases: { en: ['trachea', 'tracheal position', 'feel the trachea', 'tracheal deviation'], de: ['trachea', 'trachealage', 'trachea tasten', 'trachealverlagerung'] },
+    reveals: [{ property: 'trachea.position' }], requires: { instrument: ['hands'] }, durationSeconds: 10,
+  },
+  {
+    id: 'palpate.chest-expansion', verb: 'palpate', target: 'chest',
+    label: { en: 'Assess chest expansion', de: 'Thoraxexkursion prüfen' },
+    phrases: { en: ['chest expansion', 'expansion', 'hands on the chest', 'symmetry of expansion'], de: ['thoraxexkursion', 'atemexkursion', 'thoraxbeweglichkeit', 'seitengleiche atemexkursion'] },
+    reveals: [{ property: 'chest.expansion', side: 'both' }], requires: { instrument: ['hands'], exposure: ['chest'] }, durationSeconds: 15,
+  },
+  ...OXYGEN.map(([id, device, fio2, en, de, enPh, dePh]): ManoeuvreDef => ({
+    id: `give.oxygen.${id}`, verb: 'give', target: 'airway',
+    label: { en, de }, phrases: { en: enPh, de: dePh },
+    reveals: [], durationSeconds: 30, sets: { oxygen: { device, fio2 } },
+  })),
 
   {
     id: 'measure.crt', verb: 'measure', target: 'hands',
