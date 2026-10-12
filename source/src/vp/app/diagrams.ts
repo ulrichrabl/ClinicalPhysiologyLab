@@ -920,9 +920,51 @@ const liverDiagram: Draw = (g, w, h, c) => {
   text(g, L(c, `encephalopathy grade ${num(c, b.encephalopathy, 1)} · tick: limit of normal`, `Enzephalopathie Grad ${num(c, b.encephalopathy, 1)} · Strich: Normgrenze`), x0, h - 10, { size: 10, color: css('--muted') });
 };
 
+/* Three feedback loops: the pituitary (or calcium-sensing) hormone and what it controls, each against its normal range
+   (hormones on log scales, since they move many-fold). */
+const endocrineDiagram: Draw = (g, w, h, c) => {
+  const b = bodyOf(c);
+  if (!b.tsh) return;
+  type Bar = [string, number, number, number, [number, number], boolean, string];
+  const loops: Array<[string, Bar, Bar]> = [
+    [L(c, 'Pituitary → thyroid', 'Hypophyse → Schilddrüse'), ['TSH (mU/L)', b.tsh, 0.005, 200, [0.4, 4], true, '#8a6bb8'], [L(c, 'free T4 (pmol/L)', 'freies T4 (pmol/l)'), b.ft4, 0, 70, [10, 22], false, '#c8a23d']],
+    [L(c, 'Pituitary → adrenal cortex', 'Hypophyse → Nebennierenrinde'), ['ACTH (ng/L)', b.acth, 2, 2000, [10, 50], true, '#8a6bb8'], [L(c, 'cortisol (nmol/L)', 'Cortisol (nmol/l)'), b.cortisol, 0, 1500, [170, 550], false, '#c8a23d']],
+    [L(c, 'Calcium ⇄ parathyroid', 'Calcium ⇄ Nebenschilddrüse'), ['PTH (pmol/L)', b.pth, 0.1, 200, [1.6, 6.9], true, '#8a6bb8'], [L(c, 'calcium, adjusted (mmol/L)', 'Calcium, korrigiert (mmol/l)'), b.calcium, 1.5, 4, [2.2, 2.6], false, '#6a8fb8']],
+  ];
+  const wide = w >= 600;
+  const x0 = 16, colW = wide ? (w - 48) / 2 : w - 32;
+  const rowH = wide ? (h - 40) / 3 : (h - 40) / 6;
+  const pos = (bar: Bar, x: number) => {
+    const [, v, lo, hi, , log] = bar;
+    const f = log ? (Math.log10(Math.max(lo, x)) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo)) : (x - lo) / (hi - lo);
+    void v; return clamp(f, 0, 1);
+  };
+  const drawBar = (bar: Bar, x: number, y: number, bw: number) => {
+    const [lab, v, , hi, [nlo, nhi], , col] = bar;
+    text(g, lab, x, y, { size: 11 }); text(g, num(c, v, hi <= 10 ? 2 : v < 10 ? 2 : 0), x + bw, y, { size: 11, align: 'right', mono: true });
+    g.fillStyle = css('--sunk'); g.fillRect(x, y + 5, bw, 10);
+    g.fillStyle = css('--muted'); g.globalAlpha = 0.25; g.fillRect(x + pos(bar, nlo) * bw, y + 5, (pos(bar, nhi) - pos(bar, nlo)) * bw, 10); g.globalAlpha = 1;
+    g.fillStyle = col; g.fillRect(x + pos(bar, v) * bw - 3, y + 3, 6, 14);
+  };
+  loops.forEach(([title, a, z], i) => {
+    if (wide) {
+      const y = 22 + i * rowH;
+      text(g, title, x0, y, { size: 11, weight: 600, color: css('--muted') });
+      drawBar(a, x0, y + 18, colW); drawBar(z, x0 + colW + 16, y + 18, colW);
+    } else {
+      const y = 22 + 2 * i * rowH;
+      text(g, title, x0, y, { size: 11, weight: 600, color: css('--muted') });
+      drawBar(a, x0, y + 18, colW); drawBar(z, x0, y + 18 + rowH * 0.8, colW);
+    }
+  });
+  text(g, L(c, `shaded: normal range · metabolic rate ×${num(c, b.metabolicMult, 2)} · cortisol short of demand ${num(c, 100 * (b.cortisolDeficit ?? 0), 0)} %`,
+    `schattiert: Normbereich · Grundumsatz ×${num(c, b.metabolicMult, 2)} · Cortisol unter Bedarf ${num(c, 100 * (b.cortisolDeficit ?? 0), 0)} %`), x0, h - 10, { size: 10, color: css('--muted') });
+};
+
 export const DIAGRAMS: Record<string, { draw: Draw; height: (w: number) => number }> = {
   blood: { draw: bloodDiagram, height: (w) => (w >= 600 ? 220 : 400) },
   liver: { draw: liverDiagram, height: () => 300 },
+  endocrine: { draw: endocrineDiagram, height: (w) => (w >= 600 ? 240 : 420) },
   inflammation: { draw: inflammation, height: () => 300 },
   water: { draw: water, height: (w) => (w >= 600 ? 300 : 520) },
   kidney: { draw: kidney, height: (w) => (w >= 620 ? 320 : 560) },

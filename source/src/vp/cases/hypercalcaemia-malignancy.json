@@ -1,0 +1,359 @@
+{
+  "schema": "vp.case/1",
+  "id": "hypercalcaemia-malignancy",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Thirst, constipation and confusion three years after breast cancer: hypercalcaemia of malignancy",
+    "de": "Durst, Verstopfung und Verwirrtheit drei Jahre nach Brustkrebs: Tumorhyperkalzämie"
+  },
+  "tags": [
+    "endocrine",
+    "calcium",
+    "cancer",
+    "confusion",
+    "kidney"
+  ],
+  "difficulty": 2,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-12",
+    "sources": [
+      "Stewart AF. Hypercalcemia associated with cancer. N Engl J Med 2005;352:373–9.",
+      "Walsh J, Gittoes N, Selby P; Society for Endocrinology Clinical Committee. Emergency management of acute hypercalcaemia in adult patients. Endocr Connect 2016;5:G9–11.",
+      "Minisola S et al. The diagnosis and management of hypercalcaemia. BMJ 2015;350:h2723."
+    ]
+  },
+  "patient": {
+    "name": "Hildegard Vogel",
+    "age": 68,
+    "sex": "F",
+    "heightCm": 163,
+    "weightKg": 64,
+    "appearance": {
+      "skinTone": 1,
+      "hair": "grey, short",
+      "build": "average"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ],
+    "companion": {
+      "name": "Martin Vogel",
+      "relation": {
+        "en": "son",
+        "de": "Sohn"
+      }
+    }
+  },
+  "setting": {
+    "place": {
+      "en": "Acute medical unit",
+      "de": "Internistische Aufnahmestation"
+    },
+    "triage": {
+      "en": "Two weeks of thirst, nausea and constipation; more confused over the last few days. Breast cancer three years ago.",
+      "de": "Seit zwei Wochen Durst, Übelkeit und Verstopfung; seit einigen Tagen zunehmend verwirrt. Vor drei Jahren Brustkrebs."
+    }
+  },
+  "pathology": {
+    "chronic": {
+      "days": 30,
+      "body": {
+        "pthrp": 0.3,
+        "boneResorption": 0.15
+      }
+    },
+    "body": {
+      "pthrp": 1.0,
+      "boneResorption": 0.3,
+      "fluidIntake": 0.9,
+      "foodIntake": 0.4,
+      "vomiting": 0.3,
+      "courseHours": 336
+    }
+  },
+  "initialState": {
+    "position": "reclined-45",
+    "avpu": "A",
+    "orientation": "confused",
+    "cooperation": "limited",
+    "exposure": []
+  },
+  "observables": {
+    "abdomen.palpation": {
+      "value": {
+        "tenderness": "mild",
+        "mass": false,
+        "guarding": false
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "thirst",
+        "present": true
+      },
+      "say": {
+        "en": "I’m so thirsty. And sick. And I can’t think straight.",
+        "de": "Ich habe solchen Durst. Und mir ist übel. Und ich kann nicht klar denken."
+      }
+    },
+    {
+      "id": "f-son",
+      "topic": "hpc.onset",
+      "assertion": {
+        "concept": "polyuria",
+        "present": true
+      },
+      "say": {
+        "en": "She’s been drinking and drinking for a couple of weeks, up all night to the toilet, barely eating. The last three days she’s muddled, forgetting things she said an hour ago.",
+        "de": "Seit ein paar Wochen trinkt und trinkt sie, nachts ständig auf der Toilette, isst kaum. Seit drei Tagen ist sie durcheinander, vergisst, was sie vor einer Stunde gesagt hat."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-thirst",
+      "topic": "sx.thirst",
+      "assertion": {
+        "concept": "polydipsia",
+        "present": true
+      },
+      "say": {
+        "en": "Dry all the time, whatever I drink.",
+        "de": "Immer trocken, egal wie viel ich trinke."
+      }
+    },
+    {
+      "id": "f-urine",
+      "topic": "sx.urine",
+      "assertion": {
+        "concept": "nocturia",
+        "present": true
+      },
+      "say": {
+        "en": "Up four or five times a night.",
+        "de": "Vier-, fünfmal pro Nacht raus."
+      }
+    },
+    {
+      "id": "f-bowel",
+      "topic": "sx.diarrhoea",
+      "assertion": {
+        "concept": "constipation",
+        "present": true
+      },
+      "say": {
+        "en": "Constipated. Nothing for five days.",
+        "de": "Verstopft. Seit fünf Tagen nichts."
+      }
+    },
+    {
+      "id": "f-vomit",
+      "topic": "sx.vomiting",
+      "assertion": {
+        "concept": "vomiting",
+        "present": true
+      },
+      "say": {
+        "en": "Sick a few times. Mostly just nauseous.",
+        "de": "Ein paarmal erbrochen. Meist nur übel."
+      }
+    },
+    {
+      "id": "f-pain",
+      "topic": "sx.bone-pain",
+      "assertion": {
+        "concept": "bone-pain",
+        "present": true
+      },
+      "say": {
+        "en": "My back hurts, low down, and my right hip. Worse at night. For a couple of months.",
+        "de": "Mein Rücken tut weh, tief unten, und die rechte Hüfte. Nachts schlimmer. Seit ein paar Monaten."
+      }
+    },
+    {
+      "id": "f-conf",
+      "topic": "sx.confusion",
+      "assertion": {
+        "concept": "confusion",
+        "present": true
+      },
+      "say": {
+        "en": "Tired. So tired. What day is it?",
+        "de": "Müde. So müde. Welcher Tag ist heute?"
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "assertion": {
+        "concept": "breast-cancer",
+        "present": true
+      },
+      "say": {
+        "en": "Breast cancer on the left, three years ago. Operation, radiotherapy. They said it was gone. I stopped the tablets last year because of the joint pains.",
+        "de": "Brustkrebs links, vor drei Jahren. Operation, Bestrahlung. Es hieß, er sei weg. Die Tabletten habe ich letztes Jahr wegen der Gelenkschmerzen abgesetzt."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "assertion": {
+        "concept": "thiazide-use",
+        "present": false
+      },
+      "say": {
+        "en": "Nothing now. No calcium tablets, no vitamin D, no water tablets.",
+        "de": "Jetzt nichts. Keine Calciumtabletten, kein Vitamin D, keine Wassertabletten."
+      }
+    },
+    {
+      "id": "f-weight",
+      "topic": "sx.weight",
+      "assertion": {
+        "concept": "weight-loss",
+        "present": true,
+        "attributes": {
+          "kg": 5
+        }
+      },
+      "say": {
+        "en": "Lost weight, about five kilos.",
+        "de": "Abgenommen, etwa fünf Kilo."
+      }
+    },
+    {
+      "id": "f-ice",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "Has it come back, the cancer?",
+        "de": "Ist er zurück, der Krebs?"
+      },
+      "speaker": "companion"
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-bone",
+        "kind": "investigation",
+        "ref": "bone-profile",
+        "weight": "essential",
+        "why": {
+          "en": "Adjusted calcium well above 3: a severe hypercalcaemia. Phosphate low-normal.",
+          "de": "Korrigiertes Calcium deutlich über 3: eine schwere Hyperkalzämie. Phosphat niedrig-normal."
+        }
+      },
+      {
+        "id": "e-pth",
+        "kind": "investigation",
+        "ref": "pth",
+        "weight": "essential",
+        "discriminates": [
+          "primary-hyperparathyroidism"
+        ],
+        "why": {
+          "en": "PTH suppressed: the parathyroids are responding correctly, so the calcium is coming from elsewhere. With a cancer history: malignancy (PTH-related peptide, bone metastases).",
+          "de": "PTH supprimiert: Die Nebenschilddrüsen reagieren richtig, das Calcium kommt also von anderswo. Mit dieser Vorgeschichte: Malignom (PTH-related Peptide, Knochenmetastasen)."
+        }
+      },
+      {
+        "id": "e-ue",
+        "kind": "investigation",
+        "ref": "electrolytes",
+        "weight": "essential",
+        "why": {
+          "en": "Urea and creatinine raised: a dry patient. Calcium blocks the kidney’s concentrating ability; the polyuria dehydrates her, filtration falls, and the calcium climbs further.",
+          "de": "Harnstoff und Kreatinin erhöht: eine exsikkierte Patientin. Calcium blockiert die Konzentrierfähigkeit der Niere; die Polyurie trocknet sie aus, die Filtration fällt, und das Calcium steigt weiter."
+        }
+      },
+      {
+        "id": "e-mucosa",
+        "kind": "property",
+        "ref": "mouth.mucosa",
+        "weight": "supporting",
+        "why": {
+          "en": "Dry mucous membranes.",
+          "de": "Trockene Schleimhäute."
+        }
+      },
+      {
+        "id": "e-ecg",
+        "kind": "investigation",
+        "ref": "ecg-12",
+        "weight": "supporting",
+        "why": {
+          "en": "A short QT interval: calcium shortens the plateau of the action potential.",
+          "de": "Kurzes QT-Intervall: Calcium verkürzt das Plateau des Aktionspotenzials."
+        }
+      },
+      {
+        "id": "e-pain",
+        "kind": "fact",
+        "ref": "f-pain",
+        "weight": "essential",
+        "discriminates": [
+          "primary-hyperparathyroidism",
+          "multiple-myeloma"
+        ],
+        "why": {
+          "en": "Night bone pain in a woman treated for breast cancer: bone metastases until proven otherwise.",
+          "de": "Nächtliche Knochenschmerzen bei einer Frau nach Brustkrebs: Knochenmetastasen, bis das Gegenteil bewiesen ist."
+        }
+      },
+      {
+        "id": "e-meds",
+        "kind": "fact",
+        "ref": "f-meds",
+        "weight": "discriminating",
+        "why": {
+          "en": "No calcium, vitamin D or thiazide.",
+          "de": "Kein Calcium, kein Vitamin D, kein Thiazid."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "investigation",
+        "ref": "bone-profile",
+        "why": {
+          "en": "Severe symptomatic hypercalcaemia: intravenous 0.9 % saline, 3–4 L over the first 24 hours with fluid balance, then a bisphosphonate (zoledronic acid) once rehydrated; stop anything that raises calcium; monitor calcium, renal function and the ECG; restage the cancer (bone scan, CT) and involve oncology.",
+          "de": "Schwere symptomatische Hyperkalzämie: 0,9 % NaCl i.v., 3–4 l in den ersten 24 Stunden mit Bilanz, dann nach Rehydratation ein Bisphosphonat (Zoledronsäure); alles absetzen, was Calcium erhöht; Calcium, Nierenwerte und EKG überwachen; Restaging (Knochenszintigraphie, CT) und Onkologie einbeziehen."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 15,
+    "summary": {
+      "en": "A 68-year-old treated for breast cancer three years ago, off her endocrine therapy, with two months of night back and hip pain and two weeks of thirst, polyuria, nausea, constipation and weight loss, now confused. Dry. Adjusted calcium well above 3 mmol/L with a suppressed PTH, low-normal phosphate, raised urea and creatinine, a short QT. Hypercalcaemia of malignancy, most likely bone metastases with PTH-related peptide, complicated by dehydration and prerenal kidney injury: intravenous saline, then zoledronic acid, monitoring, restaging, oncology.",
+      "de": "Eine 68-Jährige nach Brustkrebs vor drei Jahren, ohne ihre endokrine Therapie, mit zwei Monaten nächtlicher Rücken- und Hüftschmerzen und zwei Wochen Durst, Polyurie, Übelkeit, Verstopfung und Gewichtsverlust, jetzt verwirrt. Exsikkiert. Korrigiertes Calcium deutlich über 3 mmol/l bei supprimiertem PTH, Phosphat niedrig-normal, Harnstoff und Kreatinin erhöht, kurzes QT. Tumorhyperkalzämie, am ehesten Knochenmetastasen mit PTH-related Peptide, kompliziert durch Exsikkose und prärenales Nierenversagen: Kochsalz i.v., dann Zoledronsäure, Überwachung, Restaging, Onkologie."
+    }
+  },
+  "diagnosis": {
+    "primary": "hypercalcaemia-malignancy",
+    "accepted": [
+      "hypercalcaemia",
+      "bone-metastases"
+    ],
+    "differential": [
+      "primary-hyperparathyroidism",
+      "multiple-myeloma",
+      "sarcoidosis",
+      "acute-kidney-injury",
+      "delirium",
+      "hyponatraemia"
+    ]
+  }
+}

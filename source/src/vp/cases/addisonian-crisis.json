@@ -1,0 +1,421 @@
+{
+  "schema": "vp.case/1",
+  "id": "addisonian-crisis",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Vomiting, collapse and a low blood pressure that fluid does not fix, in a man who has been tanned all winter: adrenal crisis",
+    "de": "Erbrechen, Kollaps und ein Blutdruck, der auf Volumen nicht anspricht, bei einem Mann, der den ganzen Winter gebräunt war: Addison-Krise"
+  },
+  "tags": [
+    "endocrine",
+    "adrenal",
+    "shock",
+    "hyponatraemia",
+    "emergency"
+  ],
+  "difficulty": 3,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-12",
+    "sources": [
+      "Bornstein SR et al. Diagnosis and treatment of primary adrenal insufficiency: an Endocrine Society clinical practice guideline. J Clin Endocrinol Metab 2016;101:364–89.",
+      "Rushworth RL, Torpy DJ, Falhammar H. Adrenal crisis. N Engl J Med 2019;381:852–61.",
+      "Arlt W; Society for Endocrinology Clinical Committee. Emergency management of acute adrenal insufficiency (adrenal crisis) in adult patients. Endocr Connect 2016;5:G1–3."
+    ]
+  },
+  "patient": {
+    "name": "Thomas Becker",
+    "age": 41,
+    "sex": "M",
+    "heightCm": 182,
+    "weightKg": 71,
+    "appearance": {
+      "skinTone": 3,
+      "hair": "dark, short",
+      "build": "thin"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ],
+    "companion": {
+      "name": "Katrin Becker",
+      "relation": {
+        "en": "wife",
+        "de": "Ehefrau"
+      }
+    }
+  },
+  "setting": {
+    "place": {
+      "en": "Emergency department, resuscitation bay",
+      "de": "Notaufnahme, Schockraum"
+    },
+    "triage": {
+      "en": "Three days of vomiting and diarrhoea, collapsed at home. BP low after a litre of saline from the ambulance crew.",
+      "de": "Seit drei Tagen Erbrechen und Durchfall, zu Hause kollabiert. Blutdruck trotz einem Liter Kochsalz vom Rettungsdienst niedrig."
+    }
+  },
+  "pathology": {
+    "chronic": {
+      "days": 90,
+      "body": {
+        "adrenalFunction": 0.03
+      }
+    },
+    "body": {
+      "adrenalFunction": 0.03,
+      "vomiting": 0.8,
+      "diarrhoea": 0.8,
+      "foodIntake": 0.1,
+      "fluidIntake": 2.0,
+      "infection": 0.3,
+      "stress": 0.5,
+      "courseHours": 72
+    }
+  },
+  "initialState": {
+    "position": "supine",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "full",
+    "exposure": []
+  },
+  "observables": {
+    "abdomen.palpation": {
+      "value": {
+        "tenderness": "mild",
+        "mass": false,
+        "guarding": false
+      }
+    },
+    "general.appearance": {
+      "value": {
+        "distress": "moderate",
+        "colour": "normal",
+        "sweating": false
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "vomiting",
+        "present": true
+      },
+      "say": {
+        "en": "I can’t stop being sick, and I fainted getting out of bed.",
+        "de": "Ich muss ständig erbrechen, und beim Aufstehen bin ich umgekippt."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "assertion": {
+        "concept": "gastroenteritis",
+        "present": true
+      },
+      "say": {
+        "en": "A tummy bug, three days ago. My son had it too, but he was fine after a day.",
+        "de": "Ein Magen-Darm-Infekt, vor drei Tagen. Mein Sohn hatte ihn auch, aber nach einem Tag war er wieder fit."
+      }
+    },
+    {
+      "id": "f-vomit",
+      "topic": "sx.vomiting",
+      "assertion": {
+        "concept": "vomiting",
+        "present": true
+      },
+      "say": {
+        "en": "Everything comes back up. Even water.",
+        "de": "Alles kommt wieder hoch. Sogar Wasser."
+      }
+    },
+    {
+      "id": "f-diarr",
+      "topic": "sx.diarrhoea",
+      "assertion": {
+        "concept": "diarrhoea",
+        "present": true
+      },
+      "say": {
+        "en": "Watery, five or six times a day.",
+        "de": "Wässrig, fünf-, sechsmal am Tag."
+      }
+    },
+    {
+      "id": "f-pain",
+      "topic": "sx.abdominal-pain",
+      "assertion": {
+        "concept": "abdominal-pain",
+        "present": true,
+        "attributes": {
+          "site": "diffuse"
+        }
+      },
+      "say": {
+        "en": "Crampy, all over. And my back and legs ache.",
+        "de": "Krampfartig, überall. Und Rücken und Beine tun weh."
+      }
+    },
+    {
+      "id": "f-before",
+      "topic": "hpc.previous",
+      "assertion": {
+        "concept": "fatigue",
+        "present": true
+      },
+      "say": {
+        "en": "Honestly, I haven’t been right for months. Exhausted, off my food, I’ve lost about eight kilos. Dizzy when I stand up.",
+        "de": "Ehrlich gesagt geht es mir seit Monaten nicht gut. Erschöpft, kein Appetit, etwa acht Kilo abgenommen. Schwindlig beim Aufstehen."
+      }
+    },
+    {
+      "id": "f-weight",
+      "topic": "sx.weight",
+      "assertion": {
+        "concept": "weight-loss",
+        "present": true,
+        "attributes": {
+          "kg": 8
+        }
+      },
+      "say": {
+        "en": "Eight kilos since the autumn.",
+        "de": "Acht Kilo seit dem Herbst."
+      }
+    },
+    {
+      "id": "f-salt",
+      "topic": "sx.salt-craving",
+      "assertion": {
+        "concept": "salt-craving",
+        "present": true
+      },
+      "say": {
+        "en": "I put salt on everything now. I eat crisps by the bag. Funny, really.",
+        "de": "Ich salze jetzt alles nach. Chips tütenweise. Eigentlich komisch."
+      }
+    },
+    {
+      "id": "f-skin",
+      "topic": "sx.skin",
+      "assertion": {
+        "concept": "hyperpigmentation",
+        "present": true
+      },
+      "say": {
+        "en": "Everyone says I look tanned. I haven’t been anywhere.",
+        "de": "Alle sagen, ich sehe gebräunt aus. Ich war nirgends."
+      }
+    },
+    {
+      "id": "f-wife",
+      "topic": "hpc.duration",
+      "assertion": {
+        "concept": "buccal-pigmentation",
+        "present": true
+      },
+      "say": {
+        "en": "He’s been grey and tired since Christmas, and his gums have gone a funny brown colour.",
+        "de": "Seit Weihnachten ist er grau und müde, und sein Zahnfleisch ist so komisch braun geworden."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-confusion",
+      "topic": "sx.confusion",
+      "assertion": {
+        "concept": "confusion",
+        "present": true
+      },
+      "say": {
+        "en": "Foggy. Slow.",
+        "de": "Benebelt. Langsam."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "assertion": {
+        "concept": "autoimmune-disease",
+        "present": true
+      },
+      "say": {
+        "en": "An underactive thyroid, on levothyroxine for five years. Vitiligo on my hands.",
+        "de": "Eine Schilddrüsenunterfunktion, seit fünf Jahren Levothyroxin. Vitiligo an den Händen."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "assertion": {
+        "concept": "steroid-use",
+        "present": false
+      },
+      "say": {
+        "en": "Just the thyroxine. Never any steroids.",
+        "de": "Nur das Thyroxin. Nie Kortison."
+      }
+    },
+    {
+      "id": "f-fhx",
+      "topic": "fhx",
+      "assertion": {
+        "concept": "family-autoimmune",
+        "present": true
+      },
+      "say": {
+        "en": "Mum has type 1 diabetes.",
+        "de": "Meine Mutter hat Typ-1-Diabetes."
+      }
+    },
+    {
+      "id": "f-ice",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "It’s only a stomach bug. Why am I this ill?",
+        "de": "Es ist doch nur ein Magen-Darm-Infekt. Warum geht es mir so schlecht?"
+      }
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-bp",
+        "kind": "property",
+        "ref": "vitals.bp.R",
+        "context": {
+          "position": "standing"
+        },
+        "weight": "essential",
+        "why": {
+          "en": "Hypotension, worse on sitting up, after a litre of saline: cortisol is needed for vessels to respond to noradrenaline.",
+          "de": "Hypotonie, beim Aufsetzen schlechter, nach einem Liter Kochsalz: Cortisol ist nötig, damit die Gefäße auf Noradrenalin ansprechen."
+        }
+      },
+      {
+        "id": "e-pig",
+        "kind": "property",
+        "ref": "skin.pigmentation",
+        "weight": "essential",
+        "discriminates": [
+          "secondary-adrenal-insufficiency",
+          "gastroenteritis"
+        ],
+        "why": {
+          "en": "Pigmented palmar creases and buccal mucosa: months of a high ACTH. Primary adrenal failure, not pituitary.",
+          "de": "Pigmentierte Handlinien und Wangenschleimhaut: monatelang hohes ACTH. Primäres Nebennierenversagen, nicht hypophysär."
+        }
+      },
+      {
+        "id": "e-ue",
+        "kind": "investigation",
+        "ref": "electrolytes",
+        "weight": "essential",
+        "discriminates": [
+          "gastroenteritis",
+          "hyponatraemia"
+        ],
+        "why": {
+          "en": "Low sodium and high potassium together: aldosterone is missing as well as cortisol. Urea raised: dry.",
+          "de": "Niedriges Natrium und hohes Kalium zusammen: Neben Cortisol fehlt auch Aldosteron. Harnstoff erhöht: exsikkiert."
+        }
+      },
+      {
+        "id": "e-cort",
+        "kind": "investigation",
+        "ref": "cortisol",
+        "weight": "essential",
+        "why": {
+          "en": "A cortisol far too low for a man this ill, with a very high ACTH: diagnostic. Take it, then give hydrocortisone without waiting for the result.",
+          "de": "Ein Cortisol viel zu niedrig für einen so kranken Mann, mit sehr hohem ACTH: diagnostisch. Abnehmen, dann Hydrocortison geben, ohne auf das Ergebnis zu warten."
+        }
+      },
+      {
+        "id": "e-glu",
+        "kind": "investigation",
+        "ref": "glucose",
+        "weight": "supporting",
+        "why": {
+          "en": "Glucose low-normal after days without food: cortisol keeps gluconeogenesis going.",
+          "de": "Glukose niedrig-normal nach Tagen ohne Essen: Cortisol hält die Glukoneogenese aufrecht."
+        }
+      },
+      {
+        "id": "e-renin",
+        "kind": "investigation",
+        "ref": "renin-aldosterone",
+        "weight": "supporting",
+        "discriminates": [
+          "secondary-adrenal-insufficiency"
+        ],
+        "why": {
+          "en": "High renin, low aldosterone: the zona glomerulosa is gone too.",
+          "de": "Hohes Renin, niedriges Aldosteron: Auch die Zona glomerulosa fehlt."
+        }
+      },
+      {
+        "id": "e-pmh",
+        "kind": "fact",
+        "ref": "f-pmh",
+        "weight": "supporting",
+        "why": {
+          "en": "Hypothyroidism and vitiligo: autoimmune polyendocrine syndrome; autoimmune adrenalitis is the commonest cause of Addison’s disease.",
+          "de": "Hypothyreose und Vitiligo: autoimmunes polyglanduläres Syndrom; die Autoimmunadrenalitis ist die häufigste Ursache des Morbus Addison."
+        }
+      },
+      {
+        "id": "e-salt",
+        "kind": "fact",
+        "ref": "f-salt",
+        "weight": "supporting",
+        "why": {
+          "en": "Salt craving: the body’s answer to losing sodium without aldosterone.",
+          "de": "Salzhunger: die Antwort des Körpers auf Natriumverlust ohne Aldosteron."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "property",
+        "ref": "vitals.bp.R",
+        "why": {
+          "en": "Adrenal crisis: hydrocortisone 100 mg intravenously now (after a cortisol and ACTH sample, without waiting for them), then 200 mg/day; a litre of saline in the first hour; treat hypoglycaemia; find the precipitant. Steroid emergency card and sick-day rules before discharge.",
+          "de": "Addison-Krise: jetzt 100 mg Hydrocortison i.v. (nach Abnahme von Cortisol und ACTH, ohne auf sie zu warten), dann 200 mg/Tag; ein Liter Kochsalz in der ersten Stunde; Hypoglykämie behandeln; Auslöser suchen. Notfallausweis und Regeln für Krankheitstage vor der Entlassung."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 15,
+    "summary": {
+      "en": "A 41-year-old with autoimmune hypothyroidism and vitiligo, months of fatigue, weight loss, postural dizziness, salt craving and tanned skin, now three days of gastroenteritis and a collapse. Hypotension with a postural fall despite a litre of saline, tachycardia, dry, pigmented palmar creases and buccal mucosa. Low sodium, high potassium, raised urea, low-normal glucose; cortisol inappropriately low with a very high ACTH, high renin and low aldosterone. Adrenal crisis in previously undiagnosed autoimmune Addison’s disease, precipitated by gastroenteritis: hydrocortisone now, saline, glucose, then lifelong hydrocortisone and fludrocortisone with sick-day rules.",
+      "de": "Ein 41-Jähriger mit Autoimmunhypothyreose und Vitiligo, seit Monaten Müdigkeit, Gewichtsverlust, Schwindel beim Aufstehen, Salzhunger und gebräunter Haut, jetzt drei Tage Gastroenteritis und ein Kollaps. Hypotonie mit orthostatischem Abfall trotz einem Liter Kochsalz, Tachykardie, exsikkiert, pigmentierte Handlinien und Wangenschleimhaut. Natrium niedrig, Kalium hoch, Harnstoff erhöht, Glukose niedrig-normal; Cortisol inadäquat niedrig bei sehr hohem ACTH, hohes Renin, niedriges Aldosteron. Addison-Krise bei bisher unerkanntem autoimmunem Morbus Addison, ausgelöst durch eine Gastroenteritis: sofort Hydrocortison, Kochsalz, Glukose, dann lebenslang Hydrocortison und Fludrocortison mit Regeln für Krankheitstage."
+    }
+  },
+  "diagnosis": {
+    "primary": "addisonian-crisis",
+    "accepted": [
+      "adrenal-insufficiency"
+    ],
+    "differential": [
+      "gastroenteritis",
+      "sepsis",
+      "secondary-adrenal-insufficiency",
+      "hyponatraemia",
+      "acute-kidney-injury",
+      "diabetic-ketoacidosis"
+    ]
+  }
+}

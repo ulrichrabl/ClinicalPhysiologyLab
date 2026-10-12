@@ -135,6 +135,51 @@ export const BODY_LAB_RESOLVERS: Record<string, Resolver> = {
     const b = body(view); if (!b) return undefined;
     return { value: { reticulocytes: r1(b.reticulocytes, 1), ldh: r1(b.ldh), haptoglobin: r1(b.haptoglobin, 2), bilirubinUnconjugated: r1(b.bilirubin - b.bilirubinConjugated) } };
   },
+  /* ---- endocrine ---- */
+  'body.tremor': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: { tremor: b.thyroidEffect >= 1.6 ? 'fine' : 'none' }, basis: `thyroid hormone action ×${b.thyroidEffect.toFixed(2)} (a fine tremor from about 1.6)` };
+  },
+  'body.pigmentation': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: { pigmentation: b.acth >= 150 ? 'increased' : 'none' }, basis: `ACTH ${b.acth.toFixed(0)} ng/L (pigmentation needs months of ACTH several times normal)` };
+  },
+  'body.thyroid': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    const st = b.params.thyroidStimulation ?? 0;
+    return { value: { goitre: st >= 0.3 ? 'diffuse' : 'none', bruit: st >= 0.5 }, basis: `TSH-receptor stimulation ${st.toFixed(2)}` };
+  },
+  'body.thyroid-eyes': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    const orb = b.params.orbitopathy ?? 0, t = b.thyroidEffect;
+    return { value: { lidRetraction: t >= 1.8 || orb >= 0.3, lidLag: t >= 1.8, exophthalmos: orb >= 0.4 }, basis: `thyroid hormone action ×${t.toFixed(2)}; orbitopathy ${orb.toFixed(2)}` };
+  },
+  'body.tft': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: { tsh: Math.max(0.01, r1(b.tsh, b.tsh < 10 ? 2 : 1)), ft4: r1(b.ft4, 1), ft3: r1(b.ft3, 1) }, basis: `free T4 ${b.ft4.toFixed(1)} pmol/L; pituitary reserve ×${(b.params.pituitary ?? 1).toFixed(2)}` };
+  },
+  'body.cortisol': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: { cortisol: r1(b.cortisol), acth: r1(b.acth) }, basis: `cortisol ×${b.cortisolEffect.toFixed(2)} of a normal morning level; ${(100 * b.cortisolDeficit).toFixed(0)} % short of what the illness demands` };
+  },
+  'body.synacthen': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    const p = b.params;
+    const reserve = Math.min(1.5, p.adrenalFunction ?? 1) * Math.min(1, p.pituitary ?? 1) ** 0.7;
+    return { value: { cortisol0: r1(b.cortisol), cortisol30: r1(b.cortisol + 600 * reserve) }, basis: `adrenal reserve ×${reserve.toFixed(2)}` };
+  },
+  'body.renin': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: { renin: r1(13 * b.renin), aldosterone: r1(b.aldosteronePmol) }, basis: `angiotensin II ×${b.angII.toFixed(2)}, potassium ${b.potassium.toFixed(1)} mmol/L` };
+  },
+  'body.bone': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: { calciumTotal: r1(b.calciumTotal, 2), calcium: r1(b.calcium, 2), phosphate: r1(b.phosphate, 2), albumin: r1(b.albumin), alp: r1(b.alp) }, basis: `ionised calcium ${b.ionisedCalcium.toFixed(2)} mmol/L, PTH ${b.pth.toFixed(1)} pmol/L` };
+  },
+  'body.pth': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: { pth: r1(b.pth, 1), vitaminD: r1(b.vitaminD25) }, basis: `calcium ${b.calcium.toFixed(2)} mmol/L` };
+  },
   'body.urine-output': (view): Resolved | undefined => {
     const b = body(view); if (!b) return undefined;
     return { value: { mlPerHour: Math.round(b.urineMlPerH), mlPerKgPerHour: r1(b.urineMlPerH / Math.max(30, view.patient.weightKg ?? 70), 2) },

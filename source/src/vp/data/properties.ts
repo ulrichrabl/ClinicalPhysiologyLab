@@ -175,6 +175,26 @@ export const PROPERTIES: PropertyDef[] = [
     source: 'model-or-case', resolver: 'body.liver-stigmata', formatter: 'skin.liver-stigmata',
   },
   {
+    id: 'hands.tremor', structure: 'hands', label: { en: 'Tremor of the outstretched hands', de: 'Tremor der vorgehaltenen Hände' },
+    value: rec({ tremor: c('tremor') }), normal: { value: { tremor: 'none' } },
+    source: 'model-or-case', resolver: 'body.tremor', formatter: 'hands.tremor',
+  },
+  {
+    id: 'skin.pigmentation', structure: 'skin', label: { en: 'Pigmentation', de: 'Pigmentierung' },
+    value: rec({ pigmentation: c('pigmentation') }), normal: { value: { pigmentation: 'none' } },
+    source: 'model-or-case', resolver: 'body.pigmentation', formatter: 'skin.pigmentation',
+  },
+  {
+    id: 'neck.thyroid', structure: 'neck.thyroid', label: { en: 'Thyroid gland', de: 'Schilddrüse' },
+    value: rec({ goitre: c('goitre'), bruit: bool }), normal: { value: { goitre: 'none', bruit: false } },
+    source: 'model-or-case', resolver: 'body.thyroid', formatter: 'neck.thyroid',
+  },
+  {
+    id: 'eyes.thyroid', structure: 'eyes', label: { en: 'Lids and eye position (thyroid eye signs)', de: 'Lider und Bulbusstellung (Schilddrüsenaugenzeichen)' },
+    value: rec({ lidRetraction: bool, lidLag: bool, exophthalmos: bool }), normal: { value: { lidRetraction: false, lidLag: false, exophthalmos: false } },
+    source: 'model-or-case', resolver: 'body.thyroid-eyes', formatter: 'eyes.thyroid',
+  },
+  {
     id: 'mouth.mucosa', structure: 'mouth', label: { en: 'Mucous membranes', de: 'Schleimhäute' },
     value: rec({ moisture: c('mucosa') }), normal: { value: { moisture: 'moist' } },
     source: 'model-or-case', resolver: 'body.mucosa', formatter: 'mouth.mucosa',

@@ -913,5 +913,69 @@ console.log('\nBlood, gut and liver');
   ok('iron-deficiency case: pale, microcytic, ferritin empty', obs(I.c, I.view, 'eyes.conjunctiva').value.pallor !== 'none' && I.b.mcv < 82 && I.b.ferritin < 15, `MCV ${f1(I.b.mcv)} ferritin ${f1(I.b.ferritin)}`);
 }
 
+console.log('\nHormones: thyroid, adrenal cortex and calcium');
+{
+  const B = (mut, person) => { const m = healthyModel(); if (person) m.patient = { ...m.patient, ...person }; mut?.(m); const snap = settleModel(m, 12).snapshot; return { m, snap, b: snap.body, ch: chemistryState(snap, m.chemistry) }; };
+  const chronic = (days, body, acute = {}) => (m) => { m.chronic = { days, body }; Object.assign(m.body, body, { courseHours: 24 }, acute); };
+  const f = (x, d = 1) => (typeof x === 'number' ? x.toFixed(d) : x);
+  const H = B();
+  ok('at rest the three loops sit at their set points', Math.abs(H.b.tsh - 2) < 0.2 && Math.abs(H.b.ft4 - 16) < 0.5 && Math.abs(H.b.cortisol - 400) < 30 && Math.abs(H.b.calcium - 2.35) < 0.05 && Math.abs(H.b.pth - 4) < 0.6 && H.b.cortisolDeficit < 0.02,
+    `TSH ${f(H.b.tsh, 2)} fT4 ${f(H.b.ft4)} cortisol ${f(H.b.cortisol, 0)} Ca ${f(H.b.calcium, 2)} PTH ${f(H.b.pth)}`);
+  const G = B(chronic(60, { thyroidStimulation: 1 }));
+  ok('Graves: TSH suppressed, T4 high, a hyperdynamic circulation and a raised metabolic rate',
+    G.b.tsh < 0.1 && G.b.ft4 > 35 && G.snap.metrics.HRbeat > 100 && G.snap.metrics.CO > H.snap.metrics.CO * 1.3 && G.snap.resp.VO2 > H.snap.resp.VO2 * 1.4 && G.snap.metrics.SVR < H.snap.metrics.SVR * 0.8,
+    `TSH ${f(G.b.tsh, 3)} fT4 ${f(G.b.ft4)} HR ${f(G.snap.metrics.HRbeat, 0)} CO ${f(G.snap.metrics.CO)} VO2 ${f(G.snap.resp.VO2, 0)} SVR ${f(G.snap.metrics.SVR, 0)}`);
+  const Hy = B(chronic(90, { thyroidGland: 0.08 }));
+  ok('hypothyroidism: TSH high, T4 low, a slow pulse, cool, a low metabolic rate', Hy.b.tsh > 20 && Hy.b.ft4 < 8 && Hy.snap.metrics.HRbeat < 62 && Hy.b.temperature < 36.8 && Hy.snap.resp.VO2 < H.snap.resp.VO2 * 0.75,
+    `TSH ${f(Hy.b.tsh)} fT4 ${f(Hy.b.ft4)} HR ${f(Hy.snap.metrics.HRbeat, 0)} T ${f(Hy.b.temperature)} VO2 ${f(Hy.snap.resp.VO2, 0)}`);
+  const Sub = B(chronic(120, { thyroidGland: 0.5 }));
+  ok('a failing gland driven harder: subclinical hypothyroidism (TSH up, T4 still normal)', Sub.b.tsh > 4 && Sub.b.ft4 > 10, `TSH ${f(Sub.b.tsh)} fT4 ${f(Sub.b.ft4)}`);
+  const T4 = B(chronic(90, { thyroidGland: 0.02, thyroxineDose: 100 }));
+  ok('levothyroxine 1.6 µg/kg replaces the gland', T4.b.tsh > 0.4 && T4.b.tsh < 4 && T4.b.ft4 > 12, `TSH ${f(T4.b.tsh, 2)} fT4 ${f(T4.b.ft4)}`);
+  const Ad = B(chronic(90, { adrenalFunction: 0.03 }));
+  ok('Addison’s disease: cortisol low with ACTH very high, aldosterone low with renin high, sodium down, potassium up, blood pressure low',
+    Ad.b.cortisol < 120 && Ad.b.acth > 150 && Ad.b.aldosteronePmol < 100 && Ad.b.renin > 2 * H.b.renin && Ad.ch.sodium < 134 && Ad.ch.potassium > 5 && Ad.snap.metrics.Pmean < H.snap.metrics.Pmean - 6,
+    `cortisol ${f(Ad.b.cortisol, 0)} ACTH ${f(Ad.b.acth, 0)} aldo ${f(Ad.b.aldosteronePmol, 0)} renin ${f(Ad.b.renin)} Na ${f(Ad.ch.sodium)} K ${f(Ad.ch.potassium)} MAP ${f(Ad.snap.metrics.Pmean, 0)}`);
+  const AdT = B(chronic(90, { adrenalFunction: 0.03, hydrocortisoneDose: 20, fludrocortisone: 0.1 }));
+  ok('…hydrocortisone and fludrocortisone put it right', Math.abs(AdT.ch.sodium - H.ch.sodium) < 3 && Math.abs(AdT.ch.potassium - H.ch.potassium) < 0.4 && AdT.b.cortisolDeficit < 0.1 && Math.abs(AdT.snap.metrics.Pmean - H.snap.metrics.Pmean) < 6,
+    `Na ${f(AdT.ch.sodium)} K ${f(AdT.ch.potassium)} MAP ${f(AdT.snap.metrics.Pmean, 0)}`);
+  const Pit = B(chronic(90, { pituitary: 0.1 }));
+  ok('pituitary failure: TSH and ACTH low, T4 and cortisol low, aldosterone kept, no pigmentation',
+    Pit.b.tsh < 1 && Pit.b.ft4 < 12 && Pit.b.acth < 15 && Pit.b.cortisol < 250 && Pit.b.aldosteronePmol > 150 && Pit.ch.potassium < 4.8,
+    `TSH ${f(Pit.b.tsh, 2)} fT4 ${f(Pit.b.ft4)} ACTH ${f(Pit.b.acth, 0)} cortisol ${f(Pit.b.cortisol, 0)} aldo ${f(Pit.b.aldosteronePmol, 0)} K ${f(Pit.ch.potassium)}`);
+  const St = B((m) => Object.assign(m.body, { stress: 1, courseHours: 12 }));
+  ok('illness drives ACTH and cortisol up, and an intact adrenal meets the demand', St.b.cortisol > 650 && St.b.cortisolDeficit < 0.1, `cortisol ${f(St.b.cortisol, 0)} deficit ${f(St.b.cortisolDeficit, 2)}`);
+  const P = B(chronic(120, { pthAutonomy: 1 }));
+  ok('primary hyperparathyroidism: calcium high with PTH not suppressed, phosphate low-normal', P.b.calcium > 2.62 && P.b.calcium < 3.0 && P.b.pth > 7 && P.b.phosphate < H.b.phosphate,
+    `Ca ${f(P.b.calcium, 2)} PTH ${f(P.b.pth)} PO4 ${f(P.b.phosphate, 2)}`);
+  const M = B(chronic(30, {}, { pthrp: 1.0, boneResorption: 0.3, fluidIntake: 0.9, foodIntake: 0.4, courseHours: 336 }));
+  ok('PTHrP and metastases: calcium above 3 with PTH suppressed, the urine cannot concentrate, filtration falls',
+    M.b.calcium > 3.1 && M.b.pth < 1 && M.b.GFR < H.b.GFR * 0.9 && M.b.urineOsm < 500,
+    `Ca ${f(M.b.calcium, 2)} PTH ${f(M.b.pth)} GFR ${f(M.b.GFR, 0)} Uosm ${f(M.b.urineOsm, 0)}`);
+  const MT = B(chronic(30, {}, { pthrp: 1.0, boneResorption: 0.3, fluidIntake: 4, saltIntake: 300, foodIntake: 0.4, bisphosphonate: 0.9, courseHours: 336 }));
+  ok('…saline and a bisphosphonate bring it down', MT.b.calcium < M.b.calcium - 0.4, `Ca ${f(M.b.calcium, 2)} → ${f(MT.b.calcium, 2)}`);
+  const D = B(chronic(120, { vitaminD: 0.15 }));
+  ok('vitamin D deficiency: PTH up holds calcium near normal, phosphate falls', D.b.pth > 5 && D.b.calcium > 2.15 && D.b.phosphate < H.b.phosphate - 0.08, `Ca ${f(D.b.calcium, 2)} PTH ${f(D.b.pth)} PO4 ${f(D.b.phosphate, 2)}`);
+
+  const run = (id) => { const c = caseById(id); const snap = settleModel(modelFromCase(c), 16).snapshot; return { c, snap, b: snap.body, view: buildView(c, { circulation: snap, state: { ...c.initialState, exposure: ['chest', 'arm', 'neck', 'abdomen'] } }) }; };
+  const inv = (r, id) => REGISTRY.resolvers[CATALOG.investigations[id].resolver](r.view, { property: id }, {}).value;
+  const Gc = run('graves-thyrotoxicosis');
+  const ge = obs(Gc.c, Gc.view, 'eyes.thyroid').value, gt = obs(Gc.c, Gc.view, 'neck.thyroid').value;
+  ok('Graves case: tachycardia, tremor, a diffuse goitre with a bruit, lid lag and exophthalmos; TSH suppressed, T4 high',
+    obs(Gc.c, Gc.view, 'vitals.hr').value > 100 && obs(Gc.c, Gc.view, 'hands.tremor').value.tremor === 'fine' && gt.goitre === 'diffuse' && gt.bruit && ge.lidLag && ge.exophthalmos
+    && inv(Gc, 'tft').tsh < 0.1 && inv(Gc, 'tft').ft4 > 30, JSON.stringify({ hr: obs(Gc.c, Gc.view, 'vitals.hr').value, tft: inv(Gc, 'tft') }));
+  const Ac = run('addisonian-crisis');
+  const bpLie = obs(Ac.c, Ac.view, 'vitals.bp.R').value, bpStand = obs(Ac.c, Ac.view, 'vitals.bp.R', { position: 'standing' }).value;
+  ok('Addisonian crisis case: hypotension with a postural fall, pigmentation, sodium low and potassium high, cortisol low with ACTH high, a failed Synacthen test',
+    bpLie.systolic < 105 && bpStand.systolic < bpLie.systolic - 15 && obs(Ac.c, Ac.view, 'skin.pigmentation').value.pigmentation === 'increased'
+    && Ac.view.chemistry.sodium < 134 && Ac.view.chemistry.potassium > 5 && inv(Ac, 'cortisol').cortisol < 150 && inv(Ac, 'cortisol').acth > 150 && inv(Ac, 'synacthen').cortisol30 < 300,
+    JSON.stringify({ bpLie, bpStand, na: Ac.view.chemistry.sodium, k: Ac.view.chemistry.potassium, cort: inv(Ac, 'cortisol') }));
+  const Hc = run('hypercalcaemia-malignancy');
+  const ecg = REGISTRY.resolvers['electrical.ecg'](Hc.view, { property: 'ecg-12' }, {}).value;
+  ok('hypercalcaemia case: adjusted calcium above 3.2 with PTH suppressed, dry, urea raised, a short QTc',
+    inv(Hc, 'bone-profile').calcium > 3.2 && inv(Hc, 'pth').pth < 1 && obs(Hc.c, Hc.view, 'mouth.mucosa').value.moisture !== 'moist' && Hc.view.chemistry.urea > 8 && ecg.qtc < 380,
+    JSON.stringify({ bone: inv(Hc, 'bone-profile'), pth: inv(Hc, 'pth'), urea: Hc.view.chemistry.urea, qtc: ecg.qtc }));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

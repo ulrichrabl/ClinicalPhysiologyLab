@@ -94,6 +94,8 @@ export interface RespiratoryInputs {
   temp: number;          // °C
   /** Drive from outside the lungs and chemoreceptors: cytokines and fever in sepsis. */
   sysDrive?: number;
+  /** Oxygen consumption × normal from the body (thyroid hormone). */
+  metabolicMult?: number;
 }
 export const DEFAULT_INPUTS: RespiratoryInputs = { CO: 5.2, Pla: 7, Ppa: 15, Hb: 150, sbc: 24, albumin: 42, temp: 37 };
 
@@ -271,7 +273,7 @@ export class Respiratory {
   }
 
   /* ---- control: what the respiratory centre asks for, and what it gets --------------- */
-  private VO2() { return 9.7 * this.body.weightKg ** 0.75 * clamp(this.p.metabolicRate, 0.3, 6) * (1 + 0.1 * (this.inp.temp - 37)); }
+  private VO2() { return 9.7 * this.body.weightKg ** 0.75 * clamp(this.p.metabolicRate * (this.inp.metabolicMult ?? 1), 0.3, 6) * (1 + 0.1 * (this.inp.temp - 37)); }
   /** The O2 the respiratory muscles burn: about 1 mL per litre of ventilation in health, several times that against narrowed airways or stiff lungs, and rising steeply near capacity. */
   private VO2breathing(VE: number, m: ReturnType<Respiratory['mechanics']>, cap: number) {
     const Cn = 0.1 * (this.pred.TLC / 6.8);
