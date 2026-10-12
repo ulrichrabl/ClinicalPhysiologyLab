@@ -160,7 +160,7 @@ export interface RespSnapshot {
 }
 
 /* ---- the running model ---------------------------------------------------------- */
-interface Unit { lobe: number; VA: number; Q: number; kind: 'vq' | 'shunt' | 'base' | 'dead'; PO2: number; PCO2: number; diffU: number }
+interface Unit { lobe: number; VA: number; Q: number; kind: 'vq' | 'shunt' | 'base' | 'dead'; PO2: number; PCO2: number; diffU: number; key?: string }
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 const sigm = (x: number) => 1 / (1 + Math.exp(-x));
@@ -280,7 +280,7 @@ export class Respiratory {
     const solid = m.st.reduce((a, l) => a + LOBE_VOLUME[l.id] * (l.solidFrac + l.flooded), 0);
     const emb = LOBES.reduce((a, id) => a + LOBE_PERF[id] * clamp((p as any)[`emb${id}`] ?? 0, 0, 1), 0);
     const pleura = m.st.reduce((a, l) => a + LOBE_VOLUME[l.id] * (l.compressed + l.ptx), 0);
-    return Math.min(3, 2.4 * solid + 1.0 * this.interstitial + 2.6 * emb + 1.2 * clamp(p.fibrosis, 0, 1) + 1.2 * clamp(p.bronchoconstriction, 0, 1) + 0.8 * pleura);
+    return Math.min(3, 4 * solid + 1.0 * this.interstitial + 2.6 * emb + 1.2 * clamp(p.fibrosis, 0, 1) + 1.2 * clamp(p.bronchoconstriction, 0, 1) + 0.8 * pleura);
   }
   private demand(PaO2: number, PaCO2: number, m = this.mechanics()) {
     const p = this.p;
@@ -318,7 +318,10 @@ export class Respiratory {
   /** Rate and depth for a minute ventilation: stiff or small lungs breathe fast and shallow. */
   private pattern(VE: number, m = this.mechanics()) {
     const Cn = 0.1 * (this.pred.TLC / 6.8);
-    const RR = clamp(13.5 * (VE / 6.4) ** 0.5 * (Cn / Math.max(0.01, m.Crs)) ** 0.3 * (1 + 0.18 * this.afferent(m)) / clamp(this.p.muscleStrength, 0.2, 1.2) ** 0.3, 5, 50);
+    // Stiff lungs (not floppy ones) make breathing fast and shallow; so does a load near capacity and drive from the lung itself.
+    const load = Math.min(1.5, VE / Math.max(1, this.capacity(m)));
+    const RR = clamp(13.5 * (VE / 6.4) ** 0.5 * Math.max(1, Cn / Math.max(0.01, m.Crs)) ** 0.3 * (1 + 0.25 * this.afferent(m)) * (1 + 0.6 * load * load)
+      / clamp(this.p.muscleStrength, 0.2, 1.2) ** 0.3, 5, 50);
     const VT = VE / RR;
     const Ttot = 60 / RR;
     const Ti = Ttot * clamp(0.42 - 0.08 * (clamp(this.p.bronchoconstriction + this.p.emphysema, 0, 1)), 0.25, 0.45);
@@ -428,10 +431,12 @@ export class Respiratory {
         if (dead > 0 && vaL > 0) units.push({ lobe: i, VA: vaL * dead, Q: 0, kind: 'dead', PO2: PIO2, PCO2: 0, diffU: 0 });
         const vaP = vaL * (1 - dead);
         if (vaP > 1e-6 || qAer > 1e-6) {
-          // a low and a high V/Q unit, equal perfusion, ventilation split by the spread
+          // a low and a high V/Q unit, ventilation split by the spread; hypoxic vasoconstriction acts unit by unit,
+          // holding back blood from the poorly ventilated one (and releasing it when the inspired O2 rises)
           const w1 = Math.exp(-sigma), w2 = Math.exp(sigma), ws = w1 + w2;
-          units.push({ lobe: i, VA: vaP * w1 / ws, Q: qAer / 2, kind: 'vq', PO2: 0, PCO2: 0, diffU: uDiff });
-          units.push({ lobe: i, VA: vaP * w2 / ws, Q: qAer / 2, kind: 'vq', PO2: 0, PCO2: 0, diffU: uDiff });
+          const hLo = hpvC(this.warm.get(`${i}:lo`)?.[0] ?? lobePAO2[i]), hHi = hpvC(this.warm.get(`${i}:hi`)?.[0] ?? lobePAO2[i]);
+          units.push({ lobe: i, VA: vaP * w1 / ws, Q: qAer * hLo / (hLo + hHi), kind: 'vq', PO2: 0, PCO2: 0, diffU: uDiff, key: `${i}:lo` });
+          units.push({ lobe: i, VA: vaP * w2 / ws, Q: qAer * hHi / (hLo + hHi), kind: 'vq', PO2: 0, PCO2: 0, diffU: uDiff, key: `${i}:hi` });
         }
       });
       let j = 0;
@@ -439,7 +444,7 @@ export class Respiratory {
         if (u.kind === 'vq') {
           if (u.Q < 1e-7) { u.PO2 = PIO2; u.PCO2 = 0; }
           else if (u.VA < 1e-7) { u.PO2 = PvO2; u.PCO2 = PvCO2; }
-          else solveUnit(u, `${u.lobe}:${j}`, CvO2, CvCO2);
+          else solveUnit(u, u.key ?? `${u.lobe}:${j}`, CvO2, CvCO2);
         } else if (u.kind !== 'dead') { u.PO2 = PvO2; u.PCO2 = PvCO2; }
         j++;
       }
@@ -651,6 +656,26 @@ export class Respiratory {
   rpulMult(): number {
     const emb = LOBES.reduce((a, id) => a + LOBE_PERF[id] * clamp((this.p as any)[`emb${id}`] ?? 0, 0, 1), 0);
     return (1 / Math.max(0.05, this.sol?.G ?? 1)) * (1 + 0.8 * emb);
+  }
+
+  /** The controller's response line for the chapter diagram: ventilation delivered at each PaCO2, with PaO2 as it is now. */
+  controllerCurve(paco2: number[]): number[] {
+    const m = this.mechanics(), cap = this.capacity(m);
+    return paco2.map((x) => this.delivered(this.demand(this.PaO2, x, m), cap));
+  }
+  /** The plant: minute ventilation needed for each PaCO2 at the current CO2 production, dead space and rate. */
+  hyperbola(paco2: number[]): number[] {
+    const sol = this.sol; if (!sol) return paco2.map(() => NaN);
+    // through the current operating point: effective alveolar ventilation is 0.115·VCO2/PaCO2, and each litre of
+    // minute ventilation currently buys VAeff/VE of it (anatomical and alveolar dead space)
+    const vaEff = (0.1151 * sol.VCO2) / Math.max(0.3, this.PaCO2);
+    const k = this.VEdrive / Math.max(0.1, vaEff);
+    return paco2.map((x) => (k * 0.1151 * sol.VCO2) / Math.max(0.3, x));
+  }
+  /** Saturation along the dissociation curve at the patient's current pH, CO2 and temperature. */
+  satCurve(po2: number[]): number[] {
+    const pH = phOf(hco3At(this.inp.sbc, this.PaCO2), this.PaCO2);
+    return po2.map((x) => satO2(x, pH, this.PaCO2, this.p.COHb, this.inp.temp));
   }
 
   /** What the carotid bodies and the sensation of breathlessness add to sympathetic outflow (0–1), for the circulation. */

@@ -9,6 +9,7 @@ const PANEL_FIELDS: Record<string, string[]> = {
   electrolytes: ['sodium', 'potassium', 'chloride', 'bicarbonate', 'urea', 'creatinine'],
   fbc: ['haemoglobin', 'whiteCellCount', 'platelets', 'mcv'],
   'cardiac-markers': ['troponin', 'bnp'],
+  crp: ['crp'],
 };
 const DIGITS: Record<string, number> = { glucose: 1, arterialPH: 2, paCO2: 1, paO2: 1, potassium: 1, lactate: 1, urea: 1, whiteCellCount: 1, bicarbonate: 0, baseExcess: 1, saO2: 0, coHb: 1, metHb: 1, fio2: 2 };
 export const labDigits = (k: string) => DIGITS[k] ?? 0;

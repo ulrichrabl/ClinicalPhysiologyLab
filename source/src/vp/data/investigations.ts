@@ -50,6 +50,13 @@ export const INVESTIGATIONS: InvestigationDef[] = [
     source: 'model', resolver: 'resp.abg', formatter: 'inv.panel', turnaroundMinutes: 5,
   },
   {
+    id: 'crp', label: { en: 'C-reactive protein', de: 'C-reaktives Protein' },
+    synonyms: { en: ['crp', 'c-reactive protein', 'inflammatory markers'], de: ['crp', 'entzündungswerte', 'c-reaktives protein'] },
+    value: { kind: 'record', fields: { crp: Q('mg/L') } },
+    normal: { value: { crp: 3 }, range: { crp: [0, 5] } },
+    source: 'model', resolver: 'chemistry.panel', formatter: 'inv.panel', turnaroundMinutes: 45,
+  },
+  {
     id: 'peak-flow', label: { en: 'Peak expiratory flow', de: 'Peak-Flow' },
     synonyms: { en: ['peak flow', 'pefr', 'pef'], de: ['peak flow', 'peak-flow', 'pef'] },
     value: { kind: 'record', fields: { pef: Q('L/min'), pefPct: Q('%') } },

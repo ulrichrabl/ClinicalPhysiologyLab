@@ -26,7 +26,10 @@ import vestibularNeuritisLeft from './cases/vestibular-neuritis-left.json';
 import exertionalSyncopeAs from './cases/exertional-syncope-as.json';
 import acuteStrokeLeftMca from './cases/acute-stroke-left-mca.json';
 import footDropRightL5 from './cases/foot-drop-right-l5.json';
+import pneumoniaRll from './cases/pneumonia-right-lower-lobe.json';
+import peAfterFlight from './cases/pulmonary-embolism-after-flight.json';
+import copdExacerbation from './cases/copd-exacerbation.json';
 import type { CaseDef } from './model/types.ts';
 
 /** Cases are JSON documents; the validator, not the type system, vouches for them. */
-export const CASES: CaseDef[] = [vestibularNeuritisLeft, exertionalSyncopeAs, acuteStrokeLeftMca, footDropRightL5] as unknown as CaseDef[];
+export const CASES: CaseDef[] = [vestibularNeuritisLeft, exertionalSyncopeAs, acuteStrokeLeftMca, footDropRightL5, pneumoniaRll, peAfterFlight, copdExacerbation] as unknown as CaseDef[];

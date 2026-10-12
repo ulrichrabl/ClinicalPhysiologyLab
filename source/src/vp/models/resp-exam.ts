@@ -182,10 +182,10 @@ export const RESP_RESOLVERS: Record<string, Resolver> = {
     const depth = vtKg < 5.5 ? 'shallow' : vtKg > 9.5 ? 'deep' : 'normal';
     const load = r.effort;
     const hypoxic = r.SaO2 < 0.85;
-    const speech = load >= 1.3 || r.SaO2 < 0.75 ? 'unable' : load >= 0.9 || r.SaO2 < 0.82 ? 'words' : load >= 0.55 || hypoxic || r.RR >= 30 ? 'phrases' : 'sentences';
+    const speech = load >= 4 || r.SaO2 < 0.7 ? 'unable' : load >= 1.2 || r.SaO2 < 0.8 ? 'words' : load >= 0.55 || hypoxic || r.RR >= 26 ? 'phrases' : 'sentences';
     return {
       value: {
-        depth, accessory: load >= 0.5 || r.RR >= 28, pursedLips: (p.emphysema ?? 0) >= 0.4 && r.iPEEP > 1.5,
+        depth, accessory: load >= 0.5 || r.RR >= 28, pursedLips: (p.emphysema ?? 0) >= 0.4 && (r.iPEEP > 1 || (p.bronchoconstriction ?? 0) >= 0.3),
         speech, hyperinflated: r.TLC / r.pred.TLC > 1.12, paradoxical: (p.muscleStrength ?? 1) < 0.35,
       },
       basis: `ventilation ${r.VE.toFixed(1)} of a sustainable ${r.capacity.toFixed(0)} L/min (demand ${r.demand.toFixed(1)}), tidal volume ${vtKg.toFixed(1)} mL/kg, intrinsic PEEP ${r.iPEEP.toFixed(1)} cmH₂O`,

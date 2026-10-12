@@ -526,13 +526,26 @@ one level down; they are the equations the code runs.
 | Haemodynamics | closed-loop circulation: time-varying elastance chambers, valves (stenosis and regurgitation as separate paths), compliant vessels, conserved blood volume | circuit with chambers sized by volume, valves opening, flow; PV loop with ESPVR/EDPVR; Wiggers diagram |
 | Baroreflex | receptor sigmoid, sympathetic/vagal tone, four effectors (rate, resistance, venous capacity, contractility) | sigmoid with the moving operating point, tone bars, effectors |
 | Cardiac electrical activity | beat scheduler (sinus driven by the autonomic state; AF, flutter, AV blocks, escape, VT, VF) and the heart's dipole H(t) built from the activation sequence; K⁺ and Ca²⁺ from the fluids model | conduction system lighting in sequence; frontal vector loop on the hexaxial system; E_K |
-| Fluids and acid–base | plasma chemistry: pinned values, the rest derived from the circulation | Gamblegram, pH against the HCO₃⁻/CO₂ ratio |
+| Breathing: mechanics and ventilation | equation of motion Pmus = V/C + R·V̇ integrated breath by breath, passive expiration (intrinsic PEEP when 3τ exceeds the expiratory time), lung volumes and the forced expiration (flow limited by recoil over resistance) from ECSC predicted values | lungs inflating with each breath, lobes coloured by their state, pleural fluid and air; volume and flow traces; flow–volume loop against predicted |
+| Gas exchange and oxygen transport | five lobes, each split into a low and a high V/Q unit plus shunted and dead-space fractions; each unit solved by O₂ and CO₂ mass balance against the Severinghaus and CO₂ dissociation curves, mixed venous blood from cardiac output and VO₂ (Fick); diffusion limitation by capillary transit time; hypoxic vasoconstriction per lobe and per unit; emboli as lost vessels and dead space; Starling filtration from left atrial pressure filling interstitium then alveoli from the bottom up; pulse- and co-oximetry | V and Q bars per lobe with V/Q and PAO₂; the dissociation curve at the patient's pH, CO₂ and temperature with arterial and mixed venous points |
+| Control of breathing | central CO₂ (as CSF pH, so chronic bicarbonate resets it), carotid [H⁺] and O₂, drive from the lung's own receptors; delivered ventilation limited by a sustainable fraction of MVV; rate and depth shared out by load and stiffness. Winters' formula emerges | the controller line meeting the metabolic hyperbola, with the operating point moving; bars for each drive |
+| Fluids and acid–base | plasma chemistry: pinned or derived from the circulation; PaCO₂ and PaO₂ from the respiratory model; pH by Henderson–Hasselbalch from metabolic bicarbonate plus CO₂ buffering | Gamblegram, pH against the HCO₃⁻/CO₂ ratio |
 | VOR and gaze holding | labyrinth tone, compensation, leaky integrator, fixation | labyrinth tones and a live eye-position trace |
 | Pupillary light reflex | afferent, pretectal, Edinger–Westphal, efferent, sympathetic | the pathway responding to a swinging light |
 | Nervous system | the lesion graph | pathways interrupted |
 
 `PatientModel` (`physiology/state.ts`) holds every parameter in one object:
-patient, circulation, electrical, vestibular, lesions, chemistry pins.
+patient, circulation, electrical, respiratory, vestibular, lesions, chemistry pins.
+
+**Couplings** (`engine/circulation-host.ts`, every 0.1 s of simulated time).
+Circulation → lungs: cardiac output, left atrial and pulmonary arterial
+pressure. Chemistry → lungs: haemoglobin, metabolic bicarbonate, albumin.
+Lungs → circulation: pulmonary vascular resistance (emboli, hypoxic
+vasoconstriction), a chemoreflex drive (hypoxaemia and dyspnoea withdraw vagal
+tone and add sympathetic), and an acutely overloaded right ventricle losing
+contractility. Haemoglobin → circulation: blood viscosity. So a PE gives
+tachycardia, a narrow pulse pressure and an EtCO₂ far below PaCO₂; a failing
+left ventricle floods the bases; lactic acidosis is met by Kussmaul breathing.
 
 ### Measurements
 
@@ -555,9 +568,10 @@ leads, so it moves with the misplacement too.
 ### Cases are parameters
 
 A case's pathology is parameters only: `physiology` (circulation),
-`electrical`, `chemistry` pins, `conditions`, `lesions`. It may still author
-what no model covers (respiratory rate, temperature, imaging, a fundus); it
-may not author a finding a model produces. Hyperkalaemia is a potassium of
+`electrical`, `respiratory`, `chemistry` pins, `conditions`, `lesions`. It may
+still author what no model covers (temperature, imaging of the head and spine,
+a fundus); it may not author a finding a model produces, and may not pin blood
+gases (they are outputs: set their causes). Hyperkalaemia is a potassium of
 7.2, not an ECG pattern; atrial fibrillation is an atrial rhythm, and the
 irregular pulse, the lost atrial kick and the fibrillatory baseline follow.
 
@@ -566,7 +580,23 @@ irregular pulse, the lost atrial kick and the fibrillatory baseline follow.
 `LivePatient` (`live/live-patient.ts`) runs circulation and heart in the page
 in real time (about a hundred times faster than real time on a laptop), keeps
 16 s of the dipole for recording, and is what every layer reads. Settling a
-new patient takes 20 simulated seconds, a fraction of a second.
+new patient takes 20 simulated seconds, a fraction of a second, in passes that
+bring the slow respiratory states (CO₂ stores, lung water, drive) to steady
+state between them.
+
+**Interventions change the model.** Oxygen is a manoeuvre that puts a device on
+the patient (`PatientState.oxygen`) and sets the inspired fraction the running
+lungs breathe; the saturation and the blood gas report the FiO₂ they were
+taken on. In COPD a Venturi 28 % brings SpO₂ to 88–92 % with little CO₂ change,
+while a non-rebreather raises CO₂ (released hypoxic vasoconstriction, Haldane
+effect, less hypoxic drive): the rule follows from the mechanism.
+
+**The respiratory examination** (`models/resp-exam.ts`) reads the lobes and
+pleura under each of ten sites (upper zone, mid zone, axilla, upper back, base,
+each side): percussion, breath sounds, added sounds, vocal resonance; plus
+trachea, expansion, the breathing pattern and central cyanosis (capillary
+deoxyhaemoglobin, so the anaemic stay pink). Breath sounds are synthesised from
+the model's own breathing waveform; the chest X-ray is drawn from the model.
 
 ---
 
@@ -635,5 +665,9 @@ Recorded 2026-10-11.
    then read-only.
 10. **Focused views** for more of the examination: the chest for auscultation,
     electrode placement for the ECG; more to follow (abdomen, fundus, neck veins).
+
+11. **Pulmonary first** among internal medicine (2026-10-12), then the other
+    organ systems; dermatology and psychiatry after, with a model suited to
+    each.
 
 Still open: **scoring** — qualitative only, or numeric scores for courses later?

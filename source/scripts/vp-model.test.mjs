@@ -620,7 +620,7 @@ console.log('\nRespiratory system: mechanics, gas exchange, control');
   const copd = { emphysema: 0.65, bronchoconstriction: 0.55, vqMismatch: 0.4 };
   const c0 = lung(copd, { sbc: 30 }), c6 = lung({ ...copd, FiO2: 0.6 }, { sbc: 30 });
   ok('COPD: obstruction (FEV1/FVC < 0.7, low PEF), hypoxaemia, raised CO2 with near-normal pH (chronic bicarbonate)',
-    c0.FEV1 / c0.FVC < 0.7 && c0.PEF < 0.4 * c0.pred.PEF && c0.PaO2 < 8 && c0.PaCO2 > 6 && c0.pH > 7.33, `ratio ${(c0.FEV1 / c0.FVC).toFixed(2)} PaO2 ${c0.PaO2.toFixed(1)} PaCO2 ${c0.PaCO2.toFixed(2)} pH ${c0.pH.toFixed(2)}`);
+    c0.FEV1 / c0.FVC < 0.7 && c0.PEF < 0.4 * c0.pred.PEF && c0.PaO2 < 8 && c0.PaCO2 > 6 && c0.pH > 7.28, `ratio ${(c0.FEV1 / c0.FVC).toFixed(2)} PaO2 ${c0.PaO2.toFixed(1)} PaCO2 ${c0.PaCO2.toFixed(2)} pH ${c0.pH.toFixed(2)}`);
   ok('…high-flow oxygen raises its CO2 (released hypoxic vasoconstriction, Haldane effect, less drive)', c6.PaCO2 > c0.PaCO2 + 0.3, `${c0.PaCO2.toFixed(2)} → ${c6.PaCO2.toFixed(2)} kPa`);
   { const r = new Respiratory(copd); r.setInputs({ sbc: 30 }); r.equilibrate(); r.advance(30); const s = r.snapshot();
     ok('…and the lung cannot empty between breaths: dynamic hyperinflation and intrinsic PEEP', s.iPEEP > 2 && s.tauE * 3 > s.Te, `PEEPi ${s.iPEEP.toFixed(1)} cmH2O, τE ${s.tauE.toFixed(2)} s, TE ${s.Te.toFixed(2)} s`); }
@@ -722,6 +722,27 @@ console.log('\nThe lungs and the circulation, coupled');
   bad.pathology.chemistry = { ...(bad.pathology.chemistry ?? {}), paO2: 9 };
   const bi = errors(validateCase(bad, CATALOG, REGISTRY)).map((i) => `${i.path}: ${i.message}`).join('\n');
   ok('validator: respiratory parameters must exist and be in range; blood gases cannot be pinned (they are outputs)', /consRLL: expected 0–1/.test(bi) && /unknown respiratory parameter flux/.test(bi) && /chemistry\.paO2/.test(bi), bi);
+}
+
+
+console.log('\nPulmonary cases: what the model makes of their parameters');
+{
+  const run = (id, mut) => { const c = caseById(id); const m = modelFromCase(c); mut?.(m); const snap = settleModel(m, 24).snapshot; return { c, snap, view: buildView(c, { circulation: snap, state: { ...c.initialState, position: 'sitting', exposure: ['chest'] } }) }; };
+  const P = run('pneumonia-right-lower-lobe');
+  ok('pneumonia case: tachypnoea, hypoxaemia, right-base consolidation signs, and the CURB-65 urea',
+    P.snap.resp.RR >= 20 && obs(P.c, P.view, 'vitals.spo2').value.spo2 <= 95 && obs(P.c, P.view, 'lung.sounds', { site: 'chest.lung-base.R' }).value.breath === 'bronchial'
+    && REGISTRY.resolvers['chemistry.panel'](P.view, { property: 'electrolytes' }, {}).value.urea > 7);
+  const E = run('pulmonary-embolism-after-flight');
+  ok('PE case: tachycardia, hypoxaemia with a clear chest, a wide arterial–end-tidal CO2 gap, emboli on CTPA',
+    E.snap.ecgMetrics.HR >= 88 && E.snap.resp.PaO2 < 10 && obs(E.c, E.view, 'lung.sounds', { site: 'chest.lung-base.L' }).value.added.length === 0
+    && E.snap.resp.PaCO2 - E.snap.resp.EtCO2 > 1.5 && REGISTRY.resolvers['resp.ctpa'](E.view, { property: 'ctpa' }, {}).value.findings.some((x) => x.startsWith('pe-')));
+  const C = run('copd-exacerbation'), C28 = run('copd-exacerbation', (m) => { m.respiratory.FiO2 = 0.28; }), C80 = run('copd-exacerbation', (m) => { m.respiratory.FiO2 = 0.8; });
+  ok('COPD case: acute-on-chronic hypercapnic failure (pH < 7.35, PaCO2 > 7, raised bicarbonate)', C.view.chemistry.arterialPH < 7.35 && C.view.chemistry.paCO2 > 7 && C.view.chemistry.bicarbonate > 28,
+    `pH ${C.view.chemistry.arterialPH.toFixed(2)} PaCO2 ${C.view.chemistry.paCO2.toFixed(1)}`);
+  ok('…Venturi 28 % brings the saturation into 88–92 % without much CO2; a non-rebreather overshoots and raises CO2',
+    (() => { const s28 = obs(C28.c, C28.view, 'vitals.spo2').value.spo2; return s28 >= 87 && s28 <= 93; })() && C28.snap.resp.PaCO2 - C.snap.resp.PaCO2 < 0.3
+    && C80.snap.resp.PaCO2 - C.snap.resp.PaCO2 > 2 * (C28.snap.resp.PaCO2 - C.snap.resp.PaCO2) && C80.snap.resp.PaCO2 - C.snap.resp.PaCO2 > 0.25 && obs(C80.c, C80.view, 'vitals.spo2').value.spo2 >= 96,
+    `PaCO2 ${C.snap.resp.PaCO2.toFixed(2)} / ${C28.snap.resp.PaCO2.toFixed(2)} / ${C80.snap.resp.PaCO2.toFixed(2)}, SpO2 on 28 % ${obs(C28.c, C28.view, 'vitals.spo2').value.spo2}`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

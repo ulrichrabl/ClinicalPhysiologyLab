@@ -146,7 +146,7 @@ export const FORMATTERS: Record<string, Formatter> = {
     if (v.hyperinflated) parts.push(de(l) ? 'Fassthorax' : 'hyperinflated (barrel) chest');
     if (v.paradoxical) parts.push(de(l) ? 'paradoxe abdominelle Atembewegung' : 'paradoxical abdominal movement');
     if (parts.length === 1 && v.speech === 'sentences') parts.push(de(l) ? 'keine erhöhte Atemarbeit' : 'no increased work of breathing');
-    return `${cap(join(parts, l))}.`;
+    return `${cap(parts[0])}${parts.length > 1 ? `; ${parts.slice(1).join(', ')}` : ''}.`;
   },
 
   'hands.crt': (v, _c, l) => (de(l) ? `Rekapillarisierungszeit ${num(v, l, 1)} s.` : `Capillary refill ${num(v, l, 1)} s.`),
@@ -430,7 +430,7 @@ export const FORMATTERS: Record<string, Formatter> = {
       sodium: ['Na⁺', 'Na⁺', 'mmol/L'], potassium: ['K⁺', 'K⁺', 'mmol/L'], chloride: ['Cl⁻', 'Cl⁻', 'mmol/L'], bicarbonate: ['HCO₃⁻', 'HCO₃⁻', 'mmol/L'],
       urea: ['urea', 'Harnstoff', 'mmol/L'], creatinine: ['creatinine', 'Kreatinin', 'µmol/L'], arterialPH: ['pH', 'pH', ''], paCO2: ['PaCO₂', 'PaCO₂', 'kPa'],
       paO2: ['PaO₂', 'PaO₂', 'kPa'], lactate: ['lactate', 'Laktat', 'mmol/L'], haemoglobin: ['Hb', 'Hb', 'g/L'], whiteCellCount: ['WCC', 'Leukozyten', '×10⁹/L'],
-      platelets: ['platelets', 'Thrombozyten', '×10⁹/L'], mcv: ['MCV', 'MCV', 'fL'], troponin: ['troponin', 'Troponin', 'ng/L'], bnp: ['BNP', 'BNP', 'ng/L'],
+      platelets: ['platelets', 'Thrombozyten', '×10⁹/L'], mcv: ['MCV', 'MCV', 'fL'], troponin: ['troponin', 'Troponin', 'ng/L'], bnp: ['BNP', 'BNP', 'ng/L'], crp: ['CRP', 'CRP', 'mg/L'],
       baseExcess: ['BE', 'BE', 'mmol/L'], saO2: ['SaO₂', 'SaO₂', '%'], coHb: ['COHb', 'COHb', '%'], metHb: ['MetHb', 'MetHb', '%'], fio2: ['FiO₂', 'FiO₂', ''],
     };
     const inv = cat.investigations[ref.property];

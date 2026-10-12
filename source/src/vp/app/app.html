@@ -193,6 +193,13 @@ canvas.phono { width: 100%; height: 140px; display: block; }
 .chip-el.placed { opacity: .45; }
 .paper-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: #fffaf7; max-width: 100%; }
 .paper-wrap canvas { display: block; }
+.film-wrap { display: flex; justify-content: center; background: #050505; border-radius: 10px; padding: 10px; margin: 6px 0; }
+.film-wrap canvas { display: block; max-width: 100%; border-radius: 4px; }
+.seg { display: inline-flex; gap: 0; }
+.seg .tog { border-radius: 0; margin-left: -1px; }
+.seg .tog:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+.seg .tog:last-child { border-radius: 0 8px 8px 0; }
+.tog[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .ecg-line { font: 500 13px var(--font-mono); margin: 8px 0; overflow-wrap: anywhere; }
 
 /* ---- tests ------------------------------------------------------------------- */
@@ -212,6 +219,7 @@ table.lab td, table.lab th { padding: 5px 8px; border-bottom: 1px solid var(--li
 table.lab th { font: 500 12px var(--font-mono); color: var(--muted); }
 table.lab td.v { font: 600 14px var(--font-mono); }
 table.lab tr.flag td.v { color: var(--abn); }
+@media (max-width: 480px) { table.lab td, table.lab th { padding: 4px 3px; font-size: 13px; } table.lab td.v { font-size: 13px; } .layers button { padding: 7px 10px; } }
 details.physics { border-top: 1px dashed var(--line); padding-top: 8px; }
 details.physics summary { cursor: pointer; color: var(--accent); font-weight: 700; font-size: .92rem; }
 details.physics p { margin: 6px 0 0; color: var(--muted); font-size: .93rem; max-width: 72ch; }
@@ -227,8 +235,8 @@ details.physics p { margin: 6px 0 0; color: var(--muted); font-size: .93rem; max
 .chapter > header p { max-width: 75ch; margin: 8px 0 0; font-size: 1.04rem; }
 .diagram { padding: 10px; }
 .diagram canvas { width: 100%; display: block; }
-.eqs { display: grid; gap: 12px; }
-.eq { padding: 14px 16px; display: grid; gap: 6px; min-width: 0; }
+.eqs { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+.eq { padding: 14px 16px; display: grid; gap: 6px; min-width: 0; grid-template-columns: minmax(0, 1fr); }
 .eq h3 { margin: 0; font: 700 1rem var(--font-body); }
 .eq .sym, .eq .live { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
 .eq math { font-size: 1.28rem; }
@@ -236,7 +244,8 @@ details.physics p { margin: 6px 0 0; color: var(--muted); font-size: .93rem; max
 .eq .live .val mn { font-weight: 700; }
 .eq p { margin: 0; color: var(--muted); max-width: 75ch; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .88rem; }
-.legend span { white-space: nowrap; }
+.legend > span { min-width: 0; max-width: 100%; }
+.legend .lv, .legend .u { white-space: nowrap; }
 .legend math { font-size: 1rem; }
 .legend .u { color: var(--muted); font: 500 12px var(--font-mono); }
 details.full > summary { cursor: pointer; font-weight: 700; padding: 8px 0; }

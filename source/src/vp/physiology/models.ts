@@ -406,7 +406,7 @@ const CHEM_VARS: Array<[string, string, LocalizedText, string, number, number, n
   ['albumin', 'alb', L('Albumin', 'Albumin'), 'g/L', 15, 55, 1], ['haemoglobin', 'Hb', L('Haemoglobin', 'Hämoglobin'), 'g/L', 40, 200, 1],
   ['whiteCellCount', 'WCC', L('White cell count', 'Leukozyten'), '10⁹/L', 0.5, 60, 0.1], ['platelets', 'plt', L('Platelets', 'Thrombozyten'), '10⁹/L', 5, 1000, 5],
   ['mcv', 'MCV', L('Mean cell volume', 'Mittleres Erythrozytenvolumen'), 'fL', 60, 120, 1], ['troponin', 'cTn', L('Troponin', 'Troponin'), 'ng/L', 0, 10000, 1],
-  ['bnp', 'BNP', L('Natriuretic peptide', 'Natriuretisches Peptid'), 'ng/L', 0, 20000, 10],
+  ['bnp', 'BNP', L('Natriuretic peptide', 'Natriuretisches Peptid'), 'ng/L', 0, 20000, 10], ['crp', 'CRP', L('C-reactive protein', 'C-reaktives Protein'), 'mg/L', 0, 500, 1],
 ];
 const FLUIDS: ModelDef = {
   id: 'fluids', title: L('Body fluids, electrolytes and acid–base', 'Körperflüssigkeiten, Elektrolyte und Säure-Basen-Haushalt'),
@@ -476,7 +476,7 @@ const MECHANICS: ModelDef = {
     state('mechanics', { key: 'Pmus', symbol: 'P_{mus}', label: L('Pressure the muscles generate', 'Von der Muskulatur erzeugter Druck'), unit: 'cmH₂O', digits: 1 }),
     state('mechanics', { key: 'Palv', symbol: 'P_{alv}', label: L('Alveolar pressure', 'Alveolardruck'), unit: 'cmH₂O', digits: 1 }),
     state('mechanics', { key: 'Ppl', symbol: 'P_{pl}', label: L('Pleural pressure', 'Pleuradruck'), unit: 'cmH₂O', digits: 1 }),
-    state('mechanics', { key: 'Crs', symbol: 'C_{rs}', label: L('Compliance of the respiratory system', 'Compliance des respiratorischen Systems'), unit: 'mL/cmH₂O', digits: 0 }),
+    state('mechanics', { key: 'Crs', symbol: 'C_{rs}', label: L('Compliance of the respiratory system', 'Compliance des respiratorischen Systems'), unit: 'L/cmH₂O', digits: 3 }),
     state('mechanics', { key: 'Raw', symbol: 'R_{aw}', label: L('Airway resistance', 'Atemwegswiderstand'), unit: 'cmH₂O·s/L', digits: 1 }),
     state('mechanics', { key: 'tauE', symbol: 'τ_E', label: L('Expiratory time constant', 'Exspiratorische Zeitkonstante'), unit: 's', digits: 2 }),
     state('mechanics', { key: 'Te', symbol: 'T_E', label: L('Expiratory time', 'Exspirationszeit'), unit: 's', digits: 2 }),
@@ -522,7 +522,7 @@ const MECHANICS: ModelDef = {
     const r = resp(ctx);
     return {
       ...Object.fromEntries(Object.entries(ctx.model.respiratory)),
-      V: rn(ctx, 'V'), flow: rn(ctx, 'flow'), Pmus: rn(ctx, 'Pmus'), Palv: rn(ctx, 'Palv'), Ppl: rn(ctx, 'Ppl'), Crs: rn(ctx, 'Crs'), Raw: rn(ctx, 'Raw'),
+      V: rn(ctx, 'V'), flow: rn(ctx, 'flow'), Pmus: rn(ctx, 'Pmus'), Palv: rn(ctx, 'Palv'), Ppl: rn(ctx, 'Ppl'), Crs: rn(ctx, 'Crs') / 1000, Raw: rn(ctx, 'Raw'),
       tauE: rn(ctx, 'tauE'), Te: rn(ctx, 'Te'), iPEEP: rn(ctx, 'iPEEP'), RR: rn(ctx, 'RR'), VT: rn(ctx, 'VT'), VE: rn(ctx, 'VE'), VDanat: rn(ctx, 'VDanat'), VA: rn(ctx, 'VA'),
       TLC: rn(ctx, 'TLC'), FRC: rn(ctx, 'EELV'), RV: rn(ctx, 'RV'), FEV1: rn(ctx, 'FEV1'), FVC: rn(ctx, 'FVC'), ratio: r.FVC ? r.FEV1 / r.FVC : NaN, PEF: rn(ctx, 'PEF') * 60,
       VCO2: rn(ctx, 'VCO2'), PaCO2: rn(ctx, 'PaCO2'),
