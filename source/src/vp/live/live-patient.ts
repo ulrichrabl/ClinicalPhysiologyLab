@@ -43,37 +43,55 @@ export class LivePatient {
     this.chemistry = chemistryState(this.snap, this.model.chemistry) as unknown as Record<string, number>;
   }
 
-  /** Run ahead without drawing, in slices, so the page stays responsive. */
+  /** True while the body's course is being run again; the clock does not advance meanwhile. */
+  busy = false;
+
+  /** Run the illness's course (the body over hours to days), then let circulation and lungs settle around it.
+      In slices, so the page stays responsive. */
   async settle(seconds: number, slice = 2): Promise<void> {
-    /* In passes, as settleModel does: the lungs change the circulation and the circulation the lungs. */
-    const pass = async (s: number) => {
-      for (let done = 0; done < s; done += slice) {
-        this.advance(Math.min(slice, s - done));
-        await new Promise((r) => setTimeout(r, 0));
-      }
-    };
-    await pass(seconds * 0.5); this.run.equilibrate();
-    await pass(seconds * 0.35); this.run.equilibrate();
-    await pass(seconds * 0.15);
+    this.busy = true;
+    try {
+      for (const _ of this.run.courseSteps()) await new Promise((r) => setTimeout(r, 0));
+      /* In passes, as settleModel does: the lungs change the circulation and the circulation the lungs. */
+      const pass = async (s: number) => {
+        for (let done = 0; done < s; done += slice) {
+          this.run.advance(Math.min(slice, s - done));
+          await new Promise((r) => setTimeout(r, 0));
+        }
+      };
+      const s = seconds * 0.6;
+      await pass(s * 0.5); this.run.equilibrate();
+      await pass(s * 0.35); this.run.equilibrate();
+      await pass(s * 0.15);
+    } finally { this.busy = false; }
     this.snap = this.capture();
     this.chemistry = chemistryState(this.snap, this.model.chemistry) as unknown as Record<string, number>;
+    this.emit();
   }
 
   advance(seconds: number): void {
-    if (seconds <= 0) return;
+    if (seconds <= 0 || this.busy) return;
     this.run.advance(seconds);
     this.t += seconds;
     this.snap = this.capture();
     this.chemistry = chemistryState(this.snap, this.model.chemistry) as unknown as Record<string, number>;
   }
 
-  /** Change any parameter: the running patient responds from now on, as a real one would. */
+  /** Change any parameter: the running patient responds from now on, as a real one would. A change to the
+      body's causes (intake, losses, kidney, drugs, hormones) or to how long they have acted runs the course again,
+      since those act over hours and days. */
   setModel(m: PatientModel): void {
+    const before = this.model;
     this.model = structuredClone(m);
     this.run.apply(this.model);
     this.chemistry = chemistryState(this.snap, this.model.chemistry) as unknown as Record<string, number>;
     this.emit();
+    if (JSON.stringify(before.body) !== JSON.stringify(m.body) || JSON.stringify(before.chronic) !== JSON.stringify(m.chronic)) {
+      const pending = ++this.courseRun;
+      setTimeout(() => { if (pending === this.courseRun) void this.settle(8); }, 250);
+    }
   }
+  private courseRun = 0;
 
   /** The last `seconds` of the cardiac dipole (Frank X, Y, Z in mV, 500 Hz). */
   vcg(seconds = 10): Vcg {
@@ -119,6 +137,7 @@ export class LivePatient {
     delete s.ecgLeads;
     s.electrical = this.run.heart.p;
     s.resp = this.run.resp.snapshot();
+    s.body = this.run.body.snapshot();
     return s;
   }
 }

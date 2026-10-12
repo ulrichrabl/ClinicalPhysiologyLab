@@ -43,10 +43,10 @@ export const INVESTIGATIONS: InvestigationDef[] = [
     synonyms: { en: ['abg', 'blood gas', 'arterial gas', 'lactate', 'ph'], de: ['bga', 'blutgas', 'blutgasanalyse', 'laktat'] },
     value: { kind: 'record', fields: {
       arterialPH: Q('[pH]'), paCO2: Q('kPa'), paO2: Q('kPa'), bicarbonate: Q('mmol/L'), baseExcess: Q('mmol/L'), lactate: Q('mmol/L'), potassium: Q('mmol/L'),
-      saO2: Q('%'), coHb: Q('%'), metHb: Q('%'), fio2: Q('1'),
-    }, optional: ['saO2', 'coHb', 'metHb'] },
-    normal: { value: { arterialPH: 7.4, paCO2: 5.3, paO2: 12, bicarbonate: 24, baseExcess: 0, lactate: 1, potassium: 4, saO2: 97, coHb: 1, metHb: 0.5, fio2: 0.21 },
-      range: { arterialPH: [7.35, 7.45], paCO2: [4.7, 6.0], paO2: [10, 13.3], bicarbonate: [22, 29], baseExcess: [-2, 2], lactate: [0.5, 2], potassium: [3.5, 5.1], saO2: [94, 99], coHb: [0, 3], metHb: [0, 1.5] } },
+      saO2: Q('%'), coHb: Q('%'), metHb: Q('%'), fio2: Q('1'), sodium: Q('mmol/L'), chloride: Q('mmol/L'), glucose: Q('mmol/L'), haemoglobin: Q('g/L'),
+    }, optional: ['saO2', 'coHb', 'metHb', 'sodium', 'chloride', 'glucose', 'haemoglobin'] },
+    normal: { value: { arterialPH: 7.4, paCO2: 5.3, paO2: 12, bicarbonate: 24, baseExcess: 0, lactate: 1, potassium: 4, saO2: 97, coHb: 1, metHb: 0.5, fio2: 0.21, sodium: 140, chloride: 102, glucose: 5.4, haemoglobin: 150 },
+      range: { arterialPH: [7.35, 7.45], paCO2: [4.7, 6.0], paO2: [10, 13.3], bicarbonate: [22, 29], baseExcess: [-2, 2], lactate: [0.5, 2], potassium: [3.5, 5.1], saO2: [94, 99], coHb: [0, 3], metHb: [0, 1.5], sodium: [135, 145], chloride: [98, 107], glucose: [4, 7.8], haemoglobin: [120, 175] } },
     source: 'model', resolver: 'resp.abg', formatter: 'inv.panel', turnaroundMinutes: 5,
   },
   {
@@ -114,6 +114,43 @@ export const INVESTIGATIONS: InvestigationDef[] = [
     value: { kind: 'record', fields: { findings: { kind: 'list', of: { kind: 'coded', valueSet: 'imaging' } } } },
     normal: { value: { findings: ['normal'] } }, source: 'case', formatter: 'inv.imaging', turnaroundMinutes: minutes,
   })),
+  {
+    id: 'ketones', label: { en: 'Capillary ketones (β-hydroxybutyrate)', de: 'Kapilläre Ketone (β-Hydroxybutyrat)' },
+    synonyms: { en: ['ketones', 'blood ketones', 'beta-hydroxybutyrate', 'bhb', 'capillary ketones'], de: ['ketone', 'blutketone', 'beta-hydroxybutyrat', 'kapilläre ketone'] },
+    value: { kind: 'record', fields: { betaHydroxybutyrate: Q('mmol/L') } }, normal: { value: { betaHydroxybutyrate: 0.1 }, range: { betaHydroxybutyrate: [0, 0.6] } },
+    source: 'model', resolver: 'body.ketones', formatter: 'inv.panel', turnaroundMinutes: 1,
+  },
+  {
+    id: 'urinalysis', label: { en: 'Urine dipstick', de: 'Urinstix' },
+    synonyms: { en: ['urine dip', 'dipstick', 'urinalysis', 'urine test', 'ua'], de: ['urinstix', 'urinstreifen', 'urinstatus', 'urin'] },
+    value: { kind: 'record', fields: {
+      voided: { kind: 'boolean' }, glucose: { kind: 'coded', valueSet: 'dipstick' }, ketones: { kind: 'coded', valueSet: 'dipstick' }, protein: { kind: 'coded', valueSet: 'dipstick' },
+      blood: { kind: 'coded', valueSet: 'dipstick' }, leukocytes: { kind: 'coded', valueSet: 'dipstick' }, nitrites: { kind: 'coded', valueSet: 'dipstick' }, sg: Q('1'), ph: Q('[pH]'),
+    }, optional: ['glucose', 'ketones', 'protein', 'blood', 'leukocytes', 'nitrites', 'sg', 'ph'] },
+    normal: { value: { voided: true, glucose: 'negative', ketones: 'negative', protein: 'negative', blood: 'negative', leukocytes: 'negative', nitrites: 'negative', sg: 1.015, ph: 6 },
+      range: { sg: [1.005, 1.03], ph: [4.5, 8] } },
+    source: 'model', resolver: 'body.urinalysis', formatter: 'inv.urinalysis', turnaroundMinutes: 5,
+  },
+  {
+    id: 'urine-electrolytes', label: { en: 'Urine sodium, potassium and osmolality (spot)', de: 'Spontanurin: Natrium, Kalium, Osmolalität' },
+    synonyms: { en: ['urine sodium', 'urine osmolality', 'urine electrolytes', 'urinary sodium', 'spot urine'], de: ['urinnatrium', 'urinosmolalität', 'urinelektrolyte', 'spontanurin'] },
+    value: { kind: 'record', fields: { sodium: Q('mmol/L'), potassium: Q('mmol/L'), chloride: Q('mmol/L'), osmolality: Q('mosm/kg') } },
+    normal: { value: { sodium: 100, potassium: 50, chloride: 110, osmolality: 600 }, range: { sodium: [20, 220], potassium: [20, 120], chloride: [20, 250], osmolality: [100, 1200] } },
+    source: 'model', resolver: 'body.urine-chem', formatter: 'inv.panel', turnaroundMinutes: 60,
+  },
+  {
+    id: 'osmolality', label: { en: 'Serum osmolality', de: 'Serumosmolalität' },
+    synonyms: { en: ['osmolality', 'serum osmolality', 'plasma osmolality', 'osmol'], de: ['osmolalität', 'serumosmolalität', 'plasmaosmolalität'] },
+    value: { kind: 'record', fields: { osmolality: Q('mosm/kg') } }, normal: { value: { osmolality: 290 }, range: { osmolality: [275, 295] } },
+    source: 'model', resolver: 'body.osmolality', formatter: 'inv.panel', turnaroundMinutes: 60,
+  },
+  {
+    id: 'urine-output', label: { en: 'Urine output (catheter, last hour)', de: 'Urinausscheidung (Katheter, letzte Stunde)' },
+    synonyms: { en: ['urine output', 'catheter', 'fluid balance', 'hourly urine'], de: ['urinausscheidung', 'katheter', 'bilanz', 'stundenurin', 'dauerkatheter'] },
+    value: { kind: 'record', fields: { mlPerHour: Q('mL/h'), mlPerKgPerHour: Q('mL/kg/h') } },
+    normal: { value: { mlPerHour: 70, mlPerKgPerHour: 1 }, range: { mlPerHour: [35, 250], mlPerKgPerHour: [0.5, 3] } },
+    source: 'model', resolver: 'body.urine-output', formatter: 'inv.panel', turnaroundMinutes: 60,
+  },
   {
     id: 'glucose', label: { en: 'Capillary glucose', de: 'Blutzucker (kapillär)' },
     synonyms: { en: ['glucose', 'bm', 'sugar', 'cbg'], de: ['bz', 'blutzucker', 'glukose'] },

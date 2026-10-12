@@ -39,6 +39,7 @@ export const PROPERTIES: PropertyDef[] = [
     value: q('/min', 0, 300),
     normal: { value: 72, range: [60, 100], bands: [
       { maxAge: 1, value: 130, range: [100, 160] }, { maxAge: 12, value: 95, range: [70, 120] }] },
+    contextDims: ['position'],
     source: 'model-or-case', resolver: 'circulation.hr', formatter: 'vitals.hr', codes: { loinc: '8867-4' },
   },
   {
@@ -142,6 +143,21 @@ export const PROPERTIES: PropertyDef[] = [
     id: 'legs.oedema', structure: 'legs', label: { en: 'Leg oedema', de: 'Beinödeme' },
     value: rec({ extent: c('oedema') }), normal: { value: { extent: 'none' } },
     source: 'model-or-case', resolver: 'circulation.oedema', formatter: 'legs.oedema',
+  },
+  {
+    id: 'mouth.mucosa', structure: 'mouth', label: { en: 'Mucous membranes', de: 'Schleimhäute' },
+    value: rec({ moisture: c('mucosa') }), normal: { value: { moisture: 'moist' } },
+    source: 'model-or-case', resolver: 'body.mucosa', formatter: 'mouth.mucosa',
+  },
+  {
+    id: 'skin.turgor', structure: 'skin', label: { en: 'Skin turgor', de: 'Hautturgor' },
+    value: rec({ turgor: c('turgor') }), normal: { value: { turgor: 'normal' } },
+    source: 'model-or-case', resolver: 'body.turgor', formatter: 'skin.turgor',
+  },
+  {
+    id: 'breath.odour', structure: 'mouth', label: { en: 'Breath', de: 'Atemgeruch' },
+    value: rec({ odour: c('breath-odour') }), normal: { value: { odour: 'none' } },
+    source: 'model-or-case', resolver: 'body.breath', formatter: 'breath.odour',
   },
   {
     id: 'abdomen.palpation', structure: 'abdomen', label: { en: 'Abdominal palpation', de: 'Palpation des Abdomens' },

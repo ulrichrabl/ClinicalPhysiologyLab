@@ -151,6 +151,9 @@ export const FORMATTERS: Record<string, Formatter> = {
 
   'hands.crt': (v, _c, l) => (de(l) ? `Rekapillarisierungszeit ${num(v, l, 1)} s.` : `Capillary refill ${num(v, l, 1)} s.`),
   'legs.oedema': (v, _c, l, cat) => `${cap(lab(cat, 'oedema', v.extent, l))}.`,
+  'mouth.mucosa': (v, _c, l, cat) => `${cap(lab(cat, 'mucosa', v.moisture, l))}.`,
+  'skin.turgor': (v, _c, l, cat) => `${cap(lab(cat, 'turgor', v.turgor, l))}.`,
+  'breath.odour': (v, _c, l, cat) => `${cap(lab(cat, 'breath-odour', v.odour, l))}.`,
   'abdomen.palpation': (v, _c, l, cat) => {
     const parts: string[] = [];
     parts.push(v.tenderness === 'none' ? (de(l) ? 'weich, kein Druckschmerz' : 'soft, non-tender') : (de(l) ? `${lab(cat, 'severity', v.tenderness, l)} Druckschmerz` : `${lab(cat, 'severity', v.tenderness, l)} tenderness`));
@@ -432,6 +435,8 @@ export const FORMATTERS: Record<string, Formatter> = {
       paO2: ['PaO₂', 'PaO₂', 'kPa'], lactate: ['lactate', 'Laktat', 'mmol/L'], haemoglobin: ['Hb', 'Hb', 'g/L'], whiteCellCount: ['WCC', 'Leukozyten', '×10⁹/L'],
       platelets: ['platelets', 'Thrombozyten', '×10⁹/L'], mcv: ['MCV', 'MCV', 'fL'], troponin: ['troponin', 'Troponin', 'ng/L'], bnp: ['BNP', 'BNP', 'ng/L'], crp: ['CRP', 'CRP', 'mg/L'],
       baseExcess: ['BE', 'BE', 'mmol/L'], saO2: ['SaO₂', 'SaO₂', '%'], coHb: ['COHb', 'COHb', '%'], metHb: ['MetHb', 'MetHb', '%'], fio2: ['FiO₂', 'FiO₂', ''],
+      glucose: ['glucose', 'Glukose', 'mmol/L'], betaHydroxybutyrate: ['β-hydroxybutyrate', 'β-Hydroxybutyrat', 'mmol/L'], osmolality: ['osmolality', 'Osmolalität', 'mosmol/kg'],
+      mlPerHour: ['urine', 'Urin', 'mL/h'], mlPerKgPerHour: ['', '', 'mL/kg/h'], phosphate: ['phosphate', 'Phosphat', 'mmol/L'], albumin: ['albumin', 'Albumin', 'g/L'],
     };
     const inv = cat.investigations[ref.property];
     const range = (inv?.normal.range ?? {}) as Record<string, [number, number]>;
@@ -444,6 +449,13 @@ export const FORMATTERS: Record<string, Formatter> = {
     return `${tr(inv?.label ?? { en: ref.property }, l)}: ${parts.join(', ')}.`;
   },
   'inv.imaging': (v, _c, l, cat, ref) => `${tr(cat.investigations[ref.property]?.label ?? { en: ref.property }, l)}: ${(v.findings ?? []).map((x: string) => lab(cat, 'imaging', x, l)).join('; ')}.`,
+  'inv.urinalysis': (v, _c, l, cat) => {
+    if (!v.voided) return de(l) ? 'Urinstix: kein Urin zu gewinnen (der Patient hat seit Stunden kein Wasser gelassen).' : 'Urine dipstick: no urine to test (none passed for hours).';
+    const d = (k: string, en: string, dn: string) => `${de(l) ? dn : en} ${lab(cat, 'dipstick', v[k], l)}`;
+    const parts = [d('glucose', 'glucose', 'Glukose'), d('ketones', 'ketones', 'Ketone'), d('protein', 'protein', 'Eiweiß'), d('blood', 'blood', 'Blut'),
+      d('leukocytes', 'leukocytes', 'Leukozyten'), d('nitrites', 'nitrites', 'Nitrit'), `${de(l) ? 'spez. Gewicht' : 'SG'} ${num(v.sg, l, 3)}`, `pH ${num(v.ph, l, 1)}`];
+    return `${de(l) ? 'Urinstix' : 'Urine dipstick'}: ${parts.join(', ')}.`;
+  },
   'inv.glucose': (v, _c, l) => (de(l) ? `Blutzucker ${num(v, l, 1)} mmol/l.` : `Glucose ${num(v, l, 1)} mmol/L.`),
   'inv.ddimer': (v, _c, l) => (de(l) ? `D-Dimere ${num(v, l, 2)} mg/l FEU${v > 0.5 ? ' ↑' : ''}.` : `D-dimer ${num(v, l, 2)} mg/L FEU${v > 0.5 ? ' ↑' : ''}.`),
   'inv.peakflow': (v, _c, l) => (de(l) ? `Peak-Flow ${v.pef} l/min (${v.pefPct} % des Sollwerts), bester von drei Versuchen.` : `Peak flow ${v.pef} L/min (${v.pefPct}% predicted), best of three.`),

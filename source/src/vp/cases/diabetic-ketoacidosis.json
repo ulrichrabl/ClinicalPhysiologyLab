@@ -1,0 +1,475 @@
+{
+  "schema": "vp.case/1",
+  "id": "diabetic-ketoacidosis",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Vomiting, abdominal pain and fast breathing in a young woman with type 1 diabetes: diabetic ketoacidosis",
+    "de": "Erbrechen, Bauchschmerzen und schnelle Atmung bei einer jungen Frau mit Typ-1-Diabetes: diabetische Ketoazidose"
+  },
+  "tags": [
+    "diabetes",
+    "acid-base",
+    "potassium",
+    "fluids",
+    "emergency"
+  ],
+  "difficulty": 2,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-12",
+    "sources": [
+      "Joint British Diabetes Societies Inpatient Care Group. The management of diabetic ketoacidosis in adults. 2023.",
+      "Kitabchi AE et al. Hyperglycemic crises in adult patients with diabetes. Diabetes Care 2009;32:1335–43.",
+      "Umpierrez G, Korytkowski M. Diabetic emergencies: ketoacidosis, hyperglycaemic hyperosmolar state and hypoglycaemia. Nat Rev Endocrinol 2016;12:222–32."
+    ]
+  },
+  "patient": {
+    "name": "Lea Hoffmann",
+    "age": 19,
+    "sex": "F",
+    "heightCm": 168,
+    "weightKg": 56,
+    "appearance": {
+      "skinTone": 1,
+      "hair": "long, dark blonde",
+      "build": "slim"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ],
+    "companion": {
+      "name": "Petra Hoffmann",
+      "relation": {
+        "en": "mother",
+        "de": "Mutter"
+      }
+    }
+  },
+  "setting": {
+    "place": {
+      "en": "Emergency department, resus bay 2",
+      "de": "Notaufnahme, Schockraum 2"
+    },
+    "triage": {
+      "en": "Type 1 diabetes. Vomiting since last night, tummy pain, breathing deeply. Drowsy. Meter reads “HI”.",
+      "de": "Typ-1-Diabetes. Erbrechen seit gestern Abend, Bauchschmerzen, atmet tief. Schläfrig. Messgerät zeigt „HI“."
+    }
+  },
+  "pathology": {
+    "chronic": {
+      "days": 30,
+      "body": {
+        "betaCell": 0,
+        "insulinDose": 38
+      }
+    },
+    "body": {
+      "insulinDose": 0,
+      "stress": 0.5,
+      "foodIntake": 0.1,
+      "vomiting": 1.5,
+      "fluidIntake": 1.0,
+      "courseHours": 40
+    }
+  },
+  "initialState": {
+    "position": "reclined-45",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "limited",
+    "exposure": [],
+    "nausea": 3,
+    "pain": {
+      "abdomen": 5
+    }
+  },
+  "observables": {
+    "vitals.temp": {
+      "value": 37.4
+    },
+    "abdomen.palpation": {
+      "value": {
+        "tenderness": "mild",
+        "mass": false,
+        "guarding": false
+      }
+    },
+    "general.appearance": {
+      "value": {
+        "distress": "moderate",
+        "colour": "pale",
+        "sweating": false
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "vomiting",
+        "present": true
+      },
+      "say": {
+        "en": "I keep being sick. And my tummy hurts. And I can’t get my breath.",
+        "de": "Ich muss ständig brechen. Und der Bauch tut weh. Und ich krieg keine Luft."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "say": {
+        "en": "It started with a sore throat on Thursday. Yesterday evening I started throwing up.",
+        "de": "Es fing Donnerstag mit Halsweh an. Gestern Abend musste ich anfangen zu brechen."
+      }
+    },
+    {
+      "id": "f-vomit",
+      "topic": "sx.vomiting",
+      "assertion": {
+        "concept": "vomiting",
+        "present": true,
+        "attributes": {
+          "hours": 14
+        }
+      },
+      "say": {
+        "en": "Maybe ten times since last night. I can’t keep even water down.",
+        "de": "Seit gestern Abend vielleicht zehnmal. Ich behalte nicht mal Wasser."
+      }
+    },
+    {
+      "id": "f-abdo",
+      "topic": "sx.abdominal-pain",
+      "assertion": {
+        "concept": "abdominal-pain",
+        "present": true,
+        "attributes": {
+          "site": "diffuse"
+        }
+      },
+      "say": {
+        "en": "All over, crampy. Not in one spot.",
+        "de": "Überall, krampfartig. Nicht an einer Stelle."
+      }
+    },
+    {
+      "id": "f-thirst",
+      "topic": "sx.thirst",
+      "assertion": {
+        "concept": "polydipsia",
+        "present": true
+      },
+      "say": {
+        "en": "So thirsty. I drank litres yesterday before the sickness, and I was on the toilet all night.",
+        "de": "Wahnsinnig durstig. Gestern vor dem Erbrechen habe ich literweise getrunken, und war die ganze Nacht auf der Toilette."
+      }
+    },
+    {
+      "id": "f-urine",
+      "topic": "sx.urine",
+      "assertion": {
+        "concept": "polyuria",
+        "present": true
+      },
+      "say": {
+        "en": "Loads, all the time, since the weekend.",
+        "de": "Ständig, ganz viel, seit dem Wochenende."
+      }
+    },
+    {
+      "id": "f-insulin",
+      "topic": "sx.blood-sugar",
+      "assertion": {
+        "concept": "insulin-omission",
+        "present": true
+      },
+      "say": {
+        "en": "My sugars were high since the sore throat, fifteen, twenty. When I couldn’t eat I didn’t take the evening insulin, I thought I’d go low. Then the meter just said HI.",
+        "de": "Seit dem Halsweh waren die Zucker hoch, fünfzehn, zwanzig. Als ich nichts essen konnte, habe ich das Abendinsulin weggelassen, ich dachte, ich unterzuckere sonst. Dann hat das Gerät nur noch HI angezeigt."
+      }
+    },
+    {
+      "id": "f-dysp",
+      "topic": "sx.dyspnoea",
+      "assertion": {
+        "concept": "dyspnoea",
+        "present": true,
+        "attributes": {
+          "character": "air-hunger"
+        }
+      },
+      "say": {
+        "en": "I keep having to breathe in deep. It’s not that my chest is tight.",
+        "de": "Ich muss immer tief einatmen. Die Brust ist nicht eng."
+      }
+    },
+    {
+      "id": "f-pain",
+      "topic": "sx.chest-pain",
+      "assertion": {
+        "concept": "chest-pain",
+        "present": false
+      },
+      "say": {
+        "en": "No.",
+        "de": "Nein."
+      }
+    },
+    {
+      "id": "f-diarr",
+      "topic": "sx.diarrhoea",
+      "assertion": {
+        "concept": "diarrhoea",
+        "present": false
+      },
+      "say": {
+        "en": "No diarrhoea.",
+        "de": "Kein Durchfall."
+      }
+    },
+    {
+      "id": "f-fever",
+      "topic": "sx.fever",
+      "assertion": {
+        "concept": "fever",
+        "present": true
+      },
+      "say": {
+        "en": "A bit hot with the throat. No shivering.",
+        "de": "Mit dem Hals etwas warm. Kein Schüttelfrost."
+      }
+    },
+    {
+      "id": "f-confused",
+      "topic": "sx.confusion",
+      "say": {
+        "en": "Just so tired.",
+        "de": "Nur so müde."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "assertion": {
+        "concept": "type-1-diabetes",
+        "present": true
+      },
+      "say": {
+        "en": "Type 1 diabetes since I was eleven. No other illnesses.",
+        "de": "Typ-1-Diabetes, seit ich elf bin. Sonst nichts."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "assertion": {
+        "concept": "insulin",
+        "present": true
+      },
+      "say": {
+        "en": "Insulin pens. The long one in the evening, the quick one with meals. About forty units a day altogether.",
+        "de": "Insulinpens. Das lange abends, das schnelle zu den Mahlzeiten. Insgesamt etwa vierzig Einheiten am Tag."
+      }
+    },
+    {
+      "id": "f-allergy",
+      "topic": "allergies",
+      "assertion": {
+        "concept": "penicillin-allergy",
+        "present": true
+      },
+      "say": {
+        "en": "Penicillin, I came out in a rash.",
+        "de": "Penicillin, da hatte ich Ausschlag."
+      }
+    },
+    {
+      "id": "f-lmp",
+      "topic": "shx.living",
+      "say": {
+        "en": "I live with my mum. I’m at college.",
+        "de": "Ich wohne bei meiner Mutter. Ich bin in der Ausbildung."
+      }
+    },
+    {
+      "id": "f-alc",
+      "topic": "shx.alcohol",
+      "say": {
+        "en": "Not this week.",
+        "de": "Diese Woche nicht."
+      }
+    },
+    {
+      "id": "f-mother",
+      "topic": "hpc.duration",
+      "say": {
+        "en": "She was breathing so strangely this morning, deep, like after running. And she smelled of pear drops. That frightened me.",
+        "de": "Sie hat heute früh so seltsam geatmet, tief, wie nach dem Laufen. Und sie roch nach Nagellackentferner. Das hat mir Angst gemacht."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-ice",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "Did I do this by not taking the insulin?",
+        "de": "Bin ich schuld, weil ich das Insulin weggelassen habe?"
+      }
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-gas",
+        "kind": "investigation",
+        "ref": "blood-gas",
+        "weight": "essential",
+        "why": {
+          "en": "A metabolic acidosis (low pH, low bicarbonate) with a low PaCO₂: the lungs blowing off CO₂ to compensate. Glucose high on the same sample.",
+          "de": "Metabolische Azidose (niedriger pH, niedriges Bikarbonat) mit niedrigem PaCO₂: Die Lunge atmet CO₂ ab, um zu kompensieren. Glukose in derselben Probe hoch."
+        }
+      },
+      {
+        "id": "e-ketones",
+        "kind": "investigation",
+        "ref": "ketones",
+        "weight": "essential",
+        "discriminates": [
+          "hyperosmolar-hyperglycaemic-state",
+          "starvation-ketosis"
+        ],
+        "why": {
+          "en": "Capillary β-hydroxybutyrate above 3 mmol/L: ketoacidosis. Glucose above 11, ketones above 3, bicarbonate below 15 or pH below 7.3 is DKA.",
+          "de": "Kapilläres β-Hydroxybutyrat über 3 mmol/l: Ketoazidose. Glukose über 11, Ketone über 3, Bikarbonat unter 15 oder pH unter 7,3 ist eine DKA."
+        }
+      },
+      {
+        "id": "e-breathing",
+        "kind": "property",
+        "ref": "breathing.pattern",
+        "weight": "essential",
+        "why": {
+          "en": "Deep, sighing breathing (Kussmaul), the rate barely raised: the brainstem answering the acid with depth, not the lungs failing.",
+          "de": "Tiefe, seufzende Atmung (Kussmaul), die Frequenz kaum erhöht: Der Hirnstamm antwortet auf die Säure mit Tiefe, nicht die Lunge versagt."
+        }
+      },
+      {
+        "id": "e-breath",
+        "kind": "property",
+        "ref": "breath.odour",
+        "weight": "supporting",
+        "why": {
+          "en": "Acetone on the breath.",
+          "de": "Acetongeruch der Atemluft."
+        }
+      },
+      {
+        "id": "e-glucose",
+        "kind": "investigation",
+        "ref": "glucose",
+        "weight": "supporting",
+        "why": {
+          "en": "Glucose above the meter’s range.",
+          "de": "Glukose über dem Messbereich des Geräts."
+        }
+      },
+      {
+        "id": "e-ue",
+        "kind": "investigation",
+        "ref": "electrolytes",
+        "weight": "essential",
+        "why": {
+          "en": "Potassium normal or high despite a large body deficit: insulin will drive it into cells, so it must be watched and replaced. A raised anion gap from ketoanions. Sodium low because glucose holds water outside the cells.",
+          "de": "Kalium normal oder hoch trotz großen Körperdefizits: Insulin wird es in die Zellen treiben, daher überwachen und ersetzen. Erhöhte Anionenlücke durch Ketoanionen. Natrium niedrig, weil Glukose Wasser außerhalb der Zellen hält."
+        }
+      },
+      {
+        "id": "e-mucosa",
+        "kind": "property",
+        "ref": "mouth.mucosa",
+        "weight": "supporting",
+        "why": {
+          "en": "Dry: the osmotic diuresis and the vomiting have cost several litres.",
+          "de": "Trocken: Osmotische Diurese und Erbrechen haben mehrere Liter gekostet."
+        }
+      },
+      {
+        "id": "e-hr",
+        "kind": "property",
+        "ref": "vitals.hr",
+        "weight": "supporting",
+        "why": {
+          "en": "Tachycardia: hypovolaemia, acidaemia and adrenaline.",
+          "de": "Tachykardie: Hypovolämie, Azidämie und Adrenalin."
+        }
+      },
+      {
+        "id": "e-insulin",
+        "kind": "fact",
+        "ref": "f-insulin",
+        "weight": "essential",
+        "why": {
+          "en": "Insulin stopped during an illness that raised the need for it (“sick day rules”: never stop basal insulin).",
+          "de": "Insulin während einer Erkrankung weggelassen, die den Bedarf erhöht hat („Sick-Day-Regeln“: Basalinsulin nie weglassen)."
+        }
+      },
+      {
+        "id": "e-dip",
+        "kind": "investigation",
+        "ref": "urinalysis",
+        "weight": "supporting",
+        "why": {
+          "en": "Glucose and ketones in the urine.",
+          "de": "Glukose und Ketone im Urin."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "investigation",
+        "ref": "electrolytes",
+        "why": {
+          "en": "Check potassium before and during insulin: below 3.5 do not start insulin until it is replaced.",
+          "de": "Kalium vor und während der Insulingabe kontrollieren: unter 3,5 kein Insulin, bevor es ersetzt ist."
+        }
+      },
+      {
+        "kind": "investigation",
+        "ref": "blood-gas",
+        "why": {
+          "en": "pH below 7.1 or bicarbonate below 5: severe DKA, high-dependency care.",
+          "de": "pH unter 7,1 oder Bikarbonat unter 5: schwere DKA, Intermediate-Care oder Intensivstation."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 20,
+    "summary": {
+      "en": "A 19-year-old with type 1 diabetes and a sore throat who omitted her basal insulin when she could not eat. Vomiting, diffuse abdominal pain, polyuria and polydipsia, deep sighing breathing and acetone on the breath; tachycardic and dry. Blood gas: metabolic acidosis with respiratory compensation, glucose above meter range, β-hydroxybutyrate above 3, potassium normal-high despite a total-body deficit, raised anion gap. Diabetic ketoacidosis: fluids, fixed-rate intravenous insulin once potassium is known, potassium replacement, hourly ketones and glucose, treat the precipitant.",
+      "de": "Eine 19-Jährige mit Typ-1-Diabetes und Halsentzündung, die ihr Basalinsulin wegließ, als sie nicht essen konnte. Erbrechen, diffuse Bauchschmerzen, Polyurie und Polydipsie, tiefe seufzende Atmung und Acetongeruch; tachykard und exsikkiert. Blutgas: metabolische Azidose mit respiratorischer Kompensation, Glukose über dem Messbereich, β-Hydroxybutyrat über 3, Kalium hochnormal trotz Gesamtkörperdefizit, erhöhte Anionenlücke. Diabetische Ketoazidose: Flüssigkeit, fixe intravenöse Insulingabe, sobald das Kalium bekannt ist, Kaliumersatz, stündlich Ketone und Glukose, Auslöser behandeln."
+    }
+  },
+  "diagnosis": {
+    "primary": "diabetic-ketoacidosis",
+    "accepted": [],
+    "differential": [
+      "hyperosmolar-hyperglycaemic-state",
+      "gastroenteritis",
+      "acute-appendicitis",
+      "acute-pancreatitis",
+      "sepsis",
+      "starvation-ketosis",
+      "alcoholic-ketoacidosis"
+    ]
+  }
+}

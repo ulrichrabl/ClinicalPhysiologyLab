@@ -63,8 +63,9 @@
       "embLUL": 0.35,
       "embRML": 0.3
     },
-    "chemistry": {
-      "glucose": 5.3
+    "body": {
+      "courseHours": 5,
+      "stress": 0.3
     }
   },
   "initialState": {

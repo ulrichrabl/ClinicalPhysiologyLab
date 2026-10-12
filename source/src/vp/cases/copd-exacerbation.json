@@ -71,11 +71,24 @@
       "metabolicRate": 1.1
     },
     "chemistry": {
-      "bicarbonate": 28,
       "whiteCellCount": 11.8,
-      "crp": 42,
-      "glucose": 6.2,
-      "haemoglobin": 162
+      "crp": 42
+    },
+    "chronic": {
+      "days": 60,
+      "respiratory": {
+        "emphysema": 0.52,
+        "bronchoconstriction": 0.22,
+        "vqMismatch": 0.08
+      },
+      "body": {
+        "redCellMass": 1.08
+      }
+    },
+    "body": {
+      "courseHours": 96,
+      "stress": 0.3,
+      "foodIntake": 0.6
     }
   },
   "initialState": {

@@ -63,10 +63,20 @@
     },
     "chemistry": {
       "whiteCellCount": 17.4,
-      "crp": 186,
-      "urea": 9.1,
-      "creatinine": 96,
-      "glucose": 7.4
+      "crp": 186
+    },
+    "chronic": {
+      "days": 60,
+      "body": {
+        "betaCell": 0.6,
+        "insulinSensitivity": 0.5
+      }
+    },
+    "body": {
+      "courseHours": 72,
+      "foodIntake": 0.4,
+      "fluidIntake": 1.0,
+      "stress": 0.6
     }
   },
   "initialState": {

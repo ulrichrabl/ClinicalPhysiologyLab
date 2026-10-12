@@ -66,10 +66,7 @@
         "complete": true,
         "label": "Right L5 root (ventral and dorsal)"
       }
-    ],
-    "chemistry": {
-      "glucose": 5.2
-    }
+    ]
   },
   "initialState": {
     "position": "sitting",

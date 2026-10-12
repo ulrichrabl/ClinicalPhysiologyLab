@@ -53,6 +53,8 @@ export const RESP_LAB_RESOLVERS: Record<string, Resolver> = {
       arterialPH: d(c.arterialPH, 2), paCO2: d(c.paCO2, 1), paO2: d(c.paO2, 1), bicarbonate: d(c.bicarbonate, 0), baseExcess: d((c as any).baseExcess ?? 0, 1),
       lactate: d(c.lactate, 1), potassium: d(c.potassium, 1),
     };
+    /* Blood-gas analysers also carry electrodes for sodium and chloride, a glucose sensor and a co-oximeter for haemoglobin. */
+    if (view.body) { v.sodium = d(c.sodium, 0); v.chloride = d(c.chloride, 0); v.glucose = d(c.glucose, 1); v.haemoglobin = d(c.haemoglobin, 0); }
     if (r) { v.saO2 = d(r.FO2Hb * 100, 0); v.coHb = d(r.COHb * 100, 1); v.metHb = d(r.metHb * 100, 1); }
     v.fio2 = d(r?.params.FiO2 ?? view.state.oxygen?.fio2 ?? 0.21, 2);
     return { value: v };

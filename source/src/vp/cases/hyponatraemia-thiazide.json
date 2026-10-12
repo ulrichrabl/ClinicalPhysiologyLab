@@ -1,0 +1,414 @@
+{
+  "schema": "vp.case/1",
+  "id": "hyponatraemia-thiazide",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Confusion and falls in an elderly woman three weeks after starting a thiazide: hyponatraemia",
+    "de": "Verwirrtheit und Stürze bei einer alten Frau drei Wochen nach Beginn eines Thiazids: Hyponatriämie"
+  },
+  "tags": [
+    "electrolytes",
+    "sodium",
+    "drugs",
+    "elderly",
+    "confusion"
+  ],
+  "difficulty": 3,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-12",
+    "sources": [
+      "Spasovski G et al. Clinical practice guideline on diagnosis and treatment of hyponatraemia. Eur J Endocrinol 2014;170:G1–47.",
+      "Hix JK et al. Severe hyponatremia in Hispanic and non-Hispanic patients on thiazide diuretics. Am J Med 2011.",
+      "Berl T. Impact of solute intake on urine flow and water excretion. J Am Soc Nephrol 2008;19:1076–8."
+    ]
+  },
+  "patient": {
+    "name": "Gertrud Meier",
+    "age": 82,
+    "sex": "F",
+    "heightCm": 158,
+    "weightKg": 52,
+    "appearance": {
+      "skinTone": 2,
+      "hair": "white, set in curls",
+      "build": "thin"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ],
+    "companion": {
+      "name": "Claudia Meier",
+      "relation": {
+        "en": "daughter",
+        "de": "Tochter"
+      }
+    }
+  },
+  "setting": {
+    "place": {
+      "en": "Emergency department, bay 6",
+      "de": "Notaufnahme, Box 6"
+    },
+    "triage": {
+      "en": "Found muddled at home by her daughter. Two falls this week. No head injury seen.",
+      "de": "Von der Tochter verwirrt zu Hause aufgefunden. Zwei Stürze diese Woche. Keine Kopfverletzung sichtbar."
+    }
+  },
+  "pathology": {
+    "body": {
+      "thiazide": 1,
+      "fluidIntake": 2.3,
+      "foodIntake": 0.4,
+      "saltIntake": 80,
+      "proteinIntake": 45,
+      "courseHours": 336
+    }
+  },
+  "initialState": {
+    "position": "sitting",
+    "avpu": "A",
+    "orientation": "confused",
+    "cooperation": "limited",
+    "exposure": []
+  },
+  "observables": {
+    "vitals.temp": {
+      "value": 36.5
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "say": {
+        "en": "I’m quite all right. I don’t know why Claudia has brought me here. I just felt a bit queer.",
+        "de": "Mir geht es gut. Ich weiß gar nicht, warum Claudia mich hergebracht hat. Mir war nur etwas komisch."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "assertion": {
+        "concept": "confusion",
+        "present": true
+      },
+      "say": {
+        "en": "Was it this week? I don’t know. The days run together.",
+        "de": "War das diese Woche? Ich weiß nicht. Die Tage verschwimmen."
+      }
+    },
+    {
+      "id": "f-daughter",
+      "topic": "hpc.duration",
+      "assertion": {
+        "concept": "new-thiazide",
+        "present": true
+      },
+      "say": {
+        "en": "For about a week she’s been muddled, repeating herself, and she fell twice, once in the kitchen, once in the hall. Her doctor started a new water tablet three weeks ago for her blood pressure.",
+        "de": "Seit etwa einer Woche ist sie durcheinander, wiederholt sich, und ist zweimal gestürzt, einmal in der Küche, einmal im Flur. Ihre Ärztin hat vor drei Wochen eine neue Wassertablette für den Blutdruck angefangen."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-falls",
+      "topic": "sx.falls",
+      "assertion": {
+        "concept": "falls",
+        "present": true,
+        "attributes": {
+          "headInjury": false
+        }
+      },
+      "say": {
+        "en": "My legs went. I didn’t hit my head, I don’t think.",
+        "de": "Die Beine haben nachgegeben. Den Kopf habe ich mir nicht angeschlagen, glaube ich."
+      }
+    },
+    {
+      "id": "f-intake",
+      "topic": "sx.intake",
+      "assertion": {
+        "concept": "low-solute-intake",
+        "present": true,
+        "attributes": {
+          "tea": true
+        }
+      },
+      "say": {
+        "en": "Tea. I drink a lot of tea, the doctor says to drink plenty. I’m not hungry these days; a slice of toast, a biscuit.",
+        "de": "Tee. Ich trinke viel Tee, die Ärztin sagt, ich soll viel trinken. Hunger habe ich zurzeit keinen; eine Scheibe Toast, ein Keks."
+      }
+    },
+    {
+      "id": "f-nausea",
+      "topic": "sx.nausea",
+      "assertion": {
+        "concept": "nausea",
+        "present": true
+      },
+      "say": {
+        "en": "A bit queasy in the mornings.",
+        "de": "Morgens etwas flau."
+      }
+    },
+    {
+      "id": "f-headache",
+      "topic": "sx.headache",
+      "assertion": {
+        "concept": "headache",
+        "present": true
+      },
+      "say": {
+        "en": "A dull head, yes.",
+        "de": "Ein dumpfer Kopf, ja."
+      }
+    },
+    {
+      "id": "f-vomit",
+      "topic": "sx.vomiting",
+      "assertion": {
+        "concept": "vomiting",
+        "present": false
+      },
+      "say": {
+        "en": "No.",
+        "de": "Nein."
+      }
+    },
+    {
+      "id": "f-diarr",
+      "topic": "sx.diarrhoea",
+      "assertion": {
+        "concept": "diarrhoea",
+        "present": false
+      },
+      "say": {
+        "en": "No.",
+        "de": "Nein."
+      }
+    },
+    {
+      "id": "f-urine",
+      "topic": "sx.urine",
+      "say": {
+        "en": "I’m up and down to the toilet all the time with that tablet.",
+        "de": "Mit der Tablette muss ich ständig auf die Toilette."
+      }
+    },
+    {
+      "id": "f-seizure",
+      "topic": "sx.seizure",
+      "assertion": {
+        "concept": "seizure",
+        "present": false
+      },
+      "say": {
+        "en": "She hasn’t had a fit. No.",
+        "de": "Einen Krampfanfall hatte sie nicht. Nein."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-weakness",
+      "topic": "sx.weakness",
+      "say": {
+        "en": "Just tired legs.",
+        "de": "Nur müde Beine."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "say": {
+        "en": "Blood pressure. A new hip six years ago. Nothing with the heart, the thyroid was checked last year and was fine.",
+        "de": "Blutdruck. Vor sechs Jahren eine neue Hüfte. Nichts am Herzen, die Schilddrüse wurde letztes Jahr kontrolliert und war in Ordnung."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "assertion": {
+        "concept": "thiazide-use",
+        "present": true
+      },
+      "say": {
+        "en": "The water tablet, indapamide, that’s the new one. Amlodipine. A calcium tablet.",
+        "de": "Die Wassertablette, Indapamid, das ist die neue. Amlodipin. Eine Calciumtablette."
+      }
+    },
+    {
+      "id": "f-allergy",
+      "topic": "allergies",
+      "say": {
+        "en": "No allergies.",
+        "de": "Keine Allergien."
+      }
+    },
+    {
+      "id": "f-living",
+      "topic": "shx.living",
+      "say": {
+        "en": "She lives alone since my father died. I come every other day.",
+        "de": "Sie lebt allein, seit mein Vater gestorben ist. Ich komme jeden zweiten Tag."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-alc",
+      "topic": "shx.alcohol",
+      "say": {
+        "en": "A sherry at Christmas.",
+        "de": "Einen Sherry an Weihnachten."
+      }
+    },
+    {
+      "id": "f-smoke",
+      "topic": "shx.smoking",
+      "assertion": {
+        "concept": "smoking",
+        "present": false
+      },
+      "say": {
+        "en": "Never.",
+        "de": "Nie."
+      }
+    },
+    {
+      "id": "f-ice",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "Is it dementia? That’s what I’m afraid of. Her mother had it.",
+        "de": "Ist es eine Demenz? Davor habe ich Angst. Ihre Mutter hatte das."
+      },
+      "speaker": "companion"
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-ue",
+        "kind": "investigation",
+        "ref": "electrolytes",
+        "weight": "essential",
+        "why": {
+          "en": "Sodium below 125 with low potassium and chloride: hyponatraemia, with the hypokalaemia a thiazide gives. Urea and creatinine low-normal, as with little protein and plenty of water.",
+          "de": "Natrium unter 125 mit niedrigem Kalium und Chlorid: Hyponatriämie, dazu die Hypokaliämie eines Thiazids. Harnstoff und Kreatinin niedrig-normal, wie bei wenig Eiweiß und viel Wasser."
+        }
+      },
+      {
+        "id": "e-osm",
+        "kind": "investigation",
+        "ref": "osmolality",
+        "weight": "essential",
+        "why": {
+          "en": "Low serum osmolality: true, hypotonic hyponatraemia (not glucose, not a laboratory artefact).",
+          "de": "Niedrige Serumosmolalität: echte, hypotone Hyponatriämie (nicht Glukose, kein Laborartefakt)."
+        }
+      },
+      {
+        "id": "e-urine",
+        "kind": "investigation",
+        "ref": "urine-electrolytes",
+        "weight": "discriminating",
+        "discriminates": [
+          "primary-polydipsia"
+        ],
+        "why": {
+          "en": "Urine osmolality above 100: she cannot make a dilute urine. The thiazide blocks the diluting segment; an old kidney dilutes less anyway. On a thiazide the urine sodium cannot separate dry from euvolaemic.",
+          "de": "Urinosmolalität über 100: Sie kann keinen verdünnten Urin bilden. Das Thiazid blockiert das verdünnende Segment; eine alte Niere verdünnt ohnehin weniger. Unter einem Thiazid trennt das Urinnatrium exsikkiert nicht von euvolämisch."
+        }
+      },
+      {
+        "id": "e-meds",
+        "kind": "fact",
+        "ref": "f-daughter",
+        "weight": "essential",
+        "why": {
+          "en": "A thiazide started three weeks ago in a thin, elderly woman: the classic setting. Hyponatraemia from thiazides develops within weeks of starting.",
+          "de": "Ein vor drei Wochen begonnenes Thiazid bei einer schlanken, alten Frau: die klassische Konstellation. Die Thiazid-Hyponatriämie entsteht in den ersten Wochen."
+        }
+      },
+      {
+        "id": "e-tea",
+        "kind": "fact",
+        "ref": "f-intake",
+        "weight": "essential",
+        "why": {
+          "en": "Plenty of tea and little food: a lot of water and too few solutes to excrete it with (“tea and toast”).",
+          "de": "Viel Tee und wenig Essen: viel Wasser und zu wenig gelöste Teilchen, um es auszuscheiden („Tea and Toast“)."
+        }
+      },
+      {
+        "id": "e-volume",
+        "kind": "property",
+        "ref": "mouth.mucosa",
+        "weight": "supporting",
+        "discriminates": [
+          "siadh"
+        ],
+        "why": {
+          "en": "A slightly dry mouth, a small postural drop, no oedema: mildly volume-depleted by the thiazide, not grossly. Inappropriate ADH would leave her euvolaemic; oedema would point to heart, liver or kidney failure. Her skin turgor says nothing at 82.",
+          "de": "Etwas trockener Mund, geringer orthostatischer Abfall, keine Ödeme: durch das Thiazid leicht volumendepletiert, nicht ausgeprägt. Ein SIADH ließe sie euvolämisch; Ödeme sprächen für Herz-, Leber- oder Nierenversagen. Ihr Hautturgor sagt mit 82 nichts."
+        }
+      },
+      {
+        "id": "e-neuro",
+        "kind": "property",
+        "ref": "eye.pupil.L",
+        "context": {
+          "lightOn": "L"
+        },
+        "weight": "supporting",
+        "discriminates": [
+          "subdural-haematoma"
+        ],
+        "why": {
+          "en": "No focal signs after two falls, but a subdural must still be considered in a confused, falling, elderly woman.",
+          "de": "Keine fokalen Zeichen nach zwei Stürzen, aber ein Subduralhämatom muss bei einer verwirrten, stürzenden alten Frau dennoch bedacht werden."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "investigation",
+        "ref": "electrolytes",
+        "why": {
+          "en": "Severe symptoms (seizures, reduced consciousness) need hypertonic saline; otherwise stop the thiazide, restrict water, and correct slowly: no more than 8–10 mmol/L in 24 hours, or osmotic demyelination follows.",
+          "de": "Schwere Symptome (Krampfanfälle, Bewusstseinsminderung) erfordern hypertone Kochsalzlösung; sonst Thiazid absetzen, Trinkmenge begrenzen und langsam ausgleichen: höchstens 8–10 mmol/l in 24 Stunden, sonst droht eine osmotische Demyelinisierung."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 20,
+    "summary": {
+      "en": "An 82-year-old who started indapamide three weeks ago, drinks plenty of tea on her doctor’s advice and eats little. A week of confusion and two falls. Clinically about euvolaemic, no focal signs. Sodium below 125 with low potassium, low serum osmolality, a urine that is not maximally dilute. Thiazide-induced hyponatraemia, made worse by a low solute intake: stop the thiazide, limit water, replace potassium, correct sodium slowly; exclude a subdural if she does not improve.",
+      "de": "Eine 82-Jährige, die vor drei Wochen Indapamid begonnen hat, auf ärztlichen Rat viel Tee trinkt und wenig isst. Eine Woche Verwirrtheit und zwei Stürze. Klinisch etwa euvolämisch, keine fokalen Zeichen. Natrium unter 125 mit niedrigem Kalium, niedrige Serumosmolalität, Urin nicht maximal verdünnt. Thiazid-induzierte Hyponatriämie, verstärkt durch geringe Zufuhr gelöster Teilchen: Thiazid absetzen, Trinkmenge begrenzen, Kalium ersetzen, Natrium langsam ausgleichen; ein Subduralhämatom ausschließen, wenn sie sich nicht bessert."
+    }
+  },
+  "diagnosis": {
+    "primary": "hyponatraemia-thiazide",
+    "accepted": [
+      "hyponatraemia"
+    ],
+    "differential": [
+      "siadh",
+      "primary-polydipsia",
+      "hypothyroidism",
+      "adrenal-insufficiency",
+      "subdural-haematoma",
+      "urinary-tract-infection",
+      "delirium"
+    ]
+  }
+}

@@ -1,0 +1,467 @@
+{
+  "schema": "vp.case/1",
+  "id": "aki-hyperkalaemia-triple-whammy",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Weak and dizzy after a week of diarrhoea, on ramipril, spironolactone and ibuprofen: acute kidney injury with hyperkalaemia",
+    "de": "Schwach und schwindlig nach einer Woche Durchfall, unter Ramipril, Spironolacton und Ibuprofen: akute Nierenschädigung mit Hyperkaliämie"
+  },
+  "tags": [
+    "kidney",
+    "electrolytes",
+    "potassium",
+    "ecg",
+    "drugs",
+    "emergency"
+  ],
+  "difficulty": 3,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-12",
+    "sources": [
+      "KDIGO Clinical Practice Guideline for Acute Kidney Injury. Kidney Int Suppl 2012;2:1–138.",
+      "Lapi F et al. Concurrent use of diuretics, ACE inhibitors and ARBs with NSAIDs and risk of acute kidney injury. BMJ 2013;346:e8525.",
+      "UK Kidney Association. Clinical practice guideline: treatment of acute hyperkalaemia in adults. 2023."
+    ]
+  },
+  "patient": {
+    "name": "Helmut Bauer",
+    "age": 78,
+    "sex": "M",
+    "heightCm": 172,
+    "weightKg": 81,
+    "appearance": {
+      "skinTone": 2,
+      "hair": "white, short",
+      "build": "heavy"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ],
+    "companion": {
+      "name": "Erika Bauer",
+      "relation": {
+        "en": "wife",
+        "de": "Ehefrau"
+      }
+    }
+  },
+  "setting": {
+    "place": {
+      "en": "Emergency department, bay 3",
+      "de": "Notaufnahme, Box 3"
+    },
+    "triage": {
+      "en": "Weak and dizzy for two days after a week of diarrhoea. Pulse slow at triage.",
+      "de": "Seit zwei Tagen schwach und schwindlig nach einer Woche Durchfall. Puls bei der Triage langsam."
+    }
+  },
+  "pathology": {
+    "chronic": {
+      "days": 60,
+      "physiology": {
+        "Rsys": 1.35,
+        "Csa": 0.9,
+        "Pn": 112
+      },
+      "body": {
+        "aceInhibitor": 1,
+        "spironolactone": 0.5,
+        "nephronMass": 0.75,
+        "potassiumIntake": 110
+      }
+    },
+    "body": {
+      "nsaid": 1,
+      "diarrhoea": 1.0,
+      "foodIntake": 0.9,
+      "fluidIntake": 0.5,
+      "tubularInjury": 0.15,
+      "courseHours": 168
+    }
+  },
+  "initialState": {
+    "position": "reclined-45",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "full",
+    "exposure": []
+  },
+  "observables": {
+    "vitals.temp": {
+      "value": 36.9
+    },
+    "abdomen.palpation": {
+      "value": {
+        "tenderness": "none",
+        "mass": false,
+        "guarding": false
+      }
+    },
+    "general.appearance": {
+      "value": {
+        "distress": "mild",
+        "colour": "pale",
+        "sweating": false
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "weakness",
+        "present": true
+      },
+      "say": {
+        "en": "I feel so weak. My legs are like lead, and when I stand up the room goes grey.",
+        "de": "Ich fühle mich so schwach. Die Beine sind wie Blei, und wenn ich aufstehe, wird mir grau vor Augen."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "say": {
+        "en": "The diarrhoea started a week ago, our grandchildren had it first. The weakness came the last two days.",
+        "de": "Der Durchfall fing vor einer Woche an, die Enkel hatten es zuerst. Die Schwäche kam die letzten zwei Tage."
+      }
+    },
+    {
+      "id": "f-diarr",
+      "topic": "sx.diarrhoea",
+      "assertion": {
+        "concept": "diarrhoea",
+        "present": true,
+        "attributes": {
+          "days": 6,
+          "bloody": false
+        }
+      },
+      "say": {
+        "en": "Five or six times a day at first, watery. Now three or four times. No blood.",
+        "de": "Anfangs fünf-, sechsmal am Tag, wässrig. Jetzt drei-, viermal. Kein Blut."
+      }
+    },
+    {
+      "id": "f-vomit",
+      "topic": "sx.vomiting",
+      "assertion": {
+        "concept": "vomiting",
+        "present": true,
+        "attributes": {
+          "days": 1
+        }
+      },
+      "say": {
+        "en": "Once, on the first day. Not since.",
+        "de": "Einmal, am ersten Tag. Seitdem nicht mehr."
+      }
+    },
+    {
+      "id": "f-intake",
+      "topic": "sx.intake",
+      "assertion": {
+        "concept": "potassium-rich-diet",
+        "present": true
+      },
+      "say": {
+        "en": "I eat, more or less. Bananas, my wife says they are good for the bowels. But I hardly drink, it just runs straight through.",
+        "de": "Essen tue ich, mehr oder weniger. Bananen, meine Frau sagt, die sind gut für den Darm. Aber ich trinke kaum, es läuft ja gleich durch."
+      }
+    },
+    {
+      "id": "f-urine",
+      "topic": "sx.urine",
+      "assertion": {
+        "concept": "oliguria",
+        "present": true
+      },
+      "say": {
+        "en": "Hardly at all since yesterday. And dark, like tea.",
+        "de": "Seit gestern kaum noch. Und dunkel, wie Tee."
+      }
+    },
+    {
+      "id": "f-palp",
+      "topic": "sx.palpitations",
+      "assertion": {
+        "concept": "palpitations",
+        "present": true
+      },
+      "say": {
+        "en": "Sometimes the heart seems to stumble, then go slow.",
+        "de": "Manchmal stolpert das Herz, dann geht es langsam."
+      }
+    },
+    {
+      "id": "f-dizzy",
+      "topic": "sx.presyncope",
+      "assertion": {
+        "concept": "presyncope",
+        "present": true,
+        "attributes": {
+          "postural": true
+        }
+      },
+      "say": {
+        "en": "Every time I get up. I had to sit on the edge of the bed this morning for five minutes.",
+        "de": "Jedes Mal beim Aufstehen. Heute früh musste ich fünf Minuten auf der Bettkante sitzen."
+      }
+    },
+    {
+      "id": "f-pain",
+      "topic": "sx.chest-pain",
+      "assertion": {
+        "concept": "chest-pain",
+        "present": false
+      },
+      "say": {
+        "en": "No pain in the chest.",
+        "de": "Keine Brustschmerzen."
+      }
+    },
+    {
+      "id": "f-dysp",
+      "topic": "sx.dyspnoea",
+      "assertion": {
+        "concept": "dyspnoea",
+        "present": false
+      },
+      "say": {
+        "en": "Not breathless, no.",
+        "de": "Luftnot nicht, nein."
+      }
+    },
+    {
+      "id": "f-cramps",
+      "topic": "sx.cramps",
+      "say": {
+        "en": "My legs feel heavy and tingly, not cramps.",
+        "de": "Die Beine sind schwer und kribbeln, keine Krämpfe."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "assertion": {
+        "concept": "chronic-kidney-disease",
+        "present": true
+      },
+      "say": {
+        "en": "High blood pressure for twenty years, hard to control, they said. The kidneys are a bit weak, my GP checks them every half year. And arthritis in the right knee.",
+        "de": "Seit zwanzig Jahren hoher Blutdruck, schwer einzustellen, hieß es. Die Nieren sind etwas schwach, meine Hausärztin kontrolliert sie halbjährlich. Und Arthrose im rechten Knie."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "assertion": {
+        "concept": "nsaid-use",
+        "present": true,
+        "attributes": {
+          "ace": true,
+          "mra": true,
+          "nsaid": true
+        }
+      },
+      "say": {
+        "en": "Ramipril, ten milligrams. Spironolactone, that one was added last year for the pressure. Amlodipine. And for the knee I have been taking ibuprofen, three times a day, for about ten days.",
+        "de": "Ramipril, zehn Milligramm. Spironolacton, das kam letztes Jahr für den Blutdruck dazu. Amlodipin. Und für das Knie nehme ich seit etwa zehn Tagen Ibuprofen, dreimal am Tag."
+      }
+    },
+    {
+      "id": "f-salt",
+      "topic": "sx.blood-sugar",
+      "assertion": {
+        "concept": "potassium-salt-substitute",
+        "present": true
+      },
+      "say": {
+        "en": "No diabetes. My wife cooks without salt, we use the salt substitute.",
+        "de": "Kein Diabetes. Meine Frau kocht ohne Salz, wir nehmen den Salzersatz."
+      }
+    },
+    {
+      "id": "f-allergy",
+      "topic": "allergies",
+      "say": {
+        "en": "None.",
+        "de": "Keine."
+      }
+    },
+    {
+      "id": "f-living",
+      "topic": "shx.living",
+      "say": {
+        "en": "With my wife, in our house. I still do the garden.",
+        "de": "Mit meiner Frau, im eigenen Haus. Den Garten mache ich noch selbst."
+      }
+    },
+    {
+      "id": "f-alcohol",
+      "topic": "shx.alcohol",
+      "say": {
+        "en": "A glass of wine on Sundays.",
+        "de": "Sonntags ein Glas Wein."
+      }
+    },
+    {
+      "id": "f-wife",
+      "topic": "hpc.duration",
+      "say": {
+        "en": "He kept taking all his tablets, the doctor always said never to stop them. And the ibuprofen for the knee on top. I told him he looked grey.",
+        "de": "Er hat alle Tabletten weitergenommen, der Arzt hat immer gesagt, nie absetzen. Und obendrauf das Ibuprofen fürs Knie. Ich habe ihm gesagt, dass er grau aussieht."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-ice",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "Is it the heart? My brother died of his heart.",
+        "de": "Ist es das Herz? Mein Bruder ist am Herzen gestorben."
+      }
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-ecg",
+        "kind": "investigation",
+        "ref": "ecg-12",
+        "weight": "essential",
+        "discriminates": [
+          "complete-heart-block"
+        ],
+        "why": {
+          "en": "Tall, peaked T waves and a long PR interval: hyperkalaemia acting on the heart. With a widening QRS, the next step is a sine wave and arrest. Treat before the laboratory confirms it.",
+          "de": "Hohe, spitze T-Wellen und eine verlängerte PQ-Zeit: Hyperkaliämie am Herzen. Mit breiter werdendem QRS folgen Sinuswelle und Stillstand. Behandeln, bevor das Labor es bestätigt."
+        }
+      },
+      {
+        "id": "e-ue",
+        "kind": "investigation",
+        "ref": "electrolytes",
+        "weight": "essential",
+        "why": {
+          "en": "Potassium near 7, creatinine about twice his baseline, urea raised out of proportion to creatinine: acute kidney injury, prerenal in mechanism.",
+          "de": "Kalium um 7, Kreatinin etwa doppelt so hoch wie sein Ausgangswert, Harnstoff überproportional zum Kreatinin erhöht: akute Nierenschädigung, prärenaler Mechanismus."
+        }
+      },
+      {
+        "id": "e-meds",
+        "kind": "fact",
+        "ref": "f-meds",
+        "weight": "essential",
+        "why": {
+          "en": "The “triple whammy”: an ACE inhibitor (no angiotensin II to hold the efferent arteriole when perfusion falls), an NSAID (no prostaglandins to hold the afferent open), and volume loss. Spironolactone and a potassium salt substitute block and add potassium.",
+          "de": "Der „Triple Whammy“: ein ACE-Hemmer (kein Angiotensin II, das bei sinkender Perfusion das Vas efferens eng hält), ein NSAR (keine Prostaglandine, die das Vas afferens offen halten) und Volumenverlust. Spironolacton und ein kaliumhaltiger Salzersatz blockieren die Kaliumausscheidung und führen Kalium zu."
+        }
+      },
+      {
+        "id": "e-postural",
+        "kind": "property",
+        "ref": "vitals.bp.R",
+        "context": {
+          "position": "standing"
+        },
+        "weight": "supporting",
+        "why": {
+          "en": "A postural drop with a rising rate on standing: the blood volume is contracted.",
+          "de": "Ein orthostatischer Abfall mit Frequenzanstieg im Stehen: Das Blutvolumen ist vermindert."
+        }
+      },
+      {
+        "id": "e-mucosa",
+        "kind": "property",
+        "ref": "mouth.mucosa",
+        "weight": "supporting",
+        "why": {
+          "en": "Dry mucous membranes: interstitial fluid lost (his skin turgor tells you little at 78).",
+          "de": "Trockene Schleimhäute: interstitielle Flüssigkeit verloren (sein Hautturgor sagt mit 78 wenig)."
+        }
+      },
+      {
+        "id": "e-jvp",
+        "kind": "property",
+        "ref": "jvp",
+        "weight": "supporting",
+        "why": {
+          "en": "A JVP that is not visible lying at 45°: a low right atrial pressure.",
+          "de": "Kein sichtbarer Jugularvenenpuls bei 45°: niedriger rechtsatrialer Druck."
+        }
+      },
+      {
+        "id": "e-urine",
+        "kind": "investigation",
+        "ref": "urine-electrolytes",
+        "weight": "discriminating",
+        "discriminates": [
+          "acute-tubular-necrosis"
+        ],
+        "why": {
+          "en": "A concentrated urine (osmolality well above 500): the tubules can still hold water, so this is mainly prerenal. Its sodium is not low, but that misleads here: spironolactone and the ACE inhibitor stop aldosterone holding sodium. Established tubular necrosis would give a dilute urine.",
+          "de": "Ein konzentrierter Urin (Osmolalität deutlich über 500): Die Tubuli halten noch Wasser, das Geschehen ist vor allem prärenal. Das Urinnatrium ist nicht niedrig, aber das führt hier in die Irre: Spironolacton und der ACE-Hemmer hindern Aldosteron daran, Natrium zu halten. Eine manifeste Tubulusnekrose gäbe einen verdünnten Urin."
+        }
+      },
+      {
+        "id": "e-gas",
+        "kind": "investigation",
+        "ref": "blood-gas",
+        "weight": "supporting",
+        "why": {
+          "en": "A blood gas gives potassium in minutes, and a mild metabolic acidosis (stool bicarbonate lost, acid not excreted).",
+          "de": "Eine Blutgasanalyse liefert das Kalium in Minuten, dazu eine leichte metabolische Azidose (Bikarbonat mit dem Stuhl verloren, Säure nicht ausgeschieden)."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "investigation",
+        "ref": "ecg-12",
+        "why": {
+          "en": "Hyperkalaemia with ECG changes: calcium gluconate now to stabilise the myocardium, then insulin with glucose to drive potassium into cells, and continuous monitoring.",
+          "de": "Hyperkaliämie mit EKG-Veränderungen: sofort Calciumgluconat zur Membranstabilisierung, dann Insulin mit Glukose, um Kalium in die Zellen zu verschieben, und Monitorüberwachung."
+        }
+      },
+      {
+        "kind": "fact",
+        "ref": "f-meds",
+        "why": {
+          "en": "Stop ramipril, spironolactone and ibuprofen (“sick day rules”); give fluid; check the bladder for retention.",
+          "de": "Ramipril, Spironolacton und Ibuprofen absetzen („Sick-Day-Regeln“); Volumen geben; die Blase auf Harnverhalt prüfen."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 20,
+    "summary": {
+      "en": "A 78-year-old with hypertension and stage 3 chronic kidney disease on ramipril and spironolactone, using a potassium salt substitute, who added ibuprofen for his knee and then had six days of diarrhoea. Weak, dizzy on standing, passing little dark urine. Postural hypotension, dry mucosa, JVP not seen. ECG: peaked T waves, long PR. Potassium about 7, creatinine twice baseline with a disproportionately high urea, concentrated urine low in sodium. Prerenal acute kidney injury from volume loss on an ACE inhibitor and an NSAID, with hyperkalaemia: calcium gluconate, insulin–glucose, stop the culprits, intravenous fluid, monitor.",
+      "de": "Ein 78-Jähriger mit Hypertonie und chronischer Niereninsuffizienz Stadium 3 unter Ramipril und Spironolacton, mit kaliumhaltigem Salzersatz, der Ibuprofen für das Knie dazunahm und dann sechs Tage Durchfall hatte. Schwach, Schwindel beim Aufstehen, wenig dunkler Urin. Orthostatische Hypotonie, trockene Schleimhäute, Jugularvenen nicht sichtbar. EKG: spitze T-Wellen, lange PQ-Zeit. Kalium um 7, Kreatinin doppelt so hoch wie der Ausgangswert mit überproportional hohem Harnstoff, konzentrierter, natriumarmer Urin. Prärenale akute Nierenschädigung durch Volumenverlust unter ACE-Hemmer und NSAR, mit Hyperkaliämie: Calciumgluconat, Insulin-Glukose, auslösende Medikamente absetzen, intravenöse Flüssigkeit, Monitor."
+    }
+  },
+  "diagnosis": {
+    "primary": "acute-kidney-injury",
+    "accepted": [
+      "hyperkalaemia"
+    ],
+    "differential": [
+      "acute-tubular-necrosis",
+      "urinary-retention",
+      "gastroenteritis",
+      "complete-heart-block",
+      "adrenal-insufficiency",
+      "orthostatic-hypotension"
+    ]
+  }
+}
