@@ -1,0 +1,374 @@
+{
+  "schema": "vp.case/1",
+  "id": "upper-gi-bleed-peptic-ulcer",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Black stools and a faint on the toilet after weeks of ibuprofen and aspirin: bleeding peptic ulcer",
+    "de": "Schwarzer Stuhl und Kollaps auf der Toilette nach Wochen mit Ibuprofen und Aspirin: blutendes peptisches Ulkus"
+  },
+  "tags": [
+    "gastrointestinal",
+    "bleeding",
+    "shock",
+    "drugs",
+    "emergency"
+  ],
+  "difficulty": 2,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-12",
+    "sources": [
+      "Blatchford O, Murray WR, Blatchford M. A risk score to predict need for treatment for upper-gastrointestinal haemorrhage. Lancet 2000;356:1318–21.",
+      "Gralnek IM et al. Endoscopic diagnosis and management of nonvariceal upper gastrointestinal hemorrhage: ESGE Guideline 2021. Endoscopy 2021;53:300–32.",
+      "Villanueva C et al. Transfusion strategies for acute upper gastrointestinal bleeding. N Engl J Med 2013;368:11–21."
+    ]
+  },
+  "patient": {
+    "name": "Bernd Fischer",
+    "age": 62,
+    "sex": "M",
+    "heightCm": 180,
+    "weightKg": 88,
+    "appearance": {
+      "skinTone": 2,
+      "hair": "grey, receding",
+      "build": "heavy"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ],
+    "companion": {
+      "name": "Monika Fischer",
+      "relation": {
+        "en": "wife",
+        "de": "Ehefrau"
+      }
+    }
+  },
+  "setting": {
+    "place": {
+      "en": "Emergency department, bay 2",
+      "de": "Notaufnahme, Box 2"
+    },
+    "triage": {
+      "en": "Black stools since last night, collapsed on the toilet this morning. Vomited “coffee grounds” once.",
+      "de": "Seit gestern Abend schwarzer Stuhl, heute früh auf der Toilette kollabiert. Einmal „kaffeesatzartig“ erbrochen."
+    }
+  },
+  "pathology": {
+    "body": {
+      "upperGIBleed": 130,
+      "courseHours": 10,
+      "stress": 0.3,
+      "foodIntake": 0.5
+    }
+  },
+  "initialState": {
+    "position": "supine",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "full",
+    "exposure": []
+  },
+  "observables": {
+    "abdomen.palpation": {
+      "value": {
+        "tenderness": "mild",
+        "mass": false,
+        "guarding": false
+      }
+    },
+    "general.appearance": {
+      "value": {
+        "distress": "mild",
+        "colour": "pale",
+        "sweating": true
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "melaena",
+        "present": true
+      },
+      "say": {
+        "en": "I passed out on the toilet. And the stool is black, like tar.",
+        "de": "Ich bin auf der Toilette umgekippt. Und der Stuhl ist schwarz, wie Teer."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "say": {
+        "en": "The black stool started last night. This morning I went again, stood up and the next thing my wife was over me.",
+        "de": "Gestern Abend fing der schwarze Stuhl an. Heute früh wieder, beim Aufstehen — und dann lag ich da und meine Frau beugte sich über mich."
+      }
+    },
+    {
+      "id": "f-vomit",
+      "topic": "sx.vomiting",
+      "assertion": {
+        "concept": "haematemesis",
+        "present": true,
+        "attributes": {
+          "coffeeGround": true
+        }
+      },
+      "say": {
+        "en": "Once, at five this morning. Dark brown bits, like coffee grounds. No bright blood.",
+        "de": "Einmal, heute früh um fünf. Dunkelbraune Krümel, wie Kaffeesatz. Kein hellrotes Blut."
+      }
+    },
+    {
+      "id": "f-pain",
+      "topic": "sx.abdominal-pain",
+      "assertion": {
+        "concept": "epigastric-pain",
+        "present": true
+      },
+      "say": {
+        "en": "A gnawing ache up here for a few weeks, better when I eat. Not bad now.",
+        "de": "Seit ein paar Wochen ein nagender Schmerz hier oben, besser nach dem Essen. Jetzt nicht schlimm."
+      }
+    },
+    {
+      "id": "f-dizzy",
+      "topic": "sx.presyncope",
+      "assertion": {
+        "concept": "presyncope",
+        "present": true,
+        "attributes": {
+          "postural": true
+        }
+      },
+      "say": {
+        "en": "Light-headed whenever I sit up.",
+        "de": "Schwindlig, sobald ich mich aufsetze."
+      }
+    },
+    {
+      "id": "f-chest",
+      "topic": "sx.chest-pain",
+      "assertion": {
+        "concept": "chest-pain",
+        "present": false
+      },
+      "say": {
+        "en": "No chest pain.",
+        "de": "Keine Brustschmerzen."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "assertion": {
+        "concept": "nsaid-use",
+        "present": true,
+        "attributes": {
+          "aspirin": true
+        }
+      },
+      "say": {
+        "en": "Ibuprofen for my back, two or three a day for a month. Aspirin, the small one, every day since a stent three years ago. Atorvastatin, ramipril.",
+        "de": "Ibuprofen für den Rücken, zwei, drei am Tag seit einem Monat. Aspirin, das kleine, täglich seit einem Stent vor drei Jahren. Atorvastatin, Ramipril."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "say": {
+        "en": "A stent in the heart three years ago. Blood pressure. No liver problems that I know of.",
+        "de": "Vor drei Jahren ein Stent am Herzen. Blutdruck. Von Leberproblemen weiß ich nichts."
+      }
+    },
+    {
+      "id": "f-alc",
+      "topic": "shx.alcohol",
+      "assertion": {
+        "concept": "alcohol",
+        "present": true,
+        "attributes": {
+          "unitsPerWeek": 6
+        }
+      },
+      "say": {
+        "en": "A couple of beers at the weekend.",
+        "de": "Ein paar Bier am Wochenende."
+      }
+    },
+    {
+      "id": "f-smoke",
+      "topic": "shx.smoking",
+      "assertion": {
+        "concept": "ex-smoker",
+        "present": true
+      },
+      "say": {
+        "en": "I stopped after the stent.",
+        "de": "Nach dem Stent aufgehört."
+      }
+    },
+    {
+      "id": "f-anticoag",
+      "topic": "anticoag",
+      "say": {
+        "en": "Just the aspirin. No blood thinners otherwise.",
+        "de": "Nur das Aspirin. Sonst keine Blutverdünner."
+      }
+    },
+    {
+      "id": "f-wife",
+      "topic": "hpc.duration",
+      "say": {
+        "en": "He went white as a sheet and was sweating. It only lasted a minute.",
+        "de": "Er war kreidebleich und schwitzte. Es dauerte nur eine Minute."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-ice",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "Will I need an operation?",
+        "de": "Muss ich operiert werden?"
+      }
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-pr",
+        "kind": "property",
+        "ref": "rectal.exam",
+        "weight": "essential",
+        "discriminates": [
+          "colorectal-cancer"
+        ],
+        "why": {
+          "en": "Melaena: digested blood from above the ligament of Treitz.",
+          "de": "Meläna: verdautes Blut von oberhalb des Treitz-Bandes."
+        }
+      },
+      {
+        "id": "e-meds",
+        "kind": "fact",
+        "ref": "f-meds",
+        "weight": "essential",
+        "discriminates": [
+          "variceal-bleed"
+        ],
+        "why": {
+          "en": "An NSAID on top of aspirin for a month: the commonest cause of a bleeding peptic ulcer.",
+          "de": "Ein NSAR zusätzlich zu Aspirin über einen Monat: die häufigste Ursache eines blutenden peptischen Ulkus."
+        }
+      },
+      {
+        "id": "e-postural",
+        "kind": "property",
+        "ref": "vitals.bp.R",
+        "context": {
+          "position": "standing"
+        },
+        "weight": "essential",
+        "why": {
+          "en": "A postural drop and tachycardia: a litre or more lost.",
+          "de": "Orthostatischer Abfall und Tachykardie: ein Liter oder mehr verloren."
+        }
+      },
+      {
+        "id": "e-hr",
+        "kind": "property",
+        "ref": "vitals.hr",
+        "weight": "supporting",
+        "why": {
+          "en": "Tachycardia from the volume lost.",
+          "de": "Tachykardie durch den Volumenverlust."
+        }
+      },
+      {
+        "id": "e-ue",
+        "kind": "investigation",
+        "ref": "electrolytes",
+        "weight": "essential",
+        "why": {
+          "en": "Urea raised with a normal creatinine: blood protein digested in the gut (and a dry patient). It scores in the Glasgow-Blatchford score.",
+          "de": "Harnstoff erhöht bei normalem Kreatinin: Bluteiweiß im Darm verdaut (und ein exsikkierter Patient). Er zählt im Glasgow-Blatchford-Score."
+        }
+      },
+      {
+        "id": "e-fbc",
+        "kind": "investigation",
+        "ref": "fbc",
+        "weight": "essential",
+        "why": {
+          "en": "Haemoglobin already falling: plasma has begun to refill the vessels. It will fall further; it understates what was lost.",
+          "de": "Das Hämoglobin fällt bereits: Plasma beginnt, die Gefäße wieder zu füllen. Es wird weiter fallen; es unterschätzt den Verlust."
+        }
+      },
+      {
+        "id": "e-liver",
+        "kind": "property",
+        "ref": "skin.liver-stigmata",
+        "weight": "discriminating",
+        "discriminates": [
+          "variceal-bleed"
+        ],
+        "why": {
+          "en": "No signs of chronic liver disease: varices are unlikely.",
+          "de": "Keine Leberhautzeichen: Varizen sind unwahrscheinlich."
+        }
+      },
+      {
+        "id": "e-coag",
+        "kind": "investigation",
+        "ref": "coagulation",
+        "weight": "supporting",
+        "why": {
+          "en": "Normal clotting: no liver failure, no anticoagulant.",
+          "de": "Normale Gerinnung: kein Leberversagen, keine Antikoagulation."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "property",
+        "ref": "vitals.bp.R",
+        "why": {
+          "en": "Two large cannulae, group and crossmatch, restrictive transfusion (haemoglobin 70–80 g/L, higher with his coronary disease), proton-pump inhibitor, endoscopy within 24 hours; urgently if unstable.",
+          "de": "Zwei großlumige Zugänge, Blutgruppe und Kreuzprobe, restriktive Transfusion (Hämoglobin 70–80 g/l, bei seiner KHK höher), Protonenpumpenhemmer, Endoskopie innerhalb von 24 Stunden; bei Instabilität dringlich."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 15,
+    "summary": {
+      "en": "A 62-year-old with coronary disease on aspirin who added ibuprofen for back pain, with weeks of dyspepsia, then melaena, one coffee-ground vomit and a collapse on standing. Pale, sweaty, tachycardic, postural hypotension; melaena on rectal examination; no stigmata of liver disease. Haemoglobin falling, urea raised with normal creatinine, normal clotting. Upper GI bleed, most likely a peptic ulcer: resuscitate, transfuse restrictively, PPI, early endoscopy; stop the NSAID and review aspirin with cardiology.",
+      "de": "Ein 62-Jähriger mit KHK unter Aspirin, der Ibuprofen für Rückenschmerzen dazunahm, mit wochenlanger Dyspepsie, dann Meläna, einmal kaffeesatzartigem Erbrechen und einem Kollaps beim Aufstehen. Blass, schweißig, tachykard, orthostatische Hypotonie; Meläna bei der rektalen Untersuchung; keine Leberhautzeichen. Hämoglobin fallend, Harnstoff erhöht bei normalem Kreatinin, normale Gerinnung. Obere GI-Blutung, am wahrscheinlichsten ein peptisches Ulkus: Volumen, restriktive Transfusion, PPI, frühe Endoskopie; NSAR absetzen und Aspirin mit der Kardiologie besprechen."
+    }
+  },
+  "diagnosis": {
+    "primary": "peptic-ulcer-bleed",
+    "accepted": [
+      "upper-gi-bleed"
+    ],
+    "differential": [
+      "variceal-bleed",
+      "mallory-weiss",
+      "colorectal-cancer",
+      "vasovagal-syncope",
+      "acute-coronary-syndrome"
+    ]
+  }
+}

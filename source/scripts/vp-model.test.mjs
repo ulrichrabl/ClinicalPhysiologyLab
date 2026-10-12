@@ -571,7 +571,7 @@ const ecgOf = (preset, seconds = 8, mutate) => {
   const bleed = settleModel((() => { const m = healthyModel(); m.circulation.bloodVolume = 3800; m.body.courseHours = 0.1; return m; })(), 25).snapshot;
   const rest = settleModel(healthyModel(), 25).snapshot;
   ok('haemorrhage: the baroreflex drives the sinus node faster', bleed.ecgMetrics.HR > rest.ecgMetrics.HR + 8, `${rest.ecgMetrics.HR} → ${bleed.ecgMetrics.HR}`);
-  const off = settleModel((() => { const m = healthyModel(); m.circulation.bloodVolume = 3800; m.circulation.baroEnabled = 0; return m; })(), 25).snapshot;
+  const off = settleModel((() => { const m = healthyModel(); m.circulation.bloodVolume = 3800; m.circulation.baroEnabled = 0; m.body.courseHours = 0.1; return m; })(), 25).snapshot;
   ok('…and without the reflex it does not, and pressure falls further', Math.abs(off.ecgMetrics.HR - 72) <= 3 && off.metrics.Pmean < bleed.metrics.Pmean, `${off.ecgMetrics.HR}/min, MAP ${off.metrics.Pmean.toFixed(0)} vs ${bleed.metrics.Pmean.toFixed(0)}`);
 
   const ser = createCirculation(healthyModel());
@@ -688,7 +688,7 @@ console.log('\nThe lungs and the circulation, coupled');
     && ['pe-RLL', 'pe-LLL'].every((x) => REGISTRY.resolvers['resp.ctpa'](pev, { property: 'ctpa' }, {}).value.findings.includes(x))
     && !REGISTRY.resolvers['resp.cxr'](pev, { property: 'cxr' }, {}).value.findings.some((x) => x.startsWith('consolidation')));
 
-  const HF = settled((m) => Object.assign(m.circulation, { Emax: 0.9, bloodVolume: 6000 }));
+  const HF = settled((m) => { Object.assign(m.circulation, { Emax: 0.9, bloodVolume: 6000 }); m.body.courseHours = 0.5; });
   const hfv = viewOf(HF);
   ok('left heart failure: left atrial pressure floods the lungs from the bottom: fine crackles at the bases, oedema on the X-ray',
     HF.s.metrics.PlaMean > 20 && at(hfv, 'lung.sounds', 'chest.lung-base.R').added.includes('fine-crackles') && REGISTRY.resolvers['resp.cxr'](hfv, { property: 'cxr' }, {}).value.findings.some((x) => x.startsWith('oedema')),
@@ -875,6 +875,42 @@ console.log('\nInfection, inflammation and sepsis');
     obs(c, view, 'vitals.rr').value >= 22 && obs(c, view, 'vitals.bp.R').value.systolic <= 100 && c.initialState.orientation === 'confused'
     && obs(c, view, 'vitals.temp').value >= 38 && obs(c, view, 'general.appearance').value.colour === 'flushed' && dip.leukocytes !== 'negative' && dip.nitrites !== 'negative',
     J({ ga: obs(c, view, 'general.appearance'), rr: obs(c, view, 'vitals.rr').value, bp: obs(c, view, 'vitals.bp.R').value, t: obs(c, view, 'vitals.temp').value, dip }));
+}
+
+console.log('\nBlood, gut and liver');
+{
+  const B = (mut, person) => { const m = healthyModel(); if (person) m.patient = { ...m.patient, ...person }; mut?.(m); const snap = settleModel(m, 12).snapshot; return { snap, b: snap.body, ch: chemistryState(snap, m.chemistry) }; };
+  const f1 = (x) => (typeof x === 'number' ? x.toFixed(1) : x);
+  const H = B(), H120 = B((m) => { m.body.courseHours = 2880; });
+  ok('red cells and iron at steady state: four months of health change nothing', Math.abs(H120.ch.haemoglobin - H.ch.haemoglobin) < 2 && Math.abs(H120.b.mcv - 90) < 1 && Math.abs(H120.b.ironStores - H.b.ironStores) < 30,
+    `Hb ${f1(H.ch.haemoglobin)} → ${f1(H120.ch.haemoglobin)}, iron ${f1(H.b.ironStores)} → ${f1(H120.b.ironStores)} mg`);
+  const OC = B((m) => Object.assign(m.body, { lowerGIBleed: 0.8, courseHours: 4380 }), { sex: 'F', age: 71, weightKg: 63, heightCm: 160 });
+  ok('a slow bleed for six months: stores empty first, then a microcytic anaemia with too few reticulocytes',
+    OC.ch.haemoglobin < 110 && OC.b.mcv < 82 && OC.b.ferritin < 15 && OC.b.reticulocytes < 2, `Hb ${f1(OC.ch.haemoglobin)} MCV ${f1(OC.b.mcv)} ferritin ${f1(OC.b.ferritin)} retic ${f1(OC.b.reticulocytes)}`);
+  const B12 = B((m) => Object.assign(m.body, { b12Deficiency: 0.8, courseHours: 2880 }));
+  ok('B12 deficiency: a macrocytic anaemia, high LDH, low reticulocytes', B12.ch.haemoglobin < 135 && B12.b.mcv > 100 && B12.b.ldh > 400 && B12.b.reticulocytes < 1.5,
+    `Hb ${f1(B12.ch.haemoglobin)} MCV ${f1(B12.b.mcv)} LDH ${f1(B12.b.ldh)} retic ${f1(B12.b.reticulocytes)}`);
+  const HL = B((m) => Object.assign(m.body, { haemolysis: 2, courseHours: 720 }));
+  ok('haemolysis: anaemia with reticulocytosis, unconjugated hyperbilirubinaemia, low haptoglobin', HL.ch.haemoglobin < 120 && HL.b.reticulocytes > 3 && HL.b.bilirubin - HL.b.bilirubinConjugated > 25 && HL.b.haptoglobin < 0.5,
+    `Hb ${f1(HL.ch.haemoglobin)} retic ${f1(HL.b.reticulocytes)} bili ${f1(HL.b.bilirubin)}/${f1(HL.b.bilirubinConjugated)} hapto ${HL.b.haptoglobin.toFixed(2)}`);
+  const CK = B((m) => Object.assign(m.body, { nephronMass: 0.12, courseHours: 2880 }));
+  ok('chronic kidney disease: too little erythropoietin, a normocytic anaemia', CK.ch.haemoglobin < 125 && Math.abs(CK.b.mcv - 90) < 3 && CK.b.epo < 10, `Hb ${f1(CK.ch.haemoglobin)} MCV ${f1(CK.b.mcv)} EPO ${f1(CK.b.epo)}`);
+  const OJ = B((m) => Object.assign(m.body, { cholestasis: 0.9, courseHours: 240 }));
+  ok('a blocked bile duct: conjugated hyperbilirubinaemia, ALP and GGT high, bilirubin in the urine, pale stool',
+    OJ.b.bilirubin > 80 && OJ.b.bilirubinConjugated / OJ.b.bilirubin > 0.7 && OJ.b.alp > 300 && OJ.b.inr > 1.2,
+    `bili ${f1(OJ.b.bilirubin)}/${f1(OJ.b.bilirubinConjugated)} ALP ${f1(OJ.b.alp)} INR ${OJ.b.inr.toFixed(2)}`);
+  const run = (id) => { const c = caseById(id); const snap = settleModel(modelFromCase(c), 16).snapshot; return { c, snap, b: snap.body, view: buildView(c, { circulation: snap, state: { ...c.initialState, exposure: ['chest', 'arm', 'neck', 'abdomen'] } }) }; };
+  const U = run('upper-gi-bleed-peptic-ulcer');
+  ok('upper GI bleed: melaena, a postural drop, urea high with creatinine normal, haemoglobin already falling',
+    obs(U.c, U.view, 'rectal.exam').value.stool === 'melaena' && obs(U.c, U.view, 'vitals.bp.R', { position: 'standing' }).value.systolic <= obs(U.c, U.view, 'vitals.bp.R').value.systolic - 20
+    && U.view.chemistry.urea > 12 && U.view.chemistry.creatinine < 110 && U.view.chemistry.haemoglobin < 140, `urea ${f1(U.view.chemistry.urea)} crea ${f1(U.view.chemistry.creatinine)} Hb ${f1(U.view.chemistry.haemoglobin)}`);
+  const C = run('decompensated-cirrhosis');
+  ok('decompensated cirrhosis: ascites, jaundice, asterixis, a long INR, low albumin and platelets, high MCV',
+    ['shifting', 'tense'].includes(obs(C.c, C.view, 'abdomen.ascites').value.ascites) && obs(C.c, C.view, 'eyes.sclera').value.icterus !== 'none' && obs(C.c, C.view, 'hands.asterixis').value.flap
+    && C.b.inr > 1.8 && C.b.albumin < 28 && C.view.chemistry.platelets < 150 && C.b.mcv > 94 && obs(C.c, C.view, 'legs.oedema').value.extent !== 'knee',
+    `asc ${f1(C.b.ascites)} L, bili ${f1(C.b.bilirubin)} INR ${C.b.inr.toFixed(2)} alb ${f1(C.b.albumin)} plt ${f1(C.view.chemistry.platelets)} MCV ${f1(C.b.mcv)} NH3 ${f1(C.b.ammonia)}`);
+  const I = run('iron-deficiency-anaemia-caecal');
+  ok('iron-deficiency case: pale, microcytic, ferritin empty', obs(I.c, I.view, 'eyes.conjunctiva').value.pallor !== 'none' && I.b.mcv < 82 && I.b.ferritin < 15, `MCV ${f1(I.b.mcv)} ferritin ${f1(I.b.ferritin)}`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

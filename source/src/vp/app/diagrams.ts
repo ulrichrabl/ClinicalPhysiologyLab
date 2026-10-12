@@ -865,7 +865,64 @@ const inflammation: Draw = (g, w, h, c) => {
   text(g, L(c, `sepsis ${num(c, b.sepsis, 2)} · tick: upper normal`, `Sepsis ${num(c, b.sepsis, 2)} · Strich: obere Norm`), bx, h - 10, { size: 10, color: css('--muted') });
 };
 
+/* Blood: the red cell pool and the iron pool, with what flows in and out of each. */
+const bloodDiagram: Draw = (g, w, h, c) => {
+  const b = bodyOf(c);
+  if (!b.haemoglobin) return;
+  const p = b.params ?? {};
+  const wide = w >= 600;
+  const pools = [
+    { title: L(c, 'Red cells', 'Erythrozyten'), val: `Hb ${num(c, b.haemoglobin, 0)} g/L · MCV ${num(c, b.mcv, 0)} fL`, col: C.art,
+      ins: [[L(c, `marrow (EPO ${num(c, b.epo, 0)})`, `Mark (EPO ${num(c, b.epo, 0)})`), b.reticulocytes]] as Array<[string, number]>,
+      outs: [[L(c, 'old age / haemolysis', 'Alter / Hämolyse'), 1 + 4 * (p.haemolysis ?? 0)], [L(c, 'bleeding', 'Blutung'), ((p.upperGIBleed ?? 0) + (p.lowerGIBleed ?? 0)) / 0.8]] as Array<[string, number]> },
+    { title: L(c, 'Storage iron', 'Speichereisen'), val: `${num(c, b.ironStores, 0)} mg · ${L(c, 'ferritin', 'Ferritin')} ${num(c, b.ferritin, 0)}`, col: '#8a6b4a',
+      ins: [[L(c, 'gut', 'Darm'), (p.ironAbsorption ?? 1)], [L(c, 'old cells', 'alte Zellen'), 1 + 4 * (p.haemolysis ?? 0)]] as Array<[string, number]>,
+      outs: [[L(c, 'to the marrow', 'ins Mark'), b.reticulocytes], [L(c, 'bled', 'verblutet'), ((p.upperGIBleed ?? 0) + (p.lowerGIBleed ?? 0)) / 0.8]] as Array<[string, number]> },
+  ];
+  const cw = wide ? (w - 32) / 2 : w - 32, ch = wide ? h - 40 : (h - 40) / 2;
+  const mx = Math.max(3, ...pools.flatMap((q) => [...q.ins, ...q.outs].map((x) => x[1])));
+  pools.forEach((q, i) => {
+    const x = 16 + (wide ? i * cw : 0), y = 22 + (wide ? 0 : i * ch);
+    text(g, q.title, x, y, { size: 12, weight: 700 });
+    const bx = x + cw * 0.32, by = y + 24, bw = cw * 0.36, bh = Math.min(80, ch - 70);
+    g.fillStyle = q.col; rrect(g, bx, by, bw, bh, 8); g.fill();
+    text(g, q.val, bx + bw / 2, by + bh + 16, { size: 10, align: 'center', mono: true });
+    const aw = (f: number) => 1.5 + 9 * Math.sqrt(clamp(f, 0, mx) / mx);
+    q.ins.forEach(([lab, f], k) => { const ay = by + (bh / (q.ins.length + 1)) * (k + 1); arrow(g, x + 2, ay, bx - 4, ay, css('--muted'), aw(f)); text(g, lab, x + 2, ay - 8, { size: 10 }); });
+    q.outs.forEach(([lab, f], k) => { const ay = by + (bh / (q.outs.length + 1)) * (k + 1); if (f > 0.01) arrow(g, bx + bw + 4, ay, x + cw - 8, ay, css('--muted'), aw(f)); text(g, lab, x + cw - 8, ay - 8, { size: 10, align: 'right', color: f > 0.01 ? css('--fg') : css('--muted') }); });
+  });
+  text(g, L(c, 'arrows: relative flows, ×normal turnover', 'Pfeile: relative Flüsse, ×normaler Umsatz'), 16, h - 8, { size: 10, color: css('--muted') });
+};
+
+/* The liver: bilirubin's path, the synthetic functions against normal, ammonia and ascites. */
+const liverDiagram: Draw = (g, w, h, c) => {
+  const b = bodyOf(c);
+  if (!b.inr) return;
+  const rows: Array<[string, number, number, number, string, boolean]> = [
+    [L(c, 'bilirubin, unconjugated (µmol/L)', 'Bilirubin, unkonjugiert (µmol/l)'), b.bilirubin - b.bilirubinConjugated, 0, 150, '#c8a23d', false],
+    [L(c, 'bilirubin, conjugated (µmol/L)', 'Bilirubin, konjugiert (µmol/l)'), b.bilirubinConjugated, 0, 150, '#a8822d', false],
+    [L(c, 'albumin (g/L)', 'Albumin (g/l)'), b.albumin, 0, 50, '#6a8fb8', true],
+    ['INR', b.inr, 0.8, 4, C.art, false],
+    [L(c, 'ammonia (µmol/L)', 'Ammoniak (µmol/l)'), b.ammonia, 0, 250, '#8a6bb8', false],
+    [L(c, 'ascites (L)', 'Aszites (l)'), b.ascites, 0, 10, '#7fb08a', false],
+    [L(c, 'platelets (10⁹/L)', 'Thrombozyten (10⁹/l)'), b.platelets, 0, 400, '#b7a36a', true],
+  ];
+  const refs: Record<number, number> = { 0: 17, 1: 5, 2: 35, 3: 1.2, 4: 50, 5: 0, 6: 150 };
+  const x0 = 16, bw = w - 32;
+  rows.forEach(([lab, v, lo, hi, col, lowBad], i) => {
+    const y = 24 + i * ((h - 50) / rows.length);
+    text(g, lab, x0, y, { size: 11 }); text(g, num(c, v, hi <= 10 ? 2 : 0), x0 + bw, y, { size: 11, align: 'right', mono: true });
+    g.fillStyle = css('--sunk'); g.fillRect(x0, y + 5, bw, 9);
+    g.fillStyle = col; g.fillRect(x0, y + 5, clamp((v - lo) / (hi - lo), 0, 1) * bw, 9);
+    g.fillStyle = css('--fg'); g.fillRect(x0 + clamp((refs[i] - lo) / (hi - lo), 0, 1) * bw - 1, y + 2, 2, 15);
+    void lowBad;
+  });
+  text(g, L(c, `encephalopathy grade ${num(c, b.encephalopathy, 1)} · tick: limit of normal`, `Enzephalopathie Grad ${num(c, b.encephalopathy, 1)} · Strich: Normgrenze`), x0, h - 10, { size: 10, color: css('--muted') });
+};
+
 export const DIAGRAMS: Record<string, { draw: Draw; height: (w: number) => number }> = {
+  blood: { draw: bloodDiagram, height: (w) => (w >= 600 ? 220 : 400) },
+  liver: { draw: liverDiagram, height: () => 300 },
   inflammation: { draw: inflammation, height: () => 300 },
   water: { draw: water, height: (w) => (w >= 600 ? 300 : 520) },
   kidney: { draw: kidney, height: (w) => (w >= 620 ? 320 : 560) },

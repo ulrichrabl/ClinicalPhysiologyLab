@@ -416,10 +416,9 @@ const WATER: ModelDef = {
     { id: 'intake', label: L('Intake', 'Zufuhr') },
     { id: 'losses', label: L('Losses', 'Verluste') },
     { id: 'hormones', label: L('Hormones', 'Hormone') },
-    { id: 'blood', label: L('Blood', 'Blut') },
   ],
   variables: [
-    BP('water', 'course', 'courseHours', 't', L('How long the illness has acted (the body is run from health, or from its chronic state, for this long)', 'Wie lange die Erkrankung wirkt (der Körper wird so lange ab Gesundheit bzw. ab seinem chronischen Zustand gerechnet)'), 'h', 0, 720, 1),
+    BP('water', 'course', 'courseHours', 't', L('How long the illness has acted (the body is run from health, or from its chronic state, for this long)', 'Wie lange die Erkrankung wirkt (der Körper wird so lange ab Gesundheit bzw. ab seinem chronischen Zustand gerechnet)'), 'h', 0, 8760, 1),
     BP('water', 'intake', 'fluidIntake', 'W_{in}', L('Fluid drunk (before thirst)', 'Trinkmenge (ohne Durst)'), 'L/day', 0, 8, 0.1),
     BP('water', 'intake', 'foodIntake', 'F', L('Food eaten (fraction of a normal diet)', 'Nahrungsaufnahme (Anteil einer normalen Kost)'), '× normal', 0, 1.5, 0.05),
     BP('water', 'intake', 'saltIntake', 'Na_{in}', L('Salt in a full diet', 'Salz bei voller Kost'), 'mmol/day', 0, 400, 5),
@@ -427,7 +426,6 @@ const WATER: ModelDef = {
     BP('water', 'losses', 'vomiting', 'V_{vom}', L('Vomiting (gastric juice: HCl with some NaCl and KCl)', 'Erbrechen (Magensaft: HCl mit etwas NaCl und KCl)'), 'L/day', 0, 5, 0.1),
     BP('water', 'losses', 'diarrhoea', 'V_{stool}', L('Diarrhoea (stool water: Na⁺, K⁺, HCO₃⁻)', 'Diarrhö (Stuhlwasser: Na⁺, K⁺, HCO₃⁻)'), 'L/day', 0, 10, 0.1),
     BP('water', 'hormones', 'siadh', 'ADH_{inap}', L('Inappropriate ADH (tumour, drugs, lung or brain disease)', 'Inadäquates ADH (Tumor, Medikamente, Lungen- oder Hirnerkrankung)'), 'pg/mL', 0, 15, 0.5),
-    BP('water', 'blood', 'redCellMass', 'RCM', L('Red cell mass', 'Erythrozytenmasse'), '× normal', 0.3, 1.8, 0.02),
     S('water', 'TBW', 'TBW', L('Total body water', 'Gesamtkörperwasser'), 'L'),
     S('water', 'ICF', 'V_{ICF}', L('Intracellular fluid', 'Intrazellulärflüssigkeit'), 'L'),
     S('water', 'ECF', 'V_{ECF}', L('Extracellular fluid', 'Extrazellulärflüssigkeit'), 'L'),
@@ -553,6 +551,103 @@ const KIDNEY: ModelDef = {
   },
   diagram: 'kidney',
   sources: ['Carlström M, Wilcox CS, Arendshorst WJ. Renal autoregulation in health and disease. Physiol Rev 2015;95:405–511.', 'Lapi F et al. Concurrent use of diuretics, angiotensin converting enzyme inhibitors, and angiotensin receptor blockers with NSAIDs and risk of acute kidney injury. BMJ 2013;346:e8525.', 'Palmer BF, Clegg DJ. Physiology and pathophysiology of potassium homeostasis. Adv Physiol Educ 2016;40:480–90.', 'Waikar SS, Bonventre JV. Creatinine kinetics and the definition of acute kidney injury. J Am Soc Nephrol 2009;20:672–9.'],
+};
+
+const BLOOD: ModelDef = {
+  id: 'blood', title: L('Blood: red cells and iron', 'Blut: Erythrozyten und Eisen'),
+  summary: L('Haemoglobin is a concentration: red cell mass over blood volume. Red cells live about 120 days; the marrow replaces them at the rate erythropoietin asks for, and erythropoietin is made by the kidney when the oxygen it receives falls (anaemia, hypoxaemia). Each millilitre of red cells needs about a milligram of iron, recycled from old cells; only a milligram or two a day is absorbed, so a slow bleed empties the stores over months and the marrow then makes small, pale cells. B₁₂ or folate lack makes large cells, many of which die in the marrow. Haemolysis shortens red cell life and the marrow answers with reticulocytes. After an acute bleed haemoglobin is unchanged at first; it falls over hours as plasma refills, and recovers over weeks.',
+    'Hämoglobin ist eine Konzentration: Erythrozytenmasse durch Blutvolumen. Erythrozyten leben etwa 120 Tage; das Knochenmark ersetzt sie so schnell, wie Erythropoetin es verlangt, und Erythropoetin bildet die Niere, wenn der Sauerstoff, den sie erhält, sinkt (Anämie, Hypoxämie). Jeder Milliliter Erythrozyten braucht etwa ein Milligramm Eisen, aus alten Zellen recycelt; resorbiert werden nur ein, zwei Milligramm am Tag, daher leert eine langsame Blutung die Speicher über Monate, und das Mark bildet dann kleine, blasse Zellen. Mangel an B₁₂ oder Folsäure macht große Zellen, von denen viele schon im Mark zugrunde gehen. Hämolyse verkürzt die Lebensdauer, das Mark antwortet mit Retikulozyten. Nach akuter Blutung ist das Hämoglobin zunächst unverändert; es fällt über Stunden, während Plasma nachströmt, und erholt sich über Wochen.'),
+  groups: [{ id: 'marrow', label: L('Marrow and nutrients', 'Knochenmark und Nährstoffe') }, { id: 'loss', label: L('Loss and destruction', 'Verlust und Abbau') }],
+  variables: [
+    BP('blood', 'marrow', 'marrow', 'M', L('Marrow capacity', 'Knochenmarkkapazität'), '× normal', 0, 2, 0.05),
+    BP('blood', 'marrow', 'ironAbsorption', 'Fe_{abs}', L('Dietary iron absorbed', 'Resorbiertes Nahrungseisen'), '× normal', 0, 3, 0.1),
+    BP('blood', 'marrow', 'b12Deficiency', 'B12', L('Vitamin B₁₂ (or folate) deficiency', 'Vitamin-B₁₂- (oder Folsäure-)Mangel'), '0–1', 0, 1, 0.05),
+    BP('blood', 'marrow', 'redCellMass', 'RCM', L('Red cell mass the marrow aims for (polycythaemia)', 'Angestrebte Erythrozytenmasse (Polyzythämie)'), '× normal', 0.3, 1.8, 0.02),
+    BP('blood', 'loss', 'haemolysis', 'H', L('Haemolysis (extra destruction)', 'Hämolyse (zusätzlicher Abbau)'), '× normal', 0, 6, 0.1),
+    BP('blood', 'loss', 'upperGIBleed', 'B_{UGI}', L('Upper gastrointestinal bleeding', 'Obere gastrointestinale Blutung'), 'mL/h', 0, 600, 5),
+    BP('blood', 'loss', 'lowerGIBleed', 'B_{LGI}', L('Lower gastrointestinal bleeding', 'Untere gastrointestinale Blutung'), 'mL/h', 0, 300, 0.1),
+    S('blood', 'Hb', '[Hb]', L('Haemoglobin', 'Hämoglobin'), 'g/L', 0),
+    S('blood', 'RCV', 'V_{RBC}', L('Red cell volume', 'Erythrozytenvolumen'), 'L', 2),
+    S('blood', 'EPO', 'EPO', L('Erythropoietin', 'Erythropoetin'), 'U/L', 0),
+    S('blood', 'retic', 'retic', L('Reticulocytes', 'Retikulozyten'), '%', 1),
+    S('blood', 'MCV', 'MCV', L('Mean cell volume', 'Mittleres Erythrozytenvolumen'), 'fL', 0),
+    S('blood', 'Fe', 'Fe_{store}', L('Storage iron', 'Speichereisen'), 'mg', 0),
+    S('blood', 'ferritin', 'ferritin', L('Ferritin', 'Ferritin'), 'µg/L', 0),
+    S('blood', 'bilirubin', '[bili]', L('Bilirubin (from broken-down haem)', 'Bilirubin (aus abgebautem Häm)'), 'µmol/L', 0),
+  ],
+  equations: [
+    eq('rbc', 'textbook', L('Red cells: made, destroyed, lost', 'Erythrozyten: gebildet, abgebaut, verloren'),
+      [{ text: 'd(V_RBC)/dt' }], [{ text: 'P₀' }, '·', { fn: 'min', args: [{ text: '6·marrow' }, ',', v('EPO'), '/10'] }, '·', { text: 'iron' }, '−', frac([v('RCV')], ['120 d']), '·', paren('1', '+', '4', '·', v('haemolysis')), '−', { text: 'bleeding' }],
+      L('In health production equals destruction, about 20 mL of red cells a day. The marrow can raise output about six-fold if erythropoietin and iron allow; without iron it cannot raise it at all.',
+        'Gesund gleicht die Bildung den Abbau aus, etwa 20 ml Erythrozyten am Tag. Das Mark kann seine Leistung etwa versechsfachen, wenn Erythropoetin und Eisen es zulassen; ohne Eisen gar nicht.')),
+    eq('epo', 'textbook', L('Erythropoietin: the kidney’s oxygen sensor', 'Erythropoetin: der Sauerstoffsensor der Niere'),
+      [v('EPO')], ['10', '·', { sup: [[{ text: 'N' }], ['0.8']] }, '·', { sup: [['e'], ['4·(1 − Hb/Hb₀ · SaO₂/0.97)']] }],
+      L('Falls in haemoglobin or saturation raise it exponentially; chronic kidney disease (fewer nephrons, N) blunts it, hence the normocytic anaemia of CKD; chronic hypoxaemia (COPD) raises the red cell mass.',
+        'Sinkt Hämoglobin oder Sättigung, steigt es exponentiell; die chronische Niereninsuffizienz (weniger Nephrone, N) dämpft es — daher die normozytäre renale Anämie; chronische Hypoxämie (COPD) erhöht die Erythrozytenmasse.')),
+    eq('iron', 'textbook', L('Iron: a closed loop with a small leak', 'Eisen: ein geschlossener Kreislauf mit kleinem Leck'),
+      [{ text: 'd(Fe)/dt' }], [{ text: '1.1 mg/mL' }, '·', paren({ text: 'destroyed' }, '−', { text: 'made' }), '+', { text: 'absorbed' }, '−', { text: '1 mg/day' }, '−', { text: '1.1 mg/mL · cells bled' }],
+      L('Bleeding is the only way to lose much iron: 10 mL of blood a day is about 5 mg, more than can be absorbed. Inflammation raises hepcidin, which locks iron in macrophages and blocks absorption: the anaemia of chronic disease, with ferritin normal or high.',
+        'Blutung ist der einzige Weg, viel Eisen zu verlieren: 10 ml Blut am Tag sind etwa 5 mg, mehr als resorbiert werden kann. Entzündung erhöht Hepcidin, das Eisen in Makrophagen festhält und die Resorption blockiert: die Anämie der chronischen Erkrankung, mit normalem oder hohem Ferritin.')),
+  ],
+  values: (ctx) => {
+    const b = bod(ctx);
+    return { ...Object.fromEntries(Object.entries(ctx.model.body)),
+      Hb: bn(ctx, 'haemoglobin'), RCV: bn(ctx, 'bloodVolume') * bn(ctx, 'haematocrit') / 1000, EPO: bn(ctx, 'epo'), retic: bn(ctx, 'reticulocytes'), MCV: bn(ctx, 'mcv'),
+      Fe: bn(ctx, 'ironStores'), ferritin: bn(ctx, 'ferritin'), bilirubin: b.bilirubin };
+  },
+  diagram: 'blood',
+  sources: ['Hillman RS, Finch CA. Red Cell Manual, 7th ed. 1996.', 'Camaschella C. Iron-deficiency anemia. N Engl J Med 2015;372:1832–43.', 'Jelkmann W. Regulation of erythropoietin production. J Physiol 2011;589:1251–8.', 'Weiss G, Ganz T, Goodnough LT. Anemia of inflammation. Blood 2019;133:40–50.'],
+};
+
+const LIVER: ModelDef = {
+  id: 'liver', title: L('The liver', 'Die Leber'),
+  summary: L('The liver conjugates bilirubin and excretes it into bile, makes albumin and clotting factors, turns gut ammonia into urea, makes glucose and clears lactate. A failing liver shows in each: jaundice (unconjugated if it cannot conjugate, conjugated if bile cannot leave), a low albumin (half-life about 20 days, so a late sign), a long prothrombin time (factor VII has a half-life of 6 hours, so an early one), ammonia reaching the brain (encephalopathy, asterixis), hypoglycaemia. Scarring raises portal pressure: the spleen enlarges and holds platelets, splanchnic vessels dilate, the kidney senses an underfilled circulation and holds sodium and water, which collect as ascites.',
+    'Die Leber konjugiert Bilirubin und scheidet es in die Galle aus, bildet Albumin und Gerinnungsfaktoren, wandelt Ammoniak aus dem Darm in Harnstoff um, bildet Glukose und klärt Laktat. Eine versagende Leber zeigt sich in jedem davon: Ikterus (unkonjugiert, wenn sie nicht konjugieren kann, konjugiert, wenn die Galle nicht abfließt), niedriges Albumin (Halbwertszeit etwa 20 Tage, ein spätes Zeichen), verlängerte Prothrombinzeit (Faktor VII hat 6 Stunden Halbwertszeit, ein frühes), Ammoniak, das ins Gehirn gelangt (Enzephalopathie, Flapping Tremor), Hypoglykämie. Vernarbung erhöht den Pfortaderdruck: Die Milz vergrößert sich und hält Thrombozyten zurück, Splanchnikusgefäße weiten sich, die Niere sieht einen unterfüllten Kreislauf und hält Natrium und Wasser zurück, die sich als Aszites sammeln.'),
+  groups: [{ id: 'liver', label: L('Liver', 'Leber') }, { id: 'drugs', label: L('Alcohol and drugs', 'Alkohol und Medikamente') }],
+  variables: [
+    BP('liver', 'liver', 'liverFunction', 'LF', L('Working liver (cirrhosis, acute failure)', 'Funktionierende Leber (Zirrhose, akutes Versagen)'), '× normal', 0.05, 1.2, 0.05),
+    BP('liver', 'liver', 'portalHypertension', 'P_{portal}', L('Portal hypertension', 'Portale Hypertension'), '0–1', 0, 1, 0.05),
+    BP('liver', 'liver', 'hepatitis', 'hep', L('Hepatocyte necrosis (hepatitis)', 'Leberzellnekrose (Hepatitis)'), '0–1', 0, 1, 0.05),
+    BP('liver', 'liver', 'cholestasis', 'chol', L('Bile outflow blocked', 'Gallenabfluss behindert'), '0–1', 0, 1, 0.05),
+    BP('liver', 'drugs', 'alcohol', 'EtOH', L('Heavy drinking', 'Schwerer Alkoholkonsum'), '0–1', 0, 1, 0.05),
+    BP('liver', 'drugs', 'anticoagulant', 'VKA', L('Vitamin K antagonist', 'Vitamin-K-Antagonist'), '0–1', 0, 1, 0.05),
+    S('liver', 'bilirubin', '[bili]', L('Bilirubin, total', 'Bilirubin, gesamt'), 'µmol/L', 0),
+    S('liver', 'bilirubinConjugated', '[bili_c]', L('Bilirubin, conjugated', 'Bilirubin, konjugiert'), 'µmol/L', 0),
+    S('liver', 'alt', 'ALT', L('Alanine aminotransferase', 'Alanin-Aminotransferase'), 'U/L', 0),
+    S('liver', 'alp', 'ALP', L('Alkaline phosphatase', 'Alkalische Phosphatase'), 'U/L', 0),
+    S('liver', 'ggt', 'GGT', L('γ-glutamyl transferase', 'γ-Glutamyltransferase'), 'U/L', 0),
+    S('liver', 'albumin', '[alb]', L('Albumin', 'Albumin'), 'g/L', 0),
+    S('liver', 'inr', 'INR', L('Prothrombin time (INR)', 'Prothrombinzeit (INR)'), '', 2),
+    S('liver', 'ammonia', '[NH_3]', L('Ammonia', 'Ammoniak'), 'µmol/L', 0),
+    S('liver', 'encephalopathy', 'HE', L('Encephalopathy (West Haven grade)', 'Enzephalopathie (West-Haven-Grad)'), '0–4', 1),
+    S('liver', 'ascites', 'V_{asc}', L('Ascites', 'Aszites'), 'L', 1),
+    S('liver', 'platelets', 'plt', L('Platelets', 'Thrombozyten'), '10⁹/L', 0),
+  ],
+  equations: [
+    eq('bili', 'textbook', L('Bilirubin: made from haem, conjugated, excreted in bile', 'Bilirubin: aus Häm gebildet, konjugiert, mit der Galle ausgeschieden'),
+      [{ text: 'd(bili_u)/dt' }], [{ text: 'haem broken down' }, '−', '0.175', '·', { sup: [[v('liverFunction')], ['1.5']] }, '·', { text: 'bili_u' }],
+      L('More haem (haemolysis) or less conjugation (a failing liver, Gilbert’s) raises unconjugated bilirubin, which is bound to albumin and never reaches the urine. A blocked duct raises conjugated bilirubin, which does: dark urine, pale stools, itching.',
+        'Mehr Häm (Hämolyse) oder weniger Konjugation (versagende Leber, Gilbert) erhöht das unkonjugierte Bilirubin, das an Albumin gebunden ist und nie in den Urin gelangt. Ein verschlossener Gallengang erhöht das konjugierte Bilirubin, das es tut: dunkler Urin, heller Stuhl, Juckreiz.')),
+    eq('inr', 'textbook', L('Clotting factors: the liver’s fastest clock', 'Gerinnungsfaktoren: die schnellste Uhr der Leber'),
+      [v('inr')], ['1', '+', '2.4', '·', { sup: [[paren('1', '−', v('liverFunction'))], ['1.3']] }, '+', '0.5', '·', v('cholestasis'), '+', '2', '·', v('anticoagulant')],
+      L('Factor VII lasts hours, so the INR rises within a day of liver failure; cholestasis lengthens it by blocking vitamin K absorption (corrected by vitamin K, unlike liver failure).',
+        'Faktor VII hält Stunden, daher steigt der INR binnen eines Tages nach Leberversagen; Cholestase verlängert ihn durch gestörte Vitamin-K-Aufnahme (anders als beim Leberversagen durch Vitamin K korrigierbar).')),
+    eq('nh3', 'textbook', L('Ammonia: made in the gut, cleared by the liver', 'Ammoniak: im Darm gebildet, von der Leber geklärt'),
+      [v('ammonia')], ['30', '·', frac([{ text: 'protein + blood in the gut' }], [{ sup: [[paren(v('liverFunction'), '·', paren('1', '−', '0.6', '·', v('portalHypertension')), '+', '0.12')], ['1.2']] }])],
+      L('Portal hypertension shunts gut blood past the liver. A GI bleed (a protein meal), constipation, infection, hypokalaemia and sedatives precipitate encephalopathy in cirrhosis.',
+        'Die portale Hypertension leitet Darmblut an der Leber vorbei. Gastrointestinale Blutung (eine Eiweißmahlzeit), Obstipation, Infektion, Hypokaliämie und Sedativa lösen bei Zirrhose eine Enzephalopathie aus.')),
+    eq('ascites', 'textbook', L('Ascites: fluid the circulation cannot use', 'Aszites: Flüssigkeit, die der Kreislauf nicht nutzen kann'),
+      [v('ascites')], ['8', '·', { sup: [[v('portalHypertension')], ['2']] }, '·', paren('1', '−', v('liverFunction')), '·', { sup: [[paren(frac(['42'], [v('albumin')]))], ['0.5']] }],
+      L('Portal pressure and low albumin push fluid into the peritoneum; the kidney, sensing an underfilled circulation (splanchnic vasodilatation), holds sodium until the volume it can sense is restored, and the ascites is the rest. Urine sodium falls below 10 mmol/L.',
+        'Pfortaderdruck und niedriges Albumin drücken Flüssigkeit in die Bauchhöhle; die Niere, die einen unterfüllten Kreislauf wahrnimmt (Splanchnikusvasodilatation), hält Natrium zurück, bis das wahrnehmbare Volumen ersetzt ist — der Aszites ist der Rest. Das Urinnatrium fällt unter 10 mmol/l.')),
+  ],
+  values: (ctx) => ({
+    ...Object.fromEntries(Object.entries(ctx.model.body)),
+    bilirubin: bn(ctx, 'bilirubin'), bilirubinConjugated: bn(ctx, 'bilirubinConjugated'), alt: bn(ctx, 'alt'), alp: bn(ctx, 'alp'), ggt: bn(ctx, 'ggt'),
+    albumin: bn(ctx, 'albumin'), inr: bn(ctx, 'inr'), ammonia: bn(ctx, 'ammonia'), encephalopathy: bn(ctx, 'encephalopathy'), ascites: bn(ctx, 'ascites'), platelets: bn(ctx, 'platelets'),
+  }),
+  diagram: 'liver',
+  sources: ['Ginès P et al. Liver cirrhosis. Lancet 2021;398:1359–76.', 'Schrier RW et al. Peripheral arterial vasodilation hypothesis: a proposal for the initiation of renal sodium and water retention in cirrhosis. Hepatology 1988;8:1151–7.', 'Wijdicks EFM. Hepatic encephalopathy. N Engl J Med 2016;375:1660–70.', 'Fevery J. Bilirubin in clinical practice: a review. Liver Int 2008;28:592–605.'],
 };
 
 const INFLAMMATION: ModelDef = {
@@ -1007,7 +1102,7 @@ const CONTROL: ModelDef = {
   sources: ['Cherniack NS, Longobardo GS. Mathematical models of periodic breathing and their usefulness in understanding cardiovascular and respiratory disorders. Exp Physiol 2006;91:295–305.', 'Albert M, Dell R, Winters RW. Quantitative displacement of acid–base equilibrium in metabolic acidosis. Ann Intern Med 1967;66:312–22.', 'Duffin J. Measuring the respiratory chemoreflexes in humans. Respir Physiol Neurobiol 2011;177:71–9.'],
 };
 
-export const MODELS: ModelDef[] = [PATIENT, HAEMODYNAMICS, BAROREFLEX, ELECTRICAL, MECHANICS, GAS_EXCHANGE, CONTROL, WATER, KIDNEY, FLUIDS, FUELS, INFLAMMATION, VOR, PUPIL, NERVOUS];
+export const MODELS: ModelDef[] = [PATIENT, HAEMODYNAMICS, BAROREFLEX, ELECTRICAL, MECHANICS, GAS_EXCHANGE, CONTROL, WATER, KIDNEY, FLUIDS, FUELS, INFLAMMATION, BLOOD, LIVER, VOR, PUPIL, NERVOUS];
 export const MODEL_BY_ID: Record<string, ModelDef> = Object.fromEntries(MODELS.map((m) => [m.id, m]));
 export const VARIABLE_BY_ID: Record<string, VariableDef> = Object.fromEntries(MODELS.flatMap((m) => m.variables.map((x) => [x.id, x])));
 /** Parameters by where they live in the PatientModel ('respiratory.FiO2'). */

@@ -30,6 +30,37 @@ export const BODY_EXAM_RESOLVERS: Record<string, Resolver> = {
     const b = body(view); if (!b) return undefined;
     return { value: r1(b.temperature, 1), basis: `core temperature ${b.temperature.toFixed(1)} °C; inflammatory signal ×${b.inflammation.toFixed(2)}` };
   },
+  'body.sclera': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    const icterus = b.bilirubin >= 85 ? 'marked' : b.bilirubin >= 40 ? 'mild' : 'none';
+    return { value: { icterus }, basis: `bilirubin ${b.bilirubin.toFixed(0)} µmol/L (visible in the sclerae from about 40)` };
+  },
+  'body.conjunctiva': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    const pallor = b.haemoglobin < 75 ? 'marked' : b.haemoglobin < 105 ? 'mild' : 'none';
+    return { value: { pallor }, basis: `haemoglobin ${b.haemoglobin.toFixed(0)} g/L` };
+  },
+  'body.asterixis': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: { flap: b.encephalopathy >= 1.2 }, basis: `encephalopathy grade ${b.encephalopathy.toFixed(1)}, ammonia ${b.ammonia.toFixed(0)} µmol/L` };
+  },
+  'body.ascites': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    const grade = b.ascites >= 4 ? 'tense' : b.ascites >= 1.5 ? 'shifting' : b.ascites >= 0.8 ? 'flank' : 'none';
+    return { value: { ascites: grade }, basis: `ascites ${b.ascites.toFixed(1)} L (shifting dullness needs about 1.5 L)` };
+  },
+  'body.rectal': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    const p = b.params;
+    const stool = (p.upperGIBleed ?? 0) >= 20 ? 'melaena' : (p.lowerGIBleed ?? 0) >= 10 ? 'fresh-blood' : (p.cholestasis ?? 0) >= 0.6 ? 'pale' : 'normal';
+    return { value: { stool }, basis: `upper GI bleeding ${(p.upperGIBleed ?? 0).toFixed(0)} mL/h, lower ${(p.lowerGIBleed ?? 0).toFixed(1)} mL/h` };
+  },
+  'body.liver-stigmata': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    const p = b.params;
+    const chronic = (1 - (p.liverFunction ?? 1)) * 1 + (p.alcohol ?? 0) * 0.3 + (p.portalHypertension ?? 0) * 0.5;
+    return { value: { spiderNaevi: chronic >= 0.7, palmarErythema: chronic >= 0.6, caputMedusae: (p.portalHypertension ?? 0) >= 0.8 }, basis: `chronic liver disease: liver function ×${(p.liverFunction ?? 1).toFixed(2)}, portal hypertension ${(p.portalHypertension ?? 0).toFixed(2)}` };
+  },
   'body.mucosa': (view): Resolved | undefined => {
     const b = body(view); if (!b) return undefined;
     const isf0 = Math.max(4, b.ISF - b.dISF);
@@ -65,7 +96,8 @@ export const BODY_LAB_RESOLVERS: Record<string, Resolver> = {
     /* An infected urine: white cells (leukocyte esterase), nitrite from Gram-negative bacteria, some blood and protein from the inflamed urothelium. */
     const uti = (b.params.urinarySource ?? 0) > 0 && (b.params.infection ?? 0) > 0.15;
     const inf = b.params.infection ?? 0;
-    return { value: { voided: true, glucose, ketones, protein: uti ? '1+' : 'negative', blood: uti ? (inf > 0.5 ? '2+' : '1+') : 'negative',
+    const bilirubin = b.bilirubinConjugated > 40 ? '2+' : b.bilirubinConjugated > 15 ? '1+' : 'negative';
+    return { value: { voided: true, glucose, ketones, bilirubin, protein: uti ? '1+' : 'negative', blood: uti ? (inf > 0.5 ? '2+' : '1+') : 'negative',
       leukocytes: uti ? (inf > 0.5 ? '3+' : '2+') : 'negative', nitrites: uti ? '1+' : 'negative', sg, ph },
       basis: `urine glucose ${b.glucosuria.toFixed(0)} mmol/L, ketones ${b.ketonuria.toFixed(1)} mmol/L, osmolality ${b.urineOsm.toFixed(0)} mosmol/kg` };
   },
@@ -82,6 +114,26 @@ export const BODY_LAB_RESOLVERS: Record<string, Resolver> = {
   'body.ketones': (view): Resolved | undefined => {
     const b = body(view); if (!b) return undefined;
     return { value: { betaHydroxybutyrate: r1(b.betaHydroxybutyrate, 1) }, basis: `ketoacids ${b.ketones.toFixed(1)} mmol/L, of which about four fifths β-hydroxybutyrate` };
+  },
+  'body.lft': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: { bilirubin: r1(b.bilirubin), alt: r1(b.alt), alp: r1(b.alp), ggt: r1(b.ggt), albumin: r1(b.albumin) }, basis: `conjugated bilirubin ${b.bilirubinConjugated.toFixed(0)} µmol/L` };
+  },
+  'body.coag': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: { inr: r1(b.inr, 1), aptt: r1(30 + 12 * (b.inr - 1)) } };
+  },
+  'body.ammonia': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: { ammonia: r1(b.ammonia) } };
+  },
+  'body.haematinics': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: { ferritin: r1(b.ferritin), b12: r1(b.b12), folate: 9 } };
+  },
+  'body.haemolysis': (view): Resolved | undefined => {
+    const b = body(view); if (!b) return undefined;
+    return { value: { reticulocytes: r1(b.reticulocytes, 1), ldh: r1(b.ldh), haptoglobin: r1(b.haptoglobin, 2), bilirubinUnconjugated: r1(b.bilirubin - b.bilirubinConjugated) } };
   },
   'body.urine-output': (view): Resolved | undefined => {
     const b = body(view); if (!b) return undefined;

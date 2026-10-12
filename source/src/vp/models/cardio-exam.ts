@@ -175,7 +175,7 @@ export const CARDIO_RESOLVERS: Record<string, Resolver> = {
   'circulation.oedema': (view): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;
     /* Oedema is interstitial fluid gained (2–3 L before it pits at the ankle), pushed out by venous pressure or held by too little albumin. */
-    const isf = view.body?.dISF ?? 0;
+    const isf = (view.body?.dISF ?? 0) - (view.body?.ascites ?? 0);   // ascites is interstitial fluid in the peritoneum, not the legs
     const scale = Math.max(0.6, (view.patient.weightKg ?? 70) / 70);
     const byIsf = isf >= 7 * scale ? 3 : isf >= 4.5 * scale ? 2 : isf >= 2.5 * scale ? 1 : 0;
     const byCvp = h.cvp >= 16 ? 3 : h.cvp >= 13 ? 2 : h.cvp >= 10 ? 1 : 0;

@@ -145,6 +145,36 @@ export const PROPERTIES: PropertyDef[] = [
     source: 'model-or-case', resolver: 'circulation.oedema', formatter: 'legs.oedema',
   },
   {
+    id: 'eyes.sclera', structure: 'eyes', label: { en: 'Sclerae', de: 'Skleren' },
+    value: rec({ icterus: c('icterus') }), normal: { value: { icterus: 'none' } },
+    source: 'model-or-case', resolver: 'body.sclera', formatter: 'eyes.sclera',
+  },
+  {
+    id: 'eyes.conjunctiva', structure: 'eyes', label: { en: 'Conjunctivae', de: 'Konjunktiven' },
+    value: rec({ pallor: c('severity-pallor') }), normal: { value: { pallor: 'none' } },
+    source: 'model-or-case', resolver: 'body.conjunctiva', formatter: 'eyes.conjunctiva',
+  },
+  {
+    id: 'hands.asterixis', structure: 'hands', label: { en: 'Asterixis', de: 'Flapping Tremor' },
+    value: rec({ flap: bool }), normal: { value: { flap: false } },
+    source: 'model-or-case', resolver: 'body.asterixis', formatter: 'hands.asterixis',
+  },
+  {
+    id: 'abdomen.ascites', structure: 'abdomen', label: { en: 'Ascites (shifting dullness)', de: 'Aszites (Flankendämpfung)' },
+    value: rec({ ascites: c('ascites') }), normal: { value: { ascites: 'none' } },
+    source: 'model-or-case', resolver: 'body.ascites', formatter: 'abdomen.ascites',
+  },
+  {
+    id: 'rectal.exam', structure: 'rectum', label: { en: 'Rectal examination', de: 'Rektale Untersuchung' },
+    value: rec({ stool: c('stool') }), normal: { value: { stool: 'normal' } },
+    source: 'model-or-case', resolver: 'body.rectal', formatter: 'rectal.exam',
+  },
+  {
+    id: 'skin.liver-stigmata', structure: 'skin', label: { en: 'Signs of chronic liver disease', de: 'Leberhautzeichen' },
+    value: rec({ spiderNaevi: bool, palmarErythema: bool, caputMedusae: bool }), normal: { value: { spiderNaevi: false, palmarErythema: false, caputMedusae: false } },
+    source: 'model-or-case', resolver: 'body.liver-stigmata', formatter: 'skin.liver-stigmata',
+  },
+  {
     id: 'mouth.mucosa', structure: 'mouth', label: { en: 'Mucous membranes', de: 'Schleimhäute' },
     value: rec({ moisture: c('mucosa') }), normal: { value: { moisture: 'moist' } },
     source: 'model-or-case', resolver: 'body.mucosa', formatter: 'mouth.mucosa',
