@@ -74,7 +74,20 @@ export interface BodyParams {
   infection: number;           // bacterial infection: 0 none, 0.3 local, 0.6 systemic, 0.9 overwhelming
   urinarySource: number;       // 1 = the infection is in the urinary tract
   /* blood */
-  redCellMass: number;         // × normal
+  redCellMass: number;         // the red cell mass the marrow aims for, × normal (polycythaemia)
+  marrow: number;              // marrow capacity, × normal (aplasia, infiltration, chemotherapy)
+  ironAbsorption: number;      // dietary iron absorbed, × normal (poor diet, coeliac disease, gastrectomy)
+  b12Deficiency: number;       // 0–1: megaloblastic, ineffective erythropoiesis
+  haemolysis: number;          // extra red cell destruction, × normal destruction
+  upperGIBleed: number;        // mL/h into the stomach or duodenum (digested: urea and ammonia rise)
+  lowerGIBleed: number;        // mL/h from the colon (occult, or fresh)
+  /* liver */
+  liverFunction: number;       // hepatocyte mass, × normal (cirrhosis, acute failure)
+  portalHypertension: number;  // 0–1
+  hepatitis: number;           // hepatocyte necrosis, 0–1
+  cholestasis: number;         // bile outflow blocked, 0–1
+  alcohol: number;             // heavy drinking, 0–1
+  anticoagulant: number;       // vitamin K antagonist effect, 0–1
 }
 
 export const BODY_DEFAULTS: BodyParams = {
@@ -86,13 +99,14 @@ export const BODY_DEFAULTS: BodyParams = {
   siadh: 0,
   betaCell: 1, insulinSensitivity: 1, insulinDose: 0, stress: 0,
   infection: 0, urinarySource: 0,
-  redCellMass: 1,
+  redCellMass: 1, marrow: 1, ironAbsorption: 1, b12Deficiency: 0, haemolysis: 0, upperGIBleed: 0, lowerGIBleed: 0,
+  liverFunction: 1, portalHypertension: 0, hepatitis: 0, cholestasis: 0, alcohol: 0, anticoagulant: 0,
 };
 
 /** What the body reads from the circulation and the lungs. */
 export interface BodyInputs {
   MAP: number; CO: number; CVP: number; sympathetic: number;
-  PaCO2: number; DO2: number; VO2: number;
+  PaCO2: number; DO2: number; VO2: number; SaO2?: number;
   tempC: number;
 }
 
@@ -118,7 +132,12 @@ export interface BodyState {
   Urea: number; Cr: number;                          // mmol
   Alb: number;      // plasma albumin, g
   RCV: number;      // red cell volume, L
-  RCVlost: number;  // red cells lost by bleeding, L (replaced only by the marrow, over weeks)
+  RCVlost: number;  // unused (kept for saved states)
+  Fe: number;       // storage iron, mg
+  MCV: number; EPO: number;
+  BilU: number; BilC: number;     // unconjugated and conjugated bilirubin in the ECF, µmol
+  ALT: number; ALP: number; GGT: number; INR: number; NH3: number;
+  Asc: number;      // ascites, L (part of the interstitial fluid)
   /* fast hormones */
   I: number;        // plasma insulin, mU/L
   Idep: number;     // injected insulin still being absorbed: the plasma level it supplies, mU/L
@@ -148,6 +167,9 @@ export interface BodySnapshot {
   Plow: number; gfrMax: number; perfusion: number;
   /* hormones */
   insulin: number; angII: number; aldosterone: number; adh: number;
+  /* blood and liver */
+  mcv: number; reticulocytes: number; ferritin: number; ironStores: number; b12: number; epo: number; ldh: number; haptoglobin: number;
+  bilirubin: number; bilirubinConjugated: number; alt: number; alp: number; ggt: number; inr: number; ammonia: number; ascites: number; encephalopathy: number;
   /* inflammation */
   inflammation: number; temperature: number; crp: number; whiteCellCount: number; platelets: number; sepsis: number; vasoplegia: number;
   /* fluxes, mmol/h or L/h */
@@ -216,6 +238,7 @@ export class Body {
       TBW, Vp, Na: 140 * ECF, K: 4.0 * (ECF + 35 * ICF), B: 24 * 2 * ECF,
       G: 5.2 * ECF, Ket: 0.08 * 1.2 * ECF, Lac: 0.9 * 1.2 * ECF, UA: 0.45 * ECF, P: 1.0 * ECF,
       Urea: 5.0 * TBW, Cr: 0.075 * TBW, Alb: 42 * Vp, RCV, RCVlost: 0,
+      Fe: sex === 'F' ? 400 : 900, MCV: 90, EPO: 1, BilU: 8 * ECF, BilC: 2 * ECF, ALT: 25, ALP: 80, GGT: 30, INR: 1.0, NH3: 30, Asc: 0,
       I: 9, Idep: 0, GFRad: GFR, IL: 0, T: 36.9, CRP: 3, WCC: 7, Plt: 250, AngII: 1, Ald: 1, ADH: 1.5, urineL: 0, hours: 0,
     };
   }
@@ -281,8 +304,11 @@ export class Body {
     const c = this.conc();
     const food = clamp(p.foodIntake, 0, 2);
     const BW = r.BW;
-    const ve = c.ECF / r.ECF;
-    const bvRel = c.BV / ((r.Vp + r.RCV) * 1000);
+    /* Ascites is extracellular fluid the circulation cannot use: the kidney senses the rest. */
+    const ve = (c.ECF - s.Asc) / r.ECF;
+    /* The volume the body senses (atrial and arterial stretch) is the plasma it holds in its vessels: losing red cells alone
+       (anaemia) is not sensed as hypovolaemia once plasma has refilled, losing whole blood is. */
+    const bvRel = s.Vp / r.Vp;
     const hypo = Math.max(0, 1 - bvRel) / 0.1;           // tenths of blood volume lost
 
     /* -- infection and inflammation: cytokines, fever, the acute-phase response, and what severe sepsis does -- */
@@ -292,10 +318,38 @@ export class Body {
     const Tset = 36.9 + 2.6 * s.IL / (s.IL + 0.6) - 2.2 * sev * sev * clamp((65 - i.MAP) / 20, 0, 1);
     s.T = relax(s.T, Tset, dt, 1.5);
     s.CRP += (0.11 + 8 * s.IL - 0.0365 * s.CRP) * dt;
-    s.WCC = relax(s.WCC, 7 + 13 * s.IL / (s.IL + 0.5) - 12 * Math.max(0, sev - 0.7), dt, 8);
-    s.Plt = relax(s.Plt, 250 * (1 - 0.5 * sev), dt, 24);
-    s.Alb = relax(s.Alb, r.Alb * (1 - 0.45 * sev - 0.1 * Math.min(1, s.IL)), dt, 30);   // leak into the tissues, less synthesis
+    s.WCC = relax(s.WCC, (7 + 13 * s.IL / (s.IL + 0.5) - 12 * Math.max(0, sev - 0.7)) * Math.min(1, clamp(p.marrow, 0, 2)) * (1 - 0.3 * clamp(p.portalHypertension, 0, 1)), dt, 8);
+    s.Plt = relax(s.Plt, 250 * (1 - 0.5 * sev) * (1 - 0.55 * clamp(p.portalHypertension, 0, 1)) * (1 - 0.25 * clamp(p.alcohol, 0, 1)) * Math.min(1, clamp(p.marrow, 0, 2)), dt, 24);
+    s.Alb = relax(s.Alb, r.Alb * (1 - 0.45 * sev - 0.1 * Math.min(1, s.IL)) * clamp(p.liverFunction, 0.05, 1.2) ** 0.5, dt, sev > 0.05 ? 30 : 240);   // synthesis by the liver, half-life ~20 days   // leak into the tissues, less synthesis
     const st = this.stressEff();
+
+    /* -- blood: red cells made under erythropoietin, from iron, destroyed after 120 days, lost by bleeding -- */
+    const lf = clamp(p.liverFunction, 0.05, 1.2), ph = clamp(p.portalHypertension, 0, 1);
+    const Hb0 = (this.person.sex === 'F' ? 0.41 : 0.45) * 333;
+    const sat = clamp(i.SaO2 ?? 0.97, 0.4, 1);
+    const epoTarget = clamp(p.nephronMass, 0.03, 1.2) ** 0.8 * Math.exp(4 * (1 - (c.Hb / (Hb0 * clamp(p.redCellMass, 0.3, 2))) * (sat / 0.97))) * (1 - 0.3 * Math.min(1, s.IL));
+    s.EPO = relax(s.EPO, clamp(epoTarget, 0.02, 40), dt, 12);
+    const P0 = r.RCV / (120 * 24);                                           // L of red cells a day… per hour
+    const ironAvail = (s.Fe / (s.Fe + 60)) / (900 / 960);
+    const hepcidin = 1 + 2 * Math.min(1, s.IL);                              // inflammation locks iron away
+    const prodRBC = P0 * Math.min(clamp(p.marrow, 0, 2) * 6, s.EPO) * Math.min(1.2, ironAvail / Math.sqrt(hepcidin)) * (1 - 0.6 * clamp(p.b12Deficiency, 0, 1));
+    const destrRBC = (s.RCV / (120 * 24)) * (1 + 4 * Math.max(0, p.haemolysis) + 0.6 * clamp(p.b12Deficiency, 0, 1) + 0.3 * ph);
+    const ironAbs = (1 + 2.5 * clamp(1 - s.Fe / 300, 0, 1)) * clamp(p.ironAbsorption, 0, 3) / hepcidin / 24;   // mg/h, more when stores are low
+    const bleed = (Math.max(0, p.upperGIBleed) + Math.max(0, p.lowerGIBleed)) / 1000;   // L/h whole blood
+    const mcvNew = 90 - 28 * clamp(1 - ironAvail, 0, 1) + 30 * clamp(p.b12Deficiency, 0, 1) + 8 * clamp(p.alcohol, 0, 1) + 3 * clamp(s.EPO - 1, 0, 3) / 3;
+
+    /* -- liver: bilirubin, enzymes, clotting factors, ammonia -- */
+    const bilProd = (500 / 24) * destrRBC / P0 * (P0 > 0 ? 1 : 0);              // µmol/h of haem turned to bilirubin
+    const conj = 0.175 * lf ** 1.5 * s.BilU;
+    const bileOut = 0.7 * (1 - clamp(p.cholestasis, 0, 1)) ** 2 * Math.min(1, lf) * s.BilC;
+    const bilUrine = 0.004 * s.BilC;                                          // conjugated bilirubin spills into the urine
+    s.ALT = relax(s.ALT, 25 + 2500 * clamp(p.hepatitis, 0, 1) + 15 * clamp(p.alcohol, 0, 1) + 20 * (1 - Math.min(1, lf)), dt, 30);
+    s.ALP = relax(s.ALP, 80 + 450 * clamp(p.cholestasis, 0, 1) + 40 * ph, dt, 48);
+    s.GGT = relax(s.GGT, 30 + 400 * clamp(p.cholestasis, 0, 1) + 250 * clamp(p.alcohol, 0, 1), dt, 72);
+    s.INR = relax(s.INR, 1 + 2.4 * clamp(1 - lf, 0, 1) ** 1.3 + 0.5 * clamp(p.cholestasis, 0, 1) + 2 * clamp(p.anticoagulant, 0, 1) + 0.4 * this.sepsis(), dt, 12);
+    const nh3Load = (p.proteinIntake * clamp(p.foodIntake, 0, 2) / 70 + 0.6 * Math.max(0, p.upperGIBleed) / 100) * (1 + 0.3 * clamp(4 - c.K, 0, 2));
+    const nh3Clear = lf * (1 - 0.6 * ph) + 0.12;
+    s.NH3 = relax(s.NH3, clamp(30 * (nh3Load + 0.2) / 1.2 / Math.pow(nh3Clear / 1.12, 1.2), 5, 400), dt, 3);
 
     /* -- hormones -- */
     const sym = Math.max(0, i.sympathetic - 0.47);
@@ -307,7 +361,8 @@ export class Body {
     const aldEff = s.Ald * (1 - 0.9 * clamp(p.spironolactone, 0, 1));
     // ADH: tonicity above a threshold that falls with hypovolaemia, a steep non-osmotic limb, nausea, and any inappropriate secretion.
     const nausea = clamp(p.vomiting / 1.5, 0, 1);
-    const adhTarget = Math.max(0, 0.38 * (c.tonicity - (284 - 4 * hypo))) + 1.2 * hypo * hypo + 6 * nausea + 2 * st + p.siadh + 0.4;
+    const hypoA = Math.min(hypo, 1.6);
+    const adhTarget = Math.max(0, 0.38 * (c.tonicity - (284 - 4 * hypoA))) + 1.2 * hypoA * hypoA * clamp((c.tonicity - 250) / 25, 0.25, 1) + 6 * nausea + 2 * st + p.siadh + 0.4;
     s.ADH = relax(s.ADH, adhTarget, dt, 0.25);
 
     /* -- kidney: filtration -- */
@@ -318,7 +373,7 @@ export class Body {
     const auto = clamp((rpp - 35) / (Plow - 35), 0, 1) ** 0.8;
     const GFR = r.GFR * clamp(p.nephronMass, 0.01, 1.2) * (1 - 0.9 * clamp(p.tubularInjury, 0, 1)) * (1 - clamp(p.obstruction, 0, 1))
       * auto * (1 - 0.06 * clamp(p.aceInhibitor, 0, 1)) * (1 - 0.3 * clamp(sym, 0, 0.5) * 2) * (1 - 0.012 * Math.max(0, i.CVP - 10))
-      * (1 - 0.3 * Math.min(1, hypo / 2.5)) * (1 - 0.3 * sev);                                  // septic kidney injury                                                    // renal sympathetic and afferent constriction in hypovolaemia
+      * (1 - 0.3 * Math.min(1, hypo / 2.5)) * (1 - 0.3 * sev) * (1 - 0.35 * ph * clamp(1 - lf, 0, 1) ** 1.5);   // hepatorenal                                  // septic kidney injury                                                    // renal sympathetic and afferent constriction in hypovolaemia
     const tub = 1 - 0.85 * clamp(p.tubularInjury, 0, 1);
     const nm = clamp(p.nephronMass, 0.01, 1.2);
 
@@ -336,7 +391,7 @@ export class Body {
     const IhepEff = Math.max(0, s.I - Iexo * 0.5) * clamp(p.insulinSensitivity, 0.05, 2);
     const carbIn = p.carbIntake * 5.55 * food / 24 * (1 - clamp(p.vomiting / 2, 0, 0.9));
     const H0 = 0.67 * BW;
-    const hgo = H0 * (2 * 8 / (IhepEff + 8)) * (1 + 0.5 * st);
+    const hgo = H0 * (2 * 8 / (IhepEff + 8)) * (1 + 0.5 * st) * Math.min(1, lf + 0.15);   // a failing liver cannot make glucose
     const uBrain = 0.33 * BW * (g / (g + 1)) / (5.2 / 6.2);
     const uIns = 0.2 * BW * Ieff * g / (g + 5);
     const uMass = 0.1 * BW * g / (g + 10);                                            // insulin-independent tissue uptake
@@ -353,11 +408,11 @@ export class Body {
     /* Anaerobic glycolysis once oxygen extraction nears its limit; tissues also turn their demand down, so production saturates. */
     const lacProd = 0.75 * BW + 2.2 * BW * Math.tanh(Math.max(0, ER - 0.45) ** 1.5 / 0.25) + 20 * st + 0.5 * BW * sev;   // and in sepsis, from adrenaline and the microcirculation
     const hepatic = clamp(i.CO / 5.2, 0.15, 1.3) ** 0.5 * clamp((i.MAP - 25) / 45, 0.2, 1);
-    const lacClear = (0.75 * BW / 0.9) * hepatic * c.Lac / (1 + c.Lac / 12);
+    const lacClear = (0.75 * BW / 0.9) * hepatic * Math.min(1, lf + 0.1) ** 0.7 * c.Lac / (1 + c.Lac / 12);
 
     /* -- urea, creatinine, phosphate, fixed acid -- */
     const proteinIn = p.proteinIntake * food;
-    const ureaProd = (proteinIn * 5.7 + 160 * st + 250 * fasting) / 24;
+    const ureaProd = ((proteinIn * 5.7 + 160 * st + 250 * fasting) / 24) * Math.min(1, lf + 0.3) + 1000 * Math.max(0, p.upperGIBleed) / 1000 * 0.9;   // digested blood: ~0.9 mmol urea per mL
     const flowSlow = clamp((s.ADH - 2) / 8, 0, 1);
     const ureaU = GFR * c.urea * Math.max(0.15, 0.47 - 0.15 * flowSlow - 0.06 * Math.min(2, hypo));
     const crU = GFR * c.Cr * 1.15;
@@ -370,7 +425,8 @@ export class Body {
     const FL = GFR * c.Na;
     /* Pressure and volume natriuresis, opposed by aldosterone and angiotensin. A diuretic blocks a fraction of tubular
        reabsorption, but the volume it removes switches the opposing hormones on: the 'braking' that limits its effect. */
-    const natri = Math.exp(18 * (ve - 1)) * Math.exp(0.015 * (i.MAP - 93)) * Math.max(0.25, aldEff) ** -0.4 * Math.max(0.05, s.AngII) ** -0.2;
+    /* Cirrhosis: splanchnic vasodilatation and the hepatorenal reflex hold sodium. */
+    const natri = (1 - 0.6 * ph * clamp(1 - lf, 0, 1)) * Math.exp(18 * (ve - 1)) * Math.exp(0.015 * (i.MAP - 93)) * Math.max(0.25, aldEff) ** -0.4 * Math.max(0.05, s.AngII) ** -0.2;
     let naU = (150 / 24) * natri * (1 + 0.8 * clamp(p.loopDiuretic, 0, 1) + 0.25 * clamp(p.thiazide, 0, 1));
     naU += 0.08 * glucU + 0.35 * ketoU;
     naU = clamp(naU, FL * (0.0005 + 0.04 * clamp(p.tubularInjury, 0, 1)), FL * 0.3);
@@ -405,7 +461,8 @@ export class Body {
     const uOsm = clamp(50 + 300 * Math.max(0, s.ADH - 0.4), Umin, Math.max(Umin + 10, UmaxEff));
     const obstructed = 1 - clamp(p.obstruction, 0, 1);
     const waterU = osmU / uOsm * obstructed;
-    const thirst = p.canDrink > 0 ? (Math.max(0, c.tonicity - 290) * 0.06 + 0.04 * Math.min(3, hypo)) * (1 - 0.5 * nausea) : 0;
+    /* Thirst: tonicity, and volume — but a hypotonic plasma switches volume thirst off. */
+    const thirst = p.canDrink > 0 ? (Math.max(0, c.tonicity - 290) * 0.06 + 0.04 * Math.min(3, hypo) * clamp((c.tonicity - 268) / 18, 0, 1)) * (1 - 0.5 * nausea) : 0;
     const insensible = (0.8 / 24) * (1 + 0.13 * Math.max(0, s.T - 37) * 1.5) * Math.max(0.5, BW / 70);   // fever and sweating
     const metabolicWater = 0.3 / 24;
     const waterIn = p.fluidIntake / 24 * (1 - 0.4 * nausea) + thirst + metabolicWater;
@@ -413,10 +470,13 @@ export class Body {
 
     /* -- distribution between plasma and interstitium (Starling; settles in about half an hour) -- */
     const veShape = ve >= 1 ? 1 + 0.35 * (ve - 1) : ve ** 0.75;
-    const VpTarget = r.Vp * veShape * clamp(c.alb / 42, 0.3, 1.5) ** 0.45 * (1 - 0.01 * Math.max(0, i.CVP - 8)) * (1 - 0.22 * sev);   // capillary leak
+    /* Fewer red cells: the plasma expands to keep the blood volume (anaemia is not hypovolaemia). */
+    const anaemiaFill = 1 + 0.7 * Math.max(0, r.RCV - s.RCV) / r.Vp;
+    const VpTarget = r.Vp * veShape * anaemiaFill * clamp(c.alb / 42, 0.3, 1.5) ** 0.25 * (1 - 0.01 * Math.max(0, i.CVP - 8)) * (1 - 0.22 * sev);   // capillary leak
 
     return {
       c, GFR, auto, Plow, gfrMax: auto > 1e-3 ? GFR / auto : GFR, rpp, naU, kU: kU2, clU, nh4U, hco3U, ureaU, crU, uaU, uaProd, pIn, pU, glucU, ketoU, ketoProd, ketoOx, hgo, uBrain, uIns, uMass, carbIn,
+      prodRBC, destrRBC, ironAbs, bleed, mcvNew, bilProd, conj, bileOut, bilUrine, ph, lf,
       lacProd, lacClear, ureaProd, waterU, waterIn, insensible, vomit, stool, VpTarget, uOsm, food, obstructed,
     };
   }
@@ -452,7 +512,14 @@ export class Body {
     s.Urea += (f.ureaProd - f.ureaU * o) * dt;
     s.Cr += (this.ref.creatProd - f.crU * o) * dt;
     s.Vp = relax(s.Vp, f.VpTarget, dt, f.VpTarget > s.Vp ? 2 : 0.5);
-    s.RCV = Math.max(0.2, this.ref.RCV * clamp(p.redCellMass, 0.2, 2) - s.RCVlost);
+    s.RCV = Math.max(0.15, s.RCV + (f.prodRBC - f.destrRBC) * dt);
+    s.Fe = Math.max(0, s.Fe + (1100 * (f.destrRBC - f.prodRBC) + f.ironAbs - 1 / 24) * dt);   // 1.1 mg iron per mL of red cells; recycled when destroyed
+    if (f.prodRBC > 1e-9) s.MCV += (f.mcvNew - s.MCV) * Math.min(1, f.prodRBC * dt / s.RCV);
+    /* Ascites: with portal hypertension, much of any interstitial fluid gained collects in the peritoneum. */
+    { const c1 = f.c; s.Asc = Math.min(relax(s.Asc, 8 * f.ph ** 2 * clamp(1 - f.lf, 0, 1) * clamp(42 / c1.alb, 0.8, 2.5) ** 0.5, dt, 120), Math.max(0, c1.ISF - 2)); }
+    s.BilU = Math.max(0, s.BilU + (f.bilProd - f.conj) * dt);
+    s.BilC = Math.max(0, s.BilC + (f.conj - f.bileOut - f.bilUrine) * dt);
+    if (f.bleed > 0) this.addBlood(-f.bleed * dt * 1000);   // the iron goes with the red cells; the stores then pay for their replacement
     s.urineL += f.waterU * dt;
     s.hours += dt;
     for (const k of ['Na', 'K', 'G', 'Ket', 'Lac', 'UA', 'P', 'Urea', 'Cr'] as const) s[k] = Math.max(1e-3, s[k]);
@@ -461,7 +528,7 @@ export class Body {
     if (!Number.isFinite(s.TBW + s.Na + s.K + s.B + s.G + s.Ket + s.Lac)) throw new Error('body model diverged');
     this.f = {
       GFR: f.GFR, auto: f.auto, Plow: f.Plow, gfrMax: f.gfrMax, rpp: f.rpp, naU: f.naU * o, kU: f.kU * o, clU: f.clU * o, nh4U: f.nh4U * o, hco3U: f.hco3U * o, glucU: f.glucU * o, ketoU: f.ketoU * o,
-      waterU: f.waterU, uOsm: f.uOsm, hgo: f.hgo, gU: f.uBrain + f.uIns + f.uMass, ketoProd: f.ketoProd, ketoOx: f.ketoOx,
+      prodRBC: f.prodRBC / (this.ref.RCV / 2880), waterU: f.waterU, uOsm: f.uOsm, hgo: f.hgo, gU: f.uBrain + f.uIns + f.uMass, ketoProd: f.ketoProd, ketoOx: f.ketoOx,
       lacProd: f.lacProd, lacClear: f.lacClear, waterIn: f.waterIn, waterOut: f.waterU + f.insensible + f.vomit + f.stool, FL: f.GFR * f.c.Na,
     };
   }
@@ -486,8 +553,7 @@ export class Body {
     s.Lac += c.Lac * dP; s.Ket += c.Ket * dP; s.Urea += c.urea * dP; s.Cr += c.Cr * dP;
     s.K += c.K * dP + 100 * dR;
     s.Alb += c.alb * dP;
-    s.RCVlost -= dR;
-    s.RCV = Math.max(0.2, this.ref.RCV * clamp(this.p.redCellMass, 0.2, 2) - s.RCVlost);
+    s.RCV = Math.max(0.15, s.RCV + dR);
     void frac;
   }
 
@@ -506,7 +572,7 @@ export class Body {
   /** Cytokines and fever drive breathing: the tachypnoea of sepsis comes before any acidosis. */
   ventilatoryDrive(): number { return 1.0 * this.sepsis() + 0.25 * Math.min(1, this.s.IL) + 0.08 * Math.max(0, this.s.T - 37.5); }
   /** Angiotensin II and vasopressin constrict arterioles and veins. */
-  rsysMult(): number { return clamp(Math.max(0.05, this.s.AngII) ** 0.12 * Math.max(0.3, this.s.ADH / 1.5) ** 0.04, 0.6, 1.8) * (1 - 0.6 * this.vasoplegia()); }
+  rsysMult(): number { return clamp(Math.max(0.05, this.s.AngII) ** 0.12 * Math.max(0.3, this.s.ADH / 1.5) ** 0.04, 0.6, 1.8) * (1 - 0.6 * this.vasoplegia()) * (1 - 0.3 * clamp(this.p.portalHypertension, 0, 1) * clamp(1 - this.p.liverFunction, 0, 1)); }
   v0svMult(): number { return clamp(1 - 0.05 * Math.log(Math.max(0.05, this.s.AngII)) - 0.02 * Math.log(Math.max(0.3, this.s.ADH / 1.5)), 0.8, 1.15) * (1 + 0.2 * this.vasoplegia()); }
 
   snapshot(): BodySnapshot {
@@ -525,6 +591,11 @@ export class Body {
       glucosuria: (f.glucU ?? 0) / wU, ketonuria: (f.ketoU ?? 0) / wU, uNaRate: (f.naU ?? 6) * 24, uKRate: (f.kU ?? 3) * 24,
       autoregulation: f.auto ?? 1, Plow: f.Plow ?? 72, gfrMax: (f.gfrMax ?? r.GFR) / 0.06, perfusion: f.rpp ?? 90,
       insulin: s.I, angII: s.AngII, aldosterone: s.Ald, adh: s.ADH,
+      mcv: s.MCV, reticulocytes: 1.0 * (this.f.prodRBC ?? 1) * (this.p.b12Deficiency > 0.3 ? 0.5 : 1), ferritin: (s.Fe / 9) * (1 + 3 * Math.min(1, s.IL)) + 8 * (1 - this.p.liverFunction) ** 2 * 50,
+      ironStores: s.Fe, b12: 320 * (1 - 0.85 * clamp(this.p.b12Deficiency, 0, 1)), epo: 10 * s.EPO,
+      ldh: 180 + 600 * Math.max(0, this.p.haemolysis) + 500 * clamp(this.p.b12Deficiency, 0, 1) + 0.5 * Math.max(0, s.ALT - 25), haptoglobin: Math.max(0.05, 1.2 / (1 + 3 * Math.max(0, this.p.haemolysis)) * (1 - 0.5 * (1 - this.p.liverFunction)) * (1 + 0.8 * Math.min(1, s.IL))),
+      bilirubin: (s.BilU + s.BilC) / c.ECF, bilirubinConjugated: s.BilC / c.ECF, alt: s.ALT, alp: s.ALP, ggt: s.GGT, inr: s.INR, ammonia: s.NH3, ascites: s.Asc,
+      encephalopathy: clamp((s.NH3 - 50) / 40 + 0.5 * Math.min(1, s.IL) * (this.p.liverFunction < 0.6 ? 1 : 0.2) + 0.8 * this.sepsis() + 0.3 * Math.max(0, 3.2 - c.K) + 0.04 * Math.max(0, 128 - c.Na), 0, 4),
       inflammation: s.IL, temperature: s.T, crp: s.CRP, whiteCellCount: s.WCC, platelets: s.Plt, sepsis: this.sepsis(), vasoplegia: this.vasoplegia(),
       hgo: f.hgo ?? 0, glucoseUptake: f.gU ?? 0, ketogenesis: f.ketoProd ?? 0, ketoneOxidation: f.ketoOx ?? 0, lactateProduction: f.lacProd ?? 0, lactateClearance: f.lacClear ?? 0,
       waterIn: (f.waterIn ?? 0) * 24, waterOut: (f.waterOut ?? 0) * 24,

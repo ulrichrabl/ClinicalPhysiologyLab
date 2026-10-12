@@ -215,6 +215,42 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     reveals: [{ property: 'legs.oedema' }], requires: { instrument: ['hands'] }, durationSeconds: 15,
   },
   {
+    id: 'inspect.sclera', verb: 'inspect', target: 'eyes',
+    label: { en: 'Look at the sclerae (jaundice)', de: 'Skleren ansehen (Ikterus)' },
+    phrases: { en: ['sclera', 'sclerae', 'whites of the eyes', 'jaundice', 'icterus', 'yellow eyes'], de: ['skleren', 'sklera', 'ikterus', 'gelbe augen', 'gelbsucht'] },
+    reveals: [{ property: 'eyes.sclera' }], durationSeconds: 10,
+  },
+  {
+    id: 'inspect.conjunctiva', verb: 'inspect', target: 'eyes',
+    label: { en: 'Pull down the lower lid (pallor)', de: 'Unterlid herunterziehen (Blässe)' },
+    phrases: { en: ['conjunctiva', 'conjunctival pallor', 'pallor', 'anaemia', 'pale', 'lower eyelid'], de: ['konjunktiven', 'bindehaut', 'blässe', 'anämie', 'unterlid'] },
+    reveals: [{ property: 'eyes.conjunctiva' }], durationSeconds: 10,
+  },
+  {
+    id: 'test.asterixis', verb: 'test', target: 'hands',
+    label: { en: 'Arms out, wrists cocked back (asterixis)', de: 'Arme vorhalten, Hände dorsalflektieren (Flapping Tremor)' },
+    phrases: { en: ['asterixis', 'flap', 'liver flap', 'hold your hands out', 'cock your wrists'], de: ['flapping tremor', 'asterixis', 'hände vorhalten', 'flattern'] },
+    reveals: [{ property: 'hands.asterixis' }], durationSeconds: 20,
+  },
+  {
+    id: 'test.shifting-dullness', verb: 'percuss', target: 'abdomen',
+    label: { en: 'Percuss for shifting dullness', de: 'Auf verschiebliche Flankendämpfung perkutieren' },
+    phrases: { en: ['shifting dullness', 'ascites', 'percuss the abdomen', 'fluid thrill', 'flank dullness'], de: ['flankendämpfung', 'aszites', 'abdomen perkutieren', 'undulation', 'bauch abklopfen'] },
+    reveals: [{ property: 'abdomen.ascites' }], requires: { instrument: ['hands'], position: ['supine'], exposure: ['abdomen'] }, durationSeconds: 60,
+  },
+  {
+    id: 'examine.rectal', verb: 'palpate', target: 'rectum',
+    label: { en: 'Digital rectal examination', de: 'Digital-rektale Untersuchung' },
+    phrases: { en: ['rectal', 'pr', 'digital rectal', 'per rectum', 'melaena', 'dre'], de: ['rektal', 'dru', 'digital rektal', 'rektale untersuchung', 'meläna'] },
+    reveals: [{ property: 'rectal.exam' }], requires: { instrument: ['hands'], position: ['left-lateral'], consent: 'chaperone' }, durationSeconds: 90,
+  },
+  {
+    id: 'inspect.skin', verb: 'inspect', target: 'skin',
+    label: { en: 'Look for signs of chronic liver disease', de: 'Auf Leberhautzeichen achten' },
+    phrases: { en: ['spider naevi', 'palmar erythema', 'liver stigmata', 'stigmata of chronic liver disease', 'caput medusae', 'skin'], de: ['spider naevi', 'palmarerythem', 'leberhautzeichen', 'caput medusae', 'haut'] },
+    reveals: [{ property: 'skin.liver-stigmata' }], requires: { exposure: ['chest', 'abdomen'] }, durationSeconds: 30,
+  },
+  {
     id: 'inspect.mouth', verb: 'inspect', target: 'mouth',
     label: { en: 'Look in the mouth (mucous membranes)', de: 'Mundhöhle inspizieren (Schleimhäute)' },
     phrases: { en: ['look in the mouth', 'mucous membranes', 'mucosa', 'dry mouth', 'tongue dry', 'hydration'], de: ['mund ansehen', 'schleimhäute', 'mundschleimhaut', 'zunge trocken', 'exsikkose', 'hydratation'] },

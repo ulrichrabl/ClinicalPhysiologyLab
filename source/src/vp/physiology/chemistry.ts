@@ -33,7 +33,7 @@ export type Chemistry = ChemistryPublicState & {
 };
 
 /** Plasma values the body model produces: a case cannot clamp them, only set their causes. */
-export const BODY_OUTPUTS = ['sodium', 'potassium', 'chloride', 'bicarbonate', 'glucose', 'urea', 'creatinine', 'lactate', 'albumin', 'haemoglobin', 'phosphate', 'ketones', 'osmolality', 'whiteCellCount', 'crp', 'platelets'];
+export const BODY_OUTPUTS = ['sodium', 'potassium', 'chloride', 'bicarbonate', 'glucose', 'urea', 'creatinine', 'lactate', 'albumin', 'haemoglobin', 'phosphate', 'ketones', 'osmolality', 'whiteCellCount', 'crp', 'platelets', 'mcv'];
 
 /** Simulation snapshot → chemistry. */
 export function chemistryState(snapshot: Record<string, any> | undefined, pins: Record<string, number> = {}, resp?: RespSnapshot): Chemistry {
@@ -52,7 +52,8 @@ export function chemistryState(snapshot: Record<string, any> | undefined, pins: 
       sodium: b.sodium, potassium: b.potassium, chloride: b.chloride, bicarbonate: b.standardBicarbonate, glucose: b.glucose,
       urea: b.urea, creatinine: b.creatinine, lactate: b.lactate, albumin: b.albumin, haemoglobin: b.haemoglobin,
       ketones: b.ketones, betaHydroxybutyrate: b.betaHydroxybutyrate, phosphate: b.phosphate, osmolality: b.osmolality,
-      whiteCellCount: b.whiteCellCount, crp: b.crp, platelets: b.platelets, temperature: b.temperature,
+      whiteCellCount: b.whiteCellCount, crp: b.crp, platelets: b.platelets, temperature: b.temperature, mcv: b.mcv,
+      bilirubin: b.bilirubin, alt: b.alt, alp: b.alp, ggt: b.ggt, inr: b.inr, ammonia: b.ammonia, ferritin: b.ferritin, reticulocytes: b.reticulocytes, b12: b.b12, ldh: b.ldh, haptoglobin: b.haptoglobin,
     });
     derived.push('body');
   }

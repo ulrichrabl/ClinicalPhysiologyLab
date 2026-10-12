@@ -1,0 +1,330 @@
+{
+  "schema": "vp.case/1",
+  "id": "iron-deficiency-anaemia-caecal",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Tired and breathless on the stairs for months: iron-deficiency anaemia from a slowly bleeding bowel",
+    "de": "Seit Monaten müde und kurzatmig auf der Treppe: Eisenmangelanämie aus einer langsam blutenden Darmläsion"
+  },
+  "tags": [
+    "blood",
+    "anaemia",
+    "gastrointestinal",
+    "cancer",
+    "outpatient"
+  ],
+  "difficulty": 2,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-12",
+    "sources": [
+      "Snook J et al. British Society of Gastroenterology guidelines for the management of iron deficiency anaemia in adults. Gut 2021;70:2030–51.",
+      "Camaschella C. Iron-deficiency anemia. N Engl J Med 2015;372:1832–43."
+    ]
+  },
+  "patient": {
+    "name": "Ursula Braun",
+    "age": 71,
+    "sex": "F",
+    "heightCm": 160,
+    "weightKg": 63,
+    "appearance": {
+      "skinTone": 1,
+      "hair": "white, bob",
+      "build": "average"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ]
+  },
+  "setting": {
+    "place": {
+      "en": "Medical clinic, urgent appointment",
+      "de": "Internistische Ambulanz, dringender Termin"
+    },
+    "triage": {
+      "en": "Six months of tiredness and breathlessness on the stairs. GP found haemoglobin low.",
+      "de": "Seit sechs Monaten müde und kurzatmig auf der Treppe. Hausärztin fand ein niedriges Hämoglobin."
+    }
+  },
+  "pathology": {
+    "body": {
+      "lowerGIBleed": 0.8,
+      "courseHours": 4380
+    }
+  },
+  "initialState": {
+    "position": "sitting",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "full",
+    "exposure": []
+  },
+  "observables": {
+    "abdomen.palpation": {
+      "value": {
+        "tenderness": "none",
+        "mass": false,
+        "guarding": false
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "fatigue",
+        "present": true
+      },
+      "say": {
+        "en": "I’m so tired. And the stairs, I have to stop halfway now. I thought it was age.",
+        "de": "Ich bin so müde. Und die Treppe, ich muss jetzt auf halber Strecke stehen bleiben. Ich dachte, das ist das Alter."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "say": {
+        "en": "Gradually, since the spring. Maybe longer.",
+        "de": "Allmählich, seit dem Frühjahr. Vielleicht länger."
+      }
+    },
+    {
+      "id": "f-dysp",
+      "topic": "sx.dyspnoea",
+      "assertion": {
+        "concept": "exertional-dyspnoea",
+        "present": true
+      },
+      "say": {
+        "en": "Only when I walk up a hill or the stairs. Not at rest, not at night.",
+        "de": "Nur bergauf oder auf der Treppe. Nicht in Ruhe, nicht nachts."
+      }
+    },
+    {
+      "id": "f-chest",
+      "topic": "sx.chest-pain",
+      "assertion": {
+        "concept": "angina",
+        "present": true
+      },
+      "say": {
+        "en": "Once a tightness on the stairs that went when I stopped.",
+        "de": "Einmal ein Engegefühl auf der Treppe, das beim Stehenbleiben verging."
+      }
+    },
+    {
+      "id": "f-bowel",
+      "topic": "sx.diarrhoea",
+      "assertion": {
+        "concept": "change-in-bowel-habit",
+        "present": true
+      },
+      "say": {
+        "en": "My bowels are looser than they used to be, the last few months. No blood that I’ve seen.",
+        "de": "Der Stuhl ist die letzten Monate weicher als früher. Blut habe ich keins gesehen."
+      }
+    },
+    {
+      "id": "f-weight",
+      "topic": "sx.weight",
+      "assertion": {
+        "concept": "weight-loss",
+        "present": true,
+        "attributes": {
+          "kg": 4
+        }
+      },
+      "say": {
+        "en": "About four kilos lost without trying.",
+        "de": "Etwa vier Kilo abgenommen, ohne es zu wollen."
+      }
+    },
+    {
+      "id": "f-diet",
+      "topic": "sx.intake",
+      "say": {
+        "en": "I eat well. Meat twice a week.",
+        "de": "Ich esse gut. Zweimal die Woche Fleisch."
+      }
+    },
+    {
+      "id": "f-pica",
+      "topic": "sx.cramps",
+      "assertion": {
+        "concept": "pica",
+        "present": true
+      },
+      "say": {
+        "en": "I crave ice cubes, funnily. I crunch them.",
+        "de": "Komischerweise habe ich Lust auf Eiswürfel. Ich kaue sie."
+      }
+    },
+    {
+      "id": "f-melaena",
+      "topic": "sx.vomiting",
+      "assertion": {
+        "concept": "melaena",
+        "present": false
+      },
+      "say": {
+        "en": "No, no vomiting, no black stools.",
+        "de": "Nein, kein Erbrechen, kein schwarzer Stuhl."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "say": {
+        "en": "Hip replacement. Nothing else. My periods stopped twenty years ago.",
+        "de": "Eine Hüftprothese. Sonst nichts. Die Periode hat vor zwanzig Jahren aufgehört."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "assertion": {
+        "concept": "nsaid-use",
+        "present": false
+      },
+      "say": {
+        "en": "Nothing regular. No aspirin, no painkillers.",
+        "de": "Nichts Regelmäßiges. Kein Aspirin, keine Schmerzmittel."
+      }
+    },
+    {
+      "id": "f-fhx",
+      "topic": "fhx",
+      "assertion": {
+        "concept": "family-colorectal-cancer",
+        "present": true
+      },
+      "say": {
+        "en": "My brother had bowel cancer at sixty-five.",
+        "de": "Mein Bruder hatte mit fünfundsechzig Darmkrebs."
+      }
+    },
+    {
+      "id": "f-ice",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "It isn’t something serious, is it?",
+        "de": "Es ist doch nichts Ernstes, oder?"
+      }
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-fbc",
+        "kind": "investigation",
+        "ref": "fbc",
+        "weight": "essential",
+        "discriminates": [
+          "b12-deficiency",
+          "haemolytic-anaemia"
+        ],
+        "why": {
+          "en": "A microcytic anaemia: haemoglobin low, MCV low. The marrow is making small cells for want of iron.",
+          "de": "Eine mikrozytäre Anämie: Hämoglobin niedrig, MCV niedrig. Das Mark bildet kleine Zellen aus Eisenmangel."
+        }
+      },
+      {
+        "id": "e-ferritin",
+        "kind": "investigation",
+        "ref": "haematinics",
+        "weight": "essential",
+        "discriminates": [
+          "anaemia-chronic-disease"
+        ],
+        "why": {
+          "en": "Ferritin far below 30: the iron stores are empty. In a postmenopausal woman, this is gastrointestinal blood loss until proven otherwise.",
+          "de": "Ferritin weit unter 30: Die Eisenspeicher sind leer. Bei einer postmenopausalen Frau ist das ein gastrointestinaler Blutverlust, bis das Gegenteil bewiesen ist."
+        }
+      },
+      {
+        "id": "e-pallor",
+        "kind": "property",
+        "ref": "eyes.conjunctiva",
+        "weight": "supporting",
+        "why": {
+          "en": "Pale conjunctivae.",
+          "de": "Blasse Konjunktiven."
+        }
+      },
+      {
+        "id": "e-hr",
+        "kind": "property",
+        "ref": "vitals.hr",
+        "weight": "supporting",
+        "why": {
+          "en": "A resting tachycardia: cardiac output raised to carry oxygen in thinner blood.",
+          "de": "Ruhetachykardie: Herzzeitvolumen gesteigert, um mit dünnerem Blut Sauerstoff zu transportieren."
+        }
+      },
+      {
+        "id": "e-bowel",
+        "kind": "fact",
+        "ref": "f-bowel",
+        "weight": "essential",
+        "why": {
+          "en": "Change in bowel habit, weight loss and a family history: a right-sided colonic cancer bleeds occultly.",
+          "de": "Stuhlgangsänderung, Gewichtsverlust und Familienanamnese: Ein rechtsseitiges Kolonkarzinom blutet okkult."
+        }
+      },
+      {
+        "id": "e-retic",
+        "kind": "investigation",
+        "ref": "haemolysis-screen",
+        "weight": "discriminating",
+        "discriminates": [
+          "haemolytic-anaemia"
+        ],
+        "why": {
+          "en": "Reticulocytes not appropriately raised for the anaemia, LDH and haptoglobin normal: not haemolysis.",
+          "de": "Retikulozyten für die Anämie nicht angemessen erhöht, LDH und Haptoglobin normal: keine Hämolyse."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "investigation",
+        "ref": "haematinics",
+        "why": {
+          "en": "Iron-deficiency anaemia in a woman past the menopause: refer for urgent colonoscopy and gastroscopy (two-week pathway), check coeliac serology, replace iron.",
+          "de": "Eisenmangelanämie bei einer postmenopausalen Frau: dringende Koloskopie und Gastroskopie, Zöliakie-Serologie, Eisen ersetzen."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 15,
+    "summary": {
+      "en": "A 71-year-old with six months of fatigue and exertional breathlessness, one episode of exertional chest tightness, looser stools, four kilograms of weight loss, pica, and a brother with bowel cancer. Pale, resting tachycardia. Microcytic anaemia with very low ferritin, no haemolysis. Iron-deficiency anaemia from occult gastrointestinal loss, likely a right-sided colonic cancer: urgent colonoscopy and gastroscopy, coeliac serology, iron replacement.",
+      "de": "Eine 71-Jährige mit sechs Monaten Müdigkeit und Belastungsdyspnoe, einmaligem belastungsabhängigem Engegefühl, weicherem Stuhl, vier Kilo Gewichtsverlust, Pica und einem Bruder mit Darmkrebs. Blass, Ruhetachykardie. Mikrozytäre Anämie mit sehr niedrigem Ferritin, keine Hämolyse. Eisenmangelanämie durch okkulten gastrointestinalen Blutverlust, wahrscheinlich ein rechtsseitiges Kolonkarzinom: dringende Koloskopie und Gastroskopie, Zöliakie-Serologie, Eisenersatz."
+    }
+  },
+  "diagnosis": {
+    "primary": "iron-deficiency-anaemia",
+    "accepted": [
+      "colorectal-cancer"
+    ],
+    "differential": [
+      "anaemia-chronic-disease",
+      "b12-deficiency",
+      "haemolytic-anaemia",
+      "coeliac-disease",
+      "angina",
+      "acute-heart-failure"
+    ]
+  }
+}

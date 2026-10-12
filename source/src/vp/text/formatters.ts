@@ -151,6 +151,15 @@ export const FORMATTERS: Record<string, Formatter> = {
 
   'hands.crt': (v, _c, l) => (de(l) ? `Rekapillarisierungszeit ${num(v, l, 1)} s.` : `Capillary refill ${num(v, l, 1)} s.`),
   'legs.oedema': (v, _c, l, cat) => `${cap(lab(cat, 'oedema', v.extent, l))}.`,
+  'eyes.sclera': (v, _c, l, cat) => `${cap(lab(cat, 'icterus', v.icterus, l))}.`,
+  'eyes.conjunctiva': (v, _c, l, cat) => `${cap(lab(cat, 'severity-pallor', v.pallor, l))}.`,
+  'hands.asterixis': (v, _c, l) => (v.flap ? (de(l) ? 'Flapping Tremor: grobschlägiges Flattern der Hände.' : 'Asterixis: a coarse flap of the outstretched hands.') : (de(l) ? 'Kein Flapping Tremor.' : 'No asterixis.')),
+  'abdomen.ascites': (v, _c, l, cat) => `${cap(lab(cat, 'ascites', v.ascites, l))}.`,
+  'rectal.exam': (v, _c, l, cat) => (de(l) ? `Rektal: ${lab(cat, 'stool', v.stool, l)}.` : `Rectal: ${lab(cat, 'stool', v.stool, l)}.`),
+  'skin.liver-stigmata': (v, _c, l) => {
+    const parts = [v.spiderNaevi && (de(l) ? 'Spider naevi an Brust und Schultern' : 'spider naevi over the chest and shoulders'), v.palmarErythema && (de(l) ? 'Palmarerythem' : 'palmar erythema'), v.caputMedusae && (de(l) ? 'erweiterte Bauchwandvenen' : 'distended abdominal wall veins')].filter(Boolean) as string[];
+    return parts.length ? `${cap(parts.join(', '))}.` : (de(l) ? 'Keine Leberhautzeichen.' : 'No signs of chronic liver disease.');
+  },
   'mouth.mucosa': (v, _c, l, cat) => `${cap(lab(cat, 'mucosa', v.moisture, l))}.`,
   'skin.turgor': (v, _c, l, cat) => `${cap(lab(cat, 'turgor', v.turgor, l))}.`,
   'breath.odour': (v, _c, l, cat) => `${cap(lab(cat, 'breath-odour', v.odour, l))}.`,
@@ -436,7 +445,9 @@ export const FORMATTERS: Record<string, Formatter> = {
       platelets: ['platelets', 'Thrombozyten', '×10⁹/L'], mcv: ['MCV', 'MCV', 'fL'], troponin: ['troponin', 'Troponin', 'ng/L'], bnp: ['BNP', 'BNP', 'ng/L'], crp: ['CRP', 'CRP', 'mg/L'],
       baseExcess: ['BE', 'BE', 'mmol/L'], saO2: ['SaO₂', 'SaO₂', '%'], coHb: ['COHb', 'COHb', '%'], metHb: ['MetHb', 'MetHb', '%'], fio2: ['FiO₂', 'FiO₂', ''],
       glucose: ['glucose', 'Glukose', 'mmol/L'], betaHydroxybutyrate: ['β-hydroxybutyrate', 'β-Hydroxybutyrat', 'mmol/L'], osmolality: ['osmolality', 'Osmolalität', 'mosmol/kg'],
-      mlPerHour: ['urine', 'Urin', 'mL/h'], mlPerKgPerHour: ['', '', 'mL/kg/h'], phosphate: ['phosphate', 'Phosphat', 'mmol/L'], albumin: ['albumin', 'Albumin', 'g/L'],
+      mlPerHour: ['urine', 'Urin', 'mL/h'], bilirubin: ['bilirubin', 'Bilirubin', 'µmol/L'], alt: ['ALT', 'ALT', 'U/L'], alp: ['ALP', 'AP', 'U/L'], ggt: ['GGT', 'γGT', 'U/L'],
+      inr: ['INR', 'INR', ''], aptt: ['APTT', 'aPTT', 's'], ammonia: ['ammonia', 'Ammoniak', 'µmol/L'], ferritin: ['ferritin', 'Ferritin', 'µg/L'], b12: ['B₁₂', 'B₁₂', 'pmol/L'], folate: ['folate', 'Folsäure', 'µg/L'],
+      reticulocytes: ['reticulocytes', 'Retikulozyten', '%'], ldh: ['LDH', 'LDH', 'U/L'], haptoglobin: ['haptoglobin', 'Haptoglobin', 'g/L'], bilirubinUnconjugated: ['unconjugated bilirubin', 'unkonjugiertes Bilirubin', 'µmol/L'], mlPerKgPerHour: ['', '', 'mL/kg/h'], phosphate: ['phosphate', 'Phosphat', 'mmol/L'], albumin: ['albumin', 'Albumin', 'g/L'],
     };
     const inv = cat.investigations[ref.property];
     const range = (inv?.normal.range ?? {}) as Record<string, [number, number]>;
@@ -453,7 +464,7 @@ export const FORMATTERS: Record<string, Formatter> = {
     if (!v.voided) return de(l) ? 'Urinstix: kein Urin zu gewinnen (der Patient hat seit Stunden kein Wasser gelassen).' : 'Urine dipstick: no urine to test (none passed for hours).';
     const d = (k: string, en: string, dn: string) => `${de(l) ? dn : en} ${lab(cat, 'dipstick', v[k], l)}`;
     const parts = [d('glucose', 'glucose', 'Glukose'), d('ketones', 'ketones', 'Ketone'), d('protein', 'protein', 'Eiweiß'), d('blood', 'blood', 'Blut'),
-      d('leukocytes', 'leukocytes', 'Leukozyten'), d('nitrites', 'nitrites', 'Nitrit'), `${de(l) ? 'spez. Gewicht' : 'SG'} ${num(v.sg, l, 3)}`, `pH ${num(v.ph, l, 1)}`];
+      d('leukocytes', 'leukocytes', 'Leukozyten'), d('nitrites', 'nitrites', 'Nitrit'), ...(v.bilirubin ? [d('bilirubin', 'bilirubin', 'Bilirubin')] : []), `${de(l) ? 'spez. Gewicht' : 'SG'} ${num(v.sg, l, 3)}`, `pH ${num(v.ph, l, 1)}`];
     return `${de(l) ? 'Urinstix' : 'Urine dipstick'}: ${parts.join(', ')}.`;
   },
   'inv.glucose': (v, _c, l) => (de(l) ? `Blutzucker ${num(v, l, 1)} mmol/l.` : `Glucose ${num(v, l, 1)} mmol/L.`),

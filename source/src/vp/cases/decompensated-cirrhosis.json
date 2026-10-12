@@ -1,0 +1,407 @@
+{
+  "schema": "vp.case/1",
+  "id": "decompensated-cirrhosis",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "A swollen belly, yellow eyes and confusion in a heavy drinker: decompensated alcoholic cirrhosis",
+    "de": "Dicker Bauch, gelbe Augen und Verwirrtheit bei einem Alkoholkranken: dekompensierte äthyltoxische Leberzirrhose"
+  },
+  "tags": [
+    "liver",
+    "gastrointestinal",
+    "alcohol",
+    "infection",
+    "confusion"
+  ],
+  "difficulty": 3,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-12",
+    "sources": [
+      "European Association for the Study of the Liver. EASL Clinical Practice Guidelines for the management of patients with decompensated cirrhosis. J Hepatol 2018;69:406–60.",
+      "Ginès P et al. Liver cirrhosis. Lancet 2021;398:1359–76.",
+      "Vilstrup H et al. Hepatic encephalopathy in chronic liver disease: AASLD/EASL practice guideline. Hepatology 2014;60:715–35."
+    ]
+  },
+  "patient": {
+    "name": "Andreas Wolf",
+    "age": 54,
+    "sex": "M",
+    "heightCm": 178,
+    "weightKg": 74,
+    "appearance": {
+      "skinTone": 3,
+      "hair": "dark, unkempt",
+      "build": "thin"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ],
+    "companion": {
+      "name": "Jana Wolf",
+      "relation": {
+        "en": "sister",
+        "de": "Schwester"
+      }
+    }
+  },
+  "setting": {
+    "place": {
+      "en": "Emergency department, bay 5",
+      "de": "Notaufnahme, Box 5"
+    },
+    "triage": {
+      "en": "Belly getting bigger for weeks, yellow for a week, muddled since yesterday. Sister brought him.",
+      "de": "Bauch seit Wochen dicker, seit einer Woche gelb, seit gestern durcheinander. Von der Schwester gebracht."
+    }
+  },
+  "pathology": {
+    "chronic": {
+      "days": 180,
+      "body": {
+        "liverFunction": 0.25,
+        "portalHypertension": 0.85,
+        "alcohol": 0.9,
+        "proteinIntake": 60
+      }
+    },
+    "body": {
+      "infection": 0.35,
+      "foodIntake": 0.6,
+      "courseHours": 72
+    }
+  },
+  "initialState": {
+    "position": "reclined-45",
+    "avpu": "A",
+    "orientation": "confused",
+    "cooperation": "limited",
+    "exposure": []
+  },
+  "observables": {
+    "abdomen.palpation": {
+      "value": {
+        "tenderness": "mild",
+        "mass": false,
+        "guarding": false
+      }
+    },
+    "general.appearance": {
+      "value": {
+        "distress": "mild",
+        "colour": "jaundiced",
+        "sweating": false
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "abdominal-distension",
+        "present": true
+      },
+      "say": {
+        "en": "My belly. It’s tight. Is it Tuesday?",
+        "de": "Mein Bauch. Der spannt so. Ist heute Dienstag?"
+      }
+    },
+    {
+      "id": "f-sister",
+      "topic": "hpc.onset",
+      "assertion": {
+        "concept": "jaundice",
+        "present": true
+      },
+      "say": {
+        "en": "His tummy has been swelling for a month or two. Last week his eyes went yellow. Since yesterday he’s confused, sleeping in the day, muddling words.",
+        "de": "Sein Bauch schwillt seit ein, zwei Monaten an. Letzte Woche wurden die Augen gelb. Seit gestern ist er verwirrt, schläft tagsüber, bringt Wörter durcheinander."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-alc",
+      "topic": "shx.alcohol",
+      "assertion": {
+        "concept": "alcohol",
+        "present": true,
+        "attributes": {
+          "unitsPerWeek": 280
+        }
+      },
+      "say": {
+        "en": "A bottle of vodka a day, for years. He says less. It isn’t less.",
+        "de": "Eine Flasche Wodka am Tag, seit Jahren. Er sagt, weniger. Es ist nicht weniger."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-pain",
+      "topic": "sx.abdominal-pain",
+      "assertion": {
+        "concept": "abdominal-pain",
+        "present": true,
+        "attributes": {
+          "site": "diffuse"
+        }
+      },
+      "say": {
+        "en": "Sore all over the belly the last two days.",
+        "de": "Die letzten zwei Tage tut der ganze Bauch weh."
+      }
+    },
+    {
+      "id": "f-fever",
+      "topic": "sx.fever",
+      "assertion": {
+        "concept": "fever",
+        "present": true
+      },
+      "say": {
+        "en": "A bit shivery.",
+        "de": "Etwas fröstelig."
+      }
+    },
+    {
+      "id": "f-vomit",
+      "topic": "sx.vomiting",
+      "assertion": {
+        "concept": "haematemesis",
+        "present": false
+      },
+      "say": {
+        "en": "No blood. I haven’t been sick.",
+        "de": "Kein Blut. Erbrochen habe ich nicht."
+      }
+    },
+    {
+      "id": "f-stool",
+      "topic": "sx.diarrhoea",
+      "assertion": {
+        "concept": "constipation",
+        "present": true
+      },
+      "say": {
+        "en": "Constipated. Four days nothing.",
+        "de": "Verstopft. Seit vier Tagen nichts."
+      }
+    },
+    {
+      "id": "f-urine",
+      "topic": "sx.urine",
+      "assertion": {
+        "concept": "dark-urine",
+        "present": true
+      },
+      "say": {
+        "en": "Dark. Like cola.",
+        "de": "Dunkel. Wie Cola."
+      }
+    },
+    {
+      "id": "f-itch",
+      "topic": "sx.weight",
+      "assertion": {
+        "concept": "sarcopenia",
+        "present": true
+      },
+      "say": {
+        "en": "Thin arms, big belly. I’ve lost muscle.",
+        "de": "Dünne Arme, dicker Bauch. Ich habe Muskeln verloren."
+      }
+    },
+    {
+      "id": "f-ankle",
+      "topic": "sx.ankle-swelling",
+      "assertion": {
+        "concept": "ankle-swelling",
+        "present": true
+      },
+      "say": {
+        "en": "The ankles are puffy too.",
+        "de": "Die Knöchel sind auch geschwollen."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "assertion": {
+        "concept": "cirrhosis",
+        "present": true
+      },
+      "say": {
+        "en": "They told him two years ago his liver was scarred. He didn’t go back.",
+        "de": "Vor zwei Jahren hieß es, seine Leber sei vernarbt. Er ist nicht wieder hingegangen."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "say": {
+        "en": "Nothing. Sometimes paracetamol.",
+        "de": "Nichts. Manchmal Paracetamol."
+      }
+    },
+    {
+      "id": "f-living",
+      "topic": "shx.living",
+      "say": {
+        "en": "Alone. Lost his job last year.",
+        "de": "Allein. Hat letztes Jahr seine Arbeit verloren."
+      },
+      "speaker": "companion"
+    },
+    {
+      "id": "f-ice",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "Is he dying?",
+        "de": "Stirbt er?"
+      },
+      "speaker": "companion"
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-ascites",
+        "kind": "property",
+        "ref": "abdomen.ascites",
+        "weight": "essential",
+        "why": {
+          "en": "Shifting dullness: ascites, from portal hypertension and sodium retention.",
+          "de": "Verschiebliche Flankendämpfung: Aszites, durch portale Hypertension und Natriumretention."
+        }
+      },
+      {
+        "id": "e-jaundice",
+        "kind": "property",
+        "ref": "eyes.sclera",
+        "weight": "essential",
+        "why": {
+          "en": "Jaundice: the liver no longer conjugates and excretes bilirubin.",
+          "de": "Ikterus: Die Leber konjugiert und scheidet Bilirubin nicht mehr aus."
+        }
+      },
+      {
+        "id": "e-flap",
+        "kind": "property",
+        "ref": "hands.asterixis",
+        "weight": "essential",
+        "discriminates": [
+          "delirium",
+          "subdural-haematoma"
+        ],
+        "why": {
+          "en": "Asterixis with confusion: hepatic encephalopathy (West Haven 2).",
+          "de": "Flapping Tremor mit Verwirrtheit: hepatische Enzephalopathie (West Haven 2)."
+        }
+      },
+      {
+        "id": "e-stigmata",
+        "kind": "property",
+        "ref": "skin.liver-stigmata",
+        "weight": "supporting",
+        "why": {
+          "en": "Spider naevi, palmar erythema, abdominal wall veins: chronic liver disease with portal hypertension.",
+          "de": "Spider naevi, Palmarerythem, Bauchwandvenen: chronische Lebererkrankung mit portaler Hypertension."
+        }
+      },
+      {
+        "id": "e-coag",
+        "kind": "investigation",
+        "ref": "coagulation",
+        "weight": "essential",
+        "why": {
+          "en": "A long INR: synthetic failure (factor VII lasts hours).",
+          "de": "Verlängerter INR: Syntheseversagen (Faktor VII hält Stunden)."
+        }
+      },
+      {
+        "id": "e-lft",
+        "kind": "investigation",
+        "ref": "lft",
+        "weight": "essential",
+        "why": {
+          "en": "High bilirubin, low albumin; transaminases only mildly raised, AST-predominant in alcohol: function lost, not necrosis.",
+          "de": "Hohes Bilirubin, niedriges Albumin; Transaminasen nur leicht erhöht: Funktion verloren, keine Nekrose."
+        }
+      },
+      {
+        "id": "e-fbc",
+        "kind": "investigation",
+        "ref": "fbc",
+        "weight": "supporting",
+        "why": {
+          "en": "Low platelets (a big spleen) and a high MCV (alcohol).",
+          "de": "Niedrige Thrombozyten (große Milz) und hohes MCV (Alkohol)."
+        }
+      },
+      {
+        "id": "e-fever",
+        "kind": "property",
+        "ref": "vitals.temp",
+        "weight": "essential",
+        "discriminates": [
+          "hepatic-encephalopathy"
+        ],
+        "why": {
+          "en": "Fever, abdominal tenderness and new encephalopathy in a cirrhotic with ascites: spontaneous bacterial peritonitis until a diagnostic tap shows otherwise.",
+          "de": "Fieber, Bauchschmerz und neue Enzephalopathie bei Zirrhose mit Aszites: spontan bakterielle Peritonitis, bis eine diagnostische Punktion das Gegenteil zeigt."
+        }
+      },
+      {
+        "id": "e-ue",
+        "kind": "investigation",
+        "ref": "electrolytes",
+        "weight": "supporting",
+        "why": {
+          "en": "Sodium low or low-normal (water held with the sodium) and a creatinine rising from a low baseline: the kidney sees an underfilled circulation (hepatorenal physiology).",
+          "de": "Natrium niedrig oder niedrig-normal (Wasser mit dem Natrium zurückgehalten) und ein von niedrigem Ausgangswert steigendes Kreatinin: Die Niere sieht einen unterfüllten Kreislauf (hepatorenale Physiologie)."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "property",
+        "ref": "vitals.temp",
+        "why": {
+          "en": "Diagnostic paracentesis now (neutrophils above 250/µL is SBP): antibiotics and albumin. Lactulose for the encephalopathy, find and treat the precipitant, thiamine before glucose.",
+          "de": "Jetzt diagnostische Aszitespunktion (Neutrophile über 250/µl ist SBP): Antibiotika und Albumin. Laktulose für die Enzephalopathie, Auslöser suchen und behandeln, Thiamin vor Glukose."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 20,
+    "summary": {
+      "en": "A 54-year-old drinking a bottle of vodka a day with known cirrhosis, two months of abdominal swelling, a week of jaundice, two days of abdominal pain and shivers, a day of confusion. Jaundiced, ascites with shifting dullness, spider naevi and palmar erythema, asterixis, low-grade fever. Long INR, high bilirubin, low albumin, low platelets, high MCV, low sodium, rising creatinine. Decompensated alcoholic cirrhosis with hepatic encephalopathy, precipitated by suspected spontaneous bacterial peritonitis: diagnostic tap, antibiotics, albumin, lactulose, thiamine, alcohol withdrawal care.",
+      "de": "Ein 54-Jähriger, der täglich eine Flasche Wodka trinkt, mit bekannter Zirrhose, zwei Monaten Bauchumfangszunahme, einer Woche Ikterus, zwei Tagen Bauchschmerz und Frösteln, einem Tag Verwirrtheit. Ikterisch, Aszites mit Flankendämpfung, Spider naevi und Palmarerythem, Flapping Tremor, subfebril. Verlängerter INR, hohes Bilirubin, niedriges Albumin, Thrombopenie, hohes MCV, Hyponatriämie, steigendes Kreatinin. Dekompensierte äthyltoxische Zirrhose mit hepatischer Enzephalopathie, ausgelöst durch eine vermutete spontan bakterielle Peritonitis: diagnostische Punktion, Antibiose, Albumin, Laktulose, Thiamin, Entzugsbehandlung."
+    }
+  },
+  "diagnosis": {
+    "primary": "decompensated-cirrhosis",
+    "accepted": [
+      "hepatic-encephalopathy",
+      "spontaneous-bacterial-peritonitis"
+    ],
+    "differential": [
+      "alcoholic-hepatitis",
+      "hepatorenal-syndrome",
+      "variceal-bleed",
+      "subdural-haematoma",
+      "obstructive-jaundice",
+      "delirium"
+    ]
+  }
+}

@@ -49,6 +49,7 @@ export const STRUCTURES: StructureDef[] = [
   { id: 'hands', parent: 'body', label: { en: 'Hands', de: 'Hände' }, synonyms: { en: ['hands', 'fingers', 'nails'], de: ['hände', 'finger', 'nägel'] } },
   { id: 'abdomen', parent: 'body', label: { en: 'Abdomen', de: 'Abdomen' }, synonyms: { en: ['abdomen', 'belly', 'tummy', 'stomach'], de: ['bauch', 'abdomen'] } },
   { id: 'skin', parent: 'body', label: { en: 'Skin', de: 'Haut' }, synonyms: { en: ['skin', 'turgor'], de: ['haut', 'hautturgor', 'turgor'] } },
+  { id: 'rectum', parent: 'body', label: { en: 'Rectum', de: 'Rektum' }, synonyms: { en: ['rectum', 'pr', 'rectal'], de: ['rektum', 'rektal', 'dru'] } },
   { id: 'urine', parent: 'body', label: { en: 'Urine', de: 'Urin' }, synonyms: { en: ['urine', 'urine output', 'catheter'], de: ['urin', 'harn', 'urinausscheidung', 'katheter'] } },
   { id: 'legs', parent: 'body', label: { en: 'Legs', de: 'Beine' }, synonyms: { en: ['legs', 'ankles', 'shins'], de: ['beine', 'knöchel', 'unterschenkel'] } },
   { id: 'face', parent: 'head', paired: true, label: { en: 'Face', de: 'Gesicht' }, synonyms: { en: ['face', 'facial'], de: ['gesicht', 'mimik'] } },
@@ -120,6 +121,10 @@ export const VALUE_SETS: ValueSetDef[] = [
   vs('valve', [['aortic', 'aortic', 'Aortenklappe'], ['mitral', 'mitral', 'Mitralklappe'], ['tricuspid', 'tricuspid', 'Trikuspidalklappe'], ['pulmonary', 'pulmonary', 'Pulmonalklappe']]),
   vs('horizontal-deviation', [['ortho', 'aligned', 'keine'], ['eso', 'convergent (esotropia)', 'konvergent (Esotropie)'], ['exo', 'divergent (exotropia)', 'divergent (Exotropie)']]),
   vs('ecg-finding', [['normal', 'normal', 'unauffällig'], ['lvh', 'left ventricular hypertrophy', 'linksventrikuläre Hypertrophie'], ['lvh-strain', 'left ventricular hypertrophy with strain pattern', 'linksventrikuläre Hypertrophie mit Repolarisationsstörung'], ['lbbb', 'left bundle branch block', 'Linksschenkelblock'], ['af', 'atrial fibrillation', 'Vorhofflimmern'], ['chb', 'complete heart block', 'AV-Block III°']]),
+  vs('icterus', [['none', 'white sclerae', 'weiße Skleren'], ['mild', 'mildly icteric sclerae', 'leicht ikterische Skleren'], ['marked', 'deeply jaundiced sclerae', 'tief ikterische Skleren']]),
+  vs('severity-pallor', [['none', 'conjunctivae of normal colour', 'Konjunktiven normal gefärbt'], ['mild', 'pale conjunctivae', 'blasse Konjunktiven'], ['marked', 'very pale conjunctivae', 'sehr blasse Konjunktiven']]),
+  vs('ascites', [['none', 'no ascites', 'kein Aszites'], ['flank', 'dull flanks, not clearly shifting', 'gedämpfte Flanken, nicht sicher verschieblich'], ['shifting', 'shifting dullness: ascites', 'verschiebliche Flankendämpfung: Aszites'], ['tense', 'tense ascites, a distended abdomen with a fluid thrill', 'gespannter Aszites, aufgetriebenes Abdomen mit Undulation']]),
+  vs('stool', [['normal', 'brown stool on the glove', 'brauner Stuhl am Fingerling'], ['melaena', 'black, tarry, foul-smelling stool (melaena)', 'schwarzer, teerartiger, übelriechender Stuhl (Meläna)'], ['fresh-blood', 'fresh red blood on the glove', 'frisches rotes Blut am Fingerling'], ['pale', 'pale, clay-coloured stool', 'heller, lehmfarbener Stuhl']]),
   vs('mucosa', [['moist', 'moist mucous membranes', 'feuchte Schleimhäute'], ['dry', 'dry mucous membranes', 'trockene Schleimhäute'], ['parched', 'parched mouth and tongue', 'ausgetrocknete Mundschleimhaut und Zunge']]),
   vs('turgor', [['normal', 'skin turgor normal', 'Hautturgor normal'], ['reduced', 'reduced skin turgor (tented skin falls back slowly)', 'verminderter Hautturgor (stehende Hautfalten)']]),
   vs('breath-odour', [['none', 'no unusual smell on the breath', 'kein auffälliger Atemgeruch'], ['ketones', 'a sweet, fruity smell of acetone on the breath', 'süßlich-fruchtiger Acetongeruch der Atemluft'], ['uraemic', 'a uraemic, ammoniacal smell on the breath', 'urämischer, ammoniakartiger Atemgeruch']]),
@@ -174,7 +179,7 @@ export const VALUE_SETS: ValueSetDef[] = [
     ['pe-LLL', 'filling defect in the left lower lobe pulmonary artery', 'Füllungsdefekt in der Lappenarterie des linken Unterlappens'],
     ['pe-saddle', 'saddle embolus across the pulmonary trunk bifurcation', 'reitender Embolus an der Pulmonalisbifurkation'],
     ['rv-strain', 'right ventricle dilated (RV/LV ratio above 1), septum flattened', 'rechter Ventrikel dilatiert (RV/LV über 1), Septum abgeflacht']]),
-  vs('colour', [['normal', 'normal colour', 'rosig'], ['pale', 'pale', 'blass'], ['grey', 'grey', 'fahl-grau'], ['flushed', 'flushed', 'gerötet'], ['cyanosed', 'cyanosed', 'zyanotisch']]),
+  vs('colour', [['normal', 'normal colour', 'rosig'], ['pale', 'pale', 'blass'], ['grey', 'grey', 'fahl-grau'], ['flushed', 'flushed', 'gerötet'], ['cyanosed', 'cyanosed', 'zyanotisch'], ['jaundiced', 'jaundiced', 'ikterisch']]),
 ];
 
 export const INSTRUMENTS: InstrumentDef[] = [
