@@ -104,12 +104,6 @@
         "sweating": false
       }
     },
-    "vitals.rr": {
-      "value": 16
-    },
-    "vitals.spo2": {
-      "value": 96
-    },
     "vitals.temp": {
       "value": 36.6
     }

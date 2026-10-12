@@ -32,6 +32,9 @@ export class Circulation {
     this.edpA = c.edpA; this.edpB = c.edpB;
     this.EmaxRv = c.EmaxRv; this.V0rv = c.V0rv;
     this.edpArv = c.edpArv; this.edpBrv = c.edpBrv;
+    /* The pericardium and the septum: the heart's four chambers share a sac and two of them a wall. */
+    this.periV0 = c.periV0 ?? 420; this.periVs = c.periVs ?? 40; this.pericardialFluid = c.pericardialFluid ?? 0;
+    this.septalShift = c.septalShift ?? 1.5;
     this.ElaMax = c.ElaMax; this.ElaMin = c.ElaMin; this.V0la = c.V0la;
     this.EraMax = c.EraMax; this.EraMin = c.EraMin; this.V0ra = c.V0ra;
 
@@ -62,7 +65,7 @@ export class Circulation {
     this.Pn = c.Pn; this.tauS = c.tauS; this.tauP = c.tauP; this.gS = c.gS; this.gP = c.gP;
     this.gR = c.gR; this.gV = c.gV; this.gE = c.gE;
     this.dt = c.dt;
-    this.sigmaS = 0.5; this.sigmaP = 0.5;
+    this.sigmaS = 0.5; this.sigmaP = 0.5; this.chemoDrive = 0;
     this.effRsys = c.Rsys; this.effV0sv = c.V0sv; this.effEmax = c.Emax;
 
     /* Total blood volume. Scaling this is haemorrhage or transfusion, and it
@@ -129,7 +132,8 @@ export class Circulation {
   baroFiring(P) { return 2.5 + (47 - 2.5) / (1 + Math.exp(-0.07 * (P - this.Pn))); }
 
   modulatedHR() {
-    const hr = this.HR * (1 + this.gS * this.sigmaS - this.gP * this.sigmaP);
+    // Hyperpnoea itself withdraws vagal tone from the sinus node (the lung-inflation reflex, central respiratory–cardiac coupling).
+    const hr = this.HR * (1 + this.gS * this.sigmaS - this.gP * this.sigmaP + 0.35 * (this.chemoDrive || 0));
     return Math.max(30, Math.min(200, hr));
   }
 
@@ -171,6 +175,7 @@ export class Circulation {
 
   pEnd(V) { return this.Emax * (V - this.V0); }
   pPassive(V) { return this.edpA * (Math.exp(this.edpB * (V - this.V0)) - 1); }
+  pPassiveRv(V) { return this.edpArv * (Math.exp(this.edpBrv * (V - this.V0rv)) - 1); }
 
   /* One valve. Forward flow down the gradient through the orifice; backward
      flow through the regurgitant orifice if there is one. Expressing both in
@@ -238,12 +243,24 @@ export class Circulation {
     const Vsa = y[S_VSA], Vsv = y[S_VSV], Vpa = y[S_VPA], Vpv = y[S_VPV];
 
     // --- chamber pressures -------------------------------------------------
-    const Plv = this.chamberP(Vlv, av, this.effEmax, this.V0, this.edpA, this.edpB);
-    const Prv = this.chamberP(Vrv, av, this.EmaxRv, this.V0rv, this.edpArv, this.edpBrv);
+    /* Ventricular interdependence. In diastole the septum is a compliant wall between the ventricles: when
+       the right ventricle's filling pressure exceeds the left's (an acutely pressure-loaded right ventricle),
+       it bows into the left, which then needs a higher pressure to hold the same volume. In systole both
+       ventricles stiffen and the septum is held. */
+    const dPsep = this.pPassiveRv(Vrv) - this.pPassive(Vlv);
+    const shift = (1 - av) * Math.max(-20, Math.min(70, this.septalShift * dPsep));
+    /* The pericardium: a stiff sac around all four chambers (and any fluid in it). Its pressure adds to every
+       chamber; it is negligible until the heart outgrows its reserve volume (tamponade, acute dilatation). */
+    const Vheart = Vlv + Vrv + Vla + Vra + (this.pericardialFluid || 0);
+    const Pperi = 0.5 * (Math.exp(Math.min(8, (Vheart - this.periV0) / this.periVs)) - Math.exp(-this.periV0 / this.periVs));
+    const Plv = this.chamberP(Vlv + shift, av, this.effEmax, this.V0, this.edpA, this.edpB) + Pperi;
+    // the right ventricle's filling pressure is set by its free wall; the septum it pushes over takes the left's room
+    const Prv = this.chamberP(Vrv, av, this.EmaxRv, this.V0rv, this.edpArv, this.edpBrv) + Pperi;
     const Ela = this.ElaMin + (this.ElaMax - this.ElaMin) * aa;
     const Era = this.EraMin + (this.EraMax - this.EraMin) * aa;
-    const Pla = Ela * (Vla - this.V0la);
-    const Pra = Era * (Vra - this.V0ra);
+    const Pla = Ela * (Vla - this.V0la) + Pperi;
+    const Pra = Era * (Vra - this.V0ra) + Pperi;
+    this.Pperi = Pperi;
 
     // --- vascular pressures ------------------------------------------------
     /* Vascular pressures are allowed below zero. A vein whose volume has fallen
@@ -280,8 +297,11 @@ export class Circulation {
     d[S_VSV] = Qsys - Qven;
     d[S_VPA] = Qpv2 - Qpulcap;
     d[S_VPV] = Qpulcap - Qpvret;
-    d[S_SS] = (1 - norm - y[S_SS]) / this.tauS;
-    d[S_SP] = (norm - y[S_SP]) / this.tauP;
+    /* Carotid-body (chemoreceptor) and dyspnoeic drive add sympathetic and withdraw vagal tone:
+       hypoxaemia and breathlessness are tachycardic even at a normal blood pressure. */
+    const chemo = this.chemoDrive || 0;
+    d[S_SS] = (Math.min(1, 1 - norm + 0.25 * chemo) - y[S_SS]) / this.tauS;
+    d[S_SP] = (Math.max(0, norm - 0.6 * chemo) - y[S_SP]) / this.tauP;
 
     return {
       d,
@@ -598,6 +618,8 @@ export class Circulation {
       _pathParams: { ...(this._pathParams || {}) },
       firingRate: this.firingRate,
       metrics: this.metrics ? { ...this.metrics } : null,
+      beat: (this.beat ?? []).map((x) => ({ ...x })),
+      beatSync: this.beatSync ?? 1, rvIschaemia: this.rvIschaemia ?? 0, chemoDrive: this.chemoDrive ?? 0,
       lastBeat: this.lastBeat ? structuredClone(this.lastBeat) : null,
       events: this.events ? { ...this.events } : null,
       ecg: this.engine?.snapshot?.() ?? null,
@@ -658,6 +680,8 @@ export class Circulation {
     this._pathParams = { ...(state._pathParams || {}) };
     this.firingRate = state.firingRate ?? 25;
     this.metrics = state.metrics ? { ...state.metrics } : null;
+    if (Array.isArray(state.beat)) this.beat = state.beat.map((x) => ({ ...x }));
+    this.beatSync = state.beatSync ?? 1; this.rvIschaemia = state.rvIschaemia ?? 0; this.chemoDrive = state.chemoDrive ?? 0;
     this.lastBeat = state.lastBeat ? structuredClone(state.lastBeat) : null;
     this.events = state.events ? { ...state.events } : { mvc: null, avo: null, avc: null, mvo: null, s1: null };
     if (this.engine && state.ecg) {
@@ -702,7 +726,7 @@ export class Circulation {
       avConduction: this.avConduction ?? 1,
       lbbConduction: this.lbbConduction ?? 1,
       rbbConduction: this.rbbConduction ?? 1,
-      baroEnabled: this.baroEnabled, firingRate: this.firingRate,
+      baroEnabled: this.baroEnabled, firingRate: this.firingRate, chemoDrive: this.chemoDrive || 0, Pperi: this.Pperi || 0, rvIschaemia: this.rvIschaemia || 0,
       sympathetic: this.sigmaS, parasympathetic: this.sigmaP,
       pathology: this.engine?.peek().pathology ?? 'normal',
       ecgValue: this.ecgValue,

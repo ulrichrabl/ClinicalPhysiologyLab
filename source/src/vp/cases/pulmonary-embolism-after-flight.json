@@ -1,0 +1,422 @@
+{
+  "schema": "vp.case/1",
+  "id": "pulmonary-embolism-after-flight",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Sudden breathlessness after a long flight: pulmonary embolism",
+    "de": "Plötzliche Atemnot nach einem Langstreckenflug: Lungenembolie"
+  },
+  "tags": [
+    "respiratory",
+    "breathlessness",
+    "chest-pain",
+    "thromboembolism",
+    "emergency"
+  ],
+  "difficulty": 3,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-12",
+    "sources": [
+      "Konstantinides SV et al. 2019 ESC Guidelines for the diagnosis and management of acute pulmonary embolism. Eur Heart J 2020;41:543-603.",
+      "Wells PS et al. Excluding pulmonary embolism at the bedside without diagnostic imaging. Ann Intern Med 2001;135:98-107."
+    ]
+  },
+  "patient": {
+    "name": "Laura Becker",
+    "age": 34,
+    "sex": "F",
+    "heightCm": 170,
+    "weightKg": 63,
+    "appearance": {
+      "skinTone": 2,
+      "hair": "dark blonde, tied back",
+      "build": "slim"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ]
+  },
+  "setting": {
+    "place": {
+      "en": "Emergency department, resus bay 1",
+      "de": "Notaufnahme, Schockraum 1"
+    },
+    "triage": {
+      "en": "Sudden breathlessness and left-sided chest pain this morning. Anxious.",
+      "de": "Heute Morgen plötzlich Atemnot und linksseitiger Thoraxschmerz. Ängstlich."
+    }
+  },
+  "pathology": {
+    "respiratory": {
+      "embRLL": 0.7,
+      "embLLL": 0.75,
+      "embLUL": 0.35,
+      "embRML": 0.3
+    },
+    "chemistry": {
+      "glucose": 5.3
+    }
+  },
+  "initialState": {
+    "position": "sitting",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "full",
+    "exposure": []
+  },
+  "observables": {
+    "vitals.temp": {
+      "value": 37.4
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "dyspnoea",
+        "present": true,
+        "attributes": {
+          "onset": "sudden"
+        }
+      },
+      "say": {
+        "en": "I suddenly couldn't breathe properly this morning, getting out of bed. And there's a sharp pain on the left when I breathe in.",
+        "de": "Ich habe heute Morgen beim Aufstehen plötzlich nicht mehr richtig Luft bekommen. Und es sticht links, wenn ich einatme."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "assertion": {
+        "concept": "sudden-onset",
+        "present": true
+      },
+      "say": {
+        "en": "All at once, around seven. One moment I was fine, the next I was gasping.",
+        "de": "Ganz plötzlich, gegen sieben. Eben war noch alles gut, dann habe ich nach Luft geschnappt."
+      }
+    },
+    {
+      "id": "f-pain",
+      "topic": "sx.chest-pain",
+      "assertion": {
+        "concept": "chest-pain",
+        "present": true,
+        "attributes": {
+          "character": "pleuritic",
+          "site": "left lower"
+        }
+      },
+      "say": {
+        "en": "On the left, low down. Sharp, worse when I breathe in. No, not a pressure.",
+        "de": "Links unten. Stechend, schlimmer beim Einatmen. Nein, kein Druck."
+      }
+    },
+    {
+      "id": "f-travel",
+      "topic": "shx.travel",
+      "assertion": {
+        "concept": "recent-travel",
+        "present": true,
+        "attributes": {
+          "hours": 12
+        }
+      },
+      "say": {
+        "en": "I flew back from Bangkok three days ago. Twelve hours, and I slept most of it in the window seat.",
+        "de": "Ich bin vor drei Tagen aus Bangkok zurückgeflogen. Zwölf Stunden, und ich habe die meiste Zeit am Fensterplatz geschlafen."
+      }
+    },
+    {
+      "id": "f-calf",
+      "topic": "sx.calf",
+      "assertion": {
+        "concept": "calf-pain",
+        "present": true,
+        "attributes": {
+          "side": "left"
+        }
+      },
+      "say": {
+        "en": "Now that you ask: my left calf has been aching since the flight. I thought I'd pulled something.",
+        "de": "Jetzt wo Sie fragen: Meine linke Wade tut seit dem Flug weh. Ich dachte, ich hätte mir was gezerrt."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "assertion": {
+        "concept": "oestrogen",
+        "present": true
+      },
+      "say": {
+        "en": "Just the pill. The combined one, for years.",
+        "de": "Nur die Pille. Die Kombinationspille, seit Jahren."
+      }
+    },
+    {
+      "id": "f-cough",
+      "topic": "sx.cough",
+      "say": {
+        "en": "A little, since this morning. Dry.",
+        "de": "Ein bisschen, seit heute Morgen. Trocken."
+      }
+    },
+    {
+      "id": "f-haem",
+      "topic": "sx.haemoptysis",
+      "assertion": {
+        "concept": "haemoptysis",
+        "present": false
+      },
+      "say": {
+        "en": "No blood.",
+        "de": "Kein Blut."
+      }
+    },
+    {
+      "id": "f-fever",
+      "topic": "sx.fever",
+      "assertion": {
+        "concept": "fever",
+        "present": false
+      },
+      "say": {
+        "en": "No, no fever. I don't feel ill like with flu.",
+        "de": "Nein, kein Fieber. Ich fühle mich nicht krank wie bei einer Grippe."
+      }
+    },
+    {
+      "id": "f-palp",
+      "topic": "sx.palpitations",
+      "assertion": {
+        "concept": "palpitations",
+        "present": true
+      },
+      "say": {
+        "en": "My heart is racing, yes.",
+        "de": "Mein Herz rast, ja."
+      }
+    },
+    {
+      "id": "f-syncope",
+      "topic": "sx.presyncope",
+      "assertion": {
+        "concept": "presyncope",
+        "present": true
+      },
+      "say": {
+        "en": "I felt light-headed in the shower, but I didn't faint.",
+        "de": "Unter der Dusche war mir schwindelig, aber ich bin nicht umgekippt."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "say": {
+        "en": "Nothing. I've never been in hospital.",
+        "de": "Nichts. Ich war noch nie im Krankenhaus."
+      }
+    },
+    {
+      "id": "f-fhx",
+      "topic": "fhx",
+      "assertion": {
+        "concept": "family-vte",
+        "present": true
+      },
+      "say": {
+        "en": "My mother had a clot in her leg after my brother was born.",
+        "de": "Meine Mutter hatte nach der Geburt meines Bruders ein Gerinnsel im Bein."
+      }
+    },
+    {
+      "id": "f-smoke",
+      "topic": "shx.smoking",
+      "say": {
+        "en": "I don't smoke.",
+        "de": "Ich rauche nicht."
+      }
+    },
+    {
+      "id": "f-ice",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "Is it my heart? I'm scared.",
+        "de": "Ist es das Herz? Ich habe Angst."
+      }
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-sudden",
+        "kind": "fact",
+        "ref": "f-onset",
+        "weight": "essential",
+        "discriminates": [
+          "community-acquired-pneumonia"
+        ],
+        "why": {
+          "en": "Sudden breathlessness with pleuritic pain: an event, not a process. Infection builds over days.",
+          "de": "Plötzliche Atemnot mit atemabhängigem Schmerz: ein Ereignis, kein Prozess. Eine Infektion entwickelt sich über Tage."
+        }
+      },
+      {
+        "id": "e-travel",
+        "kind": "fact",
+        "ref": "f-travel",
+        "weight": "essential",
+        "why": {
+          "en": "A long immobile flight is a provoking factor for venous thrombosis.",
+          "de": "Ein langer, bewegungsarmer Flug ist ein Risikofaktor für venöse Thrombosen."
+        }
+      },
+      {
+        "id": "e-pill",
+        "kind": "fact",
+        "ref": "f-meds",
+        "weight": "supporting",
+        "why": {
+          "en": "Combined oral contraception roughly triples the risk of venous thromboembolism.",
+          "de": "Kombinierte orale Kontrazeptiva verdreifachen etwa das Risiko venöser Thromboembolien."
+        }
+      },
+      {
+        "id": "e-calf",
+        "kind": "fact",
+        "ref": "f-calf",
+        "weight": "supporting",
+        "why": {
+          "en": "A painful calf since the flight: the source, a deep vein thrombosis.",
+          "de": "Eine schmerzende Wade seit dem Flug: die Quelle, eine tiefe Venenthrombose."
+        }
+      },
+      {
+        "id": "e-clear",
+        "kind": "property",
+        "ref": "lung.sounds",
+        "context": {
+          "site": "chest.lung-base.L"
+        },
+        "weight": "discriminating",
+        "discriminates": [
+          "community-acquired-pneumonia",
+          "acute-heart-failure",
+          "pneumothorax"
+        ],
+        "why": {
+          "en": "A clear chest despite hypoxaemia: the problem is perfusion, not the airspaces. Pneumonia, oedema and effusion make noise; emboli do not.",
+          "de": "Ein unauffälliger Auskultationsbefund trotz Hypoxämie: das Problem ist die Perfusion, nicht der Luftraum. Pneumonie, Ödem und Erguss sind hörbar, Emboli nicht."
+        }
+      },
+      {
+        "id": "e-hr",
+        "kind": "property",
+        "ref": "vitals.hr",
+        "weight": "supporting",
+        "why": {
+          "en": "Tachycardia: a Wells criterion, and a sign of the right ventricle under load.",
+          "de": "Tachykardie: ein Wells-Kriterium und ein Zeichen des belasteten rechten Ventrikels."
+        }
+      },
+      {
+        "id": "e-abg",
+        "kind": "investigation",
+        "ref": "blood-gas",
+        "weight": "discriminating",
+        "discriminates": [
+          "hyperventilation"
+        ],
+        "why": {
+          "en": "Hypoxaemia with hypocapnia and a wide A–a difference: ventilation goes to lung that has lost its blood.",
+          "de": "Hypoxämie mit Hypokapnie und großer A-a-Differenz: die Ventilation geht in Lunge, die ihre Durchblutung verloren hat."
+        }
+      },
+      {
+        "id": "e-ctpa",
+        "kind": "investigation",
+        "ref": "ctpa",
+        "weight": "essential",
+        "why": {
+          "en": "Filling defects in the lower lobe arteries confirm the emboli; the right ventricle tells how much they cost.",
+          "de": "Füllungsdefekte in den Unterlappenarterien bestätigen die Emboli; der rechte Ventrikel zeigt, was sie kosten."
+        }
+      },
+      {
+        "id": "e-ecg",
+        "kind": "investigation",
+        "ref": "ecg-12",
+        "weight": "supporting",
+        "discriminates": [
+          "acute-coronary-syndrome",
+          "pericarditis"
+        ],
+        "why": {
+          "en": "Sinus tachycardia is the commonest ECG finding; the classic S1Q3T3 is uncommon.",
+          "de": "Die Sinustachykardie ist der häufigste EKG-Befund; das klassische S1Q3T3 ist selten."
+        }
+      },
+      {
+        "id": "e-cxr",
+        "kind": "investigation",
+        "ref": "cxr",
+        "weight": "supporting",
+        "discriminates": [
+          "pneumothorax"
+        ],
+        "why": {
+          "en": "A normal chest X-ray in a breathless, hypoxaemic patient points toward embolism and excludes pneumothorax.",
+          "de": "Ein normales Röntgenbild bei einer dyspnoischen, hypoxämischen Patientin spricht für eine Embolie und schließt einen Pneumothorax aus."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "fact",
+        "ref": "f-syncope",
+        "why": {
+          "en": "Presyncope: look for haemodynamic compromise; a high-risk embolism needs reperfusion.",
+          "de": "Präsynkope: auf hämodynamische Instabilität achten; eine Hochrisiko-Embolie braucht Reperfusion."
+        }
+      },
+      {
+        "kind": "property",
+        "ref": "vitals.bp",
+        "why": {
+          "en": "Blood pressure separates high-risk (shock) from intermediate-risk embolism.",
+          "de": "Der Blutdruck trennt Hochrisiko- (Schock) von Embolie mittleren Risikos."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 25,
+    "summary": {
+      "en": "A 34-year-old on combined oral contraception, three days after a twelve-hour flight, with sudden breathlessness, left pleuritic pain and a painful left calf. Tachycardic, tachypnoeic and hypoxaemic with a clear chest. Blood gas: hypoxaemia, hypocapnia, wide A–a difference; end-tidal CO₂ far below arterial. D-dimer raised; CTPA: emboli in both lower lobe arteries. Pulmonary embolism, normotensive: anticoagulate, stratify by the right ventricle and troponin, stop the oestrogen.",
+      "de": "Eine 34-Jährige unter kombinierter oraler Kontrazeption, drei Tage nach einem zwölfstündigen Flug, mit plötzlicher Atemnot, linksseitigem atemabhängigem Schmerz und schmerzender linker Wade. Tachykard, tachypnoisch und hypoxämisch bei unauffälligem Auskultationsbefund. Blutgas: Hypoxämie, Hypokapnie, große A-a-Differenz; endtidales CO₂ weit unter dem arteriellen. D-Dimere erhöht; CT-PA: Emboli in beiden Unterlappenarterien. Lungenembolie, normoton: antikoagulieren, Risikostratifizierung über rechten Ventrikel und Troponin, Östrogen absetzen."
+    }
+  },
+  "diagnosis": {
+    "primary": "pulmonary-embolism",
+    "accepted": [],
+    "differential": [
+      "pneumothorax",
+      "community-acquired-pneumonia",
+      "acute-coronary-syndrome",
+      "pericarditis",
+      "hyperventilation",
+      "musculoskeletal-chest-pain"
+    ]
+  }
+}

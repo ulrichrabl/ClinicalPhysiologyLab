@@ -65,6 +65,7 @@ const HAEMODYNAMICS: ModelDef = {
   groups: [
     { id: 'lv', label: L('Left ventricle', 'Linker Ventrikel') }, { id: 'rv', label: L('Right ventricle and atria', 'Rechter Ventrikel und Vorhöfe') },
     { id: 'valves', label: L('Valves', 'Klappen') }, { id: 'vessels', label: L('Vessels', 'Gefäße') }, { id: 'volume', label: L('Blood volume', 'Blutvolumen') },
+    { id: 'pericardium', label: L('Pericardium and septum', 'Perikard und Septum') },
   ],
   variables: [
     C('lv', 'Emax', 'E_{max}', L('End-systolic elastance (contractility)', 'Endsystolische Elastanz (Kontraktilität)'), 'mmHg/mL', 0.3, 6, 0.05),
@@ -87,6 +88,9 @@ const HAEMODYNAMICS: ModelDef = {
     C('vessels', 'Csv', 'C_{v}', L('Venous compliance', 'Venöse Compliance'), 'mL/mmHg', 20, 120, 1),
     C('vessels', 'Rpul', 'R_{pul}', L('Pulmonary vascular resistance', 'Pulmonaler Gefäßwiderstand'), 'mmHg·s/mL', 0.02, 0.8, 0.005),
     C('volume', 'bloodVolume', 'V_{blood}', L('Total blood volume', 'Gesamtblutvolumen'), 'mL', 2000, 8000, 50),
+    C('pericardium', 'pericardialFluid', 'V_{peri}', L('Pericardial fluid (tamponade)', 'Perikarderguss (Tamponade)'), 'mL', 0, 1500, 10),
+    C('pericardium', 'periV0', 'V_{0,peri}', L('Pericardial reserve volume (larger when chronically stretched)', 'Perikardiale Reserve (größer bei chronischer Dehnung)'), 'mL', 300, 1200, 10),
+    C('pericardium', 'septalShift', 'k_{sep}', L('Septal shift per mmHg of trans-septal pressure', 'Septumverlagerung pro mmHg transseptalem Druck'), 'mL/mmHg', 0, 5, 0.1),
     state('haemodynamics', { key: 'Plv', symbol: 'P_{LV}', label: L('Left ventricular pressure', 'Druck linker Ventrikel'), unit: 'mmHg', digits: 0 }),
     state('haemodynamics', { key: 'Vlv', symbol: 'V_{LV}', label: L('Left ventricular volume', 'Volumen linker Ventrikel'), unit: 'mL', digits: 0 }),
     state('haemodynamics', { key: 'E', symbol: 'E(t)', label: L('Instantaneous elastance', 'Momentane Elastanz'), unit: 'mmHg/mL', digits: 2 }),
@@ -399,15 +403,14 @@ const NERVOUS: ModelDef = {
 /* ---- body fluids and acid–base ----------------------------------------------------------------- */
 const CHEM_VARS: Array<[string, string, LocalizedText, string, number, number, number]> = [
   ['sodium', 'Na^+', L('Sodium', 'Natrium'), 'mmol/L', 110, 170, 1], ['potassium', 'K^+', L('Potassium', 'Kalium'), 'mmol/L', 1.5, 9, 0.1],
-  ['chloride', 'Cl^-', L('Chloride', 'Chlorid'), 'mmol/L', 80, 130, 1], ['bicarbonate', 'HCO_3^-', L('Bicarbonate', 'Bikarbonat'), 'mmol/L', 4, 45, 1],
-  ['paCO2', 'P_{aCO2}', L('Arterial CO₂ tension', 'Arterieller CO₂-Partialdruck'), 'kPa', 2, 12, 0.1], ['paO2', 'P_{aO2}', L('Arterial O₂ tension', 'Arterieller O₂-Partialdruck'), 'kPa', 4, 60, 0.1],
+  ['chloride', 'Cl^-', L('Chloride', 'Chlorid'), 'mmol/L', 80, 130, 1], ['bicarbonate', 'SBC', L('Metabolic bicarbonate (standard bicarbonate)', 'Metabolisches Bikarbonat (Standardbikarbonat)'), 'mmol/L', 4, 45, 1],
   ['lactate', 'lac', L('Lactate', 'Laktat'), 'mmol/L', 0.3, 20, 0.1], ['glucose', 'glc', L('Glucose', 'Glukose'), 'mmol/L', 1, 40, 0.1],
   ['calcium', 'Ca^{2+}', L('Calcium', 'Kalzium'), 'mmol/L', 1.2, 3.5, 0.02], ['magnesium', 'Mg^{2+}', L('Magnesium', 'Magnesium'), 'mmol/L', 0.3, 2, 0.05],
   ['urea', 'urea', L('Urea', 'Harnstoff'), 'mmol/L', 1, 60, 0.5], ['creatinine', 'crea', L('Creatinine', 'Kreatinin'), 'µmol/L', 30, 1200, 5],
   ['albumin', 'alb', L('Albumin', 'Albumin'), 'g/L', 15, 55, 1], ['haemoglobin', 'Hb', L('Haemoglobin', 'Hämoglobin'), 'g/L', 40, 200, 1],
   ['whiteCellCount', 'WCC', L('White cell count', 'Leukozyten'), '10⁹/L', 0.5, 60, 0.1], ['platelets', 'plt', L('Platelets', 'Thrombozyten'), '10⁹/L', 5, 1000, 5],
   ['mcv', 'MCV', L('Mean cell volume', 'Mittleres Erythrozytenvolumen'), 'fL', 60, 120, 1], ['troponin', 'cTn', L('Troponin', 'Troponin'), 'ng/L', 0, 10000, 1],
-  ['bnp', 'BNP', L('Natriuretic peptide', 'Natriuretisches Peptid'), 'ng/L', 0, 20000, 10],
+  ['bnp', 'BNP', L('Natriuretic peptide', 'Natriuretisches Peptid'), 'ng/L', 0, 20000, 10], ['crp', 'CRP', L('C-reactive protein', 'C-reaktives Protein'), 'mg/L', 0, 500, 1],
 ];
 const FLUIDS: ModelDef = {
   id: 'fluids', title: L('Body fluids, electrolytes and acid–base', 'Körperflüssigkeiten, Elektrolyte und Säure-Basen-Haushalt'),
@@ -416,29 +419,304 @@ const FLUIDS: ModelDef = {
   groups: [{ id: 'plasma', label: L('Plasma (pin a value to override what the circulation derives)', 'Plasma (Wert fixieren, um die Ableitung aus dem Kreislauf zu überschreiben)') }],
   variables: [
     ...CHEM_VARS.map(([k, sym, label, unit, min, max, step]) => param('fluids', 'plasma', { key: `chemistry.${k}`, symbol: sym, label, unit, min, max, step, digits: step < 0.1 ? 2 : step < 1 ? 1 : 0 })),
+    state('fluids', { key: 'paCO2', symbol: 'P_{aCO2}', label: L('Arterial CO₂ tension (from the lungs)', 'Arterieller CO₂-Partialdruck (aus der Lunge)'), unit: 'kPa', digits: 2 }),
+    state('fluids', { key: 'hco3', symbol: 'HCO_3^-', label: L('Actual bicarbonate', 'Aktuelles Bikarbonat'), unit: 'mmol/L', digits: 0 }),
+    state('fluids', { key: 'BE', symbol: 'BE', label: L('Base excess', 'Basenüberschuss'), unit: 'mmol/L', digits: 1 }),
     state('fluids', { key: 'pH', symbol: 'pH', label: L('Arterial pH', 'Arterieller pH'), unit: '', digits: 2 }),
     state('fluids', { key: 'AG', symbol: 'AG', label: L('Anion gap', 'Anionenlücke'), unit: 'mmol/L', digits: 0 }),
   ],
   equations: [
     eq('hh', 'textbook', L('Henderson–Hasselbalch', 'Henderson-Hasselbalch'),
-      [v('pH')], ['6.1', '+', { fn: 'log', args: [frac([v('bicarbonate')], ['0.23', '·', v('paCO2')])] }],
+      [v('pH')], ['6.1', '+', { fn: 'log', args: [frac([v('hco3')], ['0.23', '·', v('paCO2')])] }],
       L('pH depends on the ratio of bicarbonate (kidney) to dissolved CO₂ (lung), not on either alone. Compensation moves the other term to restore the ratio.',
         'Der pH hängt vom Verhältnis Bikarbonat (Niere) zu gelöstem CO₂ (Lunge) ab, nicht von einem allein. Kompensation verschiebt den anderen Term, um das Verhältnis wiederherzustellen.')),
     eq('ag', 'textbook', L('Anion gap', 'Anionenlücke'),
-      [v('AG')], [v('sodium'), '−', paren(v('chloride'), '+', v('bicarbonate'))],
+      [v('AG')], [v('sodium'), '−', paren(v('chloride'), '+', v('hco3'))],
       L('The unmeasured anions. A raised gap with low bicarbonate means an added acid: lactate, ketones, toxins.', 'Die nicht gemessenen Anionen. Eine erhöhte Lücke bei niedrigem Bikarbonat bedeutet eine zugeführte Säure: Laktat, Ketone, Toxine.')),
   ],
   values: (ctx) => {
     const c = (ctx.view.chemistry ?? CHEMISTRY_DEFAULTS) as Record<string, number>;
-    return { ...c, pH: hendersonHasselbalch(c.bicarbonate, c.paCO2), AG: c.sodium - (c.chloride + c.bicarbonate) };
+    const pins = ctx.model.chemistry;
+    return { ...c, bicarbonate: c.standardBicarbonate ?? pins.bicarbonate ?? c.bicarbonate, hco3: c.bicarbonate, BE: c.baseExcess, pH: hendersonHasselbalch(c.bicarbonate, c.paCO2), AG: c.sodium - (c.chloride + c.bicarbonate) };
   },
   diagram: 'acidbase',
   sources: ['Berend K et al. Physiological approach to assessment of acid–base disturbances. N Engl J Med 2014.'],
 };
 
-export const MODELS: ModelDef[] = [PATIENT, HAEMODYNAMICS, BAROREFLEX, ELECTRICAL, FLUIDS, VOR, PUPIL, NERVOUS];
+
+/* ---- respiration: mechanics and ventilation ---------------------------------------------------------- */
+const resp = (ctx: LiveContext): Record<string, any> => (ctx.snap?.resp ?? ctx.view.respiratory ?? {}) as Record<string, any>;
+const rn = (ctx: LiveContext, k: string) => { const x = resp(ctx)[k]; return typeof x === 'number' ? x : NaN; };
+const RP = (model: string, group: string, key: string, symbol: string, label: LocalizedText, unit: string, min: number, max: number, step: number, note?: LocalizedText) =>
+  param(model, group, { key: `respiratory.${key}`, symbol, label, unit, min, max, step, note, digits: step < 0.01 ? 3 : step < 0.1 ? 2 : step < 1 ? 1 : 0 });
+const LOBE_NAME: Record<string, LocalizedText> = {
+  RUL: L('right upper lobe', 'rechter Oberlappen'), RML: L('right middle lobe', 'Mittellappen'), RLL: L('right lower lobe', 'rechter Unterlappen'),
+  LUL: L('left upper lobe and lingula', 'linker Oberlappen mit Lingula'), LLL: L('left lower lobe', 'linker Unterlappen'),
+};
+const lobeParams = (model: string, prefix: string, what: LocalizedText, group: string) =>
+  (['RUL', 'RML', 'RLL', 'LUL', 'LLL'] as const).map((id) => RP(model, group, `${prefix}${id}`, `${prefix}_{${id}}`,
+    L(`${what.en}: ${LOBE_NAME[id].en}`, `${what.de}: ${LOBE_NAME[id].de}`), '0–1', 0, 1, 0.05));
+
+const MECHANICS: ModelDef = {
+  id: 'mechanics', title: L('Breathing: mechanics and ventilation', 'Atmung: Mechanik und Ventilation'),
+  summary: L('The respiratory muscles lower the pressure around the lungs; air flows in until the lungs’ elastic recoil balances the pull, against the resistance of the airways. Expiration is the recoil letting go. Stiff lungs need more pressure for the same volume, narrow airways need more pressure for the same flow, and a lung that cannot empty in the time it has stays inflated: intrinsic PEEP. Only the air that reaches perfused alveoli takes part in gas exchange.',
+    'Die Atemmuskulatur senkt den Druck um die Lunge; Luft strömt ein, bis die elastische Rückstellkraft der Lunge dem Zug das Gleichgewicht hält, gegen den Widerstand der Atemwege. Exspiration ist das Loslassen dieser Rückstellkraft. Steife Lungen brauchen mehr Druck für dasselbe Volumen, enge Atemwege mehr Druck für denselben Fluss, und eine Lunge, die sich in der verfügbaren Zeit nicht entleeren kann, bleibt gebläht: intrinsischer PEEP. Nur die Luft, die durchblutete Alveolen erreicht, nimmt am Gasaustausch teil.'),
+  groups: [
+    { id: 'airways', label: L('Airways and parenchyma', 'Atemwege und Parenchym') },
+    { id: 'pleura', label: L('Pleura', 'Pleura') },
+    { id: 'muscles', label: L('Respiratory muscles', 'Atemmuskulatur') },
+  ],
+  variables: [
+    RP('mechanics', 'airways', 'bronchoconstriction', 'b', L('Bronchoconstriction (airway smooth muscle, mucus, oedema of the wall)', 'Bronchokonstriktion (glatte Muskulatur, Schleim, Wandödem)'), '0–1', 0, 1, 0.05),
+    RP('mechanics', 'airways', 'emphysema', 'e', L('Emphysema (lost elastic recoil and alveolar walls)', 'Emphysem (Verlust von elastischer Rückstellkraft und Alveolarwänden)'), '0–1', 0, 1, 0.05),
+    RP('mechanics', 'airways', 'fibrosis', 'f', L('Interstitial fibrosis (stiff, small lungs)', 'Interstitielle Fibrose (steife, kleine Lungen)'), '0–1', 0, 1, 0.05),
+    RP('mechanics', 'pleura', 'effusionR', 'E_R', L('Pleural effusion, right', 'Pleuraerguss rechts'), 'mL', 0, 4000, 50),
+    RP('mechanics', 'pleura', 'effusionL', 'E_L', L('Pleural effusion, left', 'Pleuraerguss links'), 'mL', 0, 4000, 50),
+    RP('mechanics', 'pleura', 'ptxR', 'ptx_R', L('Pneumothorax, right (fraction of lung collapsed)', 'Pneumothorax rechts (kollabierter Anteil)'), '0–1', 0, 1, 0.05),
+    RP('mechanics', 'pleura', 'ptxL', 'ptx_L', L('Pneumothorax, left (fraction of lung collapsed)', 'Pneumothorax links (kollabierter Anteil)'), '0–1', 0, 1, 0.05),
+    RP('mechanics', 'muscles', 'muscleStrength', 's_{mus}', L('Respiratory muscle strength', 'Kraft der Atemmuskulatur'), '× normal', 0.05, 1.2, 0.05),
+    state('mechanics', { key: 'V', symbol: 'V', label: L('Lung volume above relaxed FRC', 'Lungenvolumen über der entspannten FRC'), unit: 'L', digits: 2 }),
+    state('mechanics', { key: 'flow', symbol: 'V̇', label: L('Airflow (+ in)', 'Atemstrom (+ ein)'), unit: 'L/s', digits: 2 }),
+    state('mechanics', { key: 'Pmus', symbol: 'P_{mus}', label: L('Pressure the muscles generate', 'Von der Muskulatur erzeugter Druck'), unit: 'cmH₂O', digits: 1 }),
+    state('mechanics', { key: 'Palv', symbol: 'P_{alv}', label: L('Alveolar pressure', 'Alveolardruck'), unit: 'cmH₂O', digits: 1 }),
+    state('mechanics', { key: 'Ppl', symbol: 'P_{pl}', label: L('Pleural pressure', 'Pleuradruck'), unit: 'cmH₂O', digits: 1 }),
+    state('mechanics', { key: 'Crs', symbol: 'C_{rs}', label: L('Compliance of the respiratory system', 'Compliance des respiratorischen Systems'), unit: 'L/cmH₂O', digits: 3 }),
+    state('mechanics', { key: 'Raw', symbol: 'R_{aw}', label: L('Airway resistance', 'Atemwegswiderstand'), unit: 'cmH₂O·s/L', digits: 1 }),
+    state('mechanics', { key: 'tauE', symbol: 'τ_E', label: L('Expiratory time constant', 'Exspiratorische Zeitkonstante'), unit: 's', digits: 2 }),
+    state('mechanics', { key: 'Te', symbol: 'T_E', label: L('Expiratory time', 'Exspirationszeit'), unit: 's', digits: 2 }),
+    state('mechanics', { key: 'iPEEP', symbol: 'PEEP_i', label: L('Intrinsic PEEP', 'Intrinsischer PEEP'), unit: 'cmH₂O', digits: 1 }),
+    state('mechanics', { key: 'RR', symbol: 'f', label: L('Respiratory rate', 'Atemfrequenz'), unit: '/min', digits: 0 }),
+    state('mechanics', { key: 'VT', symbol: 'V_T', label: L('Tidal volume', 'Atemzugvolumen'), unit: 'L', digits: 2 }),
+    state('mechanics', { key: 'VE', symbol: 'V̇_E', label: L('Minute ventilation', 'Atemminutenvolumen'), unit: 'L/min', digits: 1 }),
+    state('mechanics', { key: 'VDanat', symbol: 'V_D', label: L('Anatomical dead space', 'Anatomischer Totraum'), unit: 'L', digits: 2 }),
+    state('mechanics', { key: 'VA', symbol: 'V̇_A', label: L('Alveolar ventilation', 'Alveoläre Ventilation'), unit: 'L/min', digits: 1 }),
+    state('mechanics', { key: 'TLC', symbol: 'TLC', label: L('Total lung capacity', 'Totale Lungenkapazität'), unit: 'L', digits: 2 }),
+    state('mechanics', { key: 'FRC', symbol: 'FRC', label: L('Functional residual capacity', 'Funktionelle Residualkapazität'), unit: 'L', digits: 2 }),
+    state('mechanics', { key: 'RV', symbol: 'RV', label: L('Residual volume', 'Residualvolumen'), unit: 'L', digits: 2 }),
+    state('mechanics', { key: 'FEV1', symbol: 'FEV_1', label: L('Forced expiratory volume in 1 s', 'Einsekundenkapazität'), unit: 'L', digits: 2 }),
+    state('mechanics', { key: 'FVC', symbol: 'FVC', label: L('Forced vital capacity', 'Forcierte Vitalkapazität'), unit: 'L', digits: 2 }),
+    state('mechanics', { key: 'ratio', symbol: 'FEV_1/FVC', label: L('FEV₁/FVC', 'FEV₁/FVC (Tiffeneau)'), unit: '', digits: 2 }),
+    state('mechanics', { key: 'PEF', symbol: 'PEF', label: L('Peak expiratory flow', 'Exspiratorischer Spitzenfluss'), unit: 'L/min', digits: 0 }),
+    state('mechanics', { key: 'VCO2', symbol: 'V̇_{CO2}', label: L('CO₂ production', 'CO₂-Produktion'), unit: 'mL/min', digits: 0 }),
+    state('mechanics', { key: 'PaCO2', symbol: 'P_{aCO2}', label: L('Arterial CO₂ tension', 'Arterieller CO₂-Partialdruck'), unit: 'kPa', digits: 2 }),
+  ],
+  equations: [
+    eq('motion', 'textbook', L('The equation of motion of the respiratory system', 'Die Bewegungsgleichung des respiratorischen Systems'),
+      [v('Pmus')], [frac([v('V')], [v('Crs')]), '+', v('Raw'), '·', v('flow')],
+      L('Every moment of every breath: the muscles’ pressure is spent stretching the elastic lung and chest wall (V/C) and driving flow through the airways (R·V̇). Stiff lungs raise the first term, narrow airways the second.',
+        'In jedem Moment jedes Atemzugs: der Muskeldruck dehnt Lunge und Thoraxwand gegen ihre Elastizität (V/C) und treibt den Fluss durch die Atemwege (R·V̇). Steife Lungen erhöhen den ersten, enge Atemwege den zweiten Term.')),
+    eq('tau', 'textbook', L('How fast the lung empties: the time constant', 'Wie schnell die Lunge sich entleert: die Zeitkonstante'),
+      [v('tauE')], [v('Raw'), '·', v('Crs')],
+      L('Passive expiration is exponential: after one τ, 37 % of the breath is still in the lung, after three τ, 5 %. If the expiratory time is shorter than about three τ, the next breath starts on top of the last: the lung hyperinflates and keeps a positive pressure at end-expiration, intrinsic PEEP, which the muscles must overcome before any air flows in.',
+        'Die passive Exspiration ist exponentiell: nach einem τ sind noch 37 % des Atemzugs in der Lunge, nach drei τ noch 5 %. Ist die Exspirationszeit kürzer als etwa drei τ, beginnt der nächste Atemzug auf dem letzten: die Lunge überbläht und behält am Ende der Exspiration einen positiven Druck, den intrinsischen PEEP, den die Muskulatur überwinden muss, bevor Luft einströmt.')),
+    eq('va', 'textbook', L('Alveolar ventilation', 'Alveoläre Ventilation'),
+      [v('VA')], [v('VE'), '−', v('RR'), '·', v('VDanat')],
+      L('The last ~150 mL of each breath stays in the conducting airways and comes back out unchanged. Rapid shallow breathing wastes a larger share of each breath.',
+        'Die letzten ~150 mL jedes Atemzugs bleiben in den leitenden Atemwegen und kommen unverändert wieder heraus. Schnelle flache Atmung verschwendet einen größeren Anteil jedes Atemzugs.')),
+    eq('co2', 'textbook', L('Alveolar ventilation sets the CO₂', 'Die alveoläre Ventilation bestimmt das CO₂'),
+      [v('PaCO2')], [frac(['0.115', '·', v('VCO2')], [v('VA')])],
+      L('The alveolar ventilation equation (0.863 when PCO₂ is in mmHg). At constant CO₂ production, halving alveolar ventilation doubles the arterial CO₂: a hyperbola. This is why CO₂ is the measure of ventilation.',
+        'Die alveoläre Ventilationsgleichung (0,863, wenn der PCO₂ in mmHg angegeben ist). Bei konstanter CO₂-Produktion verdoppelt eine Halbierung der alveolären Ventilation das arterielle CO₂: eine Hyperbel. Deshalb ist das CO₂ das Maß der Ventilation.')),
+    eq('forced', 'full', L('Forced expiration: flow limited by the lung itself', 'Forcierte Exspiration: vom Lungengewebe begrenzter Fluss'),
+      [{ text: 'V̇_max(x)' }], [{ text: 'k' }, '·', v('FVC'), '·', { sup: [[{ text: 'x' }], [{ text: 'n' }]] }],
+      L('x is the fraction of the vital capacity still to be exhaled. Beyond the first tenth of a second, blowing harder does not blow faster: airways collapse downstream of the point where their inside pressure equals the pleural pressure, and flow is set by elastic recoil over upstream resistance. Narrow airways and lost recoil lower k and make the curve concave (n rises): the scooped flow–volume loop of obstruction, a low FEV₁/FVC.',
+        'x ist der noch auszuatmende Anteil der Vitalkapazität. Nach der ersten Zehntelsekunde bringt stärkeres Pressen keinen höheren Fluss: die Atemwege kollabieren stromabwärts des Punktes, an dem ihr Innendruck dem Pleuradruck entspricht, und der Fluss ist durch elastische Rückstellkraft durch vorgeschalteten Widerstand bestimmt. Enge Atemwege und verlorene Rückstellkraft senken k und machen die Kurve konkav (n steigt): die „durchhängende“ Fluss-Volumen-Kurve der Obstruktion, ein niedriger Tiffeneau-Index.')),
+  ],
+  values: (ctx) => {
+    const r = resp(ctx);
+    return {
+      ...Object.fromEntries(Object.entries(ctx.model.respiratory)),
+      V: rn(ctx, 'V'), flow: rn(ctx, 'flow'), Pmus: rn(ctx, 'Pmus'), Palv: rn(ctx, 'Palv'), Ppl: rn(ctx, 'Ppl'), Crs: rn(ctx, 'Crs') / 1000, Raw: rn(ctx, 'Raw'),
+      tauE: rn(ctx, 'tauE'), Te: rn(ctx, 'Te'), iPEEP: rn(ctx, 'iPEEP'), RR: rn(ctx, 'RR'), VT: rn(ctx, 'VT'), VE: rn(ctx, 'VE'), VDanat: rn(ctx, 'VDanat'), VA: rn(ctx, 'VA'),
+      TLC: rn(ctx, 'TLC'), FRC: rn(ctx, 'EELV'), RV: rn(ctx, 'RV'), FEV1: rn(ctx, 'FEV1'), FVC: rn(ctx, 'FVC'), ratio: r.FVC ? r.FEV1 / r.FVC : NaN, PEF: rn(ctx, 'PEF') * 60,
+      VCO2: rn(ctx, 'VCO2'), PaCO2: rn(ctx, 'PaCO2'),
+    };
+  },
+  diagram: 'breath',
+  sources: ['Lumb AB. Nunn’s Applied Respiratory Physiology, 9th ed. 2020.', 'West JB, Luks AM. West’s Respiratory Physiology: The Essentials, 11th ed. 2020.', 'Quanjer PH et al. Lung volumes and forced ventilatory flows (ECSC). Eur Respir J 1993;6 Suppl 16:5–40.'],
+};
+
+/* ---- respiration: gas exchange and oxygen transport ---------------------------------------------------- */
+const GAS_EXCHANGE: ModelDef = {
+  id: 'gas-exchange', title: L('Gas exchange and oxygen transport', 'Gasaustausch und Sauerstofftransport'),
+  summary: L('Each alveolus exchanges O₂ and CO₂ with the blood that passes it, and what it achieves depends on the ratio of its ventilation to its perfusion. Blood that passes airless lung comes back as it went (shunt); air that reaches lung without blood is wasted (dead space). Arterial blood is the mixture of everything that left the lungs, and haemoglobin turns its O₂ tension into O₂ content along a sigmoid curve.',
+    'Jede Alveole tauscht O₂ und CO₂ mit dem vorbeifließenden Blut, und was sie erreicht, hängt vom Verhältnis ihrer Ventilation zu ihrer Perfusion ab. Blut, das luftleere Lunge passiert, kommt unverändert zurück (Shunt); Luft, die Lunge ohne Blut erreicht, ist verloren (Totraum). Arterielles Blut ist die Mischung aus allem, was die Lunge verlässt, und Hämoglobin macht aus seinem O₂-Partialdruck entlang einer sigmoiden Kurve O₂-Gehalt.'),
+  groups: [
+    { id: 'air', label: L('Inspired gas', 'Eingeatmetes Gas') },
+    { id: 'membrane', label: L('Alveoli, capillaries and vessels', 'Alveolen, Kapillaren und Gefäße') },
+    { id: 'cons', label: L('Consolidation (alveoli full of exudate)', 'Konsolidierung (Alveolen voll Exsudat)') },
+    { id: 'coll', label: L('Collapse (atelectasis)', 'Kollaps (Atelektase)') },
+    { id: 'emb', label: L('Pulmonary emboli (lobar artery obstructed)', 'Lungenembolie (Lappenarterie verschlossen)') },
+    { id: 'blood', label: L('Haemoglobin', 'Hämoglobin') },
+  ],
+  variables: [
+    RP('gas-exchange', 'air', 'FiO2', 'F_{IO2}', L('Inspired O₂ fraction', 'Inspiratorische O₂-Fraktion'), '', 0.21, 1, 0.01),
+    RP('gas-exchange', 'air', 'Pb', 'P_B', L('Barometric pressure (altitude)', 'Luftdruck (Höhe)'), 'kPa', 40, 110, 0.5, L('Sea level 101 kPa; 2500 m 75 kPa; 5000 m 54 kPa.', 'Meereshöhe 101 kPa; 2500 m 75 kPa; 5000 m 54 kPa.')),
+    RP('gas-exchange', 'membrane', 'diffusion', 'D_m', L('Alveolar–capillary membrane', 'Alveolokapilläre Membran'), '× normal', 0.05, 1.5, 0.05),
+    RP('gas-exchange', 'membrane', 'vqMismatch', 'σ_{V/Q}', L('Additional V/Q mismatch', 'Zusätzliche Ventilations-Perfusions-Verteilungsstörung'), '', 0, 2, 0.05),
+    RP('gas-exchange', 'membrane', 'hpv', 'g_{HPV}', L('Hypoxic pulmonary vasoconstriction', 'Hypoxische pulmonale Vasokonstriktion'), '0–1', 0, 1, 0.05),
+    RP('gas-exchange', 'membrane', 'capillaryLeak', 'leak', L('Capillary leak (ARDS)', 'Kapillarleck (ARDS)'), '0–1', 0, 1, 0.05),
+    ...lobeParams('gas-exchange', 'cons', L('Consolidation', 'Konsolidierung'), 'cons'),
+    ...lobeParams('gas-exchange', 'coll', L('Collapse', 'Kollaps'), 'coll'),
+    ...lobeParams('gas-exchange', 'emb', L('Embolic obstruction', 'Embolischer Verschluss'), 'emb'),
+    RP('gas-exchange', 'blood', 'COHb', 'COHb', L('Carboxyhaemoglobin', 'Carboxyhämoglobin'), 'fraction', 0, 0.7, 0.01),
+    RP('gas-exchange', 'blood', 'metHb', 'MetHb', L('Methaemoglobin', 'Methämoglobin'), 'fraction', 0, 0.7, 0.01),
+    state('gas-exchange', { key: 'PIO2', symbol: 'P_{IO2}', label: L('Inspired O₂ tension', 'Inspiratorischer O₂-Partialdruck'), unit: 'kPa', digits: 1 }),
+    state('gas-exchange', { key: 'PAO2', symbol: 'P_{AO2}', label: L('Ideal alveolar O₂ tension', 'Idealer alveolärer O₂-Partialdruck'), unit: 'kPa', digits: 1 }),
+    state('gas-exchange', { key: 'PaO2', symbol: 'P_{aO2}', label: L('Arterial O₂ tension', 'Arterieller O₂-Partialdruck'), unit: 'kPa', digits: 1 }),
+    state('gas-exchange', { key: 'PaCO2', symbol: 'P_{aCO2}', label: L('Arterial CO₂ tension', 'Arterieller CO₂-Partialdruck'), unit: 'kPa', digits: 2 }),
+    state('gas-exchange', { key: 'R', symbol: 'R', label: L('Respiratory quotient', 'Respiratorischer Quotient'), unit: '', digits: 2 }),
+    state('gas-exchange', { key: 'AaD', symbol: 'A–aDO_2', label: L('Alveolar–arterial O₂ difference', 'Alveoloarterielle O₂-Differenz'), unit: 'kPa', digits: 1 }),
+    state('gas-exchange', { key: 'SaO2', symbol: 'S_{aO2}', label: L('Arterial O₂ saturation', 'Arterielle O₂-Sättigung'), unit: '%', digits: 1 }),
+    state('gas-exchange', { key: 'Hb', symbol: 'Hb', label: L('Haemoglobin', 'Hämoglobin'), unit: 'g/dL', digits: 1 }),
+    state('gas-exchange', { key: 'CaO2', symbol: 'C_{aO2}', label: L('Arterial O₂ content', 'Arterieller O₂-Gehalt'), unit: 'mL/dL', digits: 1 }),
+    state('gas-exchange', { key: 'CvO2', symbol: 'C_{v̄O2}', label: L('Mixed venous O₂ content', 'Gemischtvenöser O₂-Gehalt'), unit: 'mL/dL', digits: 1 }),
+    state('gas-exchange', { key: 'SvO2', symbol: 'S_{v̄O2}', label: L('Mixed venous saturation', 'Gemischtvenöse Sättigung'), unit: '%', digits: 0 }),
+    state('gas-exchange', { key: 'PvO2', symbol: 'P_{v̄O2}', label: L('Mixed venous O₂ tension', 'Gemischtvenöser O₂-Partialdruck'), unit: 'kPa', digits: 1 }),
+    state('gas-exchange', { key: 'Q', symbol: 'Q̇', label: L('Cardiac output (pulmonary blood flow)', 'Herzzeitvolumen (Lungendurchblutung)'), unit: 'L/min', digits: 1 }),
+    state('gas-exchange', { key: 'DO2', symbol: 'DO_2', label: L('O₂ delivery', 'O₂-Angebot'), unit: 'mL/min', digits: 0 }),
+    state('gas-exchange', { key: 'VO2', symbol: 'V̇_{O2}', label: L('O₂ consumption', 'O₂-Verbrauch'), unit: 'mL/min', digits: 0 }),
+    state('gas-exchange', { key: 'Cc', symbol: 'C_{c′O2}', label: L('End-capillary O₂ content (ideal alveolus)', 'Endkapillärer O₂-Gehalt (ideale Alveole)'), unit: 'mL/dL', digits: 1 }),
+    state('gas-exchange', { key: 'QsQt', symbol: 'Q̇_s/Q̇_t', label: L('Venous admixture', 'Venöse Beimischung'), unit: '', digits: 2 }),
+    state('gas-exchange', { key: 'shunt', symbol: 'shunt', label: L('True shunt (blood past airless lung)', 'Echter Shunt (Blut an luftleerer Lunge vorbei)'), unit: '', digits: 2 }),
+    state('gas-exchange', { key: 'PECO2', symbol: 'P_{ĒCO2}', label: L('Mixed expired CO₂', 'Gemischt-exspiratorisches CO₂'), unit: 'kPa', digits: 2 }),
+    state('gas-exchange', { key: 'VDVT', symbol: 'V_D/V_T', label: L('Physiological dead space fraction', 'Physiologischer Totraumanteil'), unit: '', digits: 2 }),
+    state('gas-exchange', { key: 'EtCO2', symbol: 'P_{ETCO2}', label: L('End-tidal CO₂', 'Endtidales CO₂'), unit: 'kPa', digits: 2 }),
+    state('gas-exchange', { key: 'RpulMult', symbol: 'PVR/PVR_0', label: L('Pulmonary vascular resistance, relative', 'Pulmonaler Gefäßwiderstand, relativ'), unit: '×', digits: 2 }),
+    state('gas-exchange', { key: 'Pcap', symbol: 'P_c', label: L('Pulmonary capillary pressure', 'Pulmonalkapillärer Druck'), unit: 'mmHg', digits: 0 }),
+    state('gas-exchange', { key: 'Pla', symbol: 'P_{LA}', label: L('Left atrial pressure', 'Linksatrialer Druck'), unit: 'mmHg', digits: 0 }),
+    state('gas-exchange', { key: 'Ppa', symbol: 'P_{PA}', label: L('Mean pulmonary arterial pressure', 'Mittlerer pulmonalarterieller Druck'), unit: 'mmHg', digits: 0 }),
+    state('gas-exchange', { key: 'piC', symbol: 'π_c', label: L('Plasma oncotic pressure', 'Kolloidosmotischer Druck des Plasmas'), unit: 'mmHg', digits: 0 }),
+    state('gas-exchange', { key: 'Jv', symbol: 'J_v', label: L('Net filtration (relative to normal)', 'Nettofiltration (relativ zu normal)'), unit: '', digits: 1 }),
+    state('gas-exchange', { key: 'interstitial', symbol: 'W_i', label: L('Interstitial lung water', 'Interstitielles Lungenwasser'), unit: '0–1', digits: 2 }),
+  ],
+  equations: [
+    eq('alveolar-gas', 'textbook', L('The alveolar gas equation', 'Die Alveolargasgleichung'),
+      [v('PAO2')], [v('FiO2'), '·', paren(v('Pb'), '−', '6.3'), '−', frac([v('PaCO2')], [v('R')])],
+      L('What the inspired gas offers, minus the O₂ displaced by CO₂ (CO₂ in, O₂ out, in the ratio R). The difference between this ideal alveolar value and the arterial O₂ is the A–a difference: small in health, large when blood bypasses or under-ventilated lung.',
+        'Was das eingeatmete Gas anbietet, minus den O₂, den das CO₂ verdrängt (CO₂ hinein, O₂ heraus, im Verhältnis R). Die Differenz zwischen diesem idealen Alveolarwert und dem arteriellen O₂ ist die A-a-Differenz: klein beim Gesunden, groß, wenn Blut an minderbelüfteter Lunge vorbeifließt.')),
+    eq('aa', 'textbook', L('Alveolar–arterial difference', 'Alveoloarterielle Differenz'),
+      [v('AaD')], [v('PAO2'), '−', v('PaO2')],
+      L('Hypoventilation lowers PaO₂ with a normal A–a difference; shunt, V/Q mismatch and diffusion limitation widen it.', 'Hypoventilation senkt den PaO₂ bei normaler A-a-Differenz; Shunt, Verteilungsstörung und Diffusionsstörung vergrößern sie.')),
+    eq('content', 'textbook', L('Oxygen content', 'Sauerstoffgehalt'),
+      [v('CaO2')], ['1.34', '·', v('Hb'), '·', v('SaO2'), '+', '0.0225', '·', v('PaO2')],
+      L('Almost all O₂ rides on haemoglobin. Anaemia halves the content at a perfectly normal PaO₂ and saturation; carbon monoxide takes haemoglobin out of service without lowering either.',
+        'Fast aller O₂ ist an Hämoglobin gebunden. Eine Anämie halbiert den Gehalt bei völlig normalem PaO₂ und normaler Sättigung; Kohlenmonoxid nimmt Hämoglobin außer Dienst, ohne eines von beiden zu senken.')),
+    eq('delivery', 'textbook', L('Oxygen delivery', 'Sauerstoffangebot'),
+      [v('DO2')], [v('Q'), '·', v('CaO2'), '·', '10'],
+      L('What the tissues are offered each minute: flow times content. Lungs, blood and heart each own one factor.', 'Was den Geweben pro Minute angeboten wird: Fluss mal Gehalt. Lunge, Blut und Herz verantworten je einen Faktor.')),
+    eq('fick', 'textbook', L('Fick: the tissues take what they need', 'Fick: die Gewebe nehmen, was sie brauchen'),
+      [v('CvO2')], [v('CaO2'), '−', frac([v('VO2')], ['10', '·', v('Q')])],
+      L('With fixed consumption, a falling cardiac output lowers the venous O₂, and every shunt then returns poorer blood to the arteries: low output makes hypoxaemia worse.',
+        'Bei festem Verbrauch senkt ein fallendes Herzzeitvolumen den venösen O₂, und jeder Shunt mischt dann ärmeres Blut bei: ein niedriges Herzzeitvolumen verschlimmert die Hypoxämie.')),
+    eq('shunt', 'textbook', L('The shunt equation', 'Die Shuntgleichung'),
+      [v('QsQt')], [frac([v('Cc'), '−', v('CaO2')], [v('Cc'), '−', v('CvO2')])],
+      L('The fraction of the cardiac output that would have to bypass ideal lung to produce this arterial blood. Breathing more O₂ fixes low V/Q but not true shunt: blood that never meets gas cannot take up more of it.',
+        'Der Anteil des Herzzeitvolumens, der an idealer Lunge vorbeifließen müsste, um dieses arterielle Blut zu ergeben. Mehr O₂ hilft bei niedrigem V/Q, aber nicht bei echtem Shunt: Blut, das nie auf Gas trifft, kann davon nicht mehr aufnehmen.')),
+    eq('bohr', 'textbook', L('Dead space (Bohr–Enghoff)', 'Totraum (Bohr–Enghoff)'),
+      [v('VDVT')], [frac([v('PaCO2'), '−', v('PECO2')], [v('PaCO2')])],
+      L('Gas from unperfused alveoli contains no CO₂ and dilutes the expired air. An embolus makes alveolar dead space: end-tidal CO₂ falls far below arterial.',
+        'Gas aus nicht durchbluteten Alveolen enthält kein CO₂ und verdünnt die Ausatemluft. Ein Embolus erzeugt alveolären Totraum: das endtidale CO₂ fällt weit unter das arterielle.')),
+    eq('starling', 'textbook', L('Starling: water across the pulmonary capillary', 'Starling: Wasser über die Lungenkapillare'),
+      [v('Jv')], [{ text: 'K_f' }, '·', paren(paren(v('Pcap'), '−', { text: 'P_i' }), '−', 'σ', '·', paren(v('piC'), '−', { text: 'π_i' }))],
+      L('Capillary pressure follows left atrial pressure (P_c ≈ P_LA + 0.4·(P_PA − P_LA)). Lymph carries away a few times the normal filtration; beyond that water fills the interstitium (Kerley lines, stiff lungs), then the alveoli, from the bottom up. A leaky membrane (ARDS) floods at normal pressures.',
+        'Der Kapillardruck folgt dem linksatrialen Druck (P_c ≈ P_LA + 0,4·(P_PA − P_LA)). Die Lymphe transportiert ein Mehrfaches der normalen Filtration ab; darüber füllt sich das Interstitium (Kerley-Linien, steife Lunge), dann die Alveolen, von basal nach apikal. Eine undichte Membran (ARDS) läuft schon bei normalen Drücken voll.')),
+    eq('severinghaus', 'full', L('The O₂–haemoglobin dissociation curve', 'Die Sauerstoffbindungskurve'),
+      [v('SaO2')], [frac(['1'], ['1', '+', frac(['23400'], [{ sup: [[{ text: 'P*' }], ['3']] }, '+', '150', '·', { text: 'P*' }])])],
+      L('Severinghaus’s fit, with P* the O₂ tension in mmHg corrected to standard conditions: P* = P·10^(0.024(37−T) + 0.40(pH−7.4) + 0.06·log(40/PCO₂)). Acid, CO₂ and heat shift the curve right (Bohr effect: unloading in tissues); carbon monoxide shifts it left.',
+        'Severinghaus’ Näherung, P* ist der O₂-Partialdruck in mmHg, korrigiert auf Standardbedingungen: P* = P·10^(0,024(37−T) + 0,40(pH−7,4) + 0,06·log(40/PCO₂)). Säure, CO₂ und Wärme verschieben die Kurve nach rechts (Bohr-Effekt: Abgabe im Gewebe); Kohlenmonoxid nach links.')),
+    eq('unit', 'full', L('One lung unit: mass balance against the dissociation curves', 'Eine Lungeneinheit: Massenbilanz gegen die Bindungskurven'),
+      [{ text: 'Q̇·(C_c′ − C_v̄)' }], [{ text: 'k·V̇_A·(P_I − P_A)' }],
+      L('For O₂ and for CO₂ in every unit: what blood takes up equals what ventilation brings (or removes). The model solves both equations together in two units per lobe (a low and a high V/Q), plus the shunted and dead-space fractions, then mixes the blood. Hypoxic vasoconstriction moves perfusion away from hypoxic lobes before the next solution.',
+        'Für O₂ und für CO₂ in jeder Einheit: was das Blut aufnimmt, entspricht dem, was die Ventilation bringt (oder abführt). Das Modell löst beide Gleichungen gemeinsam für zwei Einheiten pro Lappen (niedriges und hohes V/Q), dazu die Shunt- und Totraumanteile, und mischt dann das Blut. Die hypoxische Vasokonstriktion verschiebt die Perfusion vor der nächsten Lösung weg von hypoxischen Lappen.')),
+  ],
+  values: (ctx) => {
+    const r = resp(ctx);
+    const i = (r.inputs ?? {}) as Record<string, number>;
+    const piC = 25 * ((i.albumin ?? 42) / 42);
+    return {
+      ...Object.fromEntries(Object.entries(ctx.model.respiratory)),
+      PIO2: rn(ctx, 'PIO2'), PAO2: rn(ctx, 'PAO2ideal'), PaO2: rn(ctx, 'PaO2'), PaCO2: rn(ctx, 'PaCO2'), R: ctx.model.respiratory.RQ, AaD: rn(ctx, 'AaGradient'),
+      SaO2: rn(ctx, 'SaO2') * 100, Hb: (i.Hb ?? NaN) / 10, CaO2: rn(ctx, 'CaO2'), CvO2: rn(ctx, 'CvO2'), SvO2: rn(ctx, 'SvO2') * 100, PvO2: rn(ctx, 'PvO2'),
+      Q: i.CO ?? NaN, DO2: rn(ctx, 'DO2'), VO2: rn(ctx, 'VO2'),
+      Cc: r.CaO2 != null && r.venousAdmixture != null ? (r.CaO2 - r.venousAdmixture * r.CvO2) / Math.max(0.01, 1 - r.venousAdmixture) : NaN,
+      QsQt: rn(ctx, 'venousAdmixture'), shunt: rn(ctx, 'shunt'), PECO2: rn(ctx, 'PECO2'), VDVT: rn(ctx, 'VDVT'), EtCO2: rn(ctx, 'EtCO2'),
+      RpulMult: rn(ctx, 'RpulMult'), Pcap: rn(ctx, 'Pcap'), Pla: i.Pla ?? NaN, Ppa: i.Ppa ?? NaN, piC, Jv: rn(ctx, 'filtration') / 4, interstitial: rn(ctx, 'interstitial'),
+    };
+  },
+  diagram: 'vq',
+  sources: ['West JB. Ventilation/perfusion relationships. Am Rev Respir Dis 1977;116:919–43.', 'Severinghaus JW. Simple, accurate equations for human blood O₂ dissociation computations. J Appl Physiol 1979;46:599–602.', 'Kelman GR. Digital computer procedure for the conversion of PCO₂ into blood CO₂ content. Respir Physiol 1967;3:111–5.', 'Staub NC. Pulmonary edema. Physiol Rev 1974;54:678–811.'],
+};
+
+/* ---- respiration: control of breathing ----------------------------------------------------------------- */
+const CONTROL: ModelDef = {
+  id: 'control', title: L('Control of breathing', 'Atemregulation'),
+  summary: L('The brainstem sets ventilation from three signals: CO₂ (sensed as the pH of the cerebrospinal fluid by the central chemoreceptors), and arterial pH and O₂ (sensed by the carotid bodies). Receptors in the lung itself add drive when it is inflamed, flooded or stiff. Where the controller’s response meets the metabolic hyperbola of the lungs, breathing settles; the muscles and airways decide how much of the requested ventilation actually arrives.',
+    'Der Hirnstamm stellt die Ventilation nach drei Signalen ein: CO₂ (von den zentralen Chemorezeptoren als pH des Liquors gemessen) sowie arteriellem pH und O₂ (von den Glomera carotica). Rezeptoren in der Lunge selbst steigern den Antrieb, wenn sie entzündet, geflutet oder steif ist. Wo die Antwort des Reglers auf die metabolische Hyperbel der Lunge trifft, pendelt sich die Atmung ein; Muskulatur und Atemwege entscheiden, wie viel der angeforderten Ventilation tatsächlich ankommt.'),
+  groups: [
+    { id: 'centre', label: L('Respiratory centre', 'Atemzentrum') },
+    { id: 'metabolism', label: L('Metabolism', 'Stoffwechsel') },
+  ],
+  variables: [
+    RP('control', 'centre', 'drive', 'd', L('Central drive (lowered by opioids, sedatives)', 'Zentraler Antrieb (durch Opioide, Sedativa vermindert)'), '× normal', 0, 2.5, 0.05),
+    RP('control', 'centre', 'gCO2', 'g_{CO2}', L('Central CO₂ sensitivity', 'Zentrale CO₂-Empfindlichkeit'), '/kPa', 0, 4, 0.1),
+    RP('control', 'centre', 'gH', 'g_H', L('Peripheral [H⁺] sensitivity', 'Periphere [H⁺]-Empfindlichkeit'), 'L/nmol', 0, 0.3, 0.01),
+    RP('control', 'centre', 'gO2', 'g_{O2}', L('Hypoxic sensitivity (carotid bodies)', 'Hypoxische Empfindlichkeit (Glomus caroticum)'), '× normal', 0, 3, 0.1),
+    RP('control', 'metabolism', 'metabolicRate', 'M', L('Metabolic rate (fever, sepsis, exercise)', 'Stoffwechselrate (Fieber, Sepsis, Belastung)'), '× resting', 0.5, 5, 0.05),
+    RP('control', 'metabolism', 'RQ', 'R', L('Respiratory quotient', 'Respiratorischer Quotient'), '', 0.7, 1.0, 0.01),
+    state('control', { key: 'PaCO2', symbol: 'P_{aCO2}', label: L('Arterial CO₂ tension', 'Arterieller CO₂-Partialdruck'), unit: 'kPa', digits: 2 }),
+    state('control', { key: 'PaCO2set', symbol: 'P_{CO2,set}', label: L('CO₂ the central chemoreceptors defend', 'Von den zentralen Chemorezeptoren verteidigtes CO₂'), unit: 'kPa', digits: 2 }),
+    state('control', { key: 'H', symbol: '[H^+]', label: L('Arterial hydrogen ion', 'Arterielle Wasserstoffionen'), unit: 'nmol/L', digits: 0 }),
+    state('control', { key: 'PaO2', symbol: 'P_{aO2}', label: L('Arterial O₂ tension', 'Arterieller O₂-Partialdruck'), unit: 'kPa', digits: 1 }),
+    state('control', { key: 'aff', symbol: 'A_{lung}', label: L('Drive from the lung’s own receptors', 'Antrieb aus den Lungenrezeptoren'), unit: '', digits: 2 }),
+    state('control', { key: 'demand', symbol: 'V̇_{E,demand}', label: L('Ventilation the centre asks for', 'Vom Zentrum angeforderte Ventilation'), unit: 'L/min', digits: 1 }),
+    state('control', { key: 'capacity', symbol: 'V̇_{E,max}', label: L('Sustainable ventilation', 'Dauerhaft leistbare Ventilation'), unit: 'L/min', digits: 0 }),
+    state('control', { key: 'VE', symbol: 'V̇_E', label: L('Ventilation delivered', 'Erreichte Ventilation'), unit: 'L/min', digits: 1 }),
+    state('control', { key: 'VCO2', symbol: 'V̇_{CO2}', label: L('CO₂ production', 'CO₂-Produktion'), unit: 'mL/min', digits: 0 }),
+    state('control', { key: 'chemo', symbol: 'χ', label: L('Chemoreflex drive to the heart', 'Chemoreflexantrieb aufs Herz'), unit: '0–1', digits: 2 }),
+  ],
+  equations: [
+    eq('controller', 'textbook', L('The controller: what the brainstem asks for', 'Der Regler: was der Hirnstamm anfordert'),
+      [v('demand')], ['6.4', '·', frac([v('VCO2')], ['200']), '·', v('drive'), '·', paren('1', '+', v('drive'), '·', paren(v('gCO2'), '·', paren(v('PaCO2'), '−', v('PaCO2set')), '+', v('gH'), '·', paren(v('H'), '−', '40')), '+', { text: 'hyp(P_aO2)' }, '+', v('aff'))],
+      L('Ventilation in proportion to CO₂ production, raised by CO₂ above the defended level and by acid, by hypoxaemia (a hyperbola that only rises steeply below ~8 kPa) and by drive from the lung itself. Below the defended CO₂ the response is much flatter. Opioids lower the drive and the slope.',
+        'Ventilation proportional zur CO₂-Produktion, gesteigert durch CO₂ über dem verteidigten Wert und durch Säure, durch Hypoxämie (eine Hyperbel, die erst unter ~8 kPa steil ansteigt) und durch Antrieb aus der Lunge selbst. Unterhalb des verteidigten CO₂ ist die Antwort viel flacher. Opioide senken Antrieb und Steilheit.')),
+    eq('hyperbola', 'textbook', L('The plant: the metabolic hyperbola', 'Die Regelstrecke: die metabolische Hyperbel'),
+      [v('PaCO2')], [frac(['0.115', '·', v('VCO2')], [v('mechanics.VA')])],
+      L('Breathing settles where the controller line crosses this hyperbola. Metabolic acidosis lifts the controller line (Kussmaul breathing); opioids flatten it; a bicarbonate chronically raised in COPD moves the CO₂ the central chemoreceptors defend upward.',
+        'Die Atmung pendelt sich dort ein, wo die Reglergerade die Hyperbel schneidet. Eine metabolische Azidose hebt die Reglergerade (Kussmaul-Atmung); Opioide machen sie flacher; ein bei COPD chronisch erhöhtes Bikarbonat verschiebt das von den zentralen Chemorezeptoren verteidigte CO₂ nach oben.')),
+    eq('setpoint', 'textbook', L('The CO₂ the central chemoreceptors defend', 'Das von den zentralen Chemorezeptoren verteidigte CO₂'),
+      [v('PaCO2set')], ['5.33', '·', frac([{ text: '24 + 0.5·(HCO₃⁻ − 24)' }], ['24'])],
+      L('The chemoreceptors read CSF pH. CSF bicarbonate follows the blood’s halfway over days, so in chronic hypercapnia they come to defend a higher CO₂. Winters’ formula for metabolic acidosis (PaCO₂ ≈ 1.5·HCO₃⁻ + 8 mmHg) comes out of this controller; it is not put in.',
+        'Die Chemorezeptoren messen den pH des Liquors. Das Liquorbikarbonat folgt dem des Blutes über Tage zur Hälfte; bei chronischer Hyperkapnie verteidigen sie daher ein höheres CO₂. Die Winters-Formel für die metabolische Azidose (PaCO₂ ≈ 1,5·HCO₃⁻ + 8 mmHg) ergibt sich aus diesem Regler; sie ist nicht hineingeschrieben.')),
+    eq('delivered', 'textbook', L('What arrives: limited by muscles and airways', 'Was ankommt: begrenzt durch Muskulatur und Atemwege'),
+      [v('VE')], [frac([v('demand')], [{ fn: 'sqrt', args: ['1', '+', { sup: [[paren(frac([v('demand')], [v('capacity')]))], ['2']] }] }])],
+      L('Sustainable ventilation is about 45 % of the maximal voluntary ventilation (≈ 37·FEV₁), less with weak muscles or a hyperinflated chest. As demand approaches it, ventilation falls behind and CO₂ rises: ventilatory failure.',
+        'Dauerhaft leistbar sind etwa 45 % des Atemgrenzwerts (≈ 37·FEV₁), weniger bei schwacher Muskulatur oder überblähtem Thorax. Nähert sich der Bedarf dieser Grenze, bleibt die Ventilation zurück und das CO₂ steigt: ventilatorisches Versagen.')),
+  ],
+  values: (ctx) => {
+    const r = resp(ctx);
+    const i = (r.inputs ?? {}) as Record<string, number>;
+    const sbc = i.sbc ?? 24;
+    const hco3 = sbc + 0.75 * ((r.PaCO2 ?? 5.33) - 5.33);
+    const pH = 6.1 + Math.log10(hco3 / (0.23 * (r.PaCO2 ?? 5.33)));
+    const Pmm = (r.PaO2 ?? 12) * 7.5;
+    const chemo = Math.max(0, Math.min(1, 0.6 * Math.min(3, 20 * Math.max(0, 1 / Math.max(4, Pmm - 25) - 1 / 65)) + 0.3 * Math.max(0, (r.PaCO2 ?? 5.33) - 6.5)));
+    return {
+      ...Object.fromEntries(Object.entries(ctx.model.respiratory)),
+      PaCO2: rn(ctx, 'PaCO2'), PaCO2set: 5.33 * (24 + 0.5 * (sbc - 24)) / 24, H: 10 ** (9 - pH), PaO2: rn(ctx, 'PaO2'),
+      aff: rn(ctx, 'afferent'), demand: rn(ctx, 'demand'), capacity: rn(ctx, 'capacity'), VE: rn(ctx, 'VE'), VCO2: rn(ctx, 'VCO2'),
+      chemo: typeof ctx.snap?.chemoDrive === 'number' ? ctx.snap.chemoDrive : chemo,
+    };
+  },
+  diagram: 'control',
+  sources: ['Cherniack NS, Longobardo GS. Mathematical models of periodic breathing and their usefulness in understanding cardiovascular and respiratory disorders. Exp Physiol 2006;91:295–305.', 'Albert M, Dell R, Winters RW. Quantitative displacement of acid–base equilibrium in metabolic acidosis. Ann Intern Med 1967;66:312–22.', 'Duffin J. Measuring the respiratory chemoreflexes in humans. Respir Physiol Neurobiol 2011;177:71–9.'],
+};
+
+export const MODELS: ModelDef[] = [PATIENT, HAEMODYNAMICS, BAROREFLEX, ELECTRICAL, MECHANICS, GAS_EXCHANGE, CONTROL, FLUIDS, VOR, PUPIL, NERVOUS];
 export const MODEL_BY_ID: Record<string, ModelDef> = Object.fromEntries(MODELS.map((m) => [m.id, m]));
 export const VARIABLE_BY_ID: Record<string, VariableDef> = Object.fromEntries(MODELS.flatMap((m) => m.variables.map((x) => [x.id, x])));
+/** Parameters by where they live in the PatientModel ('respiratory.FiO2'). */
+export const VARIABLE_BY_KEY: Record<string, VariableDef> = Object.fromEntries(MODELS.flatMap((m) => m.variables.filter((x) => x.kind === 'parameter').map((x) => [x.key, x])));
 
 /** Resolve a symbol in an equation: local key first, then a full id. */
 export function variableOf(model: ModelDef, ref: string): VariableDef | undefined {

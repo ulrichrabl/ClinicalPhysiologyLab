@@ -1,0 +1,408 @@
+{
+  "schema": "vp.case/1",
+  "id": "copd-exacerbation",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Worse breathlessness and green sputum in a smoker: exacerbation of COPD",
+    "de": "Zunehmende Atemnot und grüner Auswurf bei einem Raucher: exazerbierte COPD"
+  },
+  "tags": [
+    "respiratory",
+    "breathlessness",
+    "copd",
+    "oxygen",
+    "emergency"
+  ],
+  "difficulty": 3,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-12",
+    "sources": [
+      "Global Initiative for Chronic Obstructive Lung Disease (GOLD) 2025 report.",
+      "O'Driscoll BR et al. BTS guideline for oxygen use in healthcare and emergency settings. Thorax 2017;72:ii1-90."
+    ]
+  },
+  "patient": {
+    "name": "Karl-Heinz Schmid",
+    "age": 71,
+    "sex": "M",
+    "heightCm": 174,
+    "weightKg": 64,
+    "appearance": {
+      "skinTone": 2,
+      "hair": "white, thin",
+      "build": "thin"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ],
+    "companion": {
+      "name": "Renate Schmid",
+      "relation": {
+        "en": "wife",
+        "de": "Ehefrau"
+      }
+    }
+  },
+  "setting": {
+    "place": {
+      "en": "Emergency department, bay 7",
+      "de": "Notaufnahme, Box 7"
+    },
+    "triage": {
+      "en": "Known COPD. Four days of increasing breathlessness. Brought by ambulance.",
+      "de": "Bekannte COPD. Seit vier Tagen zunehmende Atemnot. Mit dem Rettungsdienst gebracht."
+    }
+  },
+  "pathology": {
+    "respiratory": {
+      "emphysema": 0.52,
+      "bronchoconstriction": 0.39,
+      "vqMismatch": 0.15,
+      "metabolicRate": 1.1
+    },
+    "chemistry": {
+      "bicarbonate": 28,
+      "whiteCellCount": 11.8,
+      "crp": 42,
+      "glucose": 6.2,
+      "haemoglobin": 162
+    }
+  },
+  "initialState": {
+    "position": "sitting-forward",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "full",
+    "exposure": []
+  },
+  "observables": {
+    "vitals.temp": {
+      "value": 37.8
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "dyspnoea",
+        "present": true,
+        "attributes": {
+          "onset": "subacute"
+        }
+      },
+      "say": {
+        "en": "It's my chest. Worse every day. Since Thursday. Can't get the air out.",
+        "de": "Die Lunge. Jeden Tag schlimmer. Seit Donnerstag. Ich krieg die Luft nicht raus."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "say": {
+        "en": "Started with a cold my grandson brought. Then the chest went.",
+        "de": "Fing an mit einer Erkältung von meinem Enkel. Dann ging es auf die Brust."
+      }
+    },
+    {
+      "id": "f-sputum",
+      "topic": "sx.sputum",
+      "assertion": {
+        "concept": "sputum",
+        "present": true,
+        "attributes": {
+          "colour": "green",
+          "increased": true
+        }
+      },
+      "say": {
+        "en": "More than usual. Green now. Normally it's white in the mornings.",
+        "de": "Mehr als sonst. Jetzt grün. Normalerweise morgens weiß."
+      }
+    },
+    {
+      "id": "f-cough",
+      "topic": "sx.cough",
+      "assertion": {
+        "concept": "cough",
+        "present": true
+      },
+      "say": {
+        "en": "Always cough. Worse now.",
+        "de": "Husten hab ich immer. Jetzt schlimmer."
+      }
+    },
+    {
+      "id": "f-wheeze",
+      "topic": "sx.wheeze",
+      "assertion": {
+        "concept": "wheeze",
+        "present": true
+      },
+      "say": {
+        "en": "Whistling all night. Couldn't lie down.",
+        "de": "Pfeift die ganze Nacht. Konnte nicht liegen."
+      }
+    },
+    {
+      "id": "f-exercise",
+      "topic": "sx.exercise",
+      "assertion": {
+        "concept": "exercise-tolerance",
+        "present": true,
+        "attributes": {
+          "usualMetres": 50
+        }
+      },
+      "say": {
+        "en": "Usually fifty metres on the flat. Now I can't get to the bathroom.",
+        "de": "Sonst fünfzig Meter in der Ebene. Jetzt schaffe ich es nicht ins Bad."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "assertion": {
+        "concept": "copd-admissions",
+        "present": true,
+        "attributes": {
+          "niv": true
+        }
+      },
+      "say": {
+        "en": "COPD. They said severe. Three times in hospital with it, last winter on the breathing mask.",
+        "de": "COPD. Schwer, haben sie gesagt. Dreimal deswegen im Krankenhaus, letzten Winter mit der Atemmaske."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "say": {
+        "en": "The two inhalers, the green and the grey. And the blue one when it's bad. I've used the blue one twenty times today.",
+        "de": "Die zwei Inhalatoren, den grünen und den grauen. Und den blauen, wenn es schlimm ist. Den blauen heute zwanzigmal."
+      }
+    },
+    {
+      "id": "f-oxygen",
+      "topic": "meds",
+      "say": {
+        "en": "No oxygen at home. They tested me once, it was borderline.",
+        "de": "Kein Sauerstoff zu Hause. Sie haben mich einmal getestet, war grenzwertig."
+      }
+    },
+    {
+      "id": "f-smoke",
+      "topic": "shx.smoking",
+      "assertion": {
+        "concept": "smoking",
+        "present": true,
+        "attributes": {
+          "packYears": 100
+        }
+      },
+      "say": {
+        "en": "Fifty years, forty a day. Stopped two years ago. Mostly.",
+        "de": "Fünfzig Jahre, vierzig am Tag. Vor zwei Jahren aufgehört. Meistens."
+      }
+    },
+    {
+      "id": "f-pain",
+      "topic": "sx.chest-pain",
+      "assertion": {
+        "concept": "chest-pain",
+        "present": false
+      },
+      "say": {
+        "en": "No pain. Just tight.",
+        "de": "Keine Schmerzen. Nur eng."
+      }
+    },
+    {
+      "id": "f-ankle",
+      "topic": "sx.ankle-swelling",
+      "say": {
+        "en": "A bit puffy by evening. Always has been.",
+        "de": "Abends etwas dick. War schon immer so."
+      }
+    },
+    {
+      "id": "f-fever",
+      "topic": "sx.fever",
+      "assertion": {
+        "concept": "fever",
+        "present": true
+      },
+      "say": {
+        "en": "Hot and cold, yesterday.",
+        "de": "Gestern heiß und kalt."
+      }
+    },
+    {
+      "id": "f-calf",
+      "topic": "sx.calf",
+      "assertion": {
+        "concept": "calf-swelling",
+        "present": false
+      },
+      "say": {
+        "en": "No.",
+        "de": "Nein."
+      }
+    },
+    {
+      "id": "f-wife",
+      "topic": "shx.living",
+      "say": {
+        "en": "He wouldn't let me call anyone until this morning. He was blue at the lips when the ambulance came.",
+        "de": "Er wollte bis heute früh niemanden rufen lassen. Als der Rettungsdienst kam, waren seine Lippen blau."
+      },
+      "speaker": "companion"
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-pattern",
+        "kind": "property",
+        "ref": "breathing.pattern",
+        "weight": "essential",
+        "why": {
+          "en": "Words, not sentences; accessory muscles; pursed lips; a barrel chest. The work of breathing against narrowed airways and a hyperinflated chest.",
+          "de": "Worte statt Sätze; Atemhilfsmuskulatur; Lippenbremse; Fassthorax. Atemarbeit gegen enge Atemwege und einen überblähten Thorax."
+        }
+      },
+      {
+        "id": "e-wheeze",
+        "kind": "property",
+        "ref": "lung.sounds",
+        "context": {
+          "site": "chest.upper-zone.R"
+        },
+        "weight": "essential",
+        "discriminates": [
+          "community-acquired-pneumonia",
+          "pneumothorax"
+        ],
+        "why": {
+          "en": "Widespread wheeze with a long expiration: airflow obstruction everywhere, not a focal process.",
+          "de": "Diffuses Giemen mit verlängerter Exspiration: Obstruktion überall, kein umschriebener Prozess."
+        }
+      },
+      {
+        "id": "e-hyper",
+        "kind": "property",
+        "ref": "chest.percussion",
+        "context": {
+          "site": "chest.upper-zone.L"
+        },
+        "weight": "supporting",
+        "discriminates": [
+          "pneumothorax"
+        ],
+        "why": {
+          "en": "Hyper-resonant on both sides: emphysematous, overinflated lung. A pneumothorax would be one-sided, with absent breath sounds.",
+          "de": "Beidseits hypersonor: emphysematöse, überblähte Lunge. Ein Pneumothorax wäre einseitig, mit aufgehobenem Atemgeräusch."
+        }
+      },
+      {
+        "id": "e-sputum",
+        "kind": "fact",
+        "ref": "f-sputum",
+        "weight": "essential",
+        "why": {
+          "en": "More breathlessness, more sputum, purulent sputum: all three Anthonisen criteria, an infective exacerbation.",
+          "de": "Mehr Atemnot, mehr Auswurf, eitriger Auswurf: alle drei Anthonisen-Kriterien, eine infektexazerbierte COPD."
+        }
+      },
+      {
+        "id": "e-niv",
+        "kind": "fact",
+        "ref": "f-pmh",
+        "weight": "supporting",
+        "why": {
+          "en": "Previous admissions needing non-invasive ventilation: a patient who retains CO₂.",
+          "de": "Frühere Aufnahmen mit nichtinvasiver Beatmung: ein Patient, der CO₂ retiniert."
+        }
+      },
+      {
+        "id": "e-abg",
+        "kind": "investigation",
+        "ref": "blood-gas",
+        "weight": "essential",
+        "why": {
+          "en": "Raised PaCO₂ on a raised bicarbonate (chronic retention), with the pH showing how much is acute. Repeat it after any change in oxygen.",
+          "de": "Erhöhter PaCO₂ bei erhöhtem Bikarbonat (chronische Retention), der pH zeigt, wie viel davon akut ist. Nach jeder Änderung der Sauerstoffgabe wiederholen."
+        }
+      },
+      {
+        "id": "e-spo2",
+        "kind": "property",
+        "ref": "vitals.spo2",
+        "weight": "supporting",
+        "why": {
+          "en": "Target 88–92 % with a Venturi mask: enough O₂ to be safe, not so much that CO₂ climbs.",
+          "de": "Zielbereich 88–92 % mit Venturi-Maske: genug O₂ für die Sicherheit, nicht so viel, dass das CO₂ steigt."
+        }
+      },
+      {
+        "id": "e-cxr",
+        "kind": "investigation",
+        "ref": "cxr",
+        "weight": "discriminating",
+        "discriminates": [
+          "pneumothorax",
+          "community-acquired-pneumonia"
+        ],
+        "why": {
+          "en": "Hyperinflation without consolidation or pneumothorax.",
+          "de": "Überblähung ohne Konsolidierung oder Pneumothorax."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "investigation",
+        "ref": "blood-gas",
+        "why": {
+          "en": "A respiratory acidosis (pH < 7.35 with high CO₂) despite treatment is the indication for non-invasive ventilation.",
+          "de": "Eine respiratorische Azidose (pH < 7,35 mit hohem CO₂) trotz Therapie ist die Indikation zur nichtinvasiven Beatmung."
+        }
+      },
+      {
+        "kind": "property",
+        "ref": "vitals.spo2",
+        "why": {
+          "en": "Uncontrolled high-flow oxygen raises his CO₂: use 24–28 % Venturi and aim for 88–92 %.",
+          "de": "Unkontrollierter hochdosierter Sauerstoff lässt sein CO₂ steigen: Venturi 24–28 %, Ziel 88–92 %."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 25,
+    "summary": {
+      "en": "A 71-year-old with severe COPD (100 pack-years, previous NIV) and four days of increasing breathlessness, more and green sputum after a viral cold. Speaking in words, accessory muscles and pursed lips, hyperinflated and hyper-resonant chest, widespread wheeze with prolonged expiration. Blood gas: hypoxaemia with raised CO₂ on a high bicarbonate. Infective exacerbation of COPD with hypercapnic respiratory failure: controlled oxygen to 88–92 %, nebulised bronchodilators, steroids, antibiotics, repeat gas; NIV if acidotic.",
+      "de": "Ein 71-Jähriger mit schwerer COPD (100 Packungsjahre, frühere NIV) und vier Tagen zunehmender Atemnot, mehr und grünem Auswurf nach einem viralen Infekt. Spricht in Worten, Atemhilfsmuskulatur und Lippenbremse, überblähter, hypersonorer Thorax, diffuses Giemen mit verlängerter Exspiration. Blutgas: Hypoxämie mit erhöhtem CO₂ bei hohem Bikarbonat. Infektexazerbierte COPD mit hyperkapnischem Atemversagen: kontrollierter Sauerstoff (88–92 %), vernebelte Bronchodilatatoren, Steroide, Antibiose, Kontroll-BGA; bei Azidose NIV."
+    }
+  },
+  "diagnosis": {
+    "primary": "copd-exacerbation",
+    "accepted": [],
+    "differential": [
+      "pneumothorax",
+      "community-acquired-pneumonia",
+      "acute-heart-failure",
+      "pulmonary-embolism",
+      "asthma-exacerbation"
+    ]
+  }
+}

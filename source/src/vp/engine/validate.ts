@@ -5,8 +5,9 @@ import { missingLocales, SUPPORTED_LOCALES, type Locale, type LocalizedText } fr
 import { parseRef } from './observe.ts';
 import { NODES } from '../../domains/neuro/data/anatomy.js';
 import { ELECTRICAL_DEFAULTS } from '../physiology/heart/electrical.ts';
+import { RESPIRATORY_DEFAULTS } from '../physiology/lung/respiratory.ts';
 import { CHEMISTRY_DEFAULTS } from '../../models/chemistry/public-state.ts';
-import { VARIABLE_BY_ID } from '../physiology/models.ts';
+import { VARIABLE_BY_ID, VARIABLE_BY_KEY } from '../physiology/models.ts';
 import type { MeasurementSpec } from '../model/types.ts';
 
 function checkMeasurement(m: MeasurementSpec | undefined, source: string, path: string, out: Issue[]): void {
@@ -186,8 +187,17 @@ export function validateCase(c: CaseDef, cat: Catalog, reg: Registry): Issue[] {
       if (variable?.options && !variable.options.some((o) => o.value === v)) out.push({ level: 'error', path: `pathology.electrical.${k}`, message: `unknown value ${v}` });
     }
   }
+  for (const [k, v] of Object.entries(c.pathology.respiratory ?? {})) {
+    const path = `pathology.respiratory.${k}`;
+    if (!(k in RESPIRATORY_DEFAULTS)) { out.push({ level: 'error', path, message: `unknown respiratory parameter ${k}` }); continue; }
+    if (typeof v !== 'number' || !Number.isFinite(v)) { out.push({ level: 'error', path, message: 'expected a number' }); continue; }
+    const variable = VARIABLE_BY_KEY[`respiratory.${k}`];
+    if (variable && ((variable.min != null && v < variable.min) || (variable.max != null && v > variable.max))) out.push({ level: 'error', path, message: `expected ${variable.min}–${variable.max}` });
+  }
   for (const k of Object.keys(c.pathology.chemistry ?? {})) {
     if (!(k in CHEMISTRY_DEFAULTS)) out.push({ level: 'error', path: `pathology.chemistry.${k}`, message: 'not a chemistry variable' });
+    /* Blood gases and pH are what the lungs and the acid–base balance produce; a case sets their causes. */
+    else if (['paO2', 'paCO2', 'arterialPH'].includes(k)) out.push({ level: 'error', path: `pathology.chemistry.${k}`, message: 'set by the respiratory model; set its causes instead' });
   }
   for (const [i, les] of (c.pathology.lesions ?? []).entries()) {
     for (const n of les.nodes) if (!(n in NODES)) out.push({ level: 'error', path: `pathology.lesions[${i}]`, message: `unknown nervous-system node ${n}` });

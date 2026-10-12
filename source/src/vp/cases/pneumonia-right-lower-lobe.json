@@ -1,0 +1,429 @@
+{
+  "schema": "vp.case/1",
+  "id": "pneumonia-right-lower-lobe",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Fever, cough and right-sided chest pain: lobar pneumonia",
+    "de": "Fieber, Husten und rechtsseitiger Thoraxschmerz: Lobärpneumonie"
+  },
+  "tags": [
+    "respiratory",
+    "infection",
+    "breathlessness",
+    "chest-pain",
+    "emergency"
+  ],
+  "difficulty": 2,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-12",
+    "sources": [
+      "Lim WS et al. Defining community acquired pneumonia severity on presentation to hospital (CURB-65). Thorax 2003;58:377-82.",
+      "Metlay JP et al. Diagnosis and treatment of adults with community-acquired pneumonia. ATS/IDSA guideline. Am J Respir Crit Care Med 2019;200:e45-67."
+    ]
+  },
+  "patient": {
+    "name": "Ingrid Wagner",
+    "age": 68,
+    "sex": "F",
+    "heightCm": 164,
+    "weightKg": 70,
+    "appearance": {
+      "skinTone": 2,
+      "hair": "grey, shoulder length",
+      "build": "average"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ]
+  },
+  "setting": {
+    "place": {
+      "en": "Emergency department, bay 4",
+      "de": "Notaufnahme, Box 4"
+    },
+    "triage": {
+      "en": "Three days of fever and cough, now breathless. Sent in by her GP.",
+      "de": "Seit drei Tagen Fieber und Husten, jetzt luftnötig. Vom Hausarzt eingewiesen."
+    }
+  },
+  "pathology": {
+    "respiratory": {
+      "consRLL": 0.85,
+      "metabolicRate": 1.4
+    },
+    "chemistry": {
+      "whiteCellCount": 17.4,
+      "crp": 186,
+      "urea": 9.1,
+      "creatinine": 96,
+      "glucose": 7.4
+    }
+  },
+  "initialState": {
+    "position": "reclined-45",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "full",
+    "exposure": []
+  },
+  "observables": {
+    "vitals.temp": {
+      "value": 38.9
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "dyspnoea",
+        "present": true
+      },
+      "say": {
+        "en": "I've had a fever and this cough for three days, and since last night I can't catch my breath. And it hurts here, on the right, when I breathe in.",
+        "de": "Ich habe seit drei Tagen Fieber und diesen Husten, und seit gestern Abend bekomme ich schlecht Luft. Und es tut hier rechts weh, wenn ich einatme."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "say": {
+        "en": "It started like a cold on Friday, then the shivering came on Saturday night. Since then it's been getting worse.",
+        "de": "Es fing am Freitag wie eine Erkältung an, Samstagnacht kam dann der Schüttelfrost. Seitdem wird es schlimmer."
+      }
+    },
+    {
+      "id": "f-fever",
+      "topic": "sx.fever",
+      "assertion": {
+        "concept": "fever",
+        "present": true,
+        "attributes": {
+          "rigors": true
+        }
+      },
+      "say": {
+        "en": "I've been shaking with cold and then soaking the sheets. My husband measured 39.4 last night.",
+        "de": "Ich hatte Schüttelfrost und dann war das Bett nassgeschwitzt. Mein Mann hat gestern Abend 39,4 gemessen."
+      }
+    },
+    {
+      "id": "f-cough",
+      "topic": "sx.cough",
+      "assertion": {
+        "concept": "cough",
+        "present": true
+      },
+      "say": {
+        "en": "Yes, all the time. It started dry, now it's loose.",
+        "de": "Ja, ständig. Erst trocken, jetzt löst er sich."
+      }
+    },
+    {
+      "id": "f-sputum",
+      "topic": "sx.sputum",
+      "assertion": {
+        "concept": "sputum",
+        "present": true,
+        "attributes": {
+          "colour": "rusty"
+        }
+      },
+      "say": {
+        "en": "Thick and rusty brown. Not much, but it comes with every cough.",
+        "de": "Zäh und rostbraun. Nicht viel, aber bei jedem Husten."
+      }
+    },
+    {
+      "id": "f-pain",
+      "topic": "sx.chest-pain",
+      "assertion": {
+        "concept": "chest-pain",
+        "present": true,
+        "attributes": {
+          "character": "pleuritic",
+          "site": "right lower"
+        }
+      },
+      "say": {
+        "en": "Here, low on the right side. A sharp stab when I breathe in deeply or cough. Not like a pressure.",
+        "de": "Hier, rechts unten. Ein scharfer Stich, wenn ich tief einatme oder huste. Kein Druck."
+      }
+    },
+    {
+      "id": "f-dysp",
+      "topic": "sx.dyspnoea",
+      "assertion": {
+        "concept": "dyspnoea",
+        "present": true,
+        "attributes": {
+          "onset": "subacute"
+        }
+      },
+      "say": {
+        "en": "Walking to the toilet makes me puff now. Normally I walk the dog for an hour.",
+        "de": "Schon der Weg zur Toilette macht mich jetzt kurzatmig. Normalerweise gehe ich eine Stunde mit dem Hund."
+      }
+    },
+    {
+      "id": "f-haem",
+      "topic": "sx.haemoptysis",
+      "assertion": {
+        "concept": "haemoptysis",
+        "present": false
+      },
+      "say": {
+        "en": "No real blood. Just that rusty colour.",
+        "de": "Kein richtiges Blut. Nur diese rostige Farbe."
+      }
+    },
+    {
+      "id": "f-calf",
+      "topic": "sx.calf",
+      "assertion": {
+        "concept": "calf-swelling",
+        "present": false
+      },
+      "say": {
+        "en": "No, my legs are fine.",
+        "de": "Nein, die Beine sind in Ordnung."
+      }
+    },
+    {
+      "id": "f-travel",
+      "topic": "shx.travel",
+      "assertion": {
+        "concept": "recent-travel",
+        "present": false
+      },
+      "say": {
+        "en": "No, we haven't been anywhere since the summer.",
+        "de": "Nein, wir waren seit dem Sommer nirgends."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "say": {
+        "en": "High blood pressure and sugar, type 2. Both well controlled, my doctor says.",
+        "de": "Bluthochdruck und Zucker, Typ 2. Beides gut eingestellt, sagt meine Ärztin."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "say": {
+        "en": "Ramipril in the morning and metformin twice a day.",
+        "de": "Ramipril morgens und Metformin zweimal täglich."
+      }
+    },
+    {
+      "id": "f-smoke",
+      "topic": "shx.smoking",
+      "assertion": {
+        "concept": "ex-smoker",
+        "present": true,
+        "attributes": {
+          "packYears": 20
+        }
+      },
+      "say": {
+        "en": "I stopped twelve years ago. Before that, about a packet a day for twenty years.",
+        "de": "Ich habe vor zwölf Jahren aufgehört. Davor etwa eine Packung am Tag, zwanzig Jahre lang."
+      }
+    },
+    {
+      "id": "f-living",
+      "topic": "shx.living",
+      "say": {
+        "en": "With my husband. He drove me in.",
+        "de": "Mit meinem Mann. Er hat mich hergefahren."
+      }
+    },
+    {
+      "id": "f-orient",
+      "topic": "hpc.last-well",
+      "say": {
+        "en": "Until Friday I was completely well.",
+        "de": "Bis Freitag war ich völlig gesund."
+      }
+    },
+    {
+      "id": "f-ice",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "Is it pneumonia? My sister had that and was in hospital for two weeks.",
+        "de": "Ist das eine Lungenentzündung? Meine Schwester hatte das und war zwei Wochen im Krankenhaus."
+      }
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-bronchial",
+        "kind": "property",
+        "ref": "lung.sounds",
+        "context": {
+          "site": "chest.lung-base.R"
+        },
+        "weight": "essential",
+        "why": {
+          "en": "Bronchial breathing and coarse crackles at the right base: consolidated lung around open bronchi conducts the sound of the airways to the chest wall.",
+          "de": "Bronchialatmen und grobblasige Rasselgeräusche rechts basal: konsolidierte Lunge um offene Bronchien leitet den Klang der Atemwege an die Thoraxwand."
+        }
+      },
+      {
+        "id": "e-dull",
+        "kind": "property",
+        "ref": "chest.percussion",
+        "context": {
+          "site": "chest.lung-base.R"
+        },
+        "weight": "discriminating",
+        "discriminates": [
+          "pleural-effusion"
+        ],
+        "why": {
+          "en": "Dull, not stony dull: solid lung rather than fluid. An effusion would be stony dull, with reduced breath sounds.",
+          "de": "Gedämpft, nicht absolut gedämpft: solide Lunge, keine Flüssigkeit. Ein Erguss wäre absolut gedämpft, mit abgeschwächtem Atemgeräusch."
+        }
+      },
+      {
+        "id": "e-resonance",
+        "kind": "property",
+        "ref": "chest.resonance",
+        "context": {
+          "site": "chest.lung-base.R"
+        },
+        "weight": "discriminating",
+        "discriminates": [
+          "pleural-effusion",
+          "pneumothorax"
+        ],
+        "why": {
+          "en": "Increased vocal resonance over consolidation; reduced over fluid or air.",
+          "de": "Verstärkte Bronchophonie über Konsolidierung; abgeschwächt über Flüssigkeit oder Luft."
+        }
+      },
+      {
+        "id": "e-fever",
+        "kind": "fact",
+        "ref": "f-fever",
+        "weight": "essential",
+        "discriminates": [
+          "pulmonary-embolism",
+          "acute-heart-failure"
+        ],
+        "why": {
+          "en": "Fever with rigors and purulent, rusty sputum: a bacterial lower respiratory tract infection, classically pneumococcal.",
+          "de": "Fieber mit Schüttelfrost und eitrig-rostbraunem Auswurf: bakterieller Infekt der unteren Atemwege, klassisch Pneumokokken."
+        }
+      },
+      {
+        "id": "e-sputum",
+        "kind": "fact",
+        "ref": "f-sputum",
+        "weight": "supporting",
+        "why": {
+          "en": "Rusty sputum: blood from the inflamed alveoli mixed with exudate.",
+          "de": "Rostbrauner Auswurf: Blut aus den entzündeten Alveolen, mit Exsudat vermischt."
+        }
+      },
+      {
+        "id": "e-rr",
+        "kind": "property",
+        "ref": "vitals.rr",
+        "weight": "supporting",
+        "why": {
+          "en": "The respiratory rate is the most sensitive sign of how sick she is; at 30 or more it counts in CURB-65.",
+          "de": "Die Atemfrequenz ist das empfindlichste Zeichen dafür, wie krank sie ist; ab 30 zählt sie im CURB-65."
+        }
+      },
+      {
+        "id": "e-spo2",
+        "kind": "property",
+        "ref": "vitals.spo2",
+        "weight": "supporting",
+        "why": {
+          "en": "Hypoxaemia from blood passing the airless lobe (shunt); oxygen helps only partly.",
+          "de": "Hypoxämie durch Blut, das am luftleeren Lappen vorbeifließt (Shunt); Sauerstoff hilft nur zum Teil."
+        }
+      },
+      {
+        "id": "e-cxr",
+        "kind": "investigation",
+        "ref": "cxr",
+        "weight": "essential",
+        "why": {
+          "en": "Right lower lobe consolidation with air bronchograms confirms the pneumonia and shows its extent.",
+          "de": "Die Konsolidierung im rechten Unterlappen mit Aerobronchogramm bestätigt die Pneumonie und zeigt ihre Ausdehnung."
+        }
+      },
+      {
+        "id": "e-urea",
+        "kind": "investigation",
+        "ref": "electrolytes",
+        "weight": "supporting",
+        "why": {
+          "en": "Urea above 7 mmol/L scores in CURB-65, as does age 65 or more: at least moderate severity, admit.",
+          "de": "Harnstoff über 7 mmol/l zählt im CURB-65, ebenso das Alter ab 65: mindestens mittelschwer, stationäre Aufnahme."
+        }
+      },
+      {
+        "id": "e-abg",
+        "kind": "investigation",
+        "ref": "blood-gas",
+        "weight": "supporting",
+        "why": {
+          "en": "Type 1 respiratory failure: low PaO₂, low-normal PaCO₂, a wide A–a difference.",
+          "de": "Respiratorische Partialinsuffizienz: niedriger PaO₂, niedrig-normaler PaCO₂, große A-a-Differenz."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "property",
+        "ref": "vitals.spo2",
+        "why": {
+          "en": "Saturation below 92 %: give controlled oxygen and recheck.",
+          "de": "Sättigung unter 92 %: kontrolliert Sauerstoff geben und erneut messen."
+        }
+      },
+      {
+        "kind": "investigation",
+        "ref": "electrolytes",
+        "why": {
+          "en": "CURB-65 needs urea: with age ≥ 65 it makes two points, moderate severity.",
+          "de": "CURB-65 braucht den Harnstoff: mit Alter ≥ 65 ergibt das zwei Punkte, mittelschwer."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 20,
+    "summary": {
+      "en": "A 68-year-old with three days of fever, rigors, cough with rusty sputum and right pleuritic pain. Tachypnoeic and hypoxaemic; at the right base dull percussion, bronchial breathing, coarse crackles and increased vocal resonance. Chest X-ray: right lower lobe consolidation. Raised white cells and CRP, urea 9: CURB-65 score 2. Community-acquired pneumonia of moderate severity: oxygen to target, blood and sputum cultures, antibiotics within the hour, admit.",
+      "de": "Eine 68-Jährige mit drei Tagen Fieber, Schüttelfrost, Husten mit rostbraunem Auswurf und rechtsseitigem atemabhängigem Schmerz. Tachypnoisch und hypoxämisch; rechts basal Klopfschalldämpfung, Bronchialatmen, grobblasige Rasselgeräusche und verstärkte Bronchophonie. Röntgen: Konsolidierung im rechten Unterlappen. Leukozytose, CRP erhöht, Harnstoff 9: CURB-65 2 Punkte. Ambulant erworbene Pneumonie, mittelschwer: Sauerstoff nach Zielwert, Blut- und Sputumkulturen, Antibiose innerhalb einer Stunde, stationäre Aufnahme."
+    }
+  },
+  "diagnosis": {
+    "primary": "community-acquired-pneumonia",
+    "accepted": [],
+    "differential": [
+      "pulmonary-embolism",
+      "pleural-effusion",
+      "acute-heart-failure",
+      "lung-cancer",
+      "copd-exacerbation"
+    ]
+  }
+}

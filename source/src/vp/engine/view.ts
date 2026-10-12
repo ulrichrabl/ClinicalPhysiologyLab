@@ -2,6 +2,7 @@ import type { CaseDef, PatientState } from '../model/types.ts';
 import type { RuntimeView } from './observe.ts';
 import { findingsForNodes } from '../../domains/neuro/model/localize.js';
 import { chemistryState } from '../physiology/chemistry.ts';
+import type { RespSnapshot } from '../physiology/lung/respiratory.ts';
 
 /**
  * Build what resolvers read from a case and the current model outputs.
@@ -10,7 +11,7 @@ import { chemistryState } from '../physiology/chemistry.ts';
  */
 export function buildView(
   caseDef: CaseDef,
-  opts: { circulation?: Record<string, any>; chemistry?: Record<string, number>; state?: PatientState; minutes?: number } = {},
+  opts: { circulation?: Record<string, any>; chemistry?: Record<string, number>; respiratory?: RespSnapshot; state?: PatientState; minutes?: number } = {},
 ): RuntimeView {
   const lesions = caseDef.pathology.lesions ?? [];
   const nodes = [...new Set(lesions.flatMap((l) => l.nodes))];
@@ -19,7 +20,8 @@ export function buildView(
     patient: caseDef.patient,
     state: opts.state ?? caseDef.initialState,
     circulation: opts.circulation,
-    chemistry: opts.chemistry ?? (chemistryState(opts.circulation, caseDef.pathology.chemistry) as unknown as Record<string, number>),
+    chemistry: opts.chemistry ?? (chemistryState(opts.circulation, caseDef.pathology.chemistry, opts.respiratory) as unknown as Record<string, number>),
+    respiratory: opts.respiratory ?? (opts.circulation?.resp as RespSnapshot | undefined),
     neuro: nodes.length ? { nodes, complete, findings: findingsForNodes(nodes, complete) as Array<Record<string, any>> } : undefined,
     conditions: caseDef.pathology.conditions,
     minutes: opts.minutes ?? 0,

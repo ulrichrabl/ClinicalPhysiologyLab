@@ -36,7 +36,48 @@ export const AUSCULTATION_SITES: Record<string, { x: number; y: number; view: 'f
   'neck.carotid.L': { x: 3.6, y: -16.5, view: 'front' },
   'chest.lung-base.R': { x: -8, y: 14, view: 'back' },
   'chest.lung-base.L': { x: 8, y: 14, view: 'back' },
+  /* lung sites */
+  'chest.upper-zone.R': { x: -7.5, y: icsY(1, 7.5), view: 'front' },
+  'chest.upper-zone.L': { x: 7.5, y: icsY(1, 7.5), view: 'front' },
+  'chest.mid-zone.R': { x: -8, y: icsY(4, 8), view: 'front' },
+  'chest.mid-zone.L': { x: 11, y: icsY(4, 11), view: 'front' },
+  'chest.axilla.R': { x: -14.2, y: icsY(5, 14.2), view: 'front' },
+  'chest.upper-back.R': { x: -6.5, y: -6, view: 'back' },
+  'chest.upper-back.L': { x: 6.5, y: -6, view: 'back' },
 };
+/** The ten places one examines the lungs. */
+export const LUNG_SITE_IDS = ['chest.upper-zone', 'chest.mid-zone', 'chest.axilla', 'chest.upper-back', 'chest.lung-base'].flatMap((s) => [`${s}.R`, `${s}.L`]);
+
+/** The lobes' surface projection, fissures included, for teaching where each lobe can be heard. Front or back. */
+export function lobesUnderChest(view: 'front' | 'back', color = 'rgba(79,111,179,0.55)'): string {
+  const out: string[] = [];
+  const lung = (s: 1 | -1) => `M ${f(s * 2.2)} -13.6 C ${f(s * 6)} -14.6 ${f(s * 11)} -12 ${f(s * 13.6)} -6 C ${f(s * 15)} 0 ${f(s * 14.6)} 8 ${f(s * 13.4)} ${view === 'back' ? 16 : 12}
+    C ${f(s * 9)} ${view === 'back' ? 17 : 11} ${f(s * 5)} ${view === 'back' ? 15 : 9} ${f(s * 1.6)} ${view === 'back' ? 14 : 4} Z`;
+  out.push(`<path d="${lung(1)} ${lung(-1)}" fill="rgba(79,111,179,0.08)" stroke="${color}" stroke-width="0.3"/>`);
+  if (view === 'front') {
+    // oblique fissures run from T3 behind to the 6th costochondral junction in front; the horizontal fissure along the 4th rib (right)
+    out.push(`<path d="M -14.4 2 C -10 4 -6 6.2 -2.4 7.4 M 14.4 1.4 C 10 3.8 6 6.4 3 8.2" fill="none" stroke="${color}" stroke-width="0.25" stroke-dasharray="0.8 0.5"/>`);
+    out.push(`<path d="M -2.4 ${f(ribY(4, 2.4))} C -6 ${f(ribY(4, 6) + 0.2)} -10 ${f(ribY(4, 10) + 0.2)} -14.2 1.6" fill="none" stroke="${color}" stroke-width="0.25" stroke-dasharray="0.8 0.5"/>`);
+    out.push(`<text x="-8" y="-6" font-size="1.3" text-anchor="middle" fill="${color}">RUL</text><text x="-8" y="3.4" font-size="1.3" text-anchor="middle" fill="${color}">RML</text>`);
+    out.push(`<text x="8" y="-3" font-size="1.3" text-anchor="middle" fill="${color}">LUL</text><text x="12.4" y="8.6" font-size="1.1" text-anchor="middle" fill="${color}">LLL</text><text x="-12.4" y="9" font-size="1.1" text-anchor="middle" fill="${color}">RLL</text>`);
+  } else {
+    // from behind, the oblique fissures start at T3 near the spine: below them, all lower lobe
+    out.push(`<path d="M -1.6 -5 C -6 -3 -10 2 -13.6 6 M 1.6 -5 C 6 -3 10 2 13.6 6" fill="none" stroke="${color}" stroke-width="0.25" stroke-dasharray="0.8 0.5"/>`);
+    out.push(`<text x="-7" y="-9" font-size="1.3" text-anchor="middle" fill="${color}">LUL</text><text x="7" y="-9" font-size="1.3" text-anchor="middle" fill="${color}">RUL</text>`);
+    out.push(`<text x="-7" y="9" font-size="1.3" text-anchor="middle" fill="${color}">LLL</text><text x="7" y="9" font-size="1.3" text-anchor="middle" fill="${color}">RLL</text>`);
+  }
+  return out.join('');
+}
+
+/** Two fingers percussing: the pleximeter finger flat on the wall, the plexor finger striking it. `tap` 0..1 is the stroke. */
+export function percussionHand(x: number, y: number, tap: number, skin: string, shade: string): string {
+  const lift = 3.2 * (1 - tap);
+  return `<g class="hand" transform="translate(${f(x)} ${f(y)})">
+    <rect x="-3.8" y="-0.7" width="7.6" height="1.4" rx="0.7" fill="${skin}" stroke="${shade}" stroke-width="0.2"/>
+    <path d="M 1.2 ${f(-1 - lift)} L 1.2 ${f(-6 - lift)}" stroke="${skin}" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M 1.2 ${f(-1 - lift)} L 1.2 ${f(-6 - lift)}" stroke="${shade}" stroke-width="0.2" fill="none"/>
+    ${tap > 0.9 ? `<circle cx="1.2" cy="-0.9" r="${f(1.6 * tap)}" fill="none" stroke="rgba(200,71,61,0.6)" stroke-width="0.2"/>` : ''}</g>`;
+}
 
 export interface ThoraxLook { skin: string; shade: string; sex: 'F' | 'M'; line?: string; muted?: string }
 

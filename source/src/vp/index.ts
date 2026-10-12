@@ -20,12 +20,16 @@ export { MODELS, MODEL_BY_ID, VARIABLE_BY_ID, getPath, setPath } from './physiol
 export { HeartElectrical, ELECTRICAL_DEFAULTS, ELECTRICAL_PRESETS, type ElectricalParams } from './physiology/heart/electrical.ts';
 export { recordLeads, leadVectors, measuredAxis, misplaced, standardPlacement, STANDARD_SITES, LEAD_NAMES } from './measurements/ecg.ts';
 export { chemistryState } from './physiology/chemistry.ts';
+export { Respiratory, RESPIRATORY_DEFAULTS, LOBES, satO2, pulseOximeter, predicted, type RespiratoryParams, type RespSnapshot } from './physiology/lung/respiratory.ts';
 
 import vestibularNeuritisLeft from './cases/vestibular-neuritis-left.json';
 import exertionalSyncopeAs from './cases/exertional-syncope-as.json';
 import acuteStrokeLeftMca from './cases/acute-stroke-left-mca.json';
 import footDropRightL5 from './cases/foot-drop-right-l5.json';
+import pneumoniaRll from './cases/pneumonia-right-lower-lobe.json';
+import peAfterFlight from './cases/pulmonary-embolism-after-flight.json';
+import copdExacerbation from './cases/copd-exacerbation.json';
 import type { CaseDef } from './model/types.ts';
 
 /** Cases are JSON documents; the validator, not the type system, vouches for them. */
-export const CASES: CaseDef[] = [vestibularNeuritisLeft, exertionalSyncopeAs, acuteStrokeLeftMca, footDropRightL5] as unknown as CaseDef[];
+export const CASES: CaseDef[] = [vestibularNeuritisLeft, exertionalSyncopeAs, acuteStrokeLeftMca, footDropRightL5, pneumoniaRll, peAfterFlight, copdExacerbation] as unknown as CaseDef[];

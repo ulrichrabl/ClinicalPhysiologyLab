@@ -25,9 +25,15 @@ import { LivePatient } from '../live/live-patient.ts';
 import { renderChapter, CHAPTERS, type ChapterHandle } from './physiology-view.ts';
 import { renderModelLab } from './model-lab.ts';
 import { mountAuscultation } from './focus-thorax.ts';
+import { mountChest, type ChestMode } from './focus-chest.ts';
+import { drawCxr } from '../render/cxr.ts';
+import { drawSpirogram, type SpiroCurve } from '../render/spirogram.ts';
+import { RESP_RESOLVERS } from '../models/resp-exam.ts';
 import { mountEcgPlacement, placementReview } from './focus-ecg.ts';
 import { symbolMathML } from './math.ts';
 import { labDigits } from '../measurements/labs.ts';
+import { pulseOximeter } from '../physiology/lung/respiratory.ts';
+const pulseOx = (r: any) => pulseOximeter(r).SpO2;
 import type { ThoraxLook } from '../render/thorax.ts';
 
 type Lang = 'en' | 'de';
@@ -117,6 +123,7 @@ type FeedItem =
 type Visual =
   | { kind: 'eyes'; controls: (now: number) => SceneControls }
   | { kind: 'auscultate'; site: string; bell: boolean; value: any; sound: 'heart' | 'lung' }
+  | { kind: 'chest'; site: string; mode: ChestMode; value: any }
   | { kind: 'pulse'; finding: Finding }
   | { kind: 'face'; L: FaceFinding; R: FaceFinding }
   | { kind: 'ecg'; recorded?: number }
@@ -146,13 +153,24 @@ const SITE_ACT: Record<string, [string, Side?]> = {
   'neck.carotid.R': ['auscultate.carotid', 'R'], 'neck.carotid.L': ['auscultate.carotid', 'L'],
   'chest.lung-base.R': ['auscultate.lung-base', 'R'], 'chest.lung-base.L': ['auscultate.lung-base', 'L'],
 };
+/* Lung sites ↔ the manoeuvre for each way of examining them. */
+const lungAct = (site: string, mode: ChestMode): [string, Side] | null => {
+  const m = /^chest\.(upper-zone|mid-zone|axilla|upper-back|lung-base)\.(L|R)$/.exec(site);
+  if (!m) return null;
+  const key = m[1] === 'lung-base' ? 'base' : m[1];
+  const verb = mode === 'listen' ? 'auscultate' : mode === 'percuss' ? 'percuss' : 'resonance';
+  return [key === 'base' && verb === 'auscultate' ? 'auscultate.lung-base' : `${verb}.lung-${key}`, m[2] as Side];
+};
+const LUNG_PROPS = ['lung.sounds', 'chest.percussion', 'chest.resonance'];
 const INV_GROUP = (inv: InvestigationDef): 'bedside' | 'laboratory' | 'imaging' =>
-  ['ecg-12', 'glucose'].includes(inv.id) ? 'bedside' : ['electrolytes', 'blood-gas', 'fbc', 'cardiac-markers'].includes(inv.id) ? 'laboratory' : 'imaging';
+  ['ecg-12', 'glucose', 'peak-flow', 'spirometry'].includes(inv.id) ? 'bedside' : ['electrolytes', 'blood-gas', 'fbc', 'crp', 'cardiac-markers', 'd-dimer'].includes(inv.id) ? 'laboratory' : 'imaging';
 const PANEL_NAMES: Record<string, [string, string, string]> = {
   sodium: ['Sodium', 'Natrium', 'mmol/L'], potassium: ['Potassium', 'Kalium', 'mmol/L'], chloride: ['Chloride', 'Chlorid', 'mmol/L'], bicarbonate: ['Bicarbonate', 'Bikarbonat', 'mmol/L'],
   urea: ['Urea', 'Harnstoff', 'mmol/L'], creatinine: ['Creatinine', 'Kreatinin', 'µmol/L'], arterialPH: ['pH', 'pH', ''], paCO2: ['PaCO₂', 'PaCO₂', 'kPa'], paO2: ['PaO₂', 'PaO₂', 'kPa'],
   lactate: ['Lactate', 'Laktat', 'mmol/L'], haemoglobin: ['Haemoglobin', 'Hämoglobin', 'g/L'], whiteCellCount: ['White cells', 'Leukozyten', '×10⁹/L'], platelets: ['Platelets', 'Thrombozyten', '×10⁹/L'],
-  mcv: ['MCV', 'MCV', 'fL'], troponin: ['Troponin', 'Troponin', 'ng/L'], bnp: ['BNP', 'BNP', 'ng/L'],
+  mcv: ['MCV', 'MCV', 'fL'], troponin: ['Troponin', 'Troponin', 'ng/L'], bnp: ['BNP', 'BNP', 'ng/L'], crp: ['CRP', 'CRP', 'mg/L'],
+  baseExcess: ['Base excess', 'Basenüberschuss', 'mmol/L'], saO2: ['SaO₂ (co-oximetry)', 'SaO₂ (CO-Oxymetrie)', '%'], coHb: ['Carboxyhaemoglobin', 'Carboxyhämoglobin', '%'],
+  metHb: ['Methaemoglobin', 'Methämoglobin', '%'], fio2: ['FiO₂ when taken', 'FiO₂ bei Abnahme', ''],
 };
 
 export function mount(root: HTMLElement) {
@@ -179,8 +197,11 @@ export function mount(root: HTMLElement) {
   let faceView: FaceView | null = null;
   let stopVisual: (() => void) | null = null;
   const overlays = { anatomy: false, landmarks: false };
+  const chestOverlays = { lobes: false, landmarks: false };
   let placement: Partial<Placement> = {};
   const traces = new Map<number, { leads: Record<LeadName, Float32Array>; fs: number }>();
+  /* What an X-ray or a spirometer recorded at the moment it was taken, keyed by the result event. */
+  const shots = new Map<number, { resp: any; circ: Record<string, any>; curve?: SpiroCurve; shift: number }>();
   let liveOff: (() => void) | null = null;
   let tick = 0;
 
@@ -225,6 +246,7 @@ export function mount(root: HTMLElement) {
     if (!s || !live) return;
     s.view.circulation = live.snap;
     s.view.chemistry = live.chemistry;
+    s.view.respiratory = live.snap.resp;
   };
   const applyModel = (m: PatientModel) => {
     if (!s || !live) return;
@@ -292,10 +314,19 @@ export function mount(root: HTMLElement) {
     feed.push({ k: 'act', manoeuvre: id, side });
     const r = perform(s, id, side);
     if (r.outcome === 'blocked') feed.push({ k: 'blocked', reason: r.reason! });
+    if (r.outcome === 'performed' && m.sets?.oxygen) breatheOxygen();
     for (const f of r.findings) feed.push({ k: 'finding', finding: f });
     if (r.outcome === 'performed') visualFor(m, side, r.findings);
     afterTime(before);
     renderEncounter();
+  };
+
+  /* Oxygen is a device on the patient and an inspired fraction in the model: the running lungs breathe it from now on. */
+  const breatheOxygen = () => {
+    if (!s || !live) return;
+    const fio2 = s.state.oxygen?.fio2 ?? 0.21;
+    const next = { ...live.model, respiratory: { ...live.model.respiratory, FiO2: fio2 } };
+    if (free) applyModel(next); else { live.setModel(next); syncView(); }
   };
 
   const submit = (text: string) => {
@@ -314,9 +345,17 @@ export function mount(root: HTMLElement) {
   };
 
   const doOrder = (inv: string) => {
-    if (!s) return;
+    if (!s || !live) return;
     syncView();
     order(s, inv);
+    if (['cxr', 'spirometry', 'ctpa'].includes(inv)) {
+      const tr0 = RESP_RESOLVERS['resp.trachea'](s.view, { property: 'trachea.position' }, {});
+      const shiftTxt = /index (-?[0-9.]+)/.exec(tr0?.basis ?? '');
+      shots.set(s.encounter.events.length - 1, {
+        resp: structuredClone(live.snap.resp), circ: { metrics: { ...(live.snap.metrics ?? {}) } },
+        curve: inv === 'spirometry' ? live.run.resp.forcedExpiration() : undefined, shift: shiftTxt ? +shiftTxt[1] : 0,
+      });
+    }
     feed.push({ k: 'order', inv });
     afterTime(s.t);
     renderEncounter();
@@ -370,6 +409,12 @@ export function mount(root: HTMLElement) {
     }
     const faceL = findings.find((f) => f.property === 'face.movement.L'), faceR = findings.find((f) => f.property === 'face.movement.R');
     if (faceL && faceR) { setVisual({ kind: 'face', L: faceL.value as FaceFinding, R: faceR.value as FaceFinding }); return; }
+    const chest = findings.find((f) => LUNG_PROPS.includes(f.property) && /^chest\.(upper-zone|mid-zone|axilla|upper-back|lung-base)\./.test(f.context?.site ?? ''));
+    if (chest) {
+      const mode: ChestMode = chest.property === 'chest.percussion' ? 'percuss' : chest.property === 'chest.resonance' ? 'voice' : 'listen';
+      setVisual({ kind: 'chest', site: chest.context!.site!, mode, value: chest.value });
+      return;
+    }
     const heart = findings.find((f) => f.property === 'heart.sounds');
     const lung = findings.find((f) => f.property.startsWith('lung.sounds'));
     if (heart || lung || m.verb === 'auscultate') {
@@ -409,7 +454,19 @@ export function mount(root: HTMLElement) {
       stopVisual = mountAuscultation(host, {
         look: look(), site: v.site, bell: v.bell, value: v.value, kind: v.sound, hr, lang, overlays,
         caption: `${where ? tr(where, lang) : v.site}${sideTxt} · ${v.bell ? (lang === 'de' ? 'Glocke' : 'bell') : (lang === 'de' ? 'Membran' : 'diaphragm')}`,
-        onListenAt: (site) => { const a = SITE_ACT[site]; if (a) doAction(a[0], a[1]); },
+        onListenAt: (site) => { const a = SITE_ACT[site] ?? lungAct(site, 'listen'); if (a) doAction(a[0], a[1]); },
+      });
+      return;
+    }
+    if (v.kind === 'chest') {
+      const r = live?.snap.resp;
+      const where = CATALOG.structures[v.site.replace(/\.(L|R)$/, '')]?.label;
+      const sideTxt = /\.L$/.test(v.site) ? ` (${t('left').toLowerCase()})` : ` (${t('right').toLowerCase()})`;
+      stopVisual = mountChest(host, {
+        look: look(), site: v.site, mode: v.mode, value: v.value, lang, overlays: chestOverlays,
+        breathing: { rr: r?.RR ?? 14, ti: r?.Ti ?? 1.7, tauE: r?.tauE ?? 0.25 },
+        caption: `${where ? tr(where, lang) : v.site}${sideTxt}`,
+        onExamAt: (site, mode) => { const a = lungAct(site, mode); if (a) doAction(a[0], a[1]); },
       });
       return;
     }
@@ -488,6 +545,28 @@ export function mount(root: HTMLElement) {
     return `<article class="panel result"><header><b>${esc(tr(inv.label, lang))}</b><span>${Math.round(e.t / 60000)} ${t('min')}</span></header>
       <table class="lab"><thead><tr><th></th><th>${t('value')}</th><th></th><th>${t('range')}</th></tr></thead><tbody>${rows}</tbody></table>${physicsDetails(inv)}</article>`;
   };
+  const filmCard = (e: { test: string; value: unknown; t: number }, idx: number) => {
+    const inv = CATALOG.investigations[e.test];
+    const report = esc(REGISTRY.formatters[inv.formatter](e.value, {}, lang, CATALOG, { property: inv.id }));
+    const film = shots.has(idx) && e.test === 'cxr' ? `<div class="film-wrap"><canvas data-cxr-idx="${idx}"></canvas></div>` : '';
+    const spiro = shots.has(idx) && e.test === 'spirometry' ? `<div class="paper-wrap"><canvas data-spiro-idx="${idx}"></canvas></div>` : '';
+    const head = `<article class="panel result"><header><b>${esc(tr(inv.label, lang))}</b><span>${Math.round(e.t / 60000)} ${t('min')}</span></header>`;
+    if (e.test === 'spirometry') return `${head}<p style="margin:0">${report}</p>${spiro}${physicsDetails(inv)}</article>`;
+    return `${head}${film}<details class="physics"><summary>${lang === 'de' ? 'Befund der Radiologie' : 'Radiology report'}</summary><p>${report}</p></details>${physicsDetails(inv)}</article>`;
+  };
+  const paintFilms = (box: HTMLElement) => {
+    const rootCss = getComputedStyle(root);
+    const col = (n: string) => rootCss.getPropertyValue(n).trim();
+    box.querySelectorAll<HTMLCanvasElement>('[data-cxr-idx]').forEach((cv) => {
+      const sh = shots.get(+cv.dataset.cxrIdx!); if (!sh) return;
+      const w = Math.min(420, (cv.parentElement as HTMLElement).clientWidth || 360);
+      drawCxr(cv, { r: sh.resp, circ: sh.circ, sex: s!.caseDef.patient.sex, shift: sh.shift }, w);
+    });
+    box.querySelectorAll<HTMLCanvasElement>('[data-spiro-idx]').forEach((cv) => {
+      const sh = shots.get(+cv.dataset.spiroIdx!); if (!sh?.curve) return;
+      drawSpirogram(cv, sh.curve, sh.resp.pred, lang, { fg: col('--fg'), muted: col('--muted'), line: col('--grid') || col('--line'), accent: col('--trace') || col('--accent'), bg: col('--surface') });
+    });
+  };
   const textCard = (e: { test: string; value: unknown; t: number }) => {
     const inv = CATALOG.investigations[e.test];
     return `<article class="panel result"><header><b>${esc(tr(inv.label, lang))}</b><span>${Math.round(e.t / 60000)} ${t('min')}</span></header>
@@ -507,10 +586,12 @@ export function mount(root: HTMLElement) {
       ${ready.map(({ e, i }) => {
         if (e.kind !== 'result') return '';
         if (e.test === 'ecg-12') return ecgCard(i);
+        if (e.test === 'cxr' || e.test === 'spirometry') return filmCard(e, i);
         const inv = CATALOG.investigations[e.test];
         return inv.formatter === 'inv.panel' ? labCard(e) : textCard(e);
       }).join('') || (pending.length ? '' : `<p class="muted">${t('noResults')}</p>`)}</div></div>`;
     paintPapers(host);
+    paintFilms(host);
     host.querySelectorAll<HTMLButtonElement>('[data-order]').forEach((b) => b.onclick = () => {
       if (b.dataset.order === 'ecg-12') { setLayer('bedside'); setVisual({ kind: 'ecg' }); return; }
       doOrder(b.dataset.order!);
@@ -545,7 +626,13 @@ export function mount(root: HTMLElement) {
     if (layer === 'model') {
       const host = $('#layer-model');
       const e = live.snap.ecgMetrics ?? {}, m = live.snap.metrics ?? {};
-      const mon = `<div class="monitor"><div><span>HR</span><b>${Math.round(e.HR ?? 0)}</b></div><div><span>${lang === 'de' ? 'RR' : 'BP'}</span><b>${Math.round(m.Psys ?? 0)}/${Math.round(m.Pdia ?? 0)}</b></div><div><span>CO</span><b>${(m.CO ?? 0).toFixed(1)}</b></div><div><span>K⁺</span><b>${(live.chemistry.potassium ?? 4).toFixed(1)}</b></div><div><span>pH</span><b>${(6.1 + Math.log10(live.chemistry.bicarbonate / (0.23 * live.chemistry.paCO2))).toFixed(2)}</b></div></div>`;
+      const monVals = () => {
+        const e2 = live!.snap.ecgMetrics ?? {}, m2 = live!.snap.metrics ?? {}, r2 = live!.snap.resp;
+        return [String(Math.round(e2.HR ?? 0)), `${Math.round(m2.Psys ?? 0)}/${Math.round(m2.Pdia ?? 0)}`, (m2.CO ?? 0).toFixed(1),
+          r2 ? String(Math.round(r2.RR)) : '—', r2 ? `${Math.round(pulseOx(r2))}` : '—', r2 ? r2.PaCO2.toFixed(1) : '—', (live!.chemistry.arterialPH ?? 7.4).toFixed(2), (live!.chemistry.potassium ?? 4).toFixed(1)];
+      };
+      const monLabels = ['HR', lang === 'de' ? 'RR' : 'BP', 'CO', lang === 'de' ? 'AF' : 'RR', 'SpO₂', 'PaCO₂', 'pH', 'K⁺'];
+      const mon = `<div class="monitor">${monVals().map((x, i) => `<div><span>${monLabels[i]}</span><b>${x}</b></div>`).join('')}</div>`;
       host.innerHTML = `<div data-mon>${mon}</div><div data-lab></div>`;
       const lab = renderModelLab(host.querySelector('[data-lab]') as HTMLElement, {
         live, view: () => { syncView(); return s!.view; }, lang, editable: free, open: labOpen,
@@ -553,9 +640,8 @@ export function mount(root: HTMLElement) {
       });
       labTick = () => {
         lab.tick();
-        const e2 = live!.snap.ecgMetrics ?? {}, m2 = live!.snap.metrics ?? {};
         const mon2 = host.querySelector('[data-mon] .monitor');
-        if (mon2) { const b = mon2.querySelectorAll('b'); b[0].textContent = String(Math.round(e2.HR ?? 0)); b[1].textContent = `${Math.round(m2.Psys ?? 0)}/${Math.round(m2.Pdia ?? 0)}`; b[2].textContent = (m2.CO ?? 0).toFixed(1); b[3].textContent = (live!.chemistry.potassium ?? 4).toFixed(1); b[4].textContent = (6.1 + Math.log10(live!.chemistry.bicarbonate / (0.23 * live!.chemistry.paCO2))).toFixed(2); }
+        if (mon2) { const b = mon2.querySelectorAll('b'); monVals().forEach((x, i) => { if (b[i]) b[i].textContent = x; }); }
       };
     }
     if (lockedLayer(layer)) layer = 'bedside';
@@ -600,7 +686,11 @@ export function mount(root: HTMLElement) {
       case 'blocked': return `<div class="f-blocked">${esc(blockedText(it.reason))}</div>`;
       case 'finding': return `<div class="f-finding${it.finding.normal ? '' : ' abn'}">${esc(describe(s!, it.finding, lang))}</div>`;
       case 'order': { const inv = CATALOG.investigations[it.inv]; return `<div class="f-act">${t('ordered')}: ${esc(tr(inv.label, lang))}${it.inv === 'ecg-12' ? '' : ` · ${t('resultIn')} ${inv.turnaroundMinutes} ${t('min')}`}</div>`; }
-      case 'result': { const inv = CATALOG.investigations[it.inv]; return `<div class="f-finding result">${esc(REGISTRY.formatters[inv.formatter](it.value, {}, lang, CATALOG, { property: inv.id }))}</div>`; }
+      case 'result': {
+        const inv = CATALOG.investigations[it.inv];
+        if (it.inv === 'cxr') return `<div class="f-finding result">${esc(tr(inv.label, lang))}: ${lang === 'de' ? 'die Aufnahme liegt unter Diagnostik.' : 'the film is under Tests.'}</div>`;
+        return `<div class="f-finding result">${esc(REGISTRY.formatters[inv.formatter](it.value, {}, lang, CATALOG, { property: inv.id }))}</div>`;
+      }
       case 'system': return `<div class="f-system">${esc(tr(it.text, lang))}</div>`;
       case 'side': {
         const last = idx === feed.length - 1;
@@ -661,14 +751,14 @@ export function mount(root: HTMLElement) {
       g.innerHTML = figureSvg(posePrev, lk);
       poseRaf = requestAnimationFrame(step);
     }
-    $('#state-line').textContent = `${t('position')}: ${POSITION[st.position]?.[lang] ?? st.position} · ${t('exposed')}: ${exposed.size ? [...exposed].map((x) => tr(CATALOG.structures[x]?.label, lang)).join(', ') : t('nothing')}`;
+    $('#state-line').textContent = `${t('position')}: ${POSITION[st.position]?.[lang] ?? st.position} · ${t('exposed')}: ${exposed.size ? [...exposed].map((x) => tr(CATALOG.structures[x]?.label, lang)).join(', ') : t('nothing')}${st.oxygen && st.oxygen.fio2 > 0.21 ? ` · O₂: ${st.oxygen.device}` : ''}`;
   };
 
   const renderRegion = () => {
     const box = $('#region');
     if (!region || !s) { box.hidden = true; return; }
     box.hidden = false;
-    const items = Object.values(CATALOG.manoeuvres).filter((m) => regionOf(m.target) === region!.id);
+    const items = Object.values(CATALOG.manoeuvres).filter((m) => regionOf(m.target) === region!.id && !m.hidden);
     const side = region.side;
     const ecg = region.id === 'chest' ? `<button type="button" class="act" data-ecg>${lang === 'de' ? '12-Kanal-EKG schreiben' : 'Record a 12-lead ECG'}</button>` : '';
     box.innerHTML = `<div class="region-head"><b>${esc(REGION_LABEL[region.id][lang])}${side ? sideWord(side) : ''}</b><button type="button" class="ghost small" id="region-close" aria-label="Close">×</button></div>
@@ -754,7 +844,7 @@ export function mount(root: HTMLElement) {
       }).join('') || '<li class="muted">—</li>'}</ul></section>
       <section><h2>${t('compare')}</h2><div class="two notes-compare"><div class="mine">${myNotes.trim() ? esc(myNotes).replace(/\n/g, '<br>') : '<span class="muted">—</span>'}</div><div class="auto">${notesHtml(autoNote(s, lang))}</div></div></section>`;
     $('#db-back').onclick = () => { stopLive(); renderWard(); show('ward'); };
-    $('#db-explore').onclick = () => { show('encounter'); layer = 'physiology'; chapter = /stroke|foot/.test(base.id) ? 'nervous-system' : /vestib/.test(base.id) ? 'vor' : 'haemodynamics'; live?.start(); renderEncounter(); renderLayer(); };
+    $('#db-explore').onclick = () => { show('encounter'); layer = 'physiology'; chapter = /stroke|foot/.test(base.id) ? 'nervous-system' : /vestib/.test(base.id) ? 'vor' : base.tags.includes('respiratory') ? 'gas-exchange' : 'haemodynamics'; live?.start(); renderEncounter(); renderLayer(); };
   };
 
   /* ---- wiring ------------------------------------------------------------------------ */

@@ -52,12 +52,13 @@ export const PROPERTIES: PropertyDef[] = [
     id: 'vitals.rr', structure: 'vitals', label: { en: 'Respiratory rate', de: 'Atemfrequenz' },
     value: q('/min', 0, 80),
     normal: { value: 14, range: [12, 20], bands: [{ maxAge: 1, value: 40, range: [30, 60] }, { maxAge: 12, value: 22, range: [18, 30] }] },
-    source: 'case', formatter: 'vitals.rr', codes: { loinc: '9279-1' },
+    source: 'model-or-case', resolver: 'resp.rr', formatter: 'vitals.rr', codes: { loinc: '9279-1' },
   },
   {
     id: 'vitals.spo2', structure: 'vitals', label: { en: 'Oxygen saturation', de: 'Sauerstoffsättigung' },
-    value: q('%', 0, 100), normal: { value: 98, range: [94, 100] },
-    source: 'case', formatter: 'vitals.spo2', codes: { loinc: '59408-5' },
+    /* What the oximeter reads, and the inspired O2 it was read on: a saturation means nothing without it. */
+    value: rec({ spo2: q('%', 0, 100), fio2: q('1', 0.21, 1) }), normal: { value: { spo2: 98, fio2: 0.21 }, range: { spo2: [94, 100], fio2: [0.21, 0.21] } },
+    source: 'model-or-case', resolver: 'resp.spo2', formatter: 'vitals.spo2', codes: { loinc: '59408-5' },
   },
   {
     id: 'vitals.temp', structure: 'vitals', label: { en: 'Temperature', de: 'Temperatur' },
@@ -103,7 +104,33 @@ export const PROPERTIES: PropertyDef[] = [
     value: rec({ breath: c('breath-sounds'), added: listOf(c('added-lung')) }),
     normal: { value: { breath: 'vesicular', added: [] } },
     contextDims: ['site', 'respiration'],
-    source: 'model-or-case', resolver: 'circulation.lungs', formatter: 'lung.sounds', renderer: 'audio.lung',
+    source: 'model-or-case', resolver: 'resp.sounds', formatter: 'lung.sounds', renderer: 'audio.lung',
+  },
+  {
+    id: 'chest.percussion', structure: 'chest', label: { en: 'Percussion note', de: 'Klopfschall' },
+    value: rec({ note: c('percussion') }), normal: { value: { note: 'resonant' } },
+    contextDims: ['site'], source: 'model-or-case', resolver: 'resp.percussion', formatter: 'chest.percussion', renderer: 'audio.percussion',
+  },
+  {
+    id: 'chest.resonance', structure: 'chest', label: { en: 'Vocal resonance', de: 'Bronchophonie' },
+    value: rec({ resonance: c('vocal-resonance') }), normal: { value: { resonance: 'normal' } },
+    contextDims: ['site'], source: 'model-or-case', resolver: 'resp.resonance', formatter: 'chest.resonance',
+  },
+  {
+    id: 'chest.expansion', structure: 'chest', paired: true, label: { en: 'Chest expansion', de: 'Thoraxexkursion' },
+    value: rec({ expansion: c('expansion') }), normal: { value: { expansion: 'normal' } },
+    source: 'model-or-case', resolver: 'resp.expansion', formatter: 'chest.expansion',
+  },
+  {
+    id: 'trachea.position', structure: 'neck.trachea', label: { en: 'Position of the trachea', de: 'Lage der Trachea' },
+    value: rec({ position: c('trachea') }), normal: { value: { position: 'central' } },
+    source: 'model-or-case', resolver: 'resp.trachea', formatter: 'trachea.position',
+  },
+  {
+    id: 'breathing.pattern', structure: 'chest', label: { en: 'Breathing', de: 'Atmung' },
+    value: rec({ depth: c('breath-depth'), accessory: bool, pursedLips: bool, speech: c('speech-breath'), hyperinflated: bool, paradoxical: bool }),
+    normal: { value: { depth: 'normal', accessory: false, pursedLips: false, speech: 'sentences', hyperinflated: false, paradoxical: false } },
+    source: 'model-or-case', resolver: 'resp.pattern', formatter: 'breathing.pattern', renderer: 'svg.patient',
   },
 
   {

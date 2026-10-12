@@ -24,6 +24,7 @@ export interface ChemistryPublicState {
   platelets: number;
   troponin: number;
   bnp: number;
+  crp: number;
 }
 
 /** Keys that physiology may overwrite unless the learner has pinned them. */
@@ -58,6 +59,7 @@ export const CHEMISTRY_DEFAULTS: ChemistryPublicState = {
   platelets: 250,
   troponin: 5,
   bnp: 40,
+  crp: 3,
 };
 
 /** Map between legacy lab panel keys and chemistry public fields. */
@@ -82,6 +84,7 @@ export const LAB_KEY_TO_CHEMISTRY: Record<string, keyof ChemistryPublicState> = 
   platelets: 'platelets',
   troponin: 'troponin',
   BNP: 'bnp',
+  CRP: 'crp',
 };
 
 export const CHEMISTRY_TO_LAB_KEY: Record<keyof ChemistryPublicState, string> = Object.fromEntries(
