@@ -3,6 +3,7 @@ import type {
 } from '../model/types.ts';
 import type { Catalog } from '../data/catalog.ts';
 import type { RespSnapshot } from '../physiology/lung/respiratory.ts';
+import type { BodySnapshot } from '../physiology/body/body.ts';
 
 /* ---------------------------------------------------------------------------
    Observation engine.
@@ -29,6 +30,8 @@ export interface RuntimeView {
   chemistry?: Record<string, number>;
   /** The respiratory model's state: gases, mechanics, the lobes and pleura. */
   respiratory?: RespSnapshot;
+  /** The internal milieu: volumes, plasma concentrations, the kidney's output, hormones. */
+  body?: BodySnapshot;
   /** Nervous system: lesioned graph nodes, and the findings the graph derives from them. */
   neuro?: { nodes: string[]; complete: boolean; findings: Array<Record<string, any>> };
   /** Named conditions the case declares, for models that read them (e.g. vestibular hypofunction). */

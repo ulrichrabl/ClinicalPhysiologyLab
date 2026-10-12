@@ -3,6 +3,7 @@ import type { RuntimeView } from './observe.ts';
 import { findingsForNodes } from '../../domains/neuro/model/localize.js';
 import { chemistryState } from '../physiology/chemistry.ts';
 import type { RespSnapshot } from '../physiology/lung/respiratory.ts';
+import type { BodySnapshot } from '../physiology/body/body.ts';
 
 /**
  * Build what resolvers read from a case and the current model outputs.
@@ -22,6 +23,7 @@ export function buildView(
     circulation: opts.circulation,
     chemistry: opts.chemistry ?? (chemistryState(opts.circulation, caseDef.pathology.chemistry, opts.respiratory) as unknown as Record<string, number>),
     respiratory: opts.respiratory ?? (opts.circulation?.resp as RespSnapshot | undefined),
+    body: opts.circulation?.body as BodySnapshot | undefined,
     neuro: nodes.length ? { nodes, complete, findings: findingsForNodes(nodes, complete) as Array<Record<string, any>> } : undefined,
     conditions: caseDef.pathology.conditions,
     minutes: opts.minutes ?? 0,

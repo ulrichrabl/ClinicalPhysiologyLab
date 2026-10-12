@@ -400,49 +400,293 @@ const NERVOUS: ModelDef = {
   sources: ['Brazis PW, Masdeu JC, Biller J. Localization in Clinical Neurology, 8th ed. 2021.'],
 };
 
-/* ---- body fluids and acid–base ----------------------------------------------------------------- */
-const CHEM_VARS: Array<[string, string, LocalizedText, string, number, number, number]> = [
-  ['sodium', 'Na^+', L('Sodium', 'Natrium'), 'mmol/L', 110, 170, 1], ['potassium', 'K^+', L('Potassium', 'Kalium'), 'mmol/L', 1.5, 9, 0.1],
-  ['chloride', 'Cl^-', L('Chloride', 'Chlorid'), 'mmol/L', 80, 130, 1], ['bicarbonate', 'SBC', L('Metabolic bicarbonate (standard bicarbonate)', 'Metabolisches Bikarbonat (Standardbikarbonat)'), 'mmol/L', 4, 45, 1],
-  ['lactate', 'lac', L('Lactate', 'Laktat'), 'mmol/L', 0.3, 20, 0.1], ['glucose', 'glc', L('Glucose', 'Glukose'), 'mmol/L', 1, 40, 0.1],
-  ['calcium', 'Ca^{2+}', L('Calcium', 'Kalzium'), 'mmol/L', 1.2, 3.5, 0.02], ['magnesium', 'Mg^{2+}', L('Magnesium', 'Magnesium'), 'mmol/L', 0.3, 2, 0.05],
-  ['urea', 'urea', L('Urea', 'Harnstoff'), 'mmol/L', 1, 60, 0.5], ['creatinine', 'crea', L('Creatinine', 'Kreatinin'), 'µmol/L', 30, 1200, 5],
-  ['albumin', 'alb', L('Albumin', 'Albumin'), 'g/L', 15, 55, 1], ['haemoglobin', 'Hb', L('Haemoglobin', 'Hämoglobin'), 'g/L', 40, 200, 1],
+/* ---- the internal milieu: water and sodium, the kidney, potassium and acid–base, fuels ---------------------------- */
+const bod = (ctx: LiveContext): Record<string, any> => (ctx.snap?.body ?? ctx.view.body ?? {}) as Record<string, any>;
+const bn = (ctx: LiveContext, k: string) => { const x = bod(ctx)[k]; return typeof x === 'number' ? x : NaN; };
+const BP = (model: string, group: string, key: string, symbol: string, label: LocalizedText, unit: string, min: number, max: number, step: number, note?: LocalizedText) =>
+  param(model, group, { key: `body.${key}`, symbol, label, unit, min, max, step, note, digits: step < 0.01 ? 3 : step < 0.1 ? 2 : step < 1 ? 1 : 0 });
+const S = (model: string, key: string, symbol: string, label: LocalizedText, unit: string, digits = 1) => state(model, { key, symbol, label, unit, digits });
+
+const WATER: ModelDef = {
+  id: 'water', title: L('Body water and sodium', 'Körperwasser und Natrium'),
+  summary: L('Water crosses cell membranes freely, so every compartment has the same osmolality: the cells hold their solutes, the extracellular fluid holds sodium. The plasma sodium is therefore a ratio, the body’s sodium to its water, and says nothing by itself about how much of either there is. The amount of sodium sets the extracellular volume (and so the blood volume); the amount of water, through ADH and thirst, sets the sodium concentration. A case sets what goes in and out, and for how long; the model finds where the body has got to.',
+    'Wasser passiert Zellmembranen frei, daher hat jedes Kompartiment dieselbe Osmolalität: Die Zellen halten ihre gelösten Teilchen, die Extrazellulärflüssigkeit hält Natrium. Das Plasmanatrium ist daher ein Verhältnis — Natrium zu Wasser des Körpers — und sagt allein nichts darüber, wie viel von beidem da ist. Die Natriummenge bestimmt das Extrazellulärvolumen (und damit das Blutvolumen); die Wassermenge bestimmt über ADH und Durst die Natriumkonzentration. Ein Fall legt fest, was hinein- und hinausgeht und wie lange; das Modell findet heraus, wo der Körper angekommen ist.'),
+  groups: [
+    { id: 'course', label: L('Course of the illness', 'Verlauf der Erkrankung') },
+    { id: 'intake', label: L('Intake', 'Zufuhr') },
+    { id: 'losses', label: L('Losses', 'Verluste') },
+    { id: 'hormones', label: L('Hormones', 'Hormone') },
+    { id: 'blood', label: L('Blood', 'Blut') },
+  ],
+  variables: [
+    BP('water', 'course', 'courseHours', 't', L('How long the illness has acted (the body is run from health, or from its chronic state, for this long)', 'Wie lange die Erkrankung wirkt (der Körper wird so lange ab Gesundheit bzw. ab seinem chronischen Zustand gerechnet)'), 'h', 0, 720, 1),
+    BP('water', 'intake', 'fluidIntake', 'W_{in}', L('Fluid drunk (before thirst)', 'Trinkmenge (ohne Durst)'), 'L/day', 0, 8, 0.1),
+    BP('water', 'intake', 'foodIntake', 'F', L('Food eaten (fraction of a normal diet)', 'Nahrungsaufnahme (Anteil einer normalen Kost)'), '× normal', 0, 1.5, 0.05),
+    BP('water', 'intake', 'saltIntake', 'Na_{in}', L('Salt in a full diet', 'Salz bei voller Kost'), 'mmol/day', 0, 400, 5),
+    BP('water', 'intake', 'canDrink', 'thirst', L('Can act on thirst (0 = no access to water, or confused)', 'Kann dem Durst folgen (0 = kein Zugang zu Wasser oder verwirrt)'), '0/1', 0, 1, 1),
+    BP('water', 'losses', 'vomiting', 'V_{vom}', L('Vomiting (gastric juice: HCl with some NaCl and KCl)', 'Erbrechen (Magensaft: HCl mit etwas NaCl und KCl)'), 'L/day', 0, 5, 0.1),
+    BP('water', 'losses', 'diarrhoea', 'V_{stool}', L('Diarrhoea (stool water: Na⁺, K⁺, HCO₃⁻)', 'Diarrhö (Stuhlwasser: Na⁺, K⁺, HCO₃⁻)'), 'L/day', 0, 10, 0.1),
+    BP('water', 'hormones', 'siadh', 'ADH_{inap}', L('Inappropriate ADH (tumour, drugs, lung or brain disease)', 'Inadäquates ADH (Tumor, Medikamente, Lungen- oder Hirnerkrankung)'), 'pg/mL', 0, 15, 0.5),
+    BP('water', 'blood', 'redCellMass', 'RCM', L('Red cell mass', 'Erythrozytenmasse'), '× normal', 0.3, 1.8, 0.02),
+    S('water', 'TBW', 'TBW', L('Total body water', 'Gesamtkörperwasser'), 'L'),
+    S('water', 'ICF', 'V_{ICF}', L('Intracellular fluid', 'Intrazellulärflüssigkeit'), 'L'),
+    S('water', 'ECF', 'V_{ECF}', L('Extracellular fluid', 'Extrazellulärflüssigkeit'), 'L'),
+    S('water', 'plasma', 'V_p', L('Plasma volume', 'Plasmavolumen'), 'L', 2),
+    S('water', 'ISF', 'V_{ISF}', L('Interstitial fluid', 'Interstitielle Flüssigkeit'), 'L'),
+    S('water', 'dISF', 'ΔV_{ISF}', L('Interstitial fluid gained (oedema) or lost', 'Interstitielle Flüssigkeit gewonnen (Ödem) oder verloren'), 'L'),
+    S('water', 'bloodVolume', 'BV', L('Blood volume', 'Blutvolumen'), 'mL', 0),
+    S('water', 'NaE', 'Na_e', L('Exchangeable sodium', 'Austauschbares Natrium'), 'mmol', 0),
+    S('water', 'Oi', 'Osm_{ICF}', L('Cell osmoles', 'Osmole der Zellen'), 'mosmol', 0),
+    S('water', 'sodium', '[Na^+]', L('Plasma sodium', 'Plasmanatrium'), 'mmol/L', 0),
+    S('water', 'tonicity', 'Osm_{eff}', L('Effective osmolality (tonicity)', 'Effektive Osmolalität (Tonizität)'), 'mosmol/kg', 0),
+    S('water', 'osmolality', 'Osm', L('Measured osmolality (urea included)', 'Gemessene Osmolalität (mit Harnstoff)'), 'mosmol/kg', 0),
+    S('water', 'adh', 'ADH', L('Vasopressin (ADH)', 'Vasopressin (ADH)'), 'pg/mL', 1),
+    S('water', 'urineOsm', 'U_{osm}', L('Urine osmolality', 'Urinosmolalität'), 'mosmol/kg', 0),
+    S('water', 'osmU', 'Ṡ_U', L('Solute excreted', 'Ausgeschiedene gelöste Teilchen'), 'mosmol/day', 0),
+    S('water', 'urine', 'V̇_U', L('Urine flow', 'Urinfluss'), 'mL/h', 0),
+    S('water', 'waterIn', 'W_{in}', L('Water taken in (drink, thirst, metabolic water)', 'Wasseraufnahme (Trinken, Durst, Oxidationswasser)'), 'L/day', 2),
+    S('water', 'waterOut', 'W_{out}', L('Water lost (urine, insensible, vomit, stool)', 'Wasserverlust (Urin, Perspiratio, Erbrochenes, Stuhl)'), 'L/day', 2),
+  ],
+  equations: [
+    eq('osm-eq', 'textbook', L('Osmotic equilibrium: water follows solute', 'Osmotisches Gleichgewicht: Wasser folgt den Teilchen'),
+      [v('ICF')], [frac([v('Oi')], [frac([v('Oi'), '+', '2', '·', v('NaE'), '+', { text: 'glucose' }], [v('TBW')])])],
+      L('The cells keep their osmoles (mostly K⁺ salts and proteins); the extracellular fluid keeps sodium salts and glucose. Water distributes until both have the same osmolality. Lose sodium and the cells swell; add glucose without insulin and they shrink.',
+        'Die Zellen behalten ihre Osmole (vor allem K⁺-Salze und Proteine); die Extrazellulärflüssigkeit Natriumsalze und Glukose. Wasser verteilt sich, bis beide dieselbe Osmolalität haben. Natriumverlust lässt die Zellen schwellen; Glukose ohne Insulin lässt sie schrumpfen.')),
+    eq('na', 'textbook', L('The sodium is a ratio', 'Das Natrium ist ein Verhältnis'),
+      [v('sodium')], [frac([v('NaE')], [v('ECF')])],
+      L('Too little sodium for the water, or too much water for the sodium. Hyponatraemia with a large ECF (heart failure), a normal one (inappropriate ADH, a thiazide, too little solute) or a small one (vomiting, diarrhoea) are three different problems with one number.',
+        'Zu wenig Natrium für das Wasser oder zu viel Wasser für das Natrium. Eine Hyponatriämie bei großem EZV (Herzinsuffizienz), normalem (inadäquates ADH, Thiazid, zu wenig gelöste Teilchen) oder kleinem (Erbrechen, Diarrhö) sind drei verschiedene Probleme mit einer Zahl.')),
+    eq('adh', 'textbook', L('ADH: tonicity, and volume before it', 'ADH: Tonizität — und davor das Volumen'),
+      [v('adh')], ['0.38', '·', paren(v('tonicity'), '−', { text: '284 + 4·hypovolaemia' }), '+', { text: '1.2·hypovolaemia²' }, '+', { text: 'nausea' }, '+', v('siadh')],
+      L('ADH rises about 0.4 pg/mL per mosmol/kg above a threshold. A falling blood volume lowers the threshold and, when steep, overrides tonicity altogether: a hypovolaemic body keeps water even as its sodium falls. Nausea is a strong stimulus too.',
+        'ADH steigt um etwa 0,4 pg/ml pro mosmol/kg über einer Schwelle. Sinkendes Blutvolumen senkt die Schwelle und setzt sich, wenn es stark sinkt, ganz über die Tonizität hinweg: Ein hypovolämischer Körper hält Wasser zurück, auch wenn sein Natrium fällt. Auch Übelkeit ist ein starker Reiz.')),
+    eq('flow', 'textbook', L('Urine flow: solute divided by concentration', 'Urinfluss: Teilchen geteilt durch Konzentration'),
+      [v('urine')], [frac([v('osmU')], [v('urineOsm')])],
+      L('The kidney can only excrete water dissolving something. With 600 mosmol/day and a maximally dilute urine of 50 mosmol/kg, 12 L/day; on tea and toast (200 mosmol/day), 4 L; on a thiazide, which stops the urine getting dilute, far less. That is how drinking causes hyponatraemia.',
+        'Die Niere kann Wasser nur ausscheiden, wenn es etwas löst. Mit 600 mosmol/Tag und maximal verdünntem Urin von 50 mosmol/kg sind es 12 l/Tag; bei Tee und Toast (200 mosmol/Tag) 4 l; unter einem Thiazid, das die Verdünnung verhindert, weit weniger. So macht Trinken eine Hyponatriämie.')),
+    eq('starling', 'full', L('Plasma and interstitium (Starling, settling over hours)', 'Plasma und Interstitium (Starling, Einstellung über Stunden)'),
+      [v('plasma')], [{ text: 'V_p,0' }, '·', { text: 'f(ECF/ECF₀)' }, '·', { sup: [[paren(frac([{ text: 'albumin' }], ['42']))], ['0.45']] }, '·', paren('1', '−', '0.01', '·', { text: '(CVP − 8)' })],
+      L('Most of a gain or loss of extracellular fluid is interstitial; the plasma is defended by albumin’s oncotic pressure. Low albumin moves fluid out (oedema with a small plasma volume); a high venous pressure does the same. After bleeding, fluid moves the other way over hours: the transcapillary refill that dilutes the haemoglobin.',
+        'Der größte Teil eines Gewinns oder Verlusts an Extrazellulärflüssigkeit ist interstitiell; das Plasma wird vom onkotischen Druck des Albumins verteidigt. Niedriges Albumin verschiebt Flüssigkeit nach außen (Ödem bei kleinem Plasmavolumen); ein hoher Venendruck ebenso. Nach einer Blutung fließt sie über Stunden zurück: das transkapilläre Auffüllen, das das Hämoglobin verdünnt.')),
+  ],
+  values: (ctx) => {
+    const b = bod(ctx), i = b.inputs ?? {};
+    void i;
+    return {
+      ...Object.fromEntries(Object.entries(ctx.model.body)),
+      TBW: bn(ctx, 'TBW'), ICF: bn(ctx, 'ICF'), ECF: bn(ctx, 'ECF'), plasma: bn(ctx, 'plasma'), ISF: bn(ctx, 'ISF'), dISF: bn(ctx, 'dISF'), bloodVolume: bn(ctx, 'bloodVolume'),
+      NaE: bn(ctx, 'sodium') * bn(ctx, 'ECF'), Oi: bn(ctx, 'tonicity') * bn(ctx, 'ICF'), sodium: bn(ctx, 'sodium'), tonicity: bn(ctx, 'tonicity'), osmolality: bn(ctx, 'osmolality'),
+      adh: bn(ctx, 'adh'), urineOsm: bn(ctx, 'urineOsm'), urine: bn(ctx, 'urineMlPerH'), osmU: bn(ctx, 'urineOsm') * bn(ctx, 'urineMlPerH') * 24 / 1000,
+      waterIn: bn(ctx, 'waterIn'), waterOut: bn(ctx, 'waterOut'),
+    };
+  },
+  diagram: 'water',
+  sources: ['Edelman IS et al. Interrelations between serum sodium concentration, serum osmolarity and total exchangeable sodium, total exchangeable potassium and total body water. J Clin Invest 1958;37:1236–56.', 'Robertson GL. Antidiuretic hormone: normal and disordered function. Endocrinol Metab Clin North Am 2001;30:671–94.', 'Berl T. Impact of solute intake on urine flow and water excretion. J Am Soc Nephrol 2008;19:1076–8.', 'Guyton AC, Coleman TG, Granger HJ. Circulation: overall regulation. Annu Rev Physiol 1972;34:13–46.'],
+};
+
+const KIDNEY: ModelDef = {
+  id: 'kidney', title: L('The kidney', 'Die Niere'),
+  summary: L('The kidney filters about 180 L of plasma a day and returns all but a litre or two, choosing what to keep. Filtration holds steady over a wide range of blood pressure (autoregulation: the afferent arteriole widens, angiotensin II narrows the efferent), and fails below it, faster in a patient on an ACE inhibitor and an NSAID, who has taken away both defences. Creatinine and urea are what a failing filter leaves behind; how far they climb and how fast follow from how much is made and how much is cleared. The tubules then set sodium (volume and pressure, aldosterone), potassium (aldosterone, distal flow) and acid (ammonium).',
+    'Die Niere filtriert etwa 180 l Plasma am Tag und gibt bis auf ein, zwei Liter alles zurück — und wählt dabei aus, was sie behält. Die Filtration bleibt über einen weiten Blutdruckbereich konstant (Autoregulation: das Vas afferens weitet sich, Angiotensin II verengt das Vas efferens) und versagt darunter — schneller bei einem Patienten unter ACE-Hemmer und NSAR, der beide Schutzmechanismen verloren hat. Kreatinin und Harnstoff sind, was ein versagender Filter zurücklässt; wie hoch und wie schnell sie steigen, folgt daraus, wie viel gebildet und wie viel geklärt wird. Die Tubuli regeln dann Natrium (Volumen und Druck, Aldosteron), Kalium (Aldosteron, distaler Fluss) und Säure (Ammonium).'),
+  groups: [
+    { id: 'nephrons', label: L('Nephrons', 'Nephrone') },
+    { id: 'drugs', label: L('Drugs', 'Medikamente') },
+    { id: 'diet', label: L('Diet', 'Ernährung') },
+  ],
+  variables: [
+    BP('kidney', 'nephrons', 'nephronMass', 'N', L('Working nephrons (chronic kidney disease)', 'Funktionierende Nephrone (chronische Niereninsuffizienz)'), '× normal', 0.03, 1.2, 0.01),
+    BP('kidney', 'nephrons', 'tubularInjury', 'ATN', L('Acute tubular injury', 'Akuter Tubulusschaden'), '0–1', 0, 1, 0.05),
+    BP('kidney', 'nephrons', 'obstruction', 'obs', L('Outflow obstruction', 'Harnabflussstörung'), '0–1', 0, 1, 0.05),
+    BP('kidney', 'drugs', 'aceInhibitor', 'ACEi', L('ACE inhibitor or angiotensin receptor blocker', 'ACE-Hemmer oder Angiotensin-Rezeptorblocker'), '0–1', 0, 1, 0.1),
+    BP('kidney', 'drugs', 'nsaid', 'NSAID', L('Non-steroidal anti-inflammatory drug', 'Nichtsteroidales Antirheumatikum'), '0–1', 0, 1, 0.1),
+    BP('kidney', 'drugs', 'loopDiuretic', 'loop', L('Loop diuretic', 'Schleifendiuretikum'), '0–1', 0, 1, 0.1),
+    BP('kidney', 'drugs', 'thiazide', 'thz', L('Thiazide', 'Thiazid'), '0–1', 0, 1, 0.1),
+    BP('kidney', 'drugs', 'spironolactone', 'spiro', L('Aldosterone antagonist', 'Aldosteronantagonist'), '0–1', 0, 1, 0.1),
+    BP('kidney', 'diet', 'proteinIntake', 'prot', L('Protein in a full diet (urea, fixed acid)', 'Eiweiß bei voller Kost (Harnstoff, nichtflüchtige Säure)'), 'g/day', 0, 200, 5),
+    S('kidney', 'MAP', 'MAP', L('Mean arterial pressure (from the circulation)', 'Arterieller Mitteldruck (aus dem Kreislauf)'), 'mmHg', 0),
+    S('kidney', 'autoregulation', 'f_{auto}', L('Filtration kept by autoregulation', 'Durch Autoregulation erhaltene Filtration'), '0–1', 2),
+    S('kidney', 'GFR', 'GFR', L('Glomerular filtration rate', 'Glomeruläre Filtrationsrate'), 'mL/min', 0),
+    S('kidney', 'creatinine', '[crea]', L('Creatinine', 'Kreatinin'), 'µmol/L', 0),
+    S('kidney', 'urea', '[urea]', L('Urea', 'Harnstoff'), 'mmol/L', 1),
+    S('kidney', 'ureaCreat', 'urea/crea', L('Urea to creatinine ratio (×1000)', 'Harnstoff-Kreatinin-Quotient (×1000)'), '', 0),
+    S('kidney', 'FENa', 'FE_{Na}', L('Fractional excretion of sodium', 'Fraktionelle Natriumausscheidung'), '%', 2),
+    S('kidney', 'urineNa', 'U_{Na}', L('Urine sodium', 'Urinnatrium'), 'mmol/L', 0),
+    S('kidney', 'uNaRate', 'U_{Na}V', L('Sodium excreted', 'Ausgeschiedenes Natrium'), 'mmol/day', 0),
+    S('kidney', 'uKRate', 'U_KV', L('Potassium excreted', 'Ausgeschiedenes Kalium'), 'mmol/day', 0),
+    S('kidney', 'NH4', 'U_{NH4}V', L('Ammonium excreted (acid)', 'Ausgeschiedenes Ammonium (Säure)'), 'mmol/day', 0),
+    S('kidney', 'bicarbonaturia', 'U_{HCO3}V', L('Bicarbonate excreted', 'Ausgeschiedenes Bikarbonat'), 'mmol/day', 0),
+    S('kidney', 'angII', 'AngII', L('Angiotensin II', 'Angiotensin II'), '× normal', 2),
+    S('kidney', 'aldosterone', 'Aldo', L('Aldosterone', 'Aldosteron'), '× normal', 2),
+    S('kidney', 'phosphate', '[PO_4]', L('Phosphate', 'Phosphat'), 'mmol/L', 2),
+  ],
+  equations: [
+    eq('gfr', 'textbook', L('Filtration and its autoregulation', 'Filtration und ihre Autoregulation'),
+      [v('GFR')], [{ text: 'GFR₀' }, '·', v('nephronMass'), '·', paren('1', '−', '0.9', '·', v('tubularInjury')), '·', { sup: [[paren(frac([v('MAP'), '−', { text: 'CVP' }, '−', '35'], [{ text: 'P_low' }, '−', '35']))], ['0.8']] }],
+      L('Flat above the lower limit of autoregulation (about 72 mmHg), falling below it. An ACE inhibitor raises that limit because angiotensin II, which holds the efferent arteriole tight when perfusion falls, is gone; an NSAID raises it because the prostaglandins that hold the afferent open are gone. Together, with diarrhoea or a diuretic: the ‘triple whammy’. A high venous pressure (heart failure) lowers filtration too.',
+        'Flach oberhalb der unteren Autoregulationsgrenze (etwa 72 mmHg), darunter abfallend. Ein ACE-Hemmer hebt diese Grenze, weil Angiotensin II fehlt, das bei sinkender Perfusion das Vas efferens eng hält; ein NSAR hebt sie, weil die Prostaglandine fehlen, die das Vas afferens offen halten. Beide zusammen mit Diarrhö oder einem Diuretikum: der „Triple Whammy“. Auch ein hoher Venendruck (Herzinsuffizienz) senkt die Filtration.')),
+    eq('creat', 'textbook', L('Creatinine: production over clearance', 'Kreatinin: Bildung durch Clearance'),
+      [v('creatinine')], [frac([{ text: 'production (muscle)' }], [{ text: '1.15' }, '·', v('GFR')])],
+      L('Halve the filtration and creatinine doubles, but only after several half-lives: creatinine is spread through the body water, so after an acute loss of filtration it climbs over days. A small, old woman makes little creatinine: her ‘normal’ value can hide a GFR of 30.',
+        'Halbiert sich die Filtration, verdoppelt sich das Kreatinin — aber erst nach mehreren Halbwertszeiten: Kreatinin verteilt sich im Körperwasser, nach einem akuten Filtrationsverlust steigt es über Tage. Eine kleine, alte Frau bildet wenig Kreatinin: Ihr „normaler“ Wert kann eine GFR von 30 verbergen.')),
+    eq('urea', 'textbook', L('Urea: reabsorbed when urine flow is slow', 'Harnstoff: rückresorbiert, wenn der Urin langsam fließt'),
+      [{ text: 'urea excreted' }], [v('GFR'), '·', v('urea'), '·', paren('0.47', '−', '0.15', '·', { text: 'ADH effect' }, '−', { text: 'hypovolaemia' })],
+      L('Unlike creatinine, urea is partly reabsorbed, more so when ADH is high and flow is slow. In a dry patient urea climbs faster than creatinine (a high urea:creatinine ratio, ‘prerenal’); it climbs further with catabolism, steroids and blood digested in the gut.',
+        'Anders als Kreatinin wird Harnstoff teilweise rückresorbiert — umso mehr, je höher ADH und je langsamer der Fluss. Beim exsikkierten Patienten steigt Harnstoff schneller als Kreatinin (hoher Harnstoff-Kreatinin-Quotient, „prärenal“); weiter bei Katabolie, Steroiden und im Darm verdautem Blut.')),
+    eq('natri', 'textbook', L('Sodium excretion: volume, pressure, hormones', 'Natriumausscheidung: Volumen, Druck, Hormone'),
+      [v('uNaRate')], ['150', '·', { sup: [['e'], ['14·(ECF/ECF₀ − 1)']] }, '·', { sup: [['e'], ['0.015·(MAP − 93)']] }, '·', { sup: [[v('aldosterone')], ['−0.4']] }, '·', { sup: [[v('angII')], ['−0.2']] }, '·', paren('1', '+', '0.8', '·', v('loopDiuretic'), '+', '0.25', '·', v('thiazide'))],
+      L('In steady state the kidney excretes what is eaten; the ECF settles wherever that is true. A diuretic shifts the curve, the ECF shrinks until the hormones it switches on cancel it (‘braking’). In tubular injury the tubule cannot hold sodium: a high FENa despite a dry patient, the opposite of prerenal failure.',
+        'Im Gleichgewicht scheidet die Niere aus, was gegessen wird; das EZV stellt sich dort ein, wo das stimmt. Ein Diuretikum verschiebt die Kurve, das EZV schrumpft, bis die Hormone, die es dabei anschaltet, die Wirkung aufheben („Bremsphänomen“). Bei Tubulusschaden kann der Tubulus Natrium nicht halten: hohe FENa trotz Exsikkose, das Gegenteil des prärenalen Versagens.')),
+    eq('kU', 'textbook', L('Potassium secretion: aldosterone and distal flow', 'Kaliumsekretion: Aldosteron und distaler Fluss'),
+      [v('uKRate')], ['70', '·', { sup: [[paren(frac([{ text: '[K⁺]' }], ['4']))], ['2']] }, '·', { sup: [[v('aldosterone')], ['0.5']] }, '·', { sup: [[paren(frac([v('uNaRate')], ['150']))], ['0.45']] }, '·', { text: 'tubular capacity' }],
+      L('Potassium leaves in the collecting duct, driven by aldosterone and by the flow of sodium past it. Block aldosterone (spironolactone, ACE inhibitor), slow the flow (a dry patient) and lose filtration, and potassium accumulates. Loop and thiazide diuretics do the reverse.',
+        'Kalium verlässt den Körper im Sammelrohr, angetrieben von Aldosteron und vom vorbeifließenden Natrium. Aldosteron blockieren (Spironolacton, ACE-Hemmer), den Fluss verlangsamen (Exsikkose) und Filtration verlieren — und Kalium sammelt sich an. Schleifen- und Thiaziddiuretika bewirken das Gegenteil.')),
+  ],
+  values: (ctx) => {
+    const b = bod(ctx);
+    return {
+      ...Object.fromEntries(Object.entries(ctx.model.body)),
+      MAP: metric(ctx, 'Pmean'), autoregulation: bn(ctx, 'autoregulation'), GFR: bn(ctx, 'GFR'), creatinine: bn(ctx, 'creatinine'), urea: bn(ctx, 'urea'),
+      ureaCreat: 1000 * bn(ctx, 'urea') / bn(ctx, 'creatinine'), FENa: bn(ctx, 'FENa'), urineNa: bn(ctx, 'urineNa'), uNaRate: bn(ctx, 'uNaRate'), uKRate: bn(ctx, 'uKRate'),
+      NH4: bn(ctx, 'NH4'), bicarbonaturia: bn(ctx, 'bicarbonaturia'), angII: bn(ctx, 'angII'), aldosterone: bn(ctx, 'aldosterone'), phosphate: bn(ctx, 'phosphate'),
+      urine: b.urineMlPerH,
+    };
+  },
+  diagram: 'kidney',
+  sources: ['Carlström M, Wilcox CS, Arendshorst WJ. Renal autoregulation in health and disease. Physiol Rev 2015;95:405–511.', 'Lapi F et al. Concurrent use of diuretics, angiotensin converting enzyme inhibitors, and angiotensin receptor blockers with NSAIDs and risk of acute kidney injury. BMJ 2013;346:e8525.', 'Palmer BF, Clegg DJ. Physiology and pathophysiology of potassium homeostasis. Adv Physiol Educ 2016;40:480–90.', 'Waikar SS, Bonventre JV. Creatinine kinetics and the definition of acute kidney injury. J Am Soc Nephrol 2009;20:672–9.'],
+};
+
+/* Values a case may still clamp (no model produces them yet), and potassium and calcium, which the learner may clamp as an experiment. */
+const CLAMPS: Array<[string, string, LocalizedText, string, number, number, number]> = [
+  ['potassium', 'K^+', L('Potassium', 'Kalium'), 'mmol/L', 1.5, 9, 0.1], ['calcium', 'Ca^{2+}', L('Calcium', 'Kalzium'), 'mmol/L', 1.2, 3.5, 0.02],
+  ['magnesium', 'Mg^{2+}', L('Magnesium', 'Magnesium'), 'mmol/L', 0.3, 2, 0.05],
   ['whiteCellCount', 'WCC', L('White cell count', 'Leukozyten'), '10⁹/L', 0.5, 60, 0.1], ['platelets', 'plt', L('Platelets', 'Thrombozyten'), '10⁹/L', 5, 1000, 5],
   ['mcv', 'MCV', L('Mean cell volume', 'Mittleres Erythrozytenvolumen'), 'fL', 60, 120, 1], ['troponin', 'cTn', L('Troponin', 'Troponin'), 'ng/L', 0, 10000, 1],
   ['bnp', 'BNP', L('Natriuretic peptide', 'Natriuretisches Peptid'), 'ng/L', 0, 20000, 10], ['crp', 'CRP', L('C-reactive protein', 'C-reaktives Protein'), 'mg/L', 0, 500, 1],
 ];
+const PLASMA: Array<[string, string, LocalizedText, string, number]> = [
+  ['sodium', 'Na^+', L('Sodium', 'Natrium'), 'mmol/L', 0], ['potassium', 'K^+', L('Potassium', 'Kalium'), 'mmol/L', 1], ['chloride', 'Cl^-', L('Chloride', 'Chlorid'), 'mmol/L', 0],
+  ['bicarbonate', 'SBC', L('Metabolic bicarbonate (standard bicarbonate)', 'Metabolisches Bikarbonat (Standardbikarbonat)'), 'mmol/L', 1],
+  ['lactate', 'lac', L('Lactate', 'Laktat'), 'mmol/L', 1], ['ketones', 'ket', L('Ketoacids (β-hydroxybutyrate and acetoacetate)', 'Ketosäuren (β-Hydroxybutyrat und Acetoacetat)'), 'mmol/L', 1],
+  ['glucose', 'glc', L('Glucose', 'Glukose'), 'mmol/L', 1], ['urea', 'urea', L('Urea', 'Harnstoff'), 'mmol/L', 1], ['creatinine', 'crea', L('Creatinine', 'Kreatinin'), 'µmol/L', 0],
+  ['albumin', 'alb', L('Albumin', 'Albumin'), 'g/L', 0], ['haemoglobin', 'Hb', L('Haemoglobin', 'Hämoglobin'), 'g/L', 0], ['phosphate', 'PO_4', L('Phosphate', 'Phosphat'), 'mmol/L', 2],
+  ['calcium', 'Ca^{2+}', L('Calcium', 'Kalzium'), 'mmol/L', 2], ['magnesium', 'Mg^{2+}', L('Magnesium', 'Magnesium'), 'mmol/L', 2],
+  ['whiteCellCount', 'WCC', L('White cell count', 'Leukozyten'), '10⁹/L', 1], ['platelets', 'plt', L('Platelets', 'Thrombozyten'), '10⁹/L', 0], ['mcv', 'MCV', L('Mean cell volume', 'Mittleres Erythrozytenvolumen'), 'fL', 0],
+  ['troponin', 'cTn', L('Troponin', 'Troponin'), 'ng/L', 0], ['bnp', 'BNP', L('Natriuretic peptide', 'Natriuretisches Peptid'), 'ng/L', 0], ['crp', 'CRP', L('C-reactive protein', 'C-reaktives Protein'), 'mg/L', 0],
+];
 const FLUIDS: ModelDef = {
-  id: 'fluids', title: L('Body fluids, electrolytes and acid–base', 'Körperflüssigkeiten, Elektrolyte und Säure-Basen-Haushalt'),
-  summary: L('Concentrations in plasma, set by what the body holds and what the circulation does to it. Bicarbonate and CO₂ set pH together; a failing circulation makes lactate; bleeding dilutes haemoglobin; a poorly perfused kidney retains urea.',
-    'Konzentrationen im Plasma, bestimmt von dem, was der Körper enthält, und dem, was der Kreislauf damit macht. Bikarbonat und CO₂ bestimmen gemeinsam den pH; ein versagender Kreislauf bildet Laktat; Blutung verdünnt das Hämoglobin; eine minderdurchblutete Niere hält Harnstoff zurück.'),
-  groups: [{ id: 'plasma', label: L('Plasma (pin a value to override what the circulation derives)', 'Plasma (Wert fixieren, um die Ableitung aus dem Kreislauf zu überschreiben)') }],
+  id: 'fluids', title: L('Potassium and acid–base', 'Kalium und Säure-Basen-Haushalt'),
+  summary: L('Two balances the body keeps very tightly. Potassium: about 98 % of it is inside the cells, held there by the Na⁺/K⁺ pump, so the plasma level reflects both how much the body has and how it is shared out (insulin and adrenaline drive it into cells; acidaemia and hypertonicity let it out). Acid: about 70 mmol of fixed acid is made each day (more with ketoacids or lactate), buffered at once by bicarbonate and the cells, and excreted by the kidney as ammonium, which regenerates the bicarbonate. pH is the ratio of what the kidney holds (bicarbonate) to what the lungs hold (CO₂). Chloride is whatever electroneutrality leaves.',
+    'Zwei Bilanzen, die der Körper sehr eng hält. Kalium: Etwa 98 % liegen in den Zellen, dort gehalten von der Na⁺/K⁺-Pumpe; der Plasmaspiegel spiegelt also wider, wie viel der Körper hat und wie es verteilt ist (Insulin und Adrenalin treiben es in die Zellen; Azidämie und Hypertonizität lassen es heraus). Säure: Täglich entstehen etwa 70 mmol nichtflüchtige Säure (mehr mit Ketosäuren oder Laktat), sofort von Bikarbonat und den Zellen gepuffert und von der Niere als Ammonium ausgeschieden, was das Bikarbonat erneuert. Der pH ist das Verhältnis dessen, was die Niere hält (Bikarbonat), zu dem, was die Lunge hält (CO₂). Chlorid ist, was die Elektroneutralität übrig lässt.'),
+  groups: [
+    { id: 'diet', label: L('Diet and toxins', 'Ernährung und Gifte') },
+    { id: 'clamp', label: L('Clamp a value (an experiment: held whatever the model does)', 'Wert festhalten (ein Experiment: unabhängig vom Modell gehalten)') },
+  ],
   variables: [
-    ...CHEM_VARS.map(([k, sym, label, unit, min, max, step]) => param('fluids', 'plasma', { key: `chemistry.${k}`, symbol: sym, label, unit, min, max, step, digits: step < 0.1 ? 2 : step < 1 ? 1 : 0 })),
-    state('fluids', { key: 'paCO2', symbol: 'P_{aCO2}', label: L('Arterial CO₂ tension (from the lungs)', 'Arterieller CO₂-Partialdruck (aus der Lunge)'), unit: 'kPa', digits: 2 }),
-    state('fluids', { key: 'hco3', symbol: 'HCO_3^-', label: L('Actual bicarbonate', 'Aktuelles Bikarbonat'), unit: 'mmol/L', digits: 0 }),
-    state('fluids', { key: 'BE', symbol: 'BE', label: L('Base excess', 'Basenüberschuss'), unit: 'mmol/L', digits: 1 }),
-    state('fluids', { key: 'pH', symbol: 'pH', label: L('Arterial pH', 'Arterieller pH'), unit: '', digits: 2 }),
-    state('fluids', { key: 'AG', symbol: 'AG', label: L('Anion gap', 'Anionenlücke'), unit: 'mmol/L', digits: 0 }),
+    BP('fluids', 'diet', 'potassiumIntake', 'K_{in}', L('Potassium in a full diet', 'Kalium bei voller Kost'), 'mmol/day', 0, 300, 5),
+    BP('fluids', 'diet', 'toxicAcid', 'H_{tox}', L('Unmeasured acid (methanol, ethylene glycol, salicylate)', 'Nicht gemessene Säure (Methanol, Ethylenglykol, Salicylat)'), 'mmol/h', 0, 60, 1),
+    ...CLAMPS.map(([k, sym, label, unit, min, max, step]) => ({ ...param('fluids', 'clamp', { key: `chemistry.${k}`, symbol: sym, label, unit, min, max, step, digits: step < 0.1 ? 2 : step < 1 ? 1 : 0 }), id: `fluids.clamp-${k}` })),
+    ...PLASMA.map(([k, sym, label, unit, digits]) => S('fluids', k, `[${sym}]`, label, unit, digits)),
+    S('fluids', 'paCO2', 'P_{aCO2}', L('Arterial CO₂ tension (from the lungs)', 'Arterieller CO₂-Partialdruck (aus der Lunge)'), 'kPa', 2),
+    S('fluids', 'hco3', 'HCO_3^-', L('Actual bicarbonate', 'Aktuelles Bikarbonat'), 'mmol/L', 0),
+    S('fluids', 'BE', 'BE', L('Base excess', 'Basenüberschuss'), 'mmol/L', 1),
+    S('fluids', 'pH', 'pH', L('Arterial pH', 'Arterieller pH'), '', 2),
+    S('fluids', 'AG', 'AG', L('Anion gap', 'Anionenlücke'), 'mmol/L', 0),
+    S('fluids', 'kRatio', '[K^+]_i/[K^+]_o', L('Potassium inside to outside the cells', 'Kalium innen zu außen'), '', 0),
+    S('fluids', 'Kbody', 'K_{body}', L('Body potassium', 'Körperkalium'), 'mmol', 0),
   ],
   equations: [
     eq('hh', 'textbook', L('Henderson–Hasselbalch', 'Henderson-Hasselbalch'),
       [v('pH')], ['6.1', '+', { fn: 'log', args: [frac([v('hco3')], ['0.23', '·', v('paCO2')])] }],
       L('pH depends on the ratio of bicarbonate (kidney) to dissolved CO₂ (lung), not on either alone. Compensation moves the other term to restore the ratio.',
         'Der pH hängt vom Verhältnis Bikarbonat (Niere) zu gelöstem CO₂ (Lunge) ab, nicht von einem allein. Kompensation verschiebt den anderen Term, um das Verhältnis wiederherzustellen.')),
+    eq('k', 'textbook', L('Potassium: how much, and where', 'Kalium: wie viel und wo'),
+      [v('potassium')], [frac([v('Kbody')], [{ text: 'V_ECF' }, '+', v('kRatio'), '·', { text: 'V_ICF' }])],
+      L('The plasma potassium is the body’s potassium shared between a small extracellular and a large intracellular space at the ratio the pump holds (about 35:1). Lack of insulin, acidaemia and hypertonicity lower the ratio: in diabetic ketoacidosis the plasma potassium is high while the body has lost hundreds of millimoles, which insulin then unmasks.',
+        'Das Plasmakalium ist das Körperkalium, verteilt auf einen kleinen extrazellulären und einen großen intrazellulären Raum im Verhältnis, das die Pumpe hält (etwa 35:1). Insulinmangel, Azidämie und Hypertonizität senken das Verhältnis: Bei der diabetischen Ketoazidose ist das Plasmakalium hoch, obwohl der Körper Hunderte Millimol verloren hat — was Insulin dann aufdeckt.')),
     eq('ag', 'textbook', L('Anion gap', 'Anionenlücke'),
       [v('AG')], [v('sodium'), '−', paren(v('chloride'), '+', v('hco3'))],
-      L('The unmeasured anions. A raised gap with low bicarbonate means an added acid: lactate, ketones, toxins.', 'Die nicht gemessenen Anionen. Eine erhöhte Lücke bei niedrigem Bikarbonat bedeutet eine zugeführte Säure: Laktat, Ketone, Toxine.')),
+      L('The unmeasured anions: albumin, phosphate, sulfate, and any added lactate, ketoanions or toxin. A raised gap with low bicarbonate means an acid has been added; a normal gap means bicarbonate was lost (diarrhoea) or chloride given (saline). Low albumin lowers the gap.',
+        'Die nicht gemessenen Anionen: Albumin, Phosphat, Sulfat und jedes zugeführte Laktat, Ketoanion oder Gift. Eine erhöhte Lücke bei niedrigem Bikarbonat bedeutet zugeführte Säure; eine normale Lücke bedeutet Bikarbonatverlust (Diarrhö) oder Chloridzufuhr (Kochsalz). Niedriges Albumin senkt die Lücke.')),
+    eq('cl', 'full', L('Chloride: what electroneutrality leaves', 'Chlorid: was die Elektroneutralität übrig lässt'),
+      [v('chloride')], [v('sodium'), '+', v('potassium'), '+', '3.5', '−', v('bicarbonate'), '−', '0.28', '·', v('albumin'), '−', '1.8', '·', v('phosphate'), '−', v('lactate'), '−', v('ketones'), '−', { text: 'sulfate and others' }],
+      L('Vomiting loses chloride (as HCl): bicarbonate rises in its place. Diarrhoea loses bicarbonate: chloride rises in its place. The kidney excretes acid as NH₄Cl, removing chloride and leaving bicarbonate behind.',
+        'Erbrechen verliert Chlorid (als HCl): Bikarbonat steigt an seiner Stelle. Diarrhö verliert Bikarbonat: Chlorid steigt an seiner Stelle. Die Niere scheidet Säure als NH₄Cl aus, entfernt Chlorid und lässt Bikarbonat zurück.')),
+    eq('base', 'full', L('The base balance', 'Die Basenbilanz'),
+      [{ text: 'd(base)/dt' }], [{ text: 'diet alkali' }, '−', { text: 'fixed acid' }, '−', { text: 'ketoacids' }, '−', { text: 'lactic acid' }, '+', { text: 'oxidised anions' }, '+', v('NH4'), '−', { text: 'HCO₃⁻ in urine' }, '+', { text: 'H⁺ vomited' }, '−', { text: 'HCO₃⁻ in stool' }],
+      L('Bicarbonate is spread over about twice the extracellular volume, because cells and bone buffer half of any acid load. The kidney adds base by excreting ammonium (more when acidaemic, less when potassium is high) and spills it above a threshold that a dry, chloride-depleted or hypokalaemic patient raises: why a vomiting patient’s alkalosis persists until given saline and potassium.',
+        'Bikarbonat verteilt sich auf etwa das doppelte Extrazellulärvolumen, weil Zellen und Knochen die Hälfte jeder Säurelast puffern. Die Niere fügt Base hinzu, indem sie Ammonium ausscheidet (mehr bei Azidämie, weniger bei hohem Kalium), und lässt sie über einer Schwelle in den Urin, die Exsikkose, Chloridmangel und Hypokaliämie anheben: Darum bleibt die Alkalose eines erbrechenden Patienten bestehen, bis er Kochsalz und Kalium bekommt.')),
   ],
   values: (ctx) => {
     const c = (ctx.view.chemistry ?? CHEMISTRY_DEFAULTS) as Record<string, number>;
-    const pins = ctx.model.chemistry;
-    return { ...c, bicarbonate: c.standardBicarbonate ?? pins.bicarbonate ?? c.bicarbonate, hco3: c.bicarbonate, BE: c.baseExcess, pH: hendersonHasselbalch(c.bicarbonate, c.paCO2), AG: c.sodium - (c.chloride + c.bicarbonate) };
+    return {
+      ...Object.fromEntries(Object.entries(ctx.model.body)),
+      ...c, bicarbonate: c.standardBicarbonate ?? c.bicarbonate, hco3: c.bicarbonate, BE: c.baseExcess, pH: hendersonHasselbalch(c.bicarbonate, c.paCO2), AG: c.sodium - (c.chloride + c.bicarbonate),
+      kRatio: bn(ctx, 'kRatio'), Kbody: bn(ctx, 'Kbody'), NH4: bn(ctx, 'NH4'),
+    };
   },
   diagram: 'acidbase',
-  sources: ['Berend K et al. Physiological approach to assessment of acid–base disturbances. N Engl J Med 2014.'],
+  sources: ['Berend K et al. Physiological approach to assessment of acid–base disturbances. N Engl J Med 2014;371:1434–45.', 'Fernandez PC, Cohen RM, Feldman GM. The concept of bicarbonate distribution space: the crucial role of body buffers. Kidney Int 1989;36:747–52.', 'Adrogué HJ, Madias NE. Changes in plasma potassium concentration during acute acid–base disturbances. Am J Med 1981;71:456–67.', 'Galla JH. Metabolic alkalosis. J Am Soc Nephrol 2000;11:369–75.'],
 };
 
+const FUELS: ModelDef = {
+  id: 'fuels', title: L('Glucose, insulin and ketones', 'Glukose, Insulin und Ketone'),
+  summary: L('Blood glucose is the balance of what enters (the gut, the liver’s glucose output) and what leaves (the brain, which needs no insulin; muscle and fat, which do; the urine, above a threshold of about 10 mmol/L). Insulin, secreted as glucose rises, suppresses the liver and lets muscle take glucose up; it also restrains fat breakdown, so without it the liver turns fatty acids into ketoacids faster than they can be burnt. That is ketoacidosis: hyperglycaemia, an osmotic diuresis that dehydrates, an acid that the lungs answer with Kussmaul breathing, and a potassium that is high in the blood and low in the body. Lactate is made whenever oxygen delivery falls short of demand and cleared by the liver.',
+    'Der Blutzucker ist die Bilanz aus Zufuhr (Darm, hepatische Glukoseabgabe) und Verbrauch (Gehirn, das kein Insulin braucht; Muskel und Fett, die es brauchen; Urin oberhalb einer Schwelle von etwa 10 mmol/l). Insulin, das mit steigendem Zucker sezerniert wird, hemmt die Leber und lässt den Muskel Glukose aufnehmen; es bremst auch den Fettabbau — ohne Insulin macht die Leber aus Fettsäuren schneller Ketosäuren, als verbrannt werden können. Das ist die Ketoazidose: Hyperglykämie, eine osmotische Diurese, die austrocknet, eine Säure, auf die die Lunge mit Kussmaul-Atmung antwortet, und ein Kalium, das im Blut hoch und im Körper niedrig ist. Laktat entsteht, wenn das Sauerstoffangebot den Bedarf nicht deckt, und wird von der Leber geklärt.'),
+  groups: [
+    { id: 'pancreas', label: L('Pancreas and insulin', 'Pankreas und Insulin') },
+    { id: 'diet', label: L('Diet and stress', 'Ernährung und Stress') },
+  ],
+  variables: [
+    BP('fuels', 'pancreas', 'betaCell', 'β', L('Insulin secretory capacity (0 = type 1 diabetes)', 'Insulinsekretorische Kapazität (0 = Typ-1-Diabetes)'), '× normal', 0, 2, 0.05),
+    BP('fuels', 'pancreas', 'insulinSensitivity', 'S_I', L('Insulin sensitivity (low in type 2 diabetes, obesity, steroids)', 'Insulinempfindlichkeit (niedrig bei Typ-2-Diabetes, Adipositas, Steroiden)'), '× normal', 0.1, 2, 0.05),
+    BP('fuels', 'pancreas', 'insulinDose', 'I_{dose}', L('Injected insulin', 'Gespritztes Insulin'), 'U/day', 0, 150, 1),
+    BP('fuels', 'diet', 'carbIntake', 'CHO', L('Carbohydrate in a full diet', 'Kohlenhydrate bei voller Kost'), 'g/day', 0, 600, 10),
+    BP('fuels', 'diet', 'stress', 'σ', L('Illness (cortisol, glucagon, adrenaline)', 'Erkrankung (Cortisol, Glukagon, Adrenalin)'), '0–1', 0, 1, 0.05),
+    S('fuels', 'glucose', '[glc]', L('Glucose', 'Glukose'), 'mmol/L', 1),
+    S('fuels', 'insulin', 'I', L('Plasma insulin', 'Plasmainsulin'), 'mU/L', 1),
+    S('fuels', 'hgo', 'HGO', L('Liver glucose output', 'Hepatische Glukoseabgabe'), 'mmol/h', 0),
+    S('fuels', 'glucoseUptake', 'U_{glc}', L('Glucose taken up by tissues', 'Glukoseaufnahme der Gewebe'), 'mmol/h', 0),
+    S('fuels', 'glucosuria', 'U_{glc}', L('Urine glucose', 'Uringlukose'), 'mmol/L', 0),
+    S('fuels', 'ketones', '[ket]', L('Ketoacids', 'Ketosäuren'), 'mmol/L', 1),
+    S('fuels', 'betaHydroxybutyrate', '[βOHB]', L('β-hydroxybutyrate (what a meter reads)', 'β-Hydroxybutyrat (was ein Messgerät anzeigt)'), 'mmol/L', 1),
+    S('fuels', 'ketogenesis', 'R_{ket}', L('Ketogenesis', 'Ketogenese'), 'mmol/h', 0),
+    S('fuels', 'ketoneOxidation', 'Ox_{ket}', L('Ketones burnt', 'Verbrannte Ketone'), 'mmol/h', 0),
+    S('fuels', 'lactate', '[lac]', L('Lactate', 'Laktat'), 'mmol/L', 1),
+    S('fuels', 'lactateProduction', 'R_{lac}', L('Lactate made', 'Gebildetes Laktat'), 'mmol/h', 0),
+    S('fuels', 'lactateClearance', 'Cl_{lac}', L('Lactate cleared', 'Geklärtes Laktat'), 'mmol/h', 0),
+    S('fuels', 'ER', 'O_2ER', L('Oxygen extraction (VO₂/DO₂)', 'Sauerstoffextraktion (VO₂/DO₂)'), '', 2),
+  ],
+  equations: [
+    eq('glc', 'textbook', L('The glucose balance', 'Die Glukosebilanz'),
+      [{ text: 'd(glucose)/dt' }], [{ text: 'gut' }, '+', v('hgo'), '−', { text: 'brain' }, '−', v('glucoseUptake'), '−', { text: 'GFR·(glucose − 10)' }],
+      L('Without insulin the liver’s output doubles and muscle stops taking glucose up; only the brain and the urine remove it. Glucose then rises until the urine carries away what the liver makes, which happens at a higher level the lower the filtration: a dry patient’s glucose climbs further.',
+        'Ohne Insulin verdoppelt die Leber ihre Abgabe und der Muskel nimmt keine Glukose mehr auf; nur Gehirn und Urin entfernen sie. Die Glukose steigt dann, bis der Urin wegträgt, was die Leber bildet — bei umso höherem Wert, je geringer die Filtration: Beim exsikkierten Patienten steigt der Zucker weiter.')),
+    eq('ins', 'textbook', L('Insulin secretion', 'Insulinsekretion'),
+      [v('insulin')], [v('betaCell'), '·', '55', '·', frac([{ sup: [['glucose'], ['4']] }], [{ sup: [['glucose'], ['4']] }, '+', { sup: [['8'], ['4']] }]), '+', { text: 'injected' }],
+      L('A steep sigmoid with its midpoint at 8 mmol/L. Type 1 diabetes removes it entirely; type 2 lowers it and makes each unit of insulin do less. Injected basal insulin is absorbed over most of a day, so ketoacidosis develops over hours after doses stop.',
+        'Eine steile Sigmoide mit Mittelpunkt bei 8 mmol/l. Typ-1-Diabetes entfernt sie ganz; Typ 2 senkt sie und lässt jede Einheit Insulin weniger bewirken. Gespritztes Basalinsulin wird über fast einen Tag resorbiert, daher entwickelt sich die Ketoazidose über Stunden, nachdem die Gaben aufhören.')),
+    eq('ket', 'textbook', L('Ketoacids: made without insulin, burnt with a limit', 'Ketosäuren: ohne Insulin gebildet, begrenzt verbrannt'),
+      [{ text: 'd(ketones)/dt' }], [v('ketogenesis'), '−', v('ketoneOxidation'), '−', { text: 'urine' }],
+      L('Fat breakdown is the most insulin-sensitive process there is: a little insulin stops it, which is why type 2 diabetes rarely ketoses. Ketone oxidation saturates, so once production exceeds it ketones accumulate, each adding an acid that consumes bicarbonate.',
+        'Der Fettabbau ist der insulinempfindlichste Vorgang überhaupt: Wenig Insulin stoppt ihn, darum ketotisiert der Typ-2-Diabetes selten. Die Ketonoxidation sättigt sich; übersteigt die Bildung sie, sammeln sich Ketone an, jedes mit einer Säure, die Bikarbonat verbraucht.')),
+    eq('lac', 'textbook', L('Lactate: made when oxygen falls short, cleared by the liver', 'Laktat: gebildet bei Sauerstoffmangel, geklärt von der Leber'),
+      [v('lactateProduction')], [{ text: '0.75·mass' }, '+', { text: '2.2·mass' }, '·', { fn: 'tanh', args: [frac([{ sup: [[paren(v('ER'), '−', '0.45')], ['1.5']] }], ['0.25'])] }],
+      L('Tissues extract more oxygen as delivery falls; beyond about half they switch to glycolysis. The liver clears lactate in proportion to its own blood flow, so in shock production rises as clearance falls.',
+        'Gewebe entziehen dem Blut mehr Sauerstoff, wenn das Angebot sinkt; ab etwa der Hälfte schalten sie auf Glykolyse um. Die Leber klärt Laktat proportional zu ihrer Durchblutung — im Schock steigt die Bildung, während die Klärung fällt.')),
+  ],
+  values: (ctx) => {
+    const r = resp(ctx);
+    return {
+      ...Object.fromEntries(Object.entries(ctx.model.body)),
+      glucose: bn(ctx, 'glucose'), insulin: bn(ctx, 'insulin'), hgo: bn(ctx, 'hgo'), glucoseUptake: bn(ctx, 'glucoseUptake'), glucosuria: bn(ctx, 'glucosuria'),
+      ketones: bn(ctx, 'ketones'), betaHydroxybutyrate: bn(ctx, 'betaHydroxybutyrate'), ketogenesis: bn(ctx, 'ketogenesis'), ketoneOxidation: bn(ctx, 'ketoneOxidation'),
+      lactate: bn(ctx, 'lactate'), lactateProduction: bn(ctx, 'lactateProduction'), lactateClearance: bn(ctx, 'lactateClearance'),
+      ER: typeof r.VO2 === 'number' && typeof r.DO2 === 'number' ? r.VO2 / r.DO2 : NaN,
+    };
+  },
+  diagram: 'fuels',
+  sources: ['Kitabchi AE et al. Hyperglycemic crises in adult patients with diabetes. Diabetes Care 2009;32:1335–43.', 'Bergman RN. Minimal model: perspective from 2005. Horm Res 2005;64 Suppl 3:8–15.', 'Laffel L. Ketone bodies: a review of physiology, pathophysiology and application of monitoring to diabetes. Diabetes Metab Res Rev 1999;15:412–26.', 'Levy B. Lactate and shock state: the metabolic view. Curr Opin Crit Care 2006;12:315–21.'],
+};
 
 /* ---- respiration: mechanics and ventilation ---------------------------------------------------------- */
 const resp = (ctx: LiveContext): Record<string, any> => (ctx.snap?.resp ?? ctx.view.respiratory ?? {}) as Record<string, any>;
@@ -712,7 +956,7 @@ const CONTROL: ModelDef = {
   sources: ['Cherniack NS, Longobardo GS. Mathematical models of periodic breathing and their usefulness in understanding cardiovascular and respiratory disorders. Exp Physiol 2006;91:295–305.', 'Albert M, Dell R, Winters RW. Quantitative displacement of acid–base equilibrium in metabolic acidosis. Ann Intern Med 1967;66:312–22.', 'Duffin J. Measuring the respiratory chemoreflexes in humans. Respir Physiol Neurobiol 2011;177:71–9.'],
 };
 
-export const MODELS: ModelDef[] = [PATIENT, HAEMODYNAMICS, BAROREFLEX, ELECTRICAL, MECHANICS, GAS_EXCHANGE, CONTROL, FLUIDS, VOR, PUPIL, NERVOUS];
+export const MODELS: ModelDef[] = [PATIENT, HAEMODYNAMICS, BAROREFLEX, ELECTRICAL, MECHANICS, GAS_EXCHANGE, CONTROL, WATER, KIDNEY, FLUIDS, FUELS, VOR, PUPIL, NERVOUS];
 export const MODEL_BY_ID: Record<string, ModelDef> = Object.fromEntries(MODELS.map((m) => [m.id, m]));
 export const VARIABLE_BY_ID: Record<string, VariableDef> = Object.fromEntries(MODELS.flatMap((m) => m.variables.map((x) => [x.id, x])));
 /** Parameters by where they live in the PatientModel ('respiratory.FiO2'). */

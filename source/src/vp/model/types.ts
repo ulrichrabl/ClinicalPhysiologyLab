@@ -352,8 +352,13 @@ export interface CaseDef {
     physiology?: Record<string, number>;           // circulation parameters (lesson vocabulary)
     electrical?: Record<string, number | string>;  // the heart's electrical substrate (physiology/heart/electrical.ts)
     respiratory?: Record<string, number>;          // lungs, pleura, airways, inspired gas, control of breathing (physiology/lung/respiratory.ts)
+    /** The internal milieu: intake and losses, kidney, drugs, hormones, fuels, and how long the illness has acted (physiology/body/body.ts). */
+    body?: Record<string, number>;
+    /** Values clamped by the case for what no model yet produces (white cells, CRP, troponin). Model outputs cannot be clamped. */
     chemistry?: Record<string, number>;
     lesions?: Array<{ nodes: string[]; complete?: boolean; label?: string }>;
+    /** The state the patient lived in before this illness (chronic disease, usual treatment), reached as a steady state first. */
+    chronic?: { days?: number; physiology?: Record<string, number>; respiratory?: Record<string, number>; body?: Record<string, number> };
   };
   initialState: PatientState;
 

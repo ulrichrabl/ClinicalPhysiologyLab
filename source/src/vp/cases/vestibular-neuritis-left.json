@@ -70,8 +70,11 @@
     "physiology": {
       "HR": 88
     },
-    "chemistry": {
-      "glucose": 5.8
+    "body": {
+      "courseHours": 30,
+      "vomiting": 0.6,
+      "foodIntake": 0.2,
+      "fluidIntake": 1.2
     }
   },
   "initialState": {

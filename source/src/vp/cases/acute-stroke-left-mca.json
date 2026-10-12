@@ -85,8 +85,9 @@
     "electrical": {
       "atrial": "af"
     },
-    "chemistry": {
-      "glucose": 6.4
+    "body": {
+      "courseHours": 1,
+      "stress": 0.3
     }
   },
   "initialState": {

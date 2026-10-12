@@ -62,9 +62,6 @@
     },
     "electrical": {
       "lvMass": 1.6
-    },
-    "chemistry": {
-      "glucose": 6.1
     }
   },
   "initialState": {

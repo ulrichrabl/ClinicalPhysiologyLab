@@ -6,6 +6,8 @@ import { parseRef } from './observe.ts';
 import { NODES } from '../../domains/neuro/data/anatomy.js';
 import { ELECTRICAL_DEFAULTS } from '../physiology/heart/electrical.ts';
 import { RESPIRATORY_DEFAULTS } from '../physiology/lung/respiratory.ts';
+import { BODY_DEFAULTS } from '../physiology/body/body.ts';
+import { BODY_OUTPUTS } from '../physiology/chemistry.ts';
 import { CHEMISTRY_DEFAULTS } from '../../models/chemistry/public-state.ts';
 import { VARIABLE_BY_ID, VARIABLE_BY_KEY } from '../physiology/models.ts';
 import type { MeasurementSpec } from '../model/types.ts';
@@ -194,10 +196,29 @@ export function validateCase(c: CaseDef, cat: Catalog, reg: Registry): Issue[] {
     const variable = VARIABLE_BY_KEY[`respiratory.${k}`];
     if (variable && ((variable.min != null && v < variable.min) || (variable.max != null && v > variable.max))) out.push({ level: 'error', path, message: `expected ${variable.min}–${variable.max}` });
   }
+  const checkSection = (sec: Record<string, unknown> | undefined, defaults: Record<string, unknown>, model: string, base: string) => {
+    for (const [k, v] of Object.entries(sec ?? {})) {
+      const path = `${base}.${k}`;
+      if (!(k in defaults)) { out.push({ level: 'error', path, message: `unknown ${model} parameter ${k}` }); continue; }
+      if (typeof v !== 'number' || !Number.isFinite(v)) { out.push({ level: 'error', path, message: 'expected a number' }); continue; }
+      const variable = VARIABLE_BY_KEY[`${model}.${k}`];
+      if (variable && ((variable.min != null && v < variable.min) || (variable.max != null && v > variable.max))) out.push({ level: 'error', path, message: `expected ${variable.min}–${variable.max}` });
+    }
+  };
+  checkSection(c.pathology.body, BODY_DEFAULTS as unknown as Record<string, unknown>, 'body', 'pathology.body');
+  if (c.pathology.chronic) {
+    const ch = c.pathology.chronic;
+    checkSection(ch.body, BODY_DEFAULTS as unknown as Record<string, unknown>, 'body', 'pathology.chronic.body');
+    checkSection(ch.respiratory, RESPIRATORY_DEFAULTS as unknown as Record<string, unknown>, 'respiratory', 'pathology.chronic.respiratory');
+    for (const k of Object.keys(ch.physiology ?? {})) if (!reg.physiologyKeys.includes(k)) out.push({ level: 'error', path: `pathology.chronic.physiology.${k}`, message: 'not a circulation parameter' });
+    if (ch.days != null && !(ch.days >= 1 && ch.days <= 365)) out.push({ level: 'error', path: 'pathology.chronic.days', message: 'expected 1–365' });
+  }
   for (const k of Object.keys(c.pathology.chemistry ?? {})) {
     if (!(k in CHEMISTRY_DEFAULTS)) out.push({ level: 'error', path: `pathology.chemistry.${k}`, message: 'not a chemistry variable' });
     /* Blood gases and pH are what the lungs and the acid–base balance produce; a case sets their causes. */
     else if (['paO2', 'paCO2', 'arterialPH'].includes(k)) out.push({ level: 'error', path: `pathology.chemistry.${k}`, message: 'set by the respiratory model; set its causes instead' });
+    /* So are the plasma electrolytes, glucose, urea and creatinine, lactate and haemoglobin: the body model's outputs. */
+    else if (BODY_OUTPUTS.includes(k)) out.push({ level: 'error', path: `pathology.chemistry.${k}`, message: 'produced by the body model; set its causes (intake, losses, kidney, drugs, hormones) instead' });
   }
   for (const [i, les] of (c.pathology.lesions ?? []).entries()) {
     for (const n of les.nodes) if (!(n in NODES)) out.push({ level: 'error', path: `pathology.lesions[${i}]`, message: `unknown nervous-system node ${n}` });
