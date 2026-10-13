@@ -555,8 +555,8 @@ prints how much of each model is grounded and which constants still await a read
 of the original. Where the model misses measured data, the test reports it as a
 known gap (△, with the numbers) instead of being loosened until it passes; the
 gaps are listed below. Migration: the endocrine, water, kidney, circulation,
-baroreflex and inflammation models are in the registry; the rest of the kidney,
-the lungs, the ECG and the examination thresholds follow in that order.
+baroreflex and inflammation models and the reachable part of the kidney are in
+the registry; the lungs, the ECG and the examination thresholds follow.
 
 **Where the circulation and baroreflex constants come from.** The reference man
 (45 years, 176 cm, 76 kg, supine) is anchored to human normals: left ventricular
@@ -604,7 +604,9 @@ signal. The embolism-to-resistance mapping and right ventricular ischaemia are
 ungrounded: moderate PE raises mean PA pressure only 2.4 mmHg and massive PE
 shows shock without CVP above 10. Lung water at a wedge of 20 lowers PaO2 1.3 kPa.
 Hypothyroid cardiac output falls 25 % (reported 30–50 %). The Addisonian crisis
-lies at 113 systolic (half of crises present at 110 or less). The heart rate is not yet a function of age,
+lies at 113 systolic (half of crises present at 110 or less). With potassium adaptation added, the triple-whammy case reaches a potassium of 5.8,
+not the 6.2 or more such patients present with; how much RAAS blockade impairs the
+adaptation is not grounded. The heart rate is not yet a function of age,
 and arterial and pulmonary compliances, atrial elastances, valve and pericardial
 constants are not yet sourced.
 
@@ -626,8 +628,21 @@ interstitial exchange follows Hahn's volume kinetics of crystalloid infusions.
 Body water (Watson), ADH (Robertson, Thompson), GFR and concentrating ability
 with age (Rowe), creatinine production (Cockcroft–Gault), urea and sodium
 fractional excretion (Carvounis), bicarbonate threshold (Pitts) and ammonium
-capacity are sourced; the autoregulation limits, the tubular-injury and CKD
-modifiers, potassium secretion and much of acid handling are not yet.
+capacity are sourced. Potassium secretion now follows the potassium eaten:
+the distal nephron's capacity rises over about a day toward the intake
+(Rabelink: balance on 400 mmol/day in the second day, at a modestly raised
+plasma potassium; the model gives 472 mmol/day at 4.4 mmol/L), which needs
+mineralocorticoid (an assumption), and the secretion ceiling was raised from
+6 to 25 mmol/h (the old ceiling held a 400 mmol diet at a plasma potassium of
+15). How the kidney conserves potassium on a poor intake is not modelled.
+Checked against Miller's urinary indices: established tubular necrosis gives a
+urine osmolality of 338, urine sodium 95 and FENa 5 %; diarrhoea gives a
+concentrated urine with FENa 0.05 % but a urine sodium of 32 (Miller: below 20).
+The lower limit of autoregulation (72 mmHg of perfusion pressure) is an
+assumption between the animal plateau of about 80 (Carlström) and the
+outcome of SEPSISPAM (Asfar). Diuretic natriuresis, the tubular-injury and CKD
+modifiers and most of acid handling are still not grounded: the human
+acid-loading and diuretic studies that would ground them could not be read here.
 
 **Where the endocrine constants come from.** Grounded in measurements: the cortisol
 permissive effect (vascular gain halved at a complete deficit, from hydrocortisone

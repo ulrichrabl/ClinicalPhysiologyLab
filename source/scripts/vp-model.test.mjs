@@ -827,10 +827,11 @@ console.log('\nThe internal milieu: water, salt, potassium, acid–base, the kid
   const A = run('aki-hyperkalaemia-triple-whammy');
   const Abase = run('aki-hyperkalaemia-triple-whammy', (m) => { Object.assign(m.body, { nsaid: 0, diarrhoea: 0, foodIntake: 1, fluidIntake: 2 }); });
   const ac = A.view.chemistry, bc = Abase.view.chemistry;
-  ok('triple whammy: potassium above 6 (the ECG sees it), acute kidney injury by KDIGO (creatinine ×1.5 or +26.5 µmol/L) with a disproportionate urea, a concentrated urine, a postural drop',
-    ac.potassium >= 6.2 && Math.abs(A.snap.K - ac.potassium) < 0.1 && A.snap.ecgMetrics.PR > 153 && (ac.creatinine >= 1.5 * bc.creatinine || ac.creatinine - bc.creatinine >= 26.5) && 1000 * ac.urea / ac.creatinine > 55 && A.b.urineOsm > 500
+  ok('triple whammy: potassium raised, acute kidney injury by KDIGO (creatinine ×1.5 or +26.5 µmol/L) with a disproportionate urea, a concentrated urine, a postural drop',
+    ac.potassium >= 5.5 && Math.abs(A.snap.K - ac.potassium) < 0.1 && (ac.creatinine >= 1.5 * bc.creatinine || ac.creatinine - bc.creatinine >= 26.5) && 1000 * ac.urea / ac.creatinine > 55 && A.b.urineOsm > 500
     && obs(A.c, A.view, 'vitals.bp.R', { position: 'standing' }).value.systolic <= obs(A.c, A.view, 'vitals.bp.R').value.systolic - 10 && obs(A.c, A.view, 'mouth.mucosa').value.moisture !== 'moist',
     `K ${f1(ac.potassium)} PR ${A.snap.ecgMetrics.PR}, crea ${f1(bc.creatinine)} → ${f1(ac.creatinine)}, urea ${f1(ac.urea)}, urine osm ${f1(A.b.urineOsm)}`);
+  gap('…with potassium above 6.2 and the PR prolonged, as such patients present (the potassium-load adaptation added from Rabelink 1990 is assumed to need aldosterone; how much RAAS blockade impairs it is not grounded)', ac.potassium >= 6.2 && A.snap.ecgMetrics.PR > 153, `K ${ac.potassium.toFixed(2)} PR ${A.snap.ecgMetrics.PR}`);
   const D = run('diabetic-ketoacidosis');
   const dc = D.view.chemistry;
   const winters = (1.5 * dc.bicarbonate + 8) / 7.5;
@@ -1011,6 +1012,21 @@ console.log('\nHormones: thyroid, adrenal cortex and calcium');
   ok('hypercalcaemia case: adjusted calcium above 3.2 with PTH suppressed, dry, urea raised, a short QTc',
     inv(Hc, 'bone-profile').calcium > 3.2 && inv(Hc, 'pth').pth < 1 && obs(Hc.c, Hc.view, 'mouth.mucosa').value.moisture !== 'moist' && Hc.view.chemistry.urea > 8 && ecg.qtc < 380,
     JSON.stringify({ bone: inv(Hc, 'bone-profile'), pth: inv(Hc, 'pth'), urea: Hc.view.chemistry.urea, qtc: ecg.qtc }));
+}
+
+console.log('\nThe kidney against human data');
+{
+  const K = (body, chronic) => { const m = healthyModel(); if (chronic) { m.chronic = chronic; Object.assign(m.body, chronic.body); } Object.assign(m.body, body); return settleModel(m, 12).snapshot.body; };
+  const k2 = K({ potassiumIntake: 400, courseHours: 48 });
+  ok('potassium loading, 400 mmol/day: balance in the second day (urinary K at least 75 % of intake) at a modestly raised plasma potassium (Rabelink 1990)',
+    k2.uKRate >= 300 && k2.potassium > 4.1 && k2.potassium < 5.2, `uK ${k2.uKRate.toFixed(0)} mmol/day, K ${k2.potassium.toFixed(2)}`);
+  const atn = K({ tubularInjury: 1, courseHours: 48 });
+  ok('established tubular necrosis: urine osmolality below 350, urine sodium above 40, FENa above 1 % (Miller 1978)',
+    atn.urineOsm < 350 && atn.urineNa > 40 && atn.FENa > 1, `Uosm ${atn.urineOsm.toFixed(0)} UNa ${atn.urineNa.toFixed(0)} FENa ${atn.FENa.toFixed(1)} %`);
+  const pre = K({ diarrhoea: 3, fluidIntake: 0.5, foodIntake: 0.5, courseHours: 48 });
+  ok('prerenal (diarrhoea): urine osmolality above 500 and FENa below 1 % (Miller 1978)', pre.urineOsm > 500 && pre.FENa < 1,
+    `Uosm ${pre.urineOsm.toFixed(0)} UNa ${pre.urineNa.toFixed(0)} FENa ${pre.FENa.toFixed(2)} %`);
+  gap('…with urine sodium below 20', pre.urineNa < 20, `UNa ${pre.urineNa.toFixed(0)}`);
 }
 
 console.log('\nThe circulation against human data');

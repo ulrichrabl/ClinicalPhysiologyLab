@@ -166,6 +166,7 @@ export interface BodyState {
   Idep: number;     // injected insulin still being absorbed: the plasma level it supplies, mU/L
   PRA: number; AngII: number; Ald: number; ADH: number;   // renin activity, AngII and aldosterone × normal, ADH pg/mL
   GFRad: number;    // the filtration the tubules have adapted to over days (L/h)
+  Kad?: number;     // the distal nephron's potassium secretory capacity, adapted to the diet (mmol/day)
   /* inflammation */
   IL: number;       // circulating inflammatory signal (cytokines), × the response to a systemic infection
   T: number;        // core temperature, °C
@@ -535,7 +536,13 @@ export class Body {
     /* Surviving nephrons adapt over a week or two to secrete more each; an acute fall in filtration (and in distal flow) is what stops secretion. */
     s.GFRad = relax(s.GFRad ?? GFR, GFR, dt, KID.nephronAdaptationTau);
     const kTub = (1 - KID.atnPotassiumLoss * clamp(p.tubularInjury, 0, 1)) * (1 - KID.ckdPotassiumLoss + KID.ckdPotassiumLoss * Math.min(1, nm * 4)) * Math.min(1, GFR / Math.max(0.05, s.GFRad));
-    const kU = (KID.potassiumIntake / 24) * (c.K / 4) ** KID.kSecretionPotassium * Math.max(0.03, aldEff) ** KID.kSecretionAldosterone * distal * kTub * (1 + KID.loopKaliuresis * clamp(p.loopDiuretic, 0, 1) + KID.thiazideKaliuresis * clamp(p.thiazide, 0, 1));
+    /* The distal nephron's secretory capacity follows what is eaten: a meal's potassium raises kaliuresis before
+       plasma K has moved much (Rabelink: balance on 400 mmol/day by the second day, and it holds at 20 days with
+       aldosterone back at baseline). */
+    /* Only the rise is modelled: how fast and how far the kidney conserves potassium on a poor intake is not grounded,
+       so below a normal diet the capacity stays where it is (the hypokalaemia of vomiting and diuretics is renal loss). */
+    s.Kad = relax(s.Kad ?? KID.potassiumIntake, KID.potassiumIntake * Math.max(1, p.potassiumIntake * food * (1 - clamp(p.vomiting / 2, 0, 0.9)) / KID.potassiumIntake) ** (KID.potassiumFeedforward * clamp(aldEff, 0, 1)), dt, KID.potassiumAdaptationTau);   // the adaptation needs mineralocorticoid
+    const kU = ((s.Kad ?? KID.potassiumIntake) / 24) * (c.K / 4) ** KID.kSecretionPotassium * Math.max(0.03, aldEff) ** KID.kSecretionAldosterone * distal * kTub * (1 + KID.loopKaliuresis * clamp(p.loopDiuretic, 0, 1) + KID.thiazideKaliuresis * clamp(p.thiazide, 0, 1));
 
     /* -- acid: ammonium and bicarbonaturia -- */
     const NH4max = (KID.nh4Max / 24) * nm ** KID.nh4NephronExponent * (1 - KID.atnAmmoniumLoss * clamp(p.tubularInjury, 0, 1)) * Math.exp(-KID.nh4Potassium * (c.K - 4));
@@ -545,7 +552,7 @@ export class Body {
     const hco3U = GFR * Math.max(0, c.HCO3 - Tm) * KID.bicarbonateSpill;
 
     /* -- chloride: what electroneutral urine has left to carry -- */
-    /* Poorly reabsorbable anions in the distal tubule (bicarbonate, ketoanions) pull K⁺ out with them; secretion saturates at about 6 mmol/h. */
+    /* Poorly reabsorbable anions in the distal tubule (bicarbonate, ketoanions) pull K⁺ out with them; secretion saturates (kSecretionCap). */
     const kU2 = Math.min(KID.kSecretionCap, kU * (1 + KID.anionKaliuresis * (hco3U + ketoU) / (naU + 1)));
     let clU = naU + kU2 + nh4U - uaU - hco3U - ketoU;
     clU = Math.max(KID.urineChlorideFloor * naU, clU);
