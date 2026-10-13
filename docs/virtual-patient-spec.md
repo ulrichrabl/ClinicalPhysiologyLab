@@ -556,7 +556,7 @@ of the original. Where the model misses measured data, the test reports it as a
 known gap (△, with the numbers) instead of being loosened until it passes; the
 gaps are listed below. Migration: the endocrine, water, kidney, circulation,
 baroreflex and inflammation models and the reachable part of the kidney are in
-the registry; the lungs, the ECG and the examination thresholds follow.
+the registry, and the lungs; the ECG and the examination thresholds follow.
 
 **Where the circulation and baroreflex constants come from.** The reference man
 (45 years, 176 cm, 76 kg, supine) is anchored to human normals: left ventricular
@@ -596,6 +596,24 @@ fluid, not the dilated ventricle of survivors. Cytokine dynamics, the white cell
 and platelet responses, capillary leak and vascular hyporeactivity are not yet
 grounded. (The chapter's equation had printed 0.55 for a resistance loss the
 model applied as 0.6; both now read the registry.)
+
+**Where the respiratory constants come from.** Gas and blood chemistry:
+Severinghaus's dissociation equation and coefficients, Hüfner's constant, O2
+solubility, water vapour (Nunn), acute CO2 buffering (Brackett), anatomical
+dead space (Radford). Quiet breathing follows Tobin's inductance-plethysmograph
+normals (16.6 /min, 383 mL, Ti/Ttot 0.42), and a chemical drive deepens breathing
+before it quickens it, until the tidal volume reaches half the vital capacity
+(Hey). The CO2 response is calibrated to 2.1 L/min/mmHg (Westerman, Ben-Dov).
+The hypoxic response is now Weil's isocapnic hyperbola (A = 180, C = 32 mmHg),
+amplified by hypercapnia and all but abolished by hypocapnia as Weil measured,
+and not extrapolated beyond his ±5 mmHg: the old form had A about 74, without the
+interaction. PaO2 at 45 matches Sorbini. Breathing-depth thresholds on
+examination are now Tobin's mean ± 1.5 SD (the old ones called his average subject
+shallow). The ECSC prediction equations (Quanjer 1993) stay inline with their
+source. Not grounded: the disease multipliers of rate and mechanics, hypoxic
+pulmonary vasoconstriction, lung water beyond the Gaar equation, the embolism
+mapping and the sympathetic share of the chemoreflex; with Weil's stronger
+hypoxic drive a hypoxaemic COPD patient is about 10 /min faster than before.
 
 **Known gaps (reported by the tests).** Haemorrhage raises the heart rate +3 %
 against +14 % and lowers CVP 2.7 against 4.7 mmHg: there is no cardiopulmonary

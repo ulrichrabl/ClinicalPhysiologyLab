@@ -43,6 +43,8 @@
    Units: gas tensions in kPa, contents in mL/dL, flows in L/min.
 =========================================================================== */
 
+import { LUNG } from '../../evidence/lung.ts';
+
 export type LobeId = 'RUL' | 'RML' | 'RLL' | 'LUL' | 'LLL';
 export const LOBES: LobeId[] = ['RUL', 'RML', 'RLL', 'LUL', 'LLL'];
 export const LOBE_SIDE: Record<LobeId, 'L' | 'R'> = { RUL: 'R', RML: 'R', RLL: 'R', LUL: 'L', LLL: 'L' };
@@ -74,7 +76,7 @@ export interface RespiratoryParams {
 
 export const RESPIRATORY_DEFAULTS: RespiratoryParams = {
   FiO2: 0.21, Pb: 101.3, metabolicRate: 1, RQ: 0.8,
-  drive: 1, muscleStrength: 1, gCO2: 1.6, gH: 0.04, gO2: 1, hpv: 0.6,
+  drive: 1, muscleStrength: 1, gCO2: LUNG.co2Gain, gH: LUNG.hydrogenGain, gO2: 1, hpv: 0.6,
   bronchoconstriction: 0, emphysema: 0, fibrosis: 0, capillaryLeak: 0, vqMismatch: 0, diffusion: 1,
   COHb: 0.01, metHb: 0.005,
   consRUL: 0, consRML: 0, consRLL: 0, consLUL: 0, consLLL: 0,
@@ -103,26 +105,26 @@ export interface Body { age: number; sex: 'F' | 'M'; heightCm: number; weightKg:
 
 /* ---- constants and the blood's chemistry --------------------------------------- */
 export const MMHG_PER_KPA = 7.50062;
-export const PH2O = 6.27;             // kPa, water vapour at 37 °C
+export const PH2O = LUNG.waterVapour;  // kPa, water vapour at 37 °C
 const K_GAS = 8.693;                  // mL STPD/min of gas moved by 1 L/min BTPS of ventilation per kPa
-const NORMAL_PACO2 = 5.33;
+const NORMAL_PACO2 = LUNG.normalPaco2;
 
 /** Bicarbonate actually present at a CO2 tension (acute buffering on top of the metabolic level). */
-export const hco3At = (sbc: number, pco2: number) => sbc + 0.75 * (pco2 - NORMAL_PACO2);
+export const hco3At = (sbc: number, pco2: number) => sbc + LUNG.acuteBuffering * (pco2 - NORMAL_PACO2);
 export const phOf = (hco3: number, pco2: number) => 6.1 + Math.log10(Math.max(0.5, hco3) / (0.23 * Math.max(0.3, pco2)));
 export const hPlus = (pH: number) => 10 ** (9 - pH);         // nmol/L
 
 /** Haemoglobin O2 saturation (Severinghaus 1979), shifted by pH, CO2, temperature and carbon monoxide. */
 export function satO2(po2: number, pH = 7.4, pco2 = NORMAL_PACO2, COHb = 0, T = 37): number {
   const P = Math.max(0, po2) * MMHG_PER_KPA;
-  const pv = P * 10 ** (0.024 * (37 - T) + 0.40 * (pH - 7.40) + 0.06 * Math.log10(40 / Math.max(2, pco2 * MMHG_PER_KPA))) * (1 + 1.16 * COHb);
+  const pv = P * 10 ** (LUNG.tempEffect * (37 - T) + LUNG.bohr * (pH - 7.40) + LUNG.co2Effect * Math.log10(40 / Math.max(2, pco2 * MMHG_PER_KPA))) * (1 + 1.16 * COHb);
   if (pv <= 0) return 0;
-  return 1 / (1 + 23400 / (pv * pv * pv + 150 * pv));
+  return 1 / (1 + LUNG.sevA / (pv * pv * pv + LUNG.sevB * pv));
 }
 /** O2 content, mL/dL: bound to the haemoglobin that can carry it, plus dissolved. */
-export const contentO2 = (po2: number, S: number, Hb: number, dysHb: number) => 1.34 * (Hb / 10) * (1 - dysHb) * S + 0.0225 * Math.max(0, po2);
+export const contentO2 = (po2: number, S: number, Hb: number, dysHb: number) => LUNG.hufner * (Hb / 10) * (1 - dysHb) * S + LUNG.o2Solubility * Math.max(0, po2);
 /** CO2 content, mL/dL: mostly bicarbonate, so it scales with the metabolic level; deoxygenated blood carries more (Haldane). */
-export const contentCO2 = (pco2: number, S: number, sbc: number) => (sbc / 24) * 11.02 * Math.max(0, pco2 * MMHG_PER_KPA) ** 0.396 + 4 * (1 - S);
+export const contentCO2 = (pco2: number, S: number, sbc: number) => (sbc / 24) * 11.02 * Math.max(0, pco2 * MMHG_PER_KPA) ** 0.396 + LUNG.haldane * (1 - S);
 
 /* ---- predicted lung function (ECSC 1993; Nunn & Gregg 1989) -------------------- */
 export function predicted(b: Body) {
@@ -228,10 +230,10 @@ export class Respiratory {
     const st = this.lobeStructure();
     const gas = st.reduce((a, l) => a + LOBE_VOLUME[l.id] * l.aerated, 0);           // fraction of lung still holding gas
     const b = clamp(p.bronchoconstriction, 0, 1), e = clamp(p.emphysema, 0, 1), f = clamp(p.fibrosis, 0, 1);
-    const CL = 0.2 * (pr.TLC / 6.8) * (1 + 1.5 * e) * (1 - 0.75 * f) * (1 - 0.45 * this.interstitial) * Math.max(0.12, gas);   // L/cmH2O
-    const Ccw = 0.2;
+    const CL = LUNG.lungCompliance * (pr.TLC / 6.8) * (1 + 1.5 * e) * (1 - 0.75 * f) * (1 - 0.45 * this.interstitial) * Math.max(0.12, gas);   // L/cmH2O
+    const Ccw = LUNG.chestWallCompliance;
     const Crs = 1 / (1 / CL + 1 / Ccw);
-    const Raw0 = 2.0;                                                                                // cmH2O·s/L
+    const Raw0 = LUNG.airwayResistance;                                                                                // cmH2O·s/L
     const Ri = Raw0 * (1 + 12 * b ** 1.5) * (1 + 0.5 * e) * (1 + 0.6 * this.interstitial);
     const Re = Raw0 * (1 + 12 * b ** 1.5) * (1 + 3 * e) * (1 + 0.6 * this.interstitial);
     // Static volumes. Weak inspiratory and expiratory muscles cannot reach TLC or get down to RV: the vital capacity shrinks.
@@ -273,11 +275,11 @@ export class Respiratory {
   }
 
   /* ---- control: what the respiratory centre asks for, and what it gets --------------- */
-  private VO2() { return 9.7 * this.body.weightKg ** 0.75 * clamp(this.p.metabolicRate * (this.inp.metabolicMult ?? 1), 0.3, 6) * (1 + 0.1 * (this.inp.temp - 37)); }
+  private VO2() { return LUNG.vo2Coef * this.body.weightKg ** 0.75 * clamp(this.p.metabolicRate * (this.inp.metabolicMult ?? 1), 0.3, 6) * (1 + LUNG.vo2Temp * (this.inp.temp - 37)); }
   /** The O2 the respiratory muscles burn: about 1 mL per litre of ventilation in health, several times that against narrowed airways or stiff lungs, and rising steeply near capacity. */
   private VO2breathing(VE: number, m: ReturnType<Respiratory['mechanics']>, cap: number) {
     const Cn = 0.1 * (this.pred.TLC / 6.8);
-    return 1.0 * VE * Math.sqrt(((m.Ri + m.Re) / 4) * (Cn / Math.max(0.005, m.Crs))) * (1 + (VE / cap) ** 2);
+    return LUNG.breathingCost * VE * Math.sqrt(((m.Ri + m.Re) / 4) * (Cn / Math.max(0.005, m.Crs))) * (1 + (VE / cap) ** 2);
   }
   /** Drive from the lung's own receptors (C-fibre 'J' receptors in the interstitium, irritant receptors in the airways):
       inflamed, flooded, embolised or stiff lung makes people breathe faster than their blood gases alone require. */
@@ -299,19 +301,19 @@ export class Respiratory {
     // both the drive and the slope of the response.
     // The central chemoreceptors read the pH of the CSF, whose bicarbonate follows the blood's halfway over
     // days: a chronically raised bicarbonate moves the CO2 they defend upward (the 'reset' of chronic hypercapnia).
-    const csfHCO3 = 24 + 0.5 * (this.inp.sbc - 24);
+    const csfHCO3 = 24 + LUNG.csfBicarbonateShare * (this.inp.sbc - 24);
     const dP = PaCO2 - NORMAL_PACO2 * csfHCO3 / 24, dH = hPlus(pH) - 40;
-    const chem = p.gCO2 * dP * (dP < 0 ? 0.3 : 1) + p.gH * dH * (dH < 0 ? 0.5 : 1);
-    const hyp = Math.min(3, p.gO2 * 20 * Math.max(-0.003, 1 / Math.max(4, Pmm - 25) - 1 / 65));
+    const chem = p.gCO2 * dP * (dP < 0 ? LUNG.co2DogLeg : 1) + p.gH * dH * (dH < 0 ? 0.5 : 1);
+    const hyp = p.gO2 * this.hypoxicStimulus(Pmm, dP * MMHG_PER_KPA);
     const stim = 1 + d * chem + hyp + this.afferent(m) + (this.inp.sysDrive ?? 0);
-    return 6.4 * (VCO2 / 200) * d * clamp(stim, 0.15, 10);
+    return LUNG.restingVentilation * (VCO2 / 200) * d * clamp(stim, 0.15, 10);
   }
   private capacity(m = this.mechanics()) {
     // Maximal sustainable ventilation: about 35 × FEV1 at best, and what the muscles can do.
     const fev1 = this.forcedFEV1(m);
     // A hyperinflated chest flattens the diaphragm, which then shortens from a poor starting length.
     const hyper = clamp((m.FRC / m.TLC - 0.5) / 0.3, 0, 1);
-    return Math.max(1, 0.45 * 37 * fev1 * Math.sqrt(clamp(this.p.muscleStrength, 0, 1.3)) * (1 - 0.6 * hyper));
+    return Math.max(1, LUNG.sustainableShare * LUNG.mvvPerFev1 * fev1 * Math.sqrt(clamp(this.p.muscleStrength, 0, 1.3)) * (1 - 0.6 * hyper));
   }
   private forcedFEV1(m: ReturnType<Respiratory['mechanics']>) {
     const FVC = Math.max(0.2, m.TLC - m.RV);
@@ -326,11 +328,19 @@ export class Respiratory {
     const Cn = 0.1 * (this.pred.TLC / 6.8);
     // Stiff lungs (not floppy ones) make breathing fast and shallow; so does a load near capacity and drive from the lung itself.
     const load = Math.min(1.5, VE / Math.max(1, this.capacity(m)));
-    const RR = clamp(13.5 * (VE / 6.4) ** 0.5 * Math.max(1, Cn / Math.max(0.01, m.Crs)) ** 0.3 * (1 + 0.25 * this.afferent(m) + 0.45 * (this.inp.sysDrive ?? 0)) * (1 + 0.6 * load * load)
-      / clamp(this.p.muscleStrength, 0.2, 1.2) ** 0.3, 5, 50);
+    /* Health breathes at Tobin's rate; what illness adds (stiff lungs, the lung's own receptors, cytokines, a load near
+       capacity, weak muscles) is an ungrounded factor F, kept at the absolute size it had when it was set against
+       clinical rates: RR = √(VE/VE₀)·(RR₀ + RRdisease·(F − 1)). */
+    const F = Math.max(1, Cn / Math.max(0.01, m.Crs)) ** 0.3 * (1 + 0.25 * this.afferent(m) + 0.45 * (this.inp.sysDrive ?? 0)) * (1 + 0.6 * load * load)
+      / clamp(this.p.muscleStrength, 0.2, 1.2) ** 0.3;
+    /* A chemical drive deepens breathing first and quickens it little (Hey: tidal volume rises along a straight line
+       with ventilation until it reaches about half the vital capacity; only then does the rate climb). */
+    const VC = Math.max(0.3, m.TLC - m.RV);
+    let RR = clamp((VE / LUNG.restingVentilation) ** LUNG.rateExponent * (LUNG.restingRate + LUNG.diseaseRateScale * (F - 1)), 5, 50);
+    if (VE / RR > LUNG.tidalCeiling * VC) RR = clamp(VE / (LUNG.tidalCeiling * VC), 5, 60);
     const VT = VE / RR;
     const Ttot = 60 / RR;
-    const Ti = Ttot * clamp(0.42 - 0.08 * (clamp(this.p.bronchoconstriction + this.p.emphysema, 0, 1)), 0.25, 0.45);
+    const Ti = Ttot * clamp(LUNG.dutyCycle - 0.08 * (clamp(this.p.bronchoconstriction + this.p.emphysema, 0, 1)), 0.25, 0.45);
     return { RR, VT, Ti, Te: Ttot - Ti };
   }
 
@@ -341,7 +351,7 @@ export class Respiratory {
     const p = this.p, inp = this.inp;
     const m = this.mechanics();
     const pat = this.pattern(VE, m);
-    const VDanat = 0.0022 * idealWeight(this.body) * (1 + 0.25 * p.emphysema);            // L
+    const VDanat = LUNG.deadSpacePerKg * idealWeight(this.body) * (1 + LUNG.deadSpaceEmphysema * p.emphysema);            // L
     const VA = Math.max(0.2, VE - pat.RR * VDanat);
     const VO2 = this.VO2() + this.VO2breathing(VE, m, this.capacity(m)), VCO2 = VO2 * p.RQ;
     const Q = Math.max(0.5, inp.CO);
@@ -350,9 +360,9 @@ export class Respiratory {
     const Hb = inp.Hb;
     const embBurden = LOBES.reduce((a, id) => a + LOBE_PERF[id] * clamp((p as any)[`emb${id}`] ?? 0, 0, 1), 0);
     // V/Q spread: narrowed airways, destroyed and scarred lung, interstitial water, and the flow an embolus diverts onto lung not ventilated for it
-    const sigma = 0.22 + 0.8 * p.bronchoconstriction + 0.35 * p.emphysema + 0.6 * p.fibrosis + 0.7 * this.interstitial + 2.6 * embBurden + clamp(p.vqMismatch, 0, 2);
+    const sigma = LUNG.vqSpread + 0.8 * p.bronchoconstriction + 0.35 * p.emphysema + 0.6 * p.fibrosis + 0.7 * this.interstitial + 2.6 * embBurden + clamp(p.vqMismatch, 0, 2);
     // Diffusion: the fraction of the alveolar–capillary O2 gap left at the end of the capillary; shorter transit at high flow
-    const uDiff = Math.exp((-4 * Math.max(0.01, m.DL)) / (Q / 5.2));
+    const uDiff = Math.exp((-LUNG.diffusionReserve * Math.max(0.01, m.DL)) / (Q / 5.2));
 
     const ventW = m.st.map((l) => LOBE_VENT[l.id] * l.aerated);
     const ventSum = ventW.reduce((a, x) => a + x, 0) || 1e-6;
@@ -362,7 +372,7 @@ export class Respiratory {
     const cCO2 = (pco2: number, S: number) => contentCO2(pco2, S, inp.sbc);
     const invO2 = (C: number, pco2: number) => { let lo = 0, hi = 100; for (let k = 0; k < 36; k++) { const mid = (lo + hi) / 2; if (cO2(mid, pco2) < C) lo = mid; else hi = mid; } return (lo + hi) / 2; };
     const invCO2 = (C: number, S: number) => { let lo = 0, hi = 30; for (let k = 0; k < 36; k++) { const mid = (lo + hi) / 2; if (cCO2(mid, S) < C) lo = mid; else hi = mid; } return (lo + hi) / 2; };
-    const hpvC = (pao2: number) => 1 - clamp(p.hpv, 0, 1) * (1 - sigm((pao2 - 7) / 1.2));
+    const hpvC = (pao2: number) => 1 - clamp(p.hpv, 0, 1) * (1 - sigm((pao2 - LUNG.hpvCentre) / LUNG.hpvWidth));
 
     let PvO2 = this.Pv.O2, PvCO2 = this.Pv.CO2;
     const lobePAO2 = m.st.map((_, i) => this.lobePA[i] ?? 13);
@@ -422,8 +432,8 @@ export class Respiratory {
       const g = m.st.map((l, i) => LOBE_PERF[l.id] * (1 - l.emb) * (l.aerated * hpvC(lobePAO2[i]) + l.solidFrac * hv + l.collapsed * 0.45 * hv));
       G = g.reduce((a, x) => a + x, 0);
       hpvMean = m.st.reduce((a, l, i) => a + LOBE_PERF[l.id] * (1 - hpvC(lobePAO2[i])), 0);
-      const Qlung = Q * 0.98;          // 2 % bypasses the alveoli altogether (bronchial and Thebesian veins)
-      units = [{ lobe: -1, VA: 0, Q: Q * 0.02, kind: 'base', PO2: PvO2, PCO2: PvCO2, diffU: 0 }];
+      const Qlung = Q * (1 - LUNG.baseShunt);          // 2 % bypasses the alveoli altogether (bronchial and Thebesian veins)
+      units = [{ lobe: -1, VA: 0, Q: Q * LUNG.baseShunt, kind: 'base', PO2: PvO2, PCO2: PvCO2, diffU: 0 }];
       m.st.forEach((l, i) => {
         const qL = Qlung * g[i] / Math.max(1e-6, G);
         const aer = LOBE_PERF[l.id] * (1 - l.emb) * l.aerated * hpvC(lobePAO2[i]);
@@ -525,13 +535,13 @@ export class Respiratory {
   /* ---- Starling: water in the lung -------------------------------------------------- */
   private starling() {
     const inp = this.inp, leak = clamp(this.p.capillaryLeak, 0, 1);
-    const Pcap = inp.Pla + 0.4 * Math.max(0, inp.Ppa - inp.Pla);
-    const Kf = 1 + 4 * leak, sigmaR = 0.8 * (1 - 0.8 * leak);
-    const piC = 25 * (inp.albumin / 42), piI = 14 * (inp.albumin / 42) ** 0.5;
+    const Pcap = inp.Pla + LUNG.capillaryPressureShare * Math.max(0, inp.Ppa - inp.Pla);
+    const Kf = 1 + 4 * leak, sigmaR = LUNG.reflection * (1 - 0.8 * leak);
+    const piC = LUNG.plasmaOncotic * (inp.albumin / 42), piI = LUNG.interstitialOncotic * (inp.albumin / 42) ** 0.5;
     const NFP = (Pcap + 2) - sigmaR * (piC - piI);
     const J = Kf * NFP;                                  // relative filtration; lymph clears up to about twice normal unnoticed
     const interstitial = clamp((J - 8) / 8, 0, 1);
-    const alveolar = clamp((J - 15) / 20, 0, 0.75);
+    const alveolar = clamp((J - LUNG.oedemaThreshold) / 20, 0, 0.75);
     return { Pcap, J, interstitial, alveolar };
   }
 
@@ -602,10 +612,10 @@ export class Respiratory {
         this.fe = null;
         this.Pv = { O2: sol.PvO2, CO2: sol.PvCO2 };
         // blood O2 follows within a circulation time; CO2 is buffered by the body's large stores
-        this.PaO2 += (sol.PaO2 - this.PaO2) * (1 - Math.exp(-span / 8));
-        this.PaCO2 += (sol.PaCO2 - this.PaCO2) * (1 - Math.exp(-span / 50));
+        this.PaO2 += (sol.PaO2 - this.PaO2) * (1 - Math.exp(-span / LUNG.pao2Tau));
+        this.PaCO2 += (sol.PaCO2 - this.PaCO2) * (1 - Math.exp(-span / LUNG.paco2Tau));
         const target = this.delivered(this.demand(this.PaO2, this.PaCO2, sol.m), this.capacity(sol.m));
-        this.VEdrive += (target - this.VEdrive) * (1 - Math.exp(-span / 4));
+        this.VEdrive += (target - this.VEdrive) * (1 - Math.exp(-span / LUNG.driveTau));
       }
       this.breathe(h);
     }
@@ -672,7 +682,17 @@ export class Respiratory {
   /** Pulmonary vascular resistance relative to normal: lobes in parallel, emboli removing vessels (and the vasoconstriction they provoke), hypoxic vasoconstriction narrowing them. */
   rpulMult(): number {
     const emb = LOBES.reduce((a, id) => a + LOBE_PERF[id] * clamp((this.p as any)[`emb${id}`] ?? 0, 0, 1), 0);
-    return (1 / Math.max(0.05, this.sol?.G ?? 1)) * (1 + 0.8 * emb);
+    return (1 / Math.max(0.05, this.sol?.G ?? 1)) * (1 + LUNG.embolismResistance * emb);
+  }
+
+  /** The carotid bodies' response to hypoxia, as added ventilation per resting ventilation: Weil's hyperbola
+      A/(PaO2 − C), zero at the normal PaO2, and multiplied by CO2 (hypercapnia amplifies it, hypocapnia all but
+      abolishes it). dCO2 is arterial CO2 above the set point, mmHg. */
+  hypoxicStimulus(PaO2mm: number, dCO2: number): number {
+    const k = LUNG.weilA / LUNG.restingVentilation, C = LUNG.weilC, Pn = 90;
+    const base = k * (1 / Math.max(4, PaO2mm - C) - 1 / (Pn - C));
+    const co2 = Math.exp((dCO2 >= 0 ? LUNG.hypoxiaCo2Up : LUNG.hypoxiaCo2Down) * clamp(dCO2, -5, 5));   // Weil measured ±5 mmHg; not extrapolated beyond
+    return Math.min(LUNG.hypoxiaCap, base > 0 ? base * co2 : Math.max(LUNG.hyperoxiaFloor, base));
   }
 
   /** The controller's response line for the chapter diagram: ventilation delivered at each PaCO2, with PaO2 as it is now. */
@@ -698,8 +718,8 @@ export class Respiratory {
   /** What the carotid bodies and the sensation of breathlessness add to sympathetic outflow (0–1), for the circulation. */
   chemoDrive(): number {
     const Pmm = this.PaO2 * MMHG_PER_KPA;
-    const hyp = Math.min(3, 20 * Math.max(0, 1 / Math.max(4, Pmm - 25) - 1 / 65));
-    return clamp(0.6 * hyp + 0.3 * Math.max(0, this.PaCO2 - 6.5) + 0.25 * this.afferent(), 0, 1);
+    const hyp = Math.max(0, this.hypoxicStimulus(Pmm, 0));
+    return clamp(LUNG.sympatheticHypoxia * hyp + LUNG.sympatheticCo2 * Math.max(0, this.PaCO2 - LUNG.sympatheticCo2Onset) + LUNG.sympatheticAfferent * this.afferent(), 0, 1);
   }
 
   serialize() { return { PaO2: this.PaO2, PaCO2: this.PaCO2, VEdrive: this.VEdrive, water: [...this.water], interstitial: this.interstitial, t: this.t, Pv: { ...this.Pv } }; }

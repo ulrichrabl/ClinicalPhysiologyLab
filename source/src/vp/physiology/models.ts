@@ -1,4 +1,5 @@
 import { CIRC, BARO } from '../evidence/circulation.ts';
+import { LUNG } from '../evidence/lung.ts';
 import { INF } from '../evidence/inflammation.ts';
 import { THY, CA } from '../evidence/endocrine.ts';
 import { WAT, KID } from '../evidence/renal.ts';
@@ -1080,7 +1081,7 @@ const GAS_EXCHANGE: ModelDef = {
       [v('AaD')], [v('PAO2'), '−', v('PaO2')],
       L('Hypoventilation lowers PaO₂ with a normal A–a difference; shunt, V/Q mismatch and diffusion limitation widen it.', 'Hypoventilation senkt den PaO₂ bei normaler A-a-Differenz; Shunt, Verteilungsstörung und Diffusionsstörung vergrößern sie.')),
     eq('content', 'textbook', L('Oxygen content', 'Sauerstoffgehalt'),
-      [v('CaO2')], ['1.34', '·', v('Hb'), '·', v('SaO2'), '+', '0.0225', '·', v('PaO2')],
+      [v('CaO2')], [n(LUNG.hufner), '·', v('Hb'), '·', v('SaO2'), '+', n(LUNG.o2Solubility), '·', v('PaO2')],
       L('Almost all O₂ rides on haemoglobin. Anaemia halves the content at a perfectly normal PaO₂ and saturation; carbon monoxide takes haemoglobin out of service without lowering either.',
         'Fast aller O₂ ist an Hämoglobin gebunden. Eine Anämie halbiert den Gehalt bei völlig normalem PaO₂ und normaler Sättigung; Kohlenmonoxid nimmt Hämoglobin außer Dienst, ohne eines von beiden zu senken.')),
     eq('delivery', 'textbook', L('Oxygen delivery', 'Sauerstoffangebot'),
@@ -1103,7 +1104,7 @@ const GAS_EXCHANGE: ModelDef = {
       L('Capillary pressure follows left atrial pressure (P_c ≈ P_LA + 0.4·(P_PA − P_LA)). Lymph carries away a few times the normal filtration; beyond that water fills the interstitium (Kerley lines, stiff lungs), then the alveoli, from the bottom up. A leaky membrane (ARDS) floods at normal pressures.',
         'Der Kapillardruck folgt dem linksatrialen Druck (P_c ≈ P_LA + 0,4·(P_PA − P_LA)). Die Lymphe transportiert ein Mehrfaches der normalen Filtration ab; darüber füllt sich das Interstitium (Kerley-Linien, steife Lunge), dann die Alveolen, von basal nach apikal. Eine undichte Membran (ARDS) läuft schon bei normalen Drücken voll.')),
     eq('severinghaus', 'full', L('The O₂–haemoglobin dissociation curve', 'Die Sauerstoffbindungskurve'),
-      [v('SaO2')], [frac(['1'], ['1', '+', frac(['23400'], [{ sup: [[{ text: 'P*' }], ['3']] }, '+', '150', '·', { text: 'P*' }])])],
+      [v('SaO2')], [frac(['1'], ['1', '+', frac([n(LUNG.sevA)], [{ sup: [[{ text: 'P*' }], ['3']] }, '+', n(LUNG.sevB), '·', { text: 'P*' }])])],
       L('Severinghaus’s fit, with P* the O₂ tension in mmHg corrected to standard conditions: P* = P·10^(0.024(37−T) + 0.40(pH−7.4) + 0.06·log(40/PCO₂)). Acid, CO₂ and heat shift the curve right (Bohr effect: unloading in tissues); carbon monoxide shifts it left.',
         'Severinghaus’ Näherung, P* ist der O₂-Partialdruck in mmHg, korrigiert auf Standardbedingungen: P* = P·10^(0,024(37−T) + 0,40(pH−7,4) + 0,06·log(40/PCO₂)). Säure, CO₂ und Wärme verschieben die Kurve nach rechts (Bohr-Effekt: Abgabe im Gewebe); Kohlenmonoxid nach links.')),
     eq('unit', 'full', L('One lung unit: mass balance against the dissociation curves', 'Eine Lungeneinheit: Massenbilanz gegen die Bindungskurven'),
@@ -1158,15 +1159,15 @@ const CONTROL: ModelDef = {
   ],
   equations: [
     eq('controller', 'textbook', L('The controller: what the brainstem asks for', 'Der Regler: was der Hirnstamm anfordert'),
-      [v('demand')], ['6.4', '·', frac([v('VCO2')], ['200']), '·', v('drive'), '·', paren('1', '+', v('drive'), '·', paren(v('gCO2'), '·', paren(v('PaCO2'), '−', v('PaCO2set')), '+', v('gH'), '·', paren(v('H'), '−', '40')), '+', { text: 'hyp(P_aO2)' }, '+', v('aff'))],
-      L('Ventilation in proportion to CO₂ production, raised by CO₂ above the defended level and by acid, by hypoxaemia (a hyperbola that only rises steeply below ~8 kPa) and by drive from the lung itself. Below the defended CO₂ the response is much flatter. Opioids lower the drive and the slope.',
-        'Ventilation proportional zur CO₂-Produktion, gesteigert durch CO₂ über dem verteidigten Wert und durch Säure, durch Hypoxämie (eine Hyperbel, die erst unter ~8 kPa steil ansteigt) und durch Antrieb aus der Lunge selbst. Unterhalb des verteidigten CO₂ ist die Antwort viel flacher. Opioide senken Antrieb und Steilheit.')),
+      [v('demand')], [n(LUNG.restingVentilation), '·', frac([v('VCO2')], ['200']), '·', v('drive'), '·', paren('1', '+', v('drive'), '·', paren(v('gCO2'), '·', paren(v('PaCO2'), '−', v('PaCO2set')), '+', v('gH'), '·', paren(v('H'), '−', '40')), '+', { text: 'hyp(P_aO2, P_aCO2)' }, '+', v('aff'))],
+      L('Ventilation in proportion to CO₂ production, raised by CO₂ above the defended level and by acid, by hypoxaemia (Weil’s hyperbola A/(PaO₂ − C), steep below about 7 kPa, made larger by CO₂ and all but abolished by hypocapnia) and by drive from the lung itself. Below the defended CO₂ the response is much flatter. Opioids lower the drive and the slope.',
+        'Ventilation proportional zur CO₂-Produktion, gesteigert durch CO₂ über dem verteidigten Wert und durch Säure, durch Hypoxämie (Weils Hyperbel A/(PaO₂ − C), steil unter etwa 7 kPa, durch CO₂ verstärkt und durch Hypokapnie fast aufgehoben) und durch Antrieb aus der Lunge selbst. Unterhalb des verteidigten CO₂ ist die Antwort viel flacher. Opioide senken Antrieb und Steilheit.')),
     eq('hyperbola', 'textbook', L('The plant: the metabolic hyperbola', 'Die Regelstrecke: die metabolische Hyperbel'),
       [v('PaCO2')], [frac(['0.115', '·', v('VCO2')], [v('mechanics.VA')])],
       L('Breathing settles where the controller line crosses this hyperbola. Metabolic acidosis lifts the controller line (Kussmaul breathing); opioids flatten it; a bicarbonate chronically raised in COPD moves the CO₂ the central chemoreceptors defend upward.',
         'Die Atmung pendelt sich dort ein, wo die Reglergerade die Hyperbel schneidet. Eine metabolische Azidose hebt die Reglergerade (Kussmaul-Atmung); Opioide machen sie flacher; ein bei COPD chronisch erhöhtes Bikarbonat verschiebt das von den zentralen Chemorezeptoren verteidigte CO₂ nach oben.')),
     eq('setpoint', 'textbook', L('The CO₂ the central chemoreceptors defend', 'Das von den zentralen Chemorezeptoren verteidigte CO₂'),
-      [v('PaCO2set')], ['5.33', '·', frac([{ text: '24 + 0.5·(HCO₃⁻ − 24)' }], ['24'])],
+      [v('PaCO2set')], [n(LUNG.normalPaco2), '·', frac([{ text: `24 + ${LUNG.csfBicarbonateShare}·(HCO₃⁻ − 24)` }], ['24'])],
       L('The chemoreceptors read CSF pH. CSF bicarbonate follows the blood’s halfway over days, so in chronic hypercapnia they come to defend a higher CO₂. Winters’ formula for metabolic acidosis (PaCO₂ ≈ 1.5·HCO₃⁻ + 8 mmHg) comes out of this controller; it is not put in.',
         'Die Chemorezeptoren messen den pH des Liquors. Das Liquorbikarbonat folgt dem des Blutes über Tage zur Hälfte; bei chronischer Hyperkapnie verteidigen sie daher ein höheres CO₂. Die Winters-Formel für die metabolische Azidose (PaCO₂ ≈ 1,5·HCO₃⁻ + 8 mmHg) ergibt sich aus diesem Regler; sie ist nicht hineingeschrieben.')),
     eq('delivered', 'textbook', L('What arrives: limited by muscles and airways', 'Was ankommt: begrenzt durch Muskulatur und Atemwege'),
@@ -1178,10 +1179,10 @@ const CONTROL: ModelDef = {
     const r = resp(ctx);
     const i = (r.inputs ?? {}) as Record<string, number>;
     const sbc = i.sbc ?? 24;
-    const hco3 = sbc + 0.75 * ((r.PaCO2 ?? 5.33) - 5.33);
+    const hco3 = sbc + LUNG.acuteBuffering * ((r.PaCO2 ?? LUNG.normalPaco2) - LUNG.normalPaco2);
     const pH = 6.1 + Math.log10(hco3 / (0.23 * (r.PaCO2 ?? 5.33)));
     const Pmm = (r.PaO2 ?? 12) * 7.5;
-    const chemo = Math.max(0, Math.min(1, 0.6 * Math.min(3, 20 * Math.max(0, 1 / Math.max(4, Pmm - 25) - 1 / 65)) + 0.3 * Math.max(0, (r.PaCO2 ?? 5.33) - 6.5)));
+    const chemo = Math.max(0, Math.min(1, LUNG.sympatheticHypoxia * Math.max(0, Math.min(LUNG.hypoxiaCap, (LUNG.weilA / LUNG.restingVentilation) * (1 / Math.max(4, Pmm - LUNG.weilC) - 1 / (90 - LUNG.weilC)))) + LUNG.sympatheticCo2 * Math.max(0, (r.PaCO2 ?? LUNG.normalPaco2) - LUNG.sympatheticCo2Onset)));
     return {
       ...Object.fromEntries(Object.entries(ctx.model.respiratory)),
       PaCO2: rn(ctx, 'PaCO2'), PaCO2set: 5.33 * (24 + 0.5 * (sbc - 24)) / 24, H: 10 ** (9 - pH), PaO2: rn(ctx, 'PaO2'),
@@ -1189,6 +1190,7 @@ const CONTROL: ModelDef = {
       chemo: typeof ctx.snap?.chemoDrive === 'number' ? ctx.snap.chemoDrive : chemo,
     };
   },
+  constants: ['lung'],
   diagram: 'control',
   sources: ['Cherniack NS, Longobardo GS. Mathematical models of periodic breathing and their usefulness in understanding cardiovascular and respiratory disorders. Exp Physiol 2006;91:295–305.', 'Albert M, Dell R, Winters RW. Quantitative displacement of acid–base equilibrium in metabolic acidosis. Ann Intern Med 1967;66:312–22.', 'Duffin J. Measuring the respiratory chemoreflexes in humans. Respir Physiol Neurobiol 2011;177:71–9.'],
 };
