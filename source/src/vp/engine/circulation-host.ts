@@ -5,6 +5,7 @@ import { Body, BODY_DEFAULTS } from '../physiology/body/body.ts';
 import type { CaseDef } from '../model/types.ts';
 import { CIRCULATION_DEFAULTS, modelFromCase, type PatientModel } from '../physiology/state.ts';
 import { CIRC } from '../evidence/circulation.ts';
+import { INF } from '../evidence/inflammation.ts';
 
 /* ---------------------------------------------------------------------------
    The running patient: circulation, the heart's electrical model, the
@@ -91,7 +92,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     /* Septic vessels respond poorly to sympathetic drive as well. */
     const vp = milieu.vasoplegia();
     const ar = milieu.adrenergicResponse();
-    sim.gR = model.circulation.gR * (1 - 0.7 * vp) * ar; sim.gV = model.circulation.gV * (1 - 0.6 * vp) * ar;
+    sim.gR = model.circulation.gR * (1 - INF.reflexResistanceLoss * vp) * ar; sim.gV = model.circulation.gV * (1 - INF.reflexVenousLoss * vp) * ar;
     sim.HR = model.circulation.HR * milieu.hrMult();
     if (!(Math.abs(out.Ca - lastCa) < 0.03)) { heart.setCalcium(out.Ca); lastCa = out.Ca; }
     const bv = milieu.bloodVolume();
@@ -138,7 +139,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     sim.Rsys = c.Rsys * milieu.rsysMult();
     sim.V0sv = c.V0sv * milieu.v0svMult();
     sim.Emax = c.Emax * milieu.contractility();
-    sim.gR = c.gR * (1 - 0.7 * milieu.vasoplegia()) * milieu.adrenergicResponse(); sim.gV = c.gV * (1 - 0.6 * milieu.vasoplegia()) * milieu.adrenergicResponse();
+    sim.gR = c.gR * (1 - INF.reflexResistanceLoss * milieu.vasoplegia()) * milieu.adrenergicResponse(); sim.gV = c.gV * (1 - INF.reflexVenousLoss * milieu.vasoplegia()) * milieu.adrenergicResponse();
     const bv = milieu.bloodVolume();
     if (Math.abs(bv - sim.bloodVolume) > 0.5) sim.setBloodVolume(Math.max(1500, bv));
   };

@@ -1,4 +1,5 @@
 import { CIRC, BARO } from '../evidence/circulation.ts';
+import { INF } from '../evidence/inflammation.ts';
 import { THY, CA } from '../evidence/endocrine.ts';
 import { WAT, KID } from '../evidence/renal.ts';
 const n = (x: number) => String(x);
@@ -685,19 +686,19 @@ const INFLAMMATION: ModelDef = {
   ],
   equations: [
     eq('il', 'textbook', L('The response: cytokines follow the infection', 'Die Antwort: Zytokine folgen der Infektion'),
-      [v('IL')], ['2.2', '·', { sup: [[v('infection')], ['1.5']] }, { text: '  (settling over about 4 h)' }],
+      [v('IL')], [n(INF.ilGain), '·', { sup: [[v('infection')], [n(INF.ilExponent)]] }, { text: `  (settling over about ${INF.ilTau} h)` }],
       L('A local infection (a cellulitis, a cystitis) gives a little; a bacteraemia a lot. The steepness is the point: beyond a threshold the host’s response, not the organism, does the damage.',
         'Eine lokale Infektion (Erysipel, Zystitis) gibt wenig, eine Bakteriämie viel. Die Steilheit ist der Punkt: Jenseits einer Schwelle richtet die Antwort des Wirts, nicht der Erreger, den Schaden an.')),
     eq('fever', 'textbook', L('Fever: the thermostat reset', 'Fieber: der verstellte Thermostat'),
-      [v('Tset')], ['36.9', '+', '2.6', '·', frac([v('IL')], [v('IL'), '+', '0.6'])],
+      [v('Tset')], [n(INF.tempBase), '+', n(INF.feverMax), '·', frac([v('IL')], [v('IL'), '+', n(INF.feverHalf)])],
       L('Fever is regulated, not a failure of regulation: the body heats itself to a higher set point (shivering, skin vasoconstriction: rigors) and sweats when it falls. Each degree raises the metabolic rate about 10 %, the heart rate about 10/min and the insensible water loss. In overwhelming sepsis with shock the temperature can fall instead, a bad sign.',
         'Fieber ist geregelt, kein Versagen der Regulation: Der Körper heizt sich auf einen höheren Sollwert (Kältezittern, Hautvasokonstriktion: Schüttelfrost) und schwitzt, wenn er fällt. Jedes Grad steigert den Stoffwechsel um etwa 10 %, die Herzfrequenz um etwa 10/min und die Perspiratio. Bei überwältigender Sepsis mit Schock kann die Temperatur stattdessen fallen, ein schlechtes Zeichen.')),
     eq('crp', 'textbook', L('CRP: made by the liver, cleared with a half-life of 19 h', 'CRP: von der Leber gebildet, mit 19 h Halbwertszeit geklärt'),
-      [{ text: 'd(CRP)/dt' }], ['8', '·', v('IL'), '−', frac([{ text: 'ln 2' }], ['19 h']), '·', v('crp')],
+      [{ text: 'd(CRP)/dt' }], [n(INF.crpSynthesis), '·', v('IL'), '−', n(INF.crpClearance), '·', v('crp')],
       L('CRP lags: twelve hours into an infection it may still be modest, and it keeps rising for a day after the infection is controlled. A white cell count moves within hours.',
         'Das CRP hinkt hinterher: Zwölf Stunden nach Beginn einer Infektion kann es noch mäßig sein, und es steigt noch einen Tag weiter, nachdem die Infektion beherrscht ist. Die Leukozyten ändern sich innerhalb von Stunden.')),
     eq('vaso', 'textbook', L('Septic shock: lost resistance', 'Septischer Schock: verlorener Widerstand'),
-      [v('SVR')], [{ text: 'SVR₀' }, '·', paren('1', '−', '0.55', '·', v('vaso')), '·', { text: 'AngII, ADH' }],
+      [v('SVR')], [{ text: 'SVR₀' }, '·', paren('1', '−', n(INF.resistanceLoss), '·', v('vaso')), '·', { text: 'AngII, ADH' }],
       L('Nitric oxide relaxes vascular smooth muscle: resistance falls, the veins hold more blood, and the pressure falls with a high or normal cardiac output. Leaking capillaries shrink the plasma. Fluid refills the veins; a vasoconstrictor (noradrenaline) restores the resistance.',
         'Stickstoffmonoxid entspannt die glatte Gefäßmuskulatur: Der Widerstand fällt, die Venen fassen mehr Blut, und der Druck fällt bei hohem oder normalem Herzzeitvolumen. Undichte Kapillaren verkleinern das Plasma. Flüssigkeit füllt die Venen wieder; ein Vasokonstriktor (Noradrenalin) stellt den Widerstand wieder her.')),
   ],
@@ -706,11 +707,12 @@ const INFLAMMATION: ModelDef = {
     const IL = typeof b.inflammation === 'number' ? b.inflammation : NaN;
     return {
       ...Object.fromEntries(Object.entries(ctx.model.body)),
-      IL, Tset: 36.9 + 2.6 * IL / (IL + 0.6), T: bn(ctx, 'temperature'), crp: bn(ctx, 'crp'), wcc: bn(ctx, 'whiteCellCount'), platelets: bn(ctx, 'platelets'),
+      IL, Tset: INF.tempBase + INF.feverMax * IL / (IL + INF.feverHalf), T: bn(ctx, 'temperature'), crp: bn(ctx, 'crp'), wcc: bn(ctx, 'whiteCellCount'), platelets: bn(ctx, 'platelets'),
       sepsis: bn(ctx, 'sepsis'), vaso: bn(ctx, 'vasoplegia'), SVR: metric(ctx, 'SVR'), MAP: metric(ctx, 'Pmean'), lactate: bn(ctx, 'lactate'),
     };
   },
   diagram: 'inflammation',
+  constants: ['inflammation'],
   sources: ['Singer M et al. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3). JAMA 2016;315:801–10.', 'Dinarello CA. Cytokines as endogenous pyrogens. J Infect Dis 1999;179 Suppl 2:S294–304.', 'Vigushin DM, Pepys MB, Hawkins PN. Metabolic and scintigraphic studies of radioiodinated human C-reactive protein in health and disease. J Clin Invest 1993;91:1351–7.', 'Landry DW, Oliver JA. The pathogenesis of vasodilatory shock. N Engl J Med 2001;345:588–95.'],
 };
 

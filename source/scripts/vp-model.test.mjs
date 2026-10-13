@@ -879,10 +879,10 @@ console.log('\nInfection, inflammation and sepsis');
      normal or high with the resistance still low (Parker 1984), and the pressure may still need a vasopressor. */
   const shFluid = (() => { const m = healthyModel(); Object.assign(m.body, { infection: 0.92, courseHours: 36, foodIntake: 0.3, fluidIntake: 0.8 }); const r = createCirculation(m); r.settle(12);
     r.apply({ ...m, body: { ...m.body, ivSaline: 24 * 2.1 / 3 } }); for (let k = 0; k < 6; k++) { r.body.integrate(0.5); r.settleFast(4); } r.settleFast(30); return r.sim.metrics; })();
-  gap('septic shock after 30 mL/kg: output normal or high with resistance still low (Parker 1984), pressure still low',
+  ok('septic shock after 30 mL/kg: output normal or high with resistance still low (Parker 1984), pressure still low',
     shFluid.CO >= 0.75 * H.snap.metrics.CO && shFluid.SVR < 0.8 * H.snap.metrics.SVR && shFluid.Pmean < 75,
     `after fluid: MAP ${f1(shFluid.Pmean)} CO ${f1(shFluid.CO)} SVR ${f1(shFluid.SVR)} (healthy CO ${f1(H.snap.metrics.CO)}, SVR ${f1(H.snap.metrics.SVR)})`);
-  gap('septic shock untreated: hypotension from lost resistance, tachycardia, tachypnoea, lactate, kidney injury, falling platelets',
+  ok('septic shock untreated: hypotension from lost resistance, tachycardia, tachypnoea, lactate, kidney injury, falling platelets',
     sh.snap.metrics.Pmean < 70 && sh.snap.metrics.SVR < 0.85 * H.snap.metrics.SVR && sh.snap.ecgMetrics.HR > 110
     && sh.snap.resp.RR >= 22 && sh.ch.lactate > 2 && sh.ch.creatinine > 1.4 * H.ch.creatinine && sh.ch.platelets < 200,
     `MAP ${f1(sh.snap.metrics.Pmean)} SVR ${f1(sh.snap.metrics.SVR)} vs ${f1(H.snap.metrics.SVR)} CO ${f1(sh.snap.metrics.CO)} HR ${sh.snap.ecgMetrics.HR} RR ${f1(sh.snap.resp.RR)} lac ${f1(sh.ch.lactate)} crea ${f1(sh.ch.creatinine)} plt ${f1(sh.ch.platelets)}`);
@@ -1052,7 +1052,7 @@ console.log('\nEvidence: every constant has a status, every grounded one a refer
   const src = [...walk('src/vp'), ...walk('src/domains/cardio/sim')].filter((f) => !f.includes('/evidence/')).map((f) => readFileSync(f, 'utf8')).join('\n');
   const issues = constantIssues();
   ok('the constant registry has no errors (measured and derived constants cite references; derived and assumed ones show their working)', issues.length === 0, issues.join('; '));
-  const alias = { thyroid: 'THY', adrenal: 'ADR', calcium: 'CA', water: 'WAT', kidney: 'KID', circulation: 'CIRC', baroreflex: 'BARO' };
+  const alias = { thyroid: 'THY', adrenal: 'ADR', calcium: 'CA', water: 'WAT', kidney: 'KID', circulation: 'CIRC', baroreflex: 'BARO', inflammation: 'INF' };
   const unused = Object.values(CONSTANTS).filter((c) => alias[c.group] && !new RegExp(`\\b${alias[c.group]}\\.${c.id.split('.')[1]}\\b`).test(src)).map((c) => c.id);
   ok('every registered constant is used by the model (no stale entries)', unused.length === 0, unused.join(', '));
   const refsUsed = new Set(Object.values(CONSTANTS).flatMap((c) => c.refs ?? []));
