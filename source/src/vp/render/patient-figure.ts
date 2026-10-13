@@ -58,8 +58,26 @@ function limb(points: Array<{ x: number; y: number }>, width: number, fill: stri
     + `<path d="${d}" fill="none" stroke="${fill}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/></g>`;
 }
 
-/** Everything the figure draws besides the pose. Built by figureLookFor from the case's patient and state; the app
-    never assembles it itself, so the figure can use more of the patient (age, build, hair) without touching the app. */
+/** What the patient's body looks like now. Its shape comes from the case (height, weight, fat distribution, muscle);
+    what the illness does to it comes from the running model, through the same findings an examiner would see, so the
+    figure changes when the model changes (oedema rising, ascites drained, a patient going grey and sweaty). */
+export interface FigureBody {
+  heightCm: number; weightKg: number; bmi: number;
+  fat: 'central' | 'peripheral';                    // central: belly and visceral fat (men, older women); peripheral: hips and thighs
+  muscle: 'normal' | 'wasted';
+  oedema: 'none' | 'ankle' | 'shin' | 'knee';        // legs.oedema: how far up the legs pitting oedema reaches
+  ascites: 'none' | 'flank' | 'shifting' | 'tense'; // abdomen.ascites: from slightly full flanks to a tense, distended belly
+  colour: 'normal' | 'pale' | 'grey' | 'flushed' | 'cyanosed' | 'jaundiced';  // general.appearance
+  icterus: 'none' | 'mild' | 'marked';              // eyes.sclera
+  pallor: 'none' | 'mild' | 'marked';               // eyes.conjunctiva
+  sweating: boolean;
+  distress: 'none' | 'mild' | 'moderate' | 'severe';
+  breathing: { hyperinflated: boolean; accessory: boolean; pursedLips: boolean };  // breathing.pattern: barrel chest, neck muscles working
+}
+
+/** Everything the figure draws besides the pose. Built by figureLookFor from the case's patient, the encounter state and
+    the model's body findings; the app never assembles it itself, so the figure can use more of the patient without
+    touching the app. */
 export interface FigureLook {
   skin: string; shade: string;           // skin colour and its shadow
   hair: string;                          // hair colour
@@ -70,23 +88,42 @@ export interface FigureLook {
   age: number;
   build: 'slim' | 'average' | 'heavy';
   oxygen?: string;                       // device on the patient, if any ('nasal cannula 2 L/min', …)
+  body: FigureBody;
 }
 
 /** The parts of a case's patient the figure uses (CaseDef['patient'] satisfies it). */
 export interface FigurePatient {
-  age: number; sex: 'F' | 'M';
-  appearance: { skinTone: number; hair: string; build?: 'slim' | 'average' | 'heavy'; eyes?: string };
+  age: number; sex: 'F' | 'M'; heightCm?: number; weightKg?: number;
+  appearance: { skinTone: number; hair: string; build?: 'slim' | 'average' | 'heavy'; eyes?: string; fat?: 'central' | 'peripheral'; muscle?: 'normal' | 'wasted' };
 }
 /** The parts of the encounter state the figure uses (PatientState satisfies it). */
 export interface FigureState { exposure?: string[]; oxygen?: { device: string; fio2: number } }
+/** Findings from the running model (each optional; a healthy body is assumed for what is missing). */
+export type FigureFindings = Partial<Pick<FigureBody, 'oedema' | 'ascites' | 'colour' | 'icterus' | 'pallor' | 'sweating' | 'distress' | 'breathing'>>;
 
-export function figureLookFor(patient: FigurePatient, state: FigureState, seed: number): FigureLook {
+export function figureLookFor(patient: FigurePatient, state: FigureState, seed: number, findings: FigureFindings = {}): FigureLook {
   const ap = appearanceOf(patient as Parameters<typeof appearanceOf>[0], seed);
+  const a = patient.appearance;
+  const build = a.build ?? 'average';
+  /* Without measurements, a height and weight typical for sex and build. */
+  const heightCm = patient.heightCm ?? (patient.sex === 'F' ? 165 : 178);
+  const typicalBmi = build === 'slim' ? 20.5 : build === 'heavy' ? 29 : 24;
+  const weightKg = patient.weightKg ?? Math.round(typicalBmi * (heightCm / 100) ** 2);
+  const bmi = weightKg / (heightCm / 100) ** 2;
   return {
-    skin: ap.skin, shade: ap.skinShade, hair: ap.hair, hairText: patient.appearance.hair.toLowerCase(),
-    gown: '#9fc4d9', gownShade: '#7fa9c2', exposed: new Set(state.exposure ?? []), sex: patient.sex, age: patient.age,
-    build: patient.appearance.build ?? 'average',
+    skin: ap.skin, shade: ap.skinShade, hair: ap.hair, hairText: a.hair.toLowerCase(),
+    gown: '#9fc4d9', gownShade: '#7fa9c2', exposed: new Set(state.exposure ?? []), sex: patient.sex, age: patient.age, build,
     oxygen: state.oxygen && state.oxygen.fio2 > 0.21 ? state.oxygen.device : undefined,
+    body: {
+      heightCm, weightKg, bmi,
+      /* Men store fat centrally; women peripherally until the menopause, then increasingly centrally. */
+      fat: a.fat ?? (patient.sex === 'M' || patient.age >= 55 ? 'central' : 'peripheral'),
+      muscle: a.muscle ?? (bmi < 18.5 ? 'wasted' : 'normal'),
+      oedema: findings.oedema ?? 'none', ascites: findings.ascites ?? 'none', colour: findings.colour ?? 'normal',
+      icterus: findings.icterus ?? 'none', pallor: findings.pallor ?? 'none', sweating: findings.sweating ?? false,
+      distress: findings.distress ?? 'none',
+      breathing: findings.breathing ?? { hyperinflated: false, accessory: false, pursedLips: false },
+    },
   };
 }
 

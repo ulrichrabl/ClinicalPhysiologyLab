@@ -1,0 +1,496 @@
+[
+ {
+  "id": "vestibular-neuritis-left",
+  "label": "Anna Keller",
+  "patient": {
+   "age": 46,
+   "sex": "F",
+   "heightCm": 168,
+   "weightKg": 64,
+   "appearance": {
+    "skinTone": 2,
+    "hair": "brown, shoulder-length",
+    "build": "average"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "pale",
+   "sweating": true,
+   "distress": "moderate",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "exertional-syncope-as",
+  "label": "Walter Brenner",
+  "patient": {
+   "age": 79,
+   "sex": "M",
+   "heightCm": 176,
+   "weightKg": 82,
+   "appearance": {
+    "skinTone": 1,
+    "hair": "grey, thinning",
+    "build": "average"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "normal",
+   "sweating": false,
+   "distress": "none",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "acute-stroke-left-mca",
+  "label": "Georg Lindner",
+  "patient": {
+   "age": 71,
+   "sex": "M",
+   "heightCm": 178,
+   "weightKg": 84,
+   "appearance": {
+    "skinTone": 2,
+    "hair": "grey, short",
+    "build": "heavy"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "normal",
+   "sweating": false,
+   "distress": "mild",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "foot-drop-right-l5",
+  "label": "Sabine Roth",
+  "patient": {
+   "age": 44,
+   "sex": "F",
+   "heightCm": 170,
+   "weightKg": 66,
+   "appearance": {
+    "skinTone": 3,
+    "hair": "dark brown, tied back",
+    "build": "slim"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "normal",
+   "sweating": false,
+   "distress": "mild",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "pneumonia-right-lower-lobe",
+  "label": "Ingrid Wagner",
+  "patient": {
+   "age": 68,
+   "sex": "F",
+   "heightCm": 164,
+   "weightKg": 70,
+   "appearance": {
+    "skinTone": 2,
+    "hair": "grey, shoulder length",
+    "build": "average"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "flushed",
+   "sweating": true,
+   "distress": "moderate",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "pulmonary-embolism-after-flight",
+  "label": "Laura Becker",
+  "patient": {
+   "age": 34,
+   "sex": "F",
+   "heightCm": 170,
+   "weightKg": 63,
+   "appearance": {
+    "skinTone": 2,
+    "hair": "dark blonde, tied back",
+    "build": "slim"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "normal",
+   "sweating": false,
+   "distress": "mild",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "copd-exacerbation",
+  "label": "Karl-Heinz Schmid",
+  "patient": {
+   "age": 71,
+   "sex": "M",
+   "heightCm": 174,
+   "weightKg": 64,
+   "appearance": {
+    "skinTone": 2,
+    "hair": "white, thin",
+    "build": "thin"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "normal",
+   "sweating": true,
+   "distress": "severe",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": true,
+    "accessory": true,
+    "pursedLips": true
+   }
+  }
+ },
+ {
+  "id": "aki-hyperkalaemia-triple-whammy",
+  "label": "Helmut Bauer",
+  "patient": {
+   "age": 78,
+   "sex": "M",
+   "heightCm": 172,
+   "weightKg": 81,
+   "appearance": {
+    "skinTone": 2,
+    "hair": "white, short",
+    "build": "heavy"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "pale",
+   "sweating": false,
+   "distress": "mild",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "diabetic-ketoacidosis",
+  "label": "Lea Hoffmann",
+  "patient": {
+   "age": 19,
+   "sex": "F",
+   "heightCm": 168,
+   "weightKg": 56,
+   "appearance": {
+    "skinTone": 1,
+    "hair": "long, dark blonde",
+    "build": "slim"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "pale",
+   "sweating": false,
+   "distress": "moderate",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "hyponatraemia-thiazide",
+  "label": "Gertrud Meier",
+  "patient": {
+   "age": 82,
+   "sex": "F",
+   "heightCm": 158,
+   "weightKg": 52,
+   "appearance": {
+    "skinTone": 2,
+    "hair": "white, set in curls",
+    "build": "thin"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "normal",
+   "sweating": false,
+   "distress": "none",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "urosepsis-septic-shock",
+  "label": "Margarete Schulz",
+  "patient": {
+   "age": 74,
+   "sex": "F",
+   "heightCm": 162,
+   "weightKg": 68,
+   "appearance": {
+    "skinTone": 2,
+    "hair": "grey, short",
+    "build": "average"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "flushed",
+   "sweating": true,
+   "distress": "moderate",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "upper-gi-bleed-peptic-ulcer",
+  "label": "Bernd Fischer",
+  "patient": {
+   "age": 62,
+   "sex": "M",
+   "heightCm": 180,
+   "weightKg": 88,
+   "appearance": {
+    "skinTone": 2,
+    "hair": "grey, receding",
+    "build": "heavy"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "pale",
+   "sweating": true,
+   "distress": "mild",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "decompensated-cirrhosis",
+  "label": "Andreas Wolf",
+  "patient": {
+   "age": 54,
+   "sex": "M",
+   "heightCm": 178,
+   "weightKg": 74,
+   "appearance": {
+    "skinTone": 3,
+    "hair": "dark, unkempt",
+    "build": "thin",
+    "muscle": "wasted"
+   }
+  },
+  "findings": {
+   "oedema": "shin",
+   "ascites": "tense",
+   "colour": "normal",
+   "sweating": false,
+   "distress": "mild",
+   "icterus": "mild",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "iron-deficiency-anaemia-caecal",
+  "label": "Ursula Braun",
+  "patient": {
+   "age": 71,
+   "sex": "F",
+   "heightCm": 160,
+   "weightKg": 63,
+   "appearance": {
+    "skinTone": 1,
+    "hair": "white, bob",
+    "build": "average"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "normal",
+   "sweating": false,
+   "distress": "none",
+   "icterus": "none",
+   "pallor": "mild",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "graves-thyrotoxicosis",
+  "label": "Sophie Neumann",
+  "patient": {
+   "age": 34,
+   "sex": "F",
+   "heightCm": 168,
+   "weightKg": 57,
+   "appearance": {
+    "skinTone": 2,
+    "hair": "brown, shoulder length",
+    "build": "slim"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "flushed",
+   "sweating": true,
+   "distress": "mild",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "addisonian-crisis",
+  "label": "Thomas Becker",
+  "patient": {
+   "age": 41,
+   "sex": "M",
+   "heightCm": 182,
+   "weightKg": 71,
+   "appearance": {
+    "skinTone": 3,
+    "hair": "dark, short",
+    "build": "thin"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "normal",
+   "sweating": false,
+   "distress": "moderate",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ },
+ {
+  "id": "hypercalcaemia-malignancy",
+  "label": "Hildegard Vogel",
+  "patient": {
+   "age": 68,
+   "sex": "F",
+   "heightCm": 163,
+   "weightKg": 64,
+   "appearance": {
+    "skinTone": 1,
+    "hair": "grey, short",
+    "build": "average"
+   }
+  },
+  "findings": {
+   "oedema": "none",
+   "ascites": "none",
+   "colour": "normal",
+   "sweating": false,
+   "distress": "none",
+   "icterus": "none",
+   "pallor": "none",
+   "breathing": {
+    "hyperinflated": false,
+    "accessory": false,
+    "pursedLips": false
+   }
+  }
+ }
+]

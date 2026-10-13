@@ -18,7 +18,7 @@ import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
 import { EyeView } from '../render/eye-view.ts';
 import { FaceView, type FaceFinding } from '../render/face-view.ts';
 import { appearanceOf } from '../render/face-canvas.ts';
-import { figureSvg, figureLookFor, lerpPose, POSES, type FigureLook, type Pose } from '../render/patient-figure.ts';
+import { figureSvg, figureLookFor, lerpPose, POSES, type FigureFindings, type FigureLook, type Pose } from '../render/patient-figure.ts';
 import { drawEcgPaper, drawSweep, PAPER_MM } from '../render/ecg-paper.ts';
 import { recordLeads, measuredAxis, standardPlacement, type Placement, type LeadName } from '../measurements/ecg.ts';
 import { healthyModel, modelFromCase, caseWithModel, type PatientModel } from '../physiology/state.ts';
@@ -737,14 +737,25 @@ export function mount(root: HTMLElement) {
   };
 
   /* ---- the patient figure ---------------------------------------------------------- */
+  /* What the model says the body looks like now: the findings any examiner sees by looking (they are observed, not
+     recorded as examined). */
+  const figureFindings = (): FigureFindings => {
+    const v = (ref: string): any => { try { return observeIn(s!, ref, {}).value; } catch { return undefined; } };
+    const g = v('general.appearance'), b = v('breathing.pattern');
+    return {
+      oedema: v('legs.oedema')?.extent, ascites: v('abdomen.ascites')?.ascites, colour: g?.colour, sweating: g?.sweating, distress: g?.distress,
+      icterus: v('eyes.sclera')?.icterus, pallor: v('eyes.conjunctiva')?.pallor,
+      breathing: b ? { hyperinflated: !!b.hyperinflated, accessory: !!b.accessory, pursedLips: !!b.pursedLips } : undefined,
+    };
+  };
   let posePrev: Pose = POSES['reclined-45'], poseTarget: Pose = POSES['reclined-45'], poseT0 = 0, poseRaf = 0, poseKey = '';
   const renderFigure = (force = false) => {
     if (!s) return;
     const c = s.caseDef, st = s.state;
-    const lk: FigureLook = figureLookFor(c.patient, st, seedOf(base.id));
+    const lk: FigureLook = figureLookFor(c.patient, st, seedOf(base.id), figureFindings());
     const exposed = lk.exposed;
     const target = POSES[st.position] ?? POSES.supine;
-    const key = `${base.id}|${c.patient.sex}|${st.position}|${[...exposed].sort().join(',')}|${lk.oxygen ?? ''}`;
+    const key = `${base.id}|${c.patient.sex}|${st.position}|${[...exposed].sort().join(',')}|${lk.oxygen ?? ''}|${JSON.stringify(lk.body)}`;
     const g = $('#fig') as unknown as SVGGElement;
     if (key !== poseKey || force) {
       const firstForCase = !poseKey.startsWith(`${base.id}|`);

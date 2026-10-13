@@ -40,7 +40,8 @@
     "appearance": {
       "skinTone": 3,
       "hair": "dark, unkempt",
-      "build": "thin"
+      "build": "thin",
+      "muscle": "wasted"
     },
     "speaks": [
       "en",

@@ -401,7 +401,13 @@ export interface CaseDef {
     sex: 'F' | 'M';
     heightCm?: number;
     weightKg?: number;
-    appearance: { skinTone: 1 | 2 | 3 | 4 | 5 | 6; hair: string; build: 'slim' | 'average' | 'heavy'; eyes?: 'brown' | 'hazel' | 'green' | 'blue' | 'grey' };
+    appearance: {
+      skinTone: 1 | 2 | 3 | 4 | 5 | 6; hair: string; build: 'slim' | 'average' | 'heavy'; eyes?: 'brown' | 'hazel' | 'green' | 'blue' | 'grey';
+      /** Where body fat sits, if not the usual for sex and age: central (abdominal, visceral) or peripheral (hips, thighs). */
+      fat?: 'central' | 'peripheral';
+      /** Muscle bulk, if reduced by chronic illness (cirrhosis, cancer, COPD, frailty). */
+      muscle?: 'normal' | 'wasted';
+    };
     speaks?: Locale[];            // languages the patient can be interviewed in
     /** Someone who came with the patient and can give a collateral history. */
     companion?: { name: string; relation: LocalizedText };
