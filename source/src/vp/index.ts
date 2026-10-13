@@ -15,7 +15,7 @@ export { validateCatalog, validateCase, checkValue, type Issue } from './engine/
 export { neuroExamState, nystagmus } from './models/neuro-exam.ts';
 export { limbState } from './models/neuro-limb.ts';
 export { eyeAngles, measuredSlowPhaseVelocity } from './render/eye-motion.ts';
-export { figureSvg, lerpPose, POSES } from './render/patient-figure.ts';
+export { figureSvg, figureLookFor, lerpPose, POSES } from './render/patient-figure.ts';
 export { createCirculation, settleModel, settleCirculation } from './engine/circulation-host.ts';
 export { healthyModel, modelFromCase, pathologyOf, caseWithModel, applyPreset, CIRCULATION_DEFAULTS, type PatientModel } from './physiology/state.ts';
 export { MODELS, MODEL_BY_ID, VARIABLE_BY_ID, getPath, setPath } from './physiology/models.ts';
