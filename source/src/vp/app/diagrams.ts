@@ -1,6 +1,7 @@
 import type { LivePatient } from '../live/live-patient.ts';
 import type { RuntimeView } from '../engine/observe.ts';
 import { neuroExamState, nystagmus } from '../models/neuro-exam.ts';
+import { CIRC } from '../evidence/circulation.ts';
 
 /* ===========================================================================
    Living diagrams for the physiology chapters.
@@ -149,7 +150,7 @@ const circuit: Draw = (g, w, h, c) => {
   g.setLineDash([4, 4]); g.strokeStyle = css('--muted'); g.lineWidth = 1;
   const vEnd = Math.min(vMax, V0 + pMax / Ees);
   g.beginPath(); g.moveTo(X(V0), Y(0)); g.lineTo(X(vEnd), Y((vEnd - V0) * Ees)); g.stroke();
-  g.beginPath(); for (let v = V0; v <= vMax; v += 2) { const p = p0.edpA * (Math.exp(p0.edpB * (v - V0)) - 1); if (p > pMax) break; v === V0 ? g.moveTo(X(v), Y(p)) : g.lineTo(X(v), Y(p)); } g.stroke();
+  { const vd = p0.edpV0 ?? V0; g.beginPath(); for (let v = vd; v <= vMax; v += 2) { const p = CIRC.klotzAn * Math.pow(Math.max(0, (v - vd) / (p0.edpV30 - vd)), CIRC.klotzBn); if (p > pMax) break; v === vd ? g.moveTo(X(v), Y(p)) : g.lineTo(X(v), Y(p)); } g.stroke(); }
   g.setLineDash([]);
   if (beat?.length) {
     g.strokeStyle = C.art; g.lineWidth = 2; g.beginPath();
