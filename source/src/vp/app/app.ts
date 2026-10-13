@@ -11,7 +11,9 @@ import { ask, opening, interpret, normalise } from '../engine/language.ts';
 import { autoNote, describe } from '../engine/notes.ts';
 import { commit, type Commit, type DebriefResult } from '../engine/debrief.ts';
 import { tr, list, type LocalizedText } from '../model/i18n.ts';
-import type { CaseDef, Finding, ManoeuvreDef, Side, InvestigationDef } from '../model/types.ts';
+import type { CaseDef, Finding, ManoeuvreDef, Side, InvestigationDef, TeachingCard } from '../model/types.ts';
+import { suggest, type Suggestion } from '../engine/suggest.ts';
+import { SHORT_LABELS } from '../data/exam-structure.ts';
 import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
 import { EyeView } from '../render/eye-view.ts';
 import { FaceView, type FaceFinding } from '../render/face-view.ts';
@@ -50,7 +52,14 @@ const UI: Record<string, Record<Lang, string>> = {
   placeholder: { en: 'Ask or examine…', de: 'Fragen oder untersuchen…' }, send: { en: 'Go', de: 'Los' },
   feed: { en: 'Encounter', de: 'Verlauf' }, notes: { en: 'Notes', de: 'Notizen' }, mine: { en: 'My notes', de: 'Meine Notizen' },
   wait: { en: 'Wait 10 min', de: '10 min warten' }, commit: { en: 'Commit diagnosis', de: 'Diagnose festlegen' }, leave: { en: 'Ward', de: 'Übersicht' },
-  whole: { en: 'Whole patient', de: 'Ganzer Patient' }, tapHint: { en: 'You stand at the patient’s right: the near arm and leg are the right ones. Tap a part of the body to examine it, or type.', de: 'Sie stehen rechts vom Patienten: der nahe Arm und das nahe Bein sind die rechten. Tippen Sie auf eine Körperregion oder schreiben Sie.' },
+  whole: { en: 'All examinations', de: 'Alle Untersuchungen' }, tapHint: { en: 'You stand at the patient’s right: the near arm and leg are the right ones. Tap a part of the body, open all examinations, or type below to search.', de: 'Sie stehen rechts vom Patienten: der nahe Arm und das nahe Bein sind die rechten. Tippen Sie auf eine Körperregion, öffnen Sie alle Untersuchungen oder suchen Sie unten im Eingabefeld.' },
+  sugExamine: { en: 'Examine', de: 'Untersuchen' }, sugOrder: { en: 'Order', de: 'Anordnen' }, sugAsk: { en: 'Ask', de: 'Fragen' },
+  sugHint: { en: 'Type to search examinations, tests and questions in any language: “pupils”, “Knie-Hacke”, “chest pain?”. ↑↓ to choose, Enter to do it, Tab to fill in.', de: 'Tippen, um Untersuchungen, Tests und Fragen in jeder Sprache zu suchen: „Pupillen“, „heel shin“, „Brustschmerz?“. ↑↓ wählen, Enter ausführen, Tab übernehmen.' },
+  aboutTest: { en: 'About this test', de: 'Über diese Untersuchung' }, assesses: { en: 'What it tests', de: 'Was sie prüft' }, howTo: { en: 'How to do it', de: 'Durchführung' },
+  normalFinding: { en: 'Normal', de: 'Normalbefund' }, abnormalFinding: { en: 'Abnormal findings and what they mean', de: 'Pathologische Befunde und ihre Bedeutung' },
+  seenIn: { en: 'Seen in', de: 'Vorkommen' }, pitfalls: { en: 'Pitfalls', de: 'Fallstricke' }, alsoCalled: { en: 'Also called', de: 'Auch' },
+  doIt: { en: 'Do it now', de: 'Jetzt durchführen' }, close: { en: 'Close', de: 'Schließen' },
+  spoilerHidden: { en: 'The conditions it points to are shown after you commit to a diagnosis.', de: 'Die Krankheitsbilder dazu werden gezeigt, sobald Sie sich auf eine Diagnose festgelegt haben.' },
   left: { en: 'Left', de: 'Links' }, right: { en: 'Right', de: 'Rechts' }, which: { en: 'Which side?', de: 'Welche Seite?' },
   unknown: { en: 'Not understood. Rephrase it as a question to the patient or as an examination step.', de: 'Nicht verstanden. Formulieren Sie eine Frage an den Patienten oder einen Untersuchungsschritt.' },
   ordered: { en: 'Ordered', de: 'Angefordert' }, resultIn: { en: 'result in', de: 'Ergebnis in' },
@@ -722,6 +731,8 @@ export function mount(root: HTMLElement) {
     const fe = $('#tab-feed'); fe.scrollTop = fe.scrollHeight;
     renderFigure();
     renderRegion();
+    renderCare();
+    if (cardFor) showCard(cardFor);
     if (layer === 'tests') renderTests($('#layer-tests'));
   };
 
@@ -754,23 +765,164 @@ export function mount(root: HTMLElement) {
     $('#state-line').textContent = `${t('position')}: ${POSITION[st.position]?.[lang] ?? st.position} · ${t('exposed')}: ${exposed.size ? [...exposed].map((x) => tr(CATALOG.structures[x]?.label, lang)).join(', ') : t('nothing')}${st.oxygen && st.oxygen.fio2 > 0.21 ? ` · O₂: ${st.oxygen.device}` : ''}`;
   };
 
+  /* ---- the examination menu: grouped by system and section, in clinical order ------------ */
+  const openSystems = new Set<string>(['vitals']);
+  const infoBtn = (m: ManoeuvreDef) => m.teaching ? `<button type="button" class="info" data-info="${m.id}" aria-label="${esc(t('aboutTest'))}: ${esc(tr(m.label, lang))}" title="${esc(t('aboutTest'))}">i</button>` : '';
+  const actHtml = (m: ManoeuvreDef, side?: Side) => {
+    const label = esc(tr(m.label, lang));
+    if (!m.paired || side) return `<div class="act-row"><button type="button" class="act" data-act="${m.id}" ${side ? `data-side="${side}"` : ''}>${label}</button>${infoBtn(m)}</div>`;
+    return `<div class="act-pair"><span>${label}</span><button type="button" class="tog small" data-act="${m.id}" data-side="R">${t('right')}</button><button type="button" class="tog small" data-act="${m.id}" data-side="L">${t('left')}</button>${infoBtn(m)}</div>`;
+  };
+  /** The sections that hold any of these manoeuvres, in order, each with its manoeuvres in order. */
+  const sectionsFor = (keep: (m: ManoeuvreDef) => boolean) => CATALOG.examSystems.map((sys) => ({
+    sys, sections: sys.sections.filter((sec) => sec.kind !== 'intervene')
+      .map((sec) => ({ sec, items: sec.manoeuvres.map((id) => CATALOG.manoeuvres[id]).filter((m) => m && !m.hidden && keep(m)) }))
+      .filter((x) => x.items.length),
+  })).filter((x) => x.sections.length);
+
   const renderRegion = () => {
     const box = $('#region');
     if (!region || !s) { box.hidden = true; return; }
     box.hidden = false;
-    const items = Object.values(CATALOG.manoeuvres).filter((m) => regionOf(m.target) === region!.id && !m.hidden);
     const side = region.side;
-    const ecg = region.id === 'chest' ? `<button type="button" class="act" data-ecg>${lang === 'de' ? '12-Kanal-EKG schreiben' : 'Record a 12-lead ECG'}</button>` : '';
-    box.innerHTML = `<div class="region-head"><b>${esc(REGION_LABEL[region.id][lang])}${side ? sideWord(side) : ''}</b><button type="button" class="ghost small" id="region-close" aria-label="Close">×</button></div>
-      <div class="region-list">${items.map((m) => {
-        const label = esc(tr(m.label, lang));
-        if (!m.paired || side) return `<button type="button" class="act" data-act="${m.id}" ${side ? `data-side="${side}"` : ''}>${label}</button>`;
-        return `<div class="act-pair"><span>${label}</span><button type="button" class="tog small" data-act="${m.id}" data-side="R">${t('right')}</button><button type="button" class="tog small" data-act="${m.id}" data-side="L">${t('left')}</button></div>`;
-      }).join('')}${ecg}</div>`;
+    const all = region.id === 'body';
+    const groups = sectionsFor((m) => all || regionOf(m.target) === region!.id);
+    const ecg = region.id === 'chest' ? `<div class="act-row"><button type="button" class="act" data-ecg>${lang === 'de' ? '12-Kanal-EKG schreiben' : 'Record a 12-lead ECG'}</button></div>` : '';
+    const body = all
+      ? groups.map(({ sys, sections }) => `<details class="sys" data-sys="${sys.id}" ${openSystems.has(sys.id) ? 'open' : ''}><summary>${esc(tr(sys.label, lang))}</summary>
+          ${sections.map(({ sec, items }) => `${sections.length > 1 ? `<h4 class="sec-head">${esc(tr(sec.label, lang))}</h4>` : ''}${items.map((m) => actHtml(m)).join('')}`).join('')}</details>`).join('')
+      : groups.flatMap(({ sys, sections }) => sections.map(({ sec, items }) => `<h4 class="sec-head">${esc(tr(sys.label, lang))}${tr(sec.label, lang) !== tr(sys.label, lang) ? ` · ${esc(tr(sec.label, lang))}` : ''}</h4>${items.map((m) => actHtml(m, side)).join('')}`)).join('') + ecg;
+    box.innerHTML = `<div class="region-head"><b>${all ? esc(t('whole')) : `${esc(REGION_LABEL[region.id][lang])}${side ? sideWord(side) : ''}`}</b><button type="button" class="ghost small" id="region-close" aria-label="${esc(t('close'))}">×</button></div>
+      <div class="region-list${all ? ' all' : ''}">${body}</div>`;
     box.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => b.onclick = () => doAction(b.dataset.act!, (b.dataset.side as Side) || undefined));
+    box.querySelectorAll<HTMLButtonElement>('[data-info]').forEach((b) => b.onclick = () => showCard(b.dataset.info!));
+    box.querySelectorAll<HTMLDetailsElement>('details[data-sys]').forEach((d) => d.addEventListener('toggle', () => {
+      /* One system open at a time, so the list stays short enough to scan. */
+      if (d.open) { openSystems.clear(); openSystems.add(d.dataset.sys!); box.querySelectorAll<HTMLDetailsElement>('details[data-sys]').forEach((o) => { if (o !== d) o.open = false; }); }
+      else openSystems.delete(d.dataset.sys!);
+    }));
     box.querySelector<HTMLButtonElement>('[data-ecg]')?.addEventListener('click', () => setVisual({ kind: 'ecg' }));
     $('#region-close').onclick = () => { region = null; renderRegion(); };
   };
+
+  /* ---- position, exposure and oxygen: always at hand, apart from the examination ------------ */
+  const isActive = (m: ManoeuvreDef): boolean => {
+    const st = s!.state;
+    if (m.sets?.position) return st.position === m.sets.position;
+    if (m.sets?.oxygen) return (st.oxygen?.fio2 ?? 0.21) <= 0.21 ? m.sets.oxygen.fio2 <= 0.21 : st.oxygen?.device === m.sets.oxygen.device;
+    if (m.verb === 'expose') return (st.exposure ?? []).includes(m.target);
+    return false;
+  };
+  const renderCare = () => {
+    const box = $('#care');
+    if (!s) { box.innerHTML = ''; return; }
+    const care = CATALOG.examSystems.flatMap((sys) => sys.sections).filter((sec) => sec.kind === 'intervene');
+    const short = (id: string) => (SHORT_LABELS[id] ? tr(SHORT_LABELS[id], lang) : tr(CATALOG.manoeuvres[id].label, lang));
+    box.innerHTML = care.map((sec) => sec.layout === 'select'
+      ? `<label class="care-row"><span class="care-label">${esc(tr(sec.label, lang))}</span><select data-care-select>${sec.manoeuvres.map((id) =>
+          `<option value="${id}" ${isActive(CATALOG.manoeuvres[id]) ? 'selected' : ''}>${esc(short(id))}</option>`).join('')}</select></label>`
+      : `<div class="care-row"><span class="care-label">${esc(tr(sec.label, lang))}</span><div class="chips">${sec.manoeuvres.map((id) =>
+          `<button type="button" class="chip" data-care="${id}" aria-pressed="${isActive(CATALOG.manoeuvres[id])}" title="${esc(tr(CATALOG.manoeuvres[id].label, lang))}">${esc(short(id))}</button>`).join('')}</div></div>`).join('');
+    box.querySelectorAll<HTMLButtonElement>('[data-care]').forEach((b) => b.onclick = () => doAction(b.dataset.care!));
+    box.querySelectorAll<HTMLSelectElement>('[data-care-select]').forEach((sel) => sel.onchange = () => doAction(sel.value));
+  };
+
+  /* ---- the teaching card of a test ---------------------------------------------------- */
+  const cardHtml = (m: ManoeuvreDef, card: TeachingCard) => {
+    const spoilers = free || committed;
+    const aliases = list(card.aliases, lang).concat(...Object.keys(card.aliases ?? {}).filter((l) => l !== lang).map((l) => card.aliases![l]))
+      .concat(Object.keys(m.label).filter((l) => l !== lang).map((l) => m.label[l]))
+      .filter((x, i, a) => x && a.indexOf(x) === i && x !== tr(m.label, lang));
+    return `<header class="card-head"><div><div class="eyebrow">${esc(t('aboutTest'))}</div><h2>${esc(tr(m.label, lang))}</h2>
+        ${aliases.length ? `<p class="muted">${esc(t('alsoCalled'))}: ${aliases.map(esc).join(' · ')}</p>` : ''}</div>
+        <button type="button" class="ghost small" id="card-close" aria-label="${esc(t('close'))}">×</button></header>
+      <section><h3>${esc(t('assesses'))}</h3><p>${esc(tr(card.assesses, lang))}</p></section>
+      <section><h3>${esc(t('howTo'))}</h3><ol>${list(card.how, lang).map((x) => `<li>${esc(x)}</li>`).join('')}</ol></section>
+      <section><h3>${esc(t('normalFinding'))}</h3><p>${esc(tr(card.normal, lang))}</p></section>
+      <section><h3>${esc(t('abnormalFinding'))}</h3><ul class="abn">${card.abnormal.map((f) => `<li><p><b>${esc(tr(f.sign, lang))}</b></p><p>${esc(tr(f.means, lang))}</p>
+        ${spoilers && f.conditions?.length ? `<p class="muted">${esc(t('seenIn'))}: ${f.conditions.map((d) => esc(tr(CATALOG.diagnoses[d]?.label, lang))).join(', ')}</p>` : ''}</li>`).join('')}</ul>
+        ${!spoilers && card.abnormal.some((f) => f.conditions?.length) ? `<p class="muted small">${esc(t('spoilerHidden'))}</p>` : ''}</section>
+      ${card.pitfalls ? `<section><h3>${esc(t('pitfalls'))}</h3><ul>${list(card.pitfalls, lang).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
+      ${s && !committed ? `<div class="card-actions">${m.paired ? `<button type="button" class="primary" data-card-act="${m.id}" data-side="R">${esc(t('doIt'))}: ${esc(t('right'))}</button><button type="button" class="primary" data-card-act="${m.id}" data-side="L">${esc(t('doIt'))}: ${esc(t('left'))}</button>` : `<button type="button" class="primary" data-card-act="${m.id}">${esc(t('doIt'))}</button>`}</div>` : ''}`;
+  };
+  let cardFor: string | null = null;
+  const showCard = (id: string | null) => {
+    cardFor = id;
+    const box = $('#card');
+    const m = id ? CATALOG.manoeuvres[id] : undefined;
+    if (!m?.teaching) { box.hidden = true; return; }
+    box.hidden = false;
+    $('#card-body').innerHTML = cardHtml(m, m.teaching);
+    $('#card-close').onclick = () => showCard(null);
+    box.querySelectorAll<HTMLButtonElement>('[data-card-act]').forEach((b) => b.onclick = () => { showCard(null); doAction(b.dataset.cardAct!, (b.dataset.side as Side) || undefined); });
+    ($('#card-close') as HTMLButtonElement).focus();
+  };
+  $('#card').addEventListener('click', (e) => { if (e.target === $('#card')) showCard(null); });
+  $('#card').addEventListener('keydown', (e) => { if (e.key === 'Escape') showCard(null); });
+
+  /* ---- suggestions in the command field ------------------------------------------------ */
+  let sugs: Suggestion[] = [];
+  let sugIndex = -1;
+  const cmd = () => $('#cmd') as HTMLInputElement;
+  const sectionName = (id?: string) => {
+    for (const sys of CATALOG.examSystems) for (const sec of sys.sections) if (sec.id === id) return tr(sys.label, lang) === tr(sec.label, lang) ? tr(sec.label, lang) : `${tr(sys.label, lang)} · ${tr(sec.label, lang)}`;
+    return '';
+  };
+  /* Above the field when there is room above it, otherwise below. */
+  const placeSuggest = () => {
+    const r = cmd().getBoundingClientRect();
+    $('#suggest').classList.toggle('below', r.top < Math.min(360, window.innerHeight * 0.55) + 12 && window.innerHeight - r.bottom > r.top);
+  };
+  const renderSuggest = () => {
+    const box = $('#suggest');
+    const q = cmd().value;
+    if (document.activeElement !== cmd()) { box.hidden = true; return; }
+    sugs = suggest(CATALOG, q, lang, 9);
+    if (sugIndex >= sugs.length) sugIndex = sugs.length - 1;
+    if (!q.trim()) { box.hidden = false; placeSuggest(); box.innerHTML = `<p class="sug-hint">${esc(t('sugHint'))}</p>`; return; }
+    if (!sugs.length) { box.hidden = true; return; }
+    box.hidden = false;
+    placeSuggest();
+    const kindWord = (x: Suggestion) => x.kind === 'act' ? t('sugExamine') : x.kind === 'order' ? t('sugOrder') : t('sugAsk');
+    box.innerHTML = `<ul role="listbox" id="sug-list">${sugs.map((x, i) => {
+      const m = x.kind === 'act' ? CATALOG.manoeuvres[x.id] : undefined;
+      const also = x.matched && normalise(x.matched) !== normalise(x.label) && x.matched.length < 60 ? ` <span class="sug-also">${esc(x.matched)}</span>` : '';
+      const where = x.kind === 'act' ? sectionName(x.section) : '';
+      return `<li role="option" id="sug-${i}" aria-selected="${i === sugIndex}" data-sug="${i}"><span class="sug-kind ${x.kind}">${esc(kindWord(x))}</span>
+        <span class="sug-main"><span class="sug-label">${esc(x.kind === 'ask' ? x.text : x.label)}${x.kind === 'act' && x.side ? sideWord(x.side) : ''}</span>${also}${where ? `<span class="sug-where">${esc(where)}</span>` : ''}</span>
+        ${m?.teaching ? `<button type="button" class="info" data-sug-info="${m.id}" tabindex="-1" aria-label="${esc(t('aboutTest'))}">i</button>` : ''}</li>`;
+    }).join('')}</ul>`;
+    cmd().setAttribute('aria-activedescendant', sugIndex >= 0 ? `sug-${sugIndex}` : '');
+    box.querySelectorAll<HTMLElement>('[data-sug]').forEach((li) => li.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const info = (e.target as Element).closest('[data-sug-info]') as HTMLElement | null;
+      if (info) { showCard(info.dataset.sugInfo!); return; }
+      runSuggestion(sugs[+li.dataset.sug!]);
+    }));
+  };
+  const runSuggestion = (x: Suggestion) => {
+    cmd().value = ''; sugIndex = -1;
+    tab = 'feed';
+    if (x.kind === 'act') { feed.push({ k: 'you', text: tr(CATALOG.manoeuvres[x.id].label, lang) }); doAction(x.id, x.side); }
+    else if (x.kind === 'order') {
+      feed.push({ k: 'you', text: x.label });
+      if (x.id === 'ecg-12') { setLayer('bedside'); setVisual({ kind: 'ecg' }); renderEncounter(); } else doOrder(x.id);
+    }
+    else { submit(x.text); renderEncounter(); }
+    renderSuggest();
+  };
+  const fillSuggestion = (x: Suggestion) => { cmd().value = x.kind === 'ask' ? x.text : x.label; sugIndex = -1; renderSuggest(); };
+  cmd().setAttribute('role', 'combobox'); cmd().setAttribute('aria-controls', 'sug-list'); cmd().setAttribute('aria-autocomplete', 'list');
+  cmd().addEventListener('input', () => { sugIndex = -1; renderSuggest(); });
+  cmd().addEventListener('focus', renderSuggest);
+  cmd().addEventListener('blur', () => { $('#suggest').hidden = true; });
+  cmd().addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' && sugs.length) { e.preventDefault(); sugIndex = (sugIndex + 1) % sugs.length; renderSuggest(); }
+    else if (e.key === 'ArrowUp' && sugs.length) { e.preventDefault(); sugIndex = sugIndex <= 0 ? sugs.length - 1 : sugIndex - 1; renderSuggest(); }
+    else if (e.key === 'Tab' && !e.shiftKey && sugs.length && cmd().value.trim()) { e.preventDefault(); fillSuggestion(sugs[Math.max(0, sugIndex)]); }
+    else if (e.key === 'Enter' && sugIndex >= 0 && sugs[sugIndex]) { e.preventDefault(); runSuggestion(sugs[sugIndex]); }
+    else if (e.key === 'Escape') { sugIndex = -1; $('#suggest').hidden = true; }
+  });
 
   $('#figure').addEventListener('click', (ev) => {
     const el = (ev.target as Element).closest('[data-region]') as SVGElement | null;
@@ -848,7 +1000,7 @@ export function mount(root: HTMLElement) {
   };
 
   /* ---- wiring ------------------------------------------------------------------------ */
-  $('#cmdform').addEventListener('submit', (e) => { e.preventDefault(); const i = $('#cmd') as HTMLInputElement; const v = i.value; i.value = ''; submit(v); tab = 'feed'; renderEncounter(); });
+  $('#cmdform').addEventListener('submit', (e) => { e.preventDefault(); const i = $('#cmd') as HTMLInputElement; const v = i.value; i.value = ''; submit(v); tab = 'feed'; renderEncounter(); renderSuggest(); });
   root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab as typeof tab; renderEncounter(); });
   ($('#mynotes') as HTMLTextAreaElement).addEventListener('input', (e) => { myNotes = (e.target as HTMLTextAreaElement).value; });
   $('#wait').onclick = () => { if (!s) return; const before = s.t; s.t += 10 * 60000; afterTime(before); renderEncounter(); };

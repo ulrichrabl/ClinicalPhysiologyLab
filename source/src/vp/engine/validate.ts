@@ -1,7 +1,8 @@
-import type { CaseDef, NormalSpec, ValueType, Valued } from '../model/types.ts';
+import type { CaseDef, NormalSpec, TeachingCard, ValueType, Valued } from '../model/types.ts';
+import { REFERENCES } from '../evidence/references.ts';
 import type { Catalog } from '../data/catalog.ts';
 import type { Registry } from '../registry.ts';
-import { missingLocales, SUPPORTED_LOCALES, type Locale, type LocalizedText } from '../model/i18n.ts';
+import { missingLocales, SUPPORTED_LOCALES, type Locale, type LocalizedList, type LocalizedText } from '../model/i18n.ts';
 import { parseRef } from './observe.ts';
 import { NODES } from '../../domains/neuro/data/anatomy.js';
 import { ELECTRICAL_DEFAULTS } from '../physiology/heart/electrical.ts';
@@ -85,9 +86,25 @@ function checkNormal(n: NormalSpec, t: ValueType, cat: Catalog, path: string, ou
   }
 }
 
-function checkText(text: LocalizedText | undefined, locales: readonly Locale[], path: string, out: Issue[], level: Issue['level'] = 'error') {
+function checkText(text: LocalizedText | LocalizedList | undefined, locales: readonly Locale[], path: string, out: Issue[], level: Issue['level'] = 'error') {
   const miss = missingLocales(text, locales);
   if (miss.length) out.push({ level, path, message: `missing ${miss.join(', ')}` });
+}
+
+/** A teaching card: every language present, and every property, diagnosis and reference it names exists. */
+function checkTeaching(card: TeachingCard, cat: Catalog, path: string, out: Issue[]) {
+  const L = SUPPORTED_LOCALES;
+  checkText(card.assesses, L, `${path}.assesses`, out, 'warning');
+  checkText(card.normal, L, `${path}.normal`, out, 'warning');
+  for (const [k, l] of [['how', card.how], ['aliases', card.aliases], ['pitfalls', card.pitfalls]] as const) if (l) checkText(l, L, `${path}.${k}`, out, 'warning');
+  if (card.how.en.length && L.some((l) => card.how[l] && card.how[l].length !== card.how.en.length)) out.push({ level: 'warning', path: `${path}.how`, message: 'languages have different numbers of steps' });
+  for (const [i, f] of card.abnormal.entries()) {
+    checkText(f.sign, L, `${path}.abnormal[${i}].sign`, out, 'warning');
+    checkText(f.means, L, `${path}.abnormal[${i}].means`, out, 'warning');
+    for (const p of f.properties ?? []) if (!cat.properties[p]) out.push({ level: 'error', path: `${path}.abnormal[${i}]`, message: `unknown property ${p}` });
+    for (const d of f.conditions ?? []) if (!cat.diagnoses[d]) out.push({ level: 'error', path: `${path}.abnormal[${i}]`, message: `unknown diagnosis ${d}` });
+  }
+  for (const r of card.refs ?? []) if (!REFERENCES[r]) out.push({ level: 'error', path: `${path}.refs`, message: `unknown reference ${r}` });
 }
 
 export function validateCatalog(cat: Catalog, reg: Registry): Issue[] {
@@ -125,6 +142,15 @@ export function validateCatalog(cat: Catalog, reg: Registry): Issue[] {
     if (m.sideContext?.length && !m.paired) out.push({ level: 'error', path, message: 'sideContext on an unpaired manoeuvre' });
     checkText(m.label, L, `${path}.label`, out, 'warning');
     for (const l of L) if (!(m.phrases[l]?.length)) out.push({ level: 'warning', path: `${path}.phrases`, message: `no ${l} phrases` });
+    if (!m.section) out.push({ level: 'error', path, message: 'not placed in any exam section (data/exam-structure.ts)' });
+    if (m.teaching) checkTeaching(m.teaching, cat, `${path}.teaching`, out);
+  }
+  for (const sys of cat.examSystems) {
+    checkText(sys.label, L, `examSystems.${sys.id}.label`, out, 'warning');
+    for (const sec of sys.sections) {
+      checkText(sec.label, L, `examSystems.${sec.id}.label`, out, 'warning');
+      for (const id of sec.manoeuvres) if (!cat.manoeuvres[id]) out.push({ level: 'error', path: `examSystems.${sec.id}`, message: `unknown manoeuvre ${id}` });
+    }
   }
   for (const inv of Object.values(cat.investigations)) {
     const path = `investigations.${inv.id}`;
