@@ -552,9 +552,44 @@ constants with their status and references. The test suite fails if a measured
 or derived constant has no reference, if a derived or assumed one has no working,
 if a reference is unknown, or if a registered constant is no longer used; it
 prints how much of each model is grounded and which constants still await a read
-of the original. Migration: the endocrine models are in the registry; the
-remaining models still hold their numbers inline and are moved over model by
-model.
+of the original. Where the model misses measured data, the test reports it as a
+known gap (△, with the numbers) instead of being loosened until it passes; the
+gaps are listed below. Migration: the endocrine, water, kidney, circulation and
+baroreflex models are in the registry; sepsis and inflammation, the rest of the
+kidney, the lungs, the ECG and the examination thresholds follow in that order.
+
+**Where the circulation and baroreflex constants come from.** The reference man
+(45 years, 176 cm, 76 kg, supine) is anchored to human normals: left ventricular
+volumes and ejection fraction (Lang 2015), wedge pressure derived from Kovacs's
+pulmonary pressure and resistance reviews (mean PA 12.9 mmHg, PVR 69 dyn·s·cm⁻⁵),
+blood volume (Nadler), systemic resistance (Johnson 2014). Both ventricles fill on
+Klotz's normalised human EDPVR, anchored at 120 mL/8 mmHg (left) and 130 mL/5 mmHg
+(right; that the right ventricle shares the left's curve is an assumption), which
+replaced an exponential limb that left the ventricle three times too compliant at
+its operating point. Right ventricular Ees follows Kuehne's coupling ratio (1.9).
+Venous compliance and unstressed volume are set from Maas's measured stressed
+volume (about a quarter of the blood) with the filling pressures held at their
+normals; Maas's own compliance came with ventilation-raised pressures and would
+leave a 1 L haemorrhage emptying the circulation. The heart-rate parameter is the
+intrinsic rate (Jose: 118.1 − 0.57 × age), and the vagal and sympathetic gains are
+fitted to it and to the rate under atropine (Cina): the model then gives atropine
+101/min, double blockade 92/min and propranolol 62/min. Checked, not fitted:
+cardiovagal baroreflex sensitivity 17 ms/mmHg (Monahan: 19 young, 8 older) and a
+graded 1 L haemorrhage (Johnson 2014): pressure held, stroke volume −15 % (−20 %),
+output −10 % (−11 %). With the reflex switched off, autonomic tone is held at rest.
+
+**Known gaps (reported by the tests).** Haemorrhage raises the heart rate +3 %
+against +14 % and lowers CVP 2.7 against 4.7 mmHg: there is no cardiopulmonary
+(low-pressure) afferent and no pulse-pressure component of the baroreceptor
+signal. The embolism-to-resistance mapping and right ventricular ischaemia are
+ungrounded: moderate PE raises mean PA pressure only 2.4 mmHg and massive PE
+shows shock without CVP above 10. Lung water at a wedge of 20 lowers PaO2 1.3 kPa.
+Hypothyroid cardiac output falls 25 % (reported 30–50 %). The Addisonian crisis
+lies at 113 systolic (half of crises present at 110 or less). The septic shock
+tests now miss hypotension: the sepsis constants were fitted to the old
+circulation and are the next package. The heart rate is not yet a function of age,
+and arterial and pulmonary compliances, atrial elastances, valve and pericardial
+constants are not yet sourced.
 
 **Where the water and kidney constants come from.** Volume is sensed as blood
 volume (arterial filling), not extracellular fluid, so fluid leaked into the

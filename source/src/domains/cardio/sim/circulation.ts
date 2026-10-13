@@ -1,13 +1,16 @@
 /* Closed-loop circulation — RK4 hemodynamics. ECG via EcgEngine. */
 // @ts-nocheck
-const REG_BASE_LEFT = 0.5;
-const REG_BASE_RIGHT = 0.09;
 
 const S_VLV = 0, S_VLA = 1, S_VRV = 2, S_VRA = 3,
       S_VSA = 4, S_VSV = 5, S_VPA = 6, S_VPV = 7,
       S_SS = 8, S_SP = 9, N_STATE = 10;
 
 import type { EcgEngine } from '../ecg-engine/engine.ts';
+import { CIRC, BARO } from '../../../vp/evidence/circulation.ts';
+
+const REG_BASE_LEFT = CIRC.regBaseLeft;
+const REG_BASE_RIGHT = CIRC.regBaseRight;
+const KLOTZ_AN = CIRC.klotzAn, KLOTZ_BN = CIRC.klotzBn;
 import type { MechanicalTrigger } from '../ecg-engine/types/index.ts';
 import { getMechanism } from '../ecg-engine/mechanisms/registry.ts';
 
@@ -30,11 +33,15 @@ export class Circulation {
     // --- chamber mechanics -------------------------------------------------
     this.Emax = c.Emax; this.Emin = c.Emin; this.V0 = c.V0;
     this.edpA = c.edpA; this.edpB = c.edpB;
+    /* Klotz's normalised EDPVR, when the patient gives its two volumes (zero-pressure and 30 mmHg). */
+    this.edpV0 = c.edpV0 ?? 0; this.edpV30 = c.edpV30 ?? 0;
+    this.edpV0rv = c.edpV0rv ?? 0; this.edpV30rv = c.edpV30rv ?? 0;
     this.EmaxRv = c.EmaxRv; this.V0rv = c.V0rv;
     this.edpArv = c.edpArv; this.edpBrv = c.edpBrv;
     /* The pericardium and the septum: the heart's four chambers share a sac and two of them a wall. */
-    this.periV0 = c.periV0 ?? 420; this.periVs = c.periVs ?? 40; this.pericardialFluid = c.pericardialFluid ?? 0;
-    this.septalShift = c.septalShift ?? 1.5;
+    this.periV0 = c.periV0 ?? CIRC.periV0; this.periVs = c.periVs ?? CIRC.periVs; this.pericardialFluid = c.pericardialFluid ?? 0;
+    this.septalShift = c.septalShift ?? CIRC.septalShift;
+    this.septalRef = c.septalRef ?? 0;
     this.ElaMax = c.ElaMax; this.ElaMin = c.ElaMin; this.V0la = c.V0la;
     this.EraMax = c.EraMax; this.EraMin = c.EraMin; this.V0ra = c.V0ra;
 
@@ -96,8 +103,8 @@ export class Circulation {
   distributeVolume(c) {
     const V = this.bloodVolume;
     const frac = {
-      lv: 0.026, la: 0.012, rv: 0.028, ra: 0.012,
-      sa: 0.155, sv: 0.640, pa: 0.041, pv: 0.086,
+      lv: CIRC.initLv, la: CIRC.initLa, rv: CIRC.initRv, ra: CIRC.initRa,
+      sa: CIRC.initSa, sv: CIRC.initSv, pa: CIRC.initPa, pv: CIRC.initPv,
     };
     this.s = new Float64Array(N_STATE);
     this.s[S_VLV] = V * frac.lv; this.s[S_VLA] = V * frac.la;
@@ -129,12 +136,16 @@ export class Circulation {
 
   applyCfg(_c: CirculationConfig) { /* conduction now in EcgEngine */ }
 
-  baroFiring(P) { return 2.5 + (47 - 2.5) / (1 + Math.exp(-0.07 * (P - this.Pn))); }
+  baroFiring(P) { return BARO.firingMin + (BARO.firingMax - BARO.firingMin) / (1 + Math.exp(-BARO.firingSlope * (P - this.Pn))); }
+
+  /* With the reflex loop opened, autonomic tone is held at its resting level (σ = ½), as the vascular
+     effectors are: the sinus node runs at the resting rate, not at its denervated intrinsic rate. */
+  openLoopHR() { return this.HR * (1 + 0.5 * this.gS - 0.5 * this.gP); }
 
   modulatedHR() {
     // Hyperpnoea itself withdraws vagal tone from the sinus node (the lung-inflation reflex, central respiratory–cardiac coupling).
-    const hr = this.HR * (1 + this.gS * this.sigmaS - this.gP * this.sigmaP + 0.35 * (this.chemoDrive || 0));
-    return Math.max(30, Math.min(200, hr));
+    const hr = this.HR * (1 + this.gS * this.sigmaS - this.gP * this.sigmaP + BARO.chemoHr * (this.chemoDrive || 0));
+    return Math.max(BARO.hrMin, Math.min(BARO.hrMax, hr));
   }
 
   /* The baroreflex is not a heart-rate reflex.
@@ -167,15 +178,21 @@ export class Circulation {
      restoring negative pressure, or it has no way to resist being emptied — it
      drains to whatever floor the integrator imposes, and the floor then has to
      invent the blood back. That is how volume stopped being conserved. */
-  chamberP(V, act, Emax, V0, edpA, edpB) {
+  chamberP(V, act, Emax, V0, Ped) {
     const Pes = Emax * (V - V0);
-    const Ped = edpA * (Math.exp(edpB * (V - V0)) - 1);
     return act * Pes + (1 - act) * Ped;
   }
 
+  /* Passive (end-diastolic) pressure–volume relation. Klotz et al. found that human ventricles of every
+     aetiology share one curve once volume is normalised between the zero-pressure volume V0 and the
+     volume at 30 mmHg: P = An·((V − V0)/(V30 − V0))^Bn. Below V0 the empty ventricle recoils (suction). */
+  static klotz(V, V0, V30) {
+    const x = (V - V0) / (V30 - V0);
+    return x > 0 ? KLOTZ_AN * Math.pow(x, KLOTZ_BN) : CIRC.diastolicSuction * (V - V0);
+  }
   pEnd(V) { return this.Emax * (V - this.V0); }
-  pPassive(V) { return this.edpA * (Math.exp(this.edpB * (V - this.V0)) - 1); }
-  pPassiveRv(V) { return this.edpArv * (Math.exp(this.edpBrv * (V - this.V0rv)) - 1); }
+  pPassive(V) { return this.edpV30 > this.edpV0 && this.edpV0 > 0 ? Circulation.klotz(V, this.edpV0, this.edpV30) : this.edpA * (Math.exp(this.edpB * (V - this.V0)) - 1); }
+  pPassiveRv(V) { return this.edpV30rv > this.edpV0rv && this.edpV0rv > 0 ? Circulation.klotz(V, this.edpV0rv, this.edpV30rv) : this.edpArv * (Math.exp(this.edpBrv * (V - this.V0rv)) - 1); }
 
   /* One valve. Forward flow down the gradient through the orifice; backward
      flow through the regurgitant orifice if there is one. Expressing both in
@@ -248,14 +265,16 @@ export class Circulation {
        it bows into the left, which then needs a higher pressure to hold the same volume. In systole both
        ventricles stiffen and the septum is held. */
     const dPsep = this.pPassiveRv(Vrv) - this.pPassive(Vlv);
-    const shift = (1 - av) * Math.max(-20, Math.min(70, this.septalShift * dPsep));
+    /* The septum's normal position already reflects the normal gradient (the left ventricle fills at a higher
+       pressure than the right); it moves only as that gradient departs from normal. */
+    const shift = (1 - av) * Math.max(CIRC.septalShiftMin, Math.min(CIRC.septalShiftMax, this.septalShift * (dPsep - this.septalRef)));
     /* The pericardium: a stiff sac around all four chambers (and any fluid in it). Its pressure adds to every
        chamber; it is negligible until the heart outgrows its reserve volume (tamponade, acute dilatation). */
     const Vheart = Vlv + Vrv + Vla + Vra + (this.pericardialFluid || 0);
-    const Pperi = 0.5 * (Math.exp(Math.min(8, (Vheart - this.periV0) / this.periVs)) - Math.exp(-this.periV0 / this.periVs));
-    const Plv = this.chamberP(Vlv + shift, av, this.effEmax, this.V0, this.edpA, this.edpB) + Pperi;
+    const Pperi = CIRC.periScale * (Math.exp(Math.min(8, (Vheart - this.periV0) / this.periVs)) - Math.exp(-this.periV0 / this.periVs));
+    const Plv = this.chamberP(Vlv + shift, av, this.effEmax, this.V0, this.pPassive(Vlv + shift)) + Pperi;
     // the right ventricle's filling pressure is set by its free wall; the septum it pushes over takes the left's room
-    const Prv = this.chamberP(Vrv, av, this.EmaxRv, this.V0rv, this.edpArv, this.edpBrv) + Pperi;
+    const Prv = this.chamberP(Vrv, av, this.EmaxRv, this.V0rv, this.pPassiveRv(Vrv)) + Pperi;
     const Ela = this.ElaMin + (this.ElaMax - this.ElaMin) * aa;
     const Era = this.EraMin + (this.EraMax - this.EraMin) * aa;
     const Pla = Ela * (Vla - this.V0la) + Pperi;
@@ -286,7 +305,7 @@ export class Circulation {
     const Qpvret = (Ppv - Pla) / this.Rpv;         // pulmonary venous return
 
     const firing = this.baroFiring(Psa);
-    const norm = Math.max(0, Math.min(1, (firing - 2.5) / 44.5));
+    const norm = Math.max(0, Math.min(1, (firing - BARO.firingMin) / (BARO.firingMax - BARO.firingMin)));
 
     const d = new Float64Array(N_STATE);
     d[S_VLV] = Qmit - Qao;
@@ -300,8 +319,8 @@ export class Circulation {
     /* Carotid-body (chemoreceptor) and dyspnoeic drive add sympathetic and withdraw vagal tone:
        hypoxaemia and breathlessness are tachycardic even at a normal blood pressure. */
     const chemo = this.chemoDrive || 0;
-    d[S_SS] = (Math.min(1, 1 - norm + 0.25 * chemo) - y[S_SS]) / this.tauS;
-    d[S_SP] = (Math.max(0, norm - 0.6 * chemo) - y[S_SP]) / this.tauP;
+    d[S_SS] = (Math.min(1, 1 - norm + BARO.chemoSympathetic * chemo) - y[S_SS]) / this.tauS;
+    d[S_SP] = (Math.max(0, norm - BARO.chemoVagal * chemo) - y[S_SP]) / this.tauP;
 
     return {
       d,
@@ -363,11 +382,11 @@ export class Circulation {
 
     if (atrialActivation > 0.1 && this.eaRaw <= 0.1) this.mechTa = 0;
     this.eaRaw = atrialActivation;
-    this.ea = this.activation(this.mechTa >= 0 ? this.mechTa * (0.8 / this.TmaxA) * 0.28 : -1, 0.8);
+    this.ea = this.activation(this.mechTa >= 0 ? this.mechTa * (0.8 / this.TmaxA) * CIRC.atrialActivationScale : -1, 0.8);
     if (this.mechTa >= 0) this.mechTa += this.dt;
 
-    const rr = 60 / Math.max(30, this.baroEnabled ? this.HReff : this.HR);
-    this.TmaxV = Math.max(0.45, Math.min(1.4, rr));
+    const rr = 60 / Math.max(30, this.baroEnabled ? this.HReff : this.openLoopHR());
+    this.TmaxV = Math.max(CIRC.systoleMin, Math.min(CIRC.systoleMax, rr));
 
     const out = this.engine?.peek ? this.engine.peek() : this.engine?.getOutput();
     this.ecgValue = out?.ecgValue ?? 0;
@@ -553,7 +572,7 @@ export class Circulation {
     if (this.baroEnabled) this.HReff = this.modulatedHR();
   }
 
-  toggleBaro() { this.baroEnabled = !this.baroEnabled; if (!this.baroEnabled) this.HReff = this.HR; }
+  toggleBaro() { this.baroEnabled = !this.baroEnabled; if (!this.baroEnabled) this.HReff = this.openLoopHR(); }
 
   /* Delegate. The pathology belongs to the ECG model; keeping a second copy
      here meant the message handler set a field nobody read and every pathology
@@ -719,7 +738,7 @@ export class Circulation {
       C: this.Csa, R: this.Rsys, afterload: this.Part,
       Emax: this.Emax, Emin: this.Emin, V0: this.V0, K: this.K,
       edpA: this.edpA, edpB: this.edpB,
-      HR: this.engine?.peek().effectiveHR ?? (this.baroEnabled ? this.HReff : this.HR),
+      HR: this.engine?.peek().effectiveHR ?? (this.baroEnabled ? this.HReff : this.openLoopHR()),
       HRset: this.HR,
       qrsAxis: this.engine?.peek().qrsAxis ?? 60,
       ecgMetrics: this.engine ? { ...this.engine.peek().metrics } : null,

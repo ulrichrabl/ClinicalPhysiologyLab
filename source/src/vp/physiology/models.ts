@@ -1,3 +1,4 @@
+import { CIRC, BARO } from '../evidence/circulation.ts';
 import { THY, CA } from '../evidence/endocrine.ts';
 import { WAT, KID } from '../evidence/renal.ts';
 const n = (x: number) => String(x);
@@ -73,8 +74,8 @@ const HAEMODYNAMICS: ModelDef = {
   variables: [
     C('lv', 'Emax', 'E_{max}', L('End-systolic elastance (contractility)', 'Endsystolische Elastanz (Kontraktilität)'), 'mmHg/mL', 0.3, 6, 0.05),
     C('lv', 'V0', 'V_0', L('Unstressed volume', 'Volumen bei Druck null'), 'mL', 0, 80, 1),
-    C('lv', 'edpA', 'A', L('Diastolic stiffness, scale', 'Diastolische Steifigkeit, Faktor'), 'mmHg', 0.1, 3, 0.05),
-    C('lv', 'edpB', 'B', L('Diastolic stiffness, exponent', 'Diastolische Steifigkeit, Exponent'), '1/mL', 0.008, 0.08, 0.001),
+    C('lv', 'edpV0', 'V_{0,d}', L('Diastolic volume at zero pressure', 'Diastolisches Volumen bei Druck null'), 'mL', 30, 250, 1),
+    C('lv', 'edpV30', 'V_{30}', L('Diastolic volume at 30 mmHg (smaller is stiffer)', 'Diastolisches Volumen bei 30 mmHg (kleiner ist steifer)'), 'mL', 80, 450, 1),
     C('rv', 'EmaxRv', 'E_{max,RV}', L('Right ventricular contractility', 'Kontraktilität rechter Ventrikel'), 'mmHg/mL', 0.1, 2, 0.02),
     C('rv', 'ElaMax', 'E_{LA,max}', L('Left atrial contraction', 'Kontraktion linker Vorhof'), 'mmHg/mL', 0.05, 0.6, 0.01),
     C('valves', 'Raortic', 'R_{Ao}', L('Aortic valve resistance (stenosis)', 'Widerstand Aortenklappe (Stenose)'), 'mmHg·s/mL', 0.01, 1, 0.01),
@@ -144,9 +145,9 @@ const HAEMODYNAMICS: ModelDef = {
       L('Each compartment changes by inflow minus outflow; the model integrates eight of these together (four chambers, systemic and pulmonary arteries and veins).',
         'Jedes Kompartiment ändert sich um Zufluss minus Abfluss; das Modell integriert acht solcher Gleichungen gemeinsam (vier Kammern, Arterien und Venen beider Kreisläufe).')),
     eq('chamber-full', 'full', L('Chamber pressure: active and passive limbs', 'Kammerdruck: aktiver und passiver Anteil'),
-      [v('Plv')], [{ text: 'e(t)' }, '·', v('Emax'), '·', paren(v('Vlv'), '−', v('V0')), '+', paren('1', '−', { text: 'e(t)' }), '·', 'A', '·', paren({ sup: [['e'], ['B·(V−V₀)']] }, '−', '1')],
-      L('e(t) is the normalised activation (a double-Hill curve: steep rise, rounded peak, faster relaxation). In diastole the passive exponential limb sets filling pressure; A and B are the stiffness.',
-        'e(t) ist die normierte Aktivierung (Doppel-Hill-Kurve: steiler Anstieg, runde Spitze, schnellere Relaxation). In der Diastole bestimmt der passive exponentielle Anteil den Füllungsdruck; A und B sind die Steifigkeit.')),
+      [v('Plv')], [{ text: 'e(t)' }, '·', v('Emax'), '·', paren(v('Vlv'), '−', v('V0')), '+', paren('1', '−', { text: 'e(t)' }), '·', n(CIRC.klotzAn), '·', { sup: [[paren(frac([v('Vlv'), '−', v('edpV0')], [v('edpV30'), '−', v('edpV0')]))], [n(CIRC.klotzBn)]] }],
+      L('e(t) is the normalised activation (a double-Hill curve: steep rise, rounded peak, faster relaxation). In diastole the passive limb sets filling pressure: Klotz found that every human ventricle, normal or failing, follows one curve once its volume is scaled between its zero-pressure volume V₀,d and its volume at 30 mmHg, V₃₀. A stiff ventricle has a small V₃₀ − V₀,d. Emptied below V₀,d the ventricle recoils, a small negative pressure.',
+        'e(t) ist die normierte Aktivierung (Doppel-Hill-Kurve: steiler Anstieg, runde Spitze, schnellere Relaxation). In der Diastole bestimmt der passive Anteil den Füllungsdruck: Klotz fand, dass jeder menschliche Ventrikel, gesund oder insuffizient, einer Kurve folgt, wenn man sein Volumen zwischen dem Volumen bei Druck null V₀,d und dem bei 30 mmHg, V₃₀, skaliert. Ein steifer Ventrikel hat ein kleines V₃₀ − V₀,d. Unter V₀,d entleert, federt der Ventrikel zurück: ein kleiner Unterdruck.')),
     eq('arterial-full', 'full', L('Arterial pressure from stored volume', 'Arterieller Druck aus gespeichertem Volumen'),
       [v('Pao')], [frac([{ text: 'V_a' }, '−', { text: 'V_0,a' }], [{ text: 'C_a' }])],
       L('The arteries are an elastic reservoir: pressure is the volume stored above their unstressed volume, divided by their compliance.', 'Die Arterien sind ein elastischer Speicher: Druck ist das über das Ruhevolumen gespeicherte Volumen geteilt durch die Compliance.')),
@@ -168,6 +169,7 @@ const HAEMODYNAMICS: ModelDef = {
     };
   },
   diagram: 'circuit',
+  constants: ['circulation'],
   sources: ['Suga H, Sagawa K. Instantaneous pressure–volume relationships and their ratio in the excised, supported canine left ventricle. Circ Res 1974.', 'Stergiopulos N et al. Elastance-based model of the left ventricle. Am J Physiol 1996.'],
 };
 
@@ -198,7 +200,7 @@ const BAROREFLEX: ModelDef = {
   ],
   equations: [
     eq('firing', 'textbook', L('Receptor firing follows pressure (sigmoid)', 'Die Rezeptorfrequenz folgt dem Druck (Sigmoid)'),
-      [v('f')], ['2.5', '+', frac(['44.5'], ['1', '+', { sup: [['e'], ['−0.07·(P_a − P_n)']] }])],
+      [v('f')], [n(BARO.firingMin), '+', frac([n(BARO.firingMax - BARO.firingMin)], ['1', '+', { sup: [['e'], [`−${n(BARO.firingSlope)}·(P_a − P_n)`]] }])],
       L('Around the set point the receptors are most sensitive; far above or below it they saturate.', 'Um den Sollwert sind die Rezeptoren am empfindlichsten; weit darüber oder darunter sättigen sie.')),
     eq('tone', 'textbook', L('Sympathetic tone rises as firing falls', 'Der Sympathikotonus steigt, wenn die Frequenz fällt'),
       [v('tauS'), '·', { text: 'dσ_S/dt' }], [paren('1', '−', { text: 'n' }), '−', v('sigmaS')],
@@ -217,6 +219,7 @@ const BAROREFLEX: ModelDef = {
     HR0: ctx.model.circulation.HR, HR: snapNum(ctx, 'HR'),
   }),
   diagram: 'baroreflex',
+  constants: ['baroreflex'],
   sources: ['Ursino M. Interaction between carotid baroregulation and the pulsating heart: a mathematical model. Am J Physiol 1998.'],
 };
 

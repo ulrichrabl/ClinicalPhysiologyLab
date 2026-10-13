@@ -4,6 +4,7 @@ import { Respiratory, RESPIRATORY_DEFAULTS } from '../physiology/lung/respirator
 import { Body, BODY_DEFAULTS } from '../physiology/body/body.ts';
 import type { CaseDef } from '../model/types.ts';
 import { CIRCULATION_DEFAULTS, modelFromCase, type PatientModel } from '../physiology/state.ts';
+import { CIRC } from '../evidence/circulation.ts';
 
 /* ---------------------------------------------------------------------------
    The running patient: circulation, the heart's electrical model, the
@@ -28,7 +29,7 @@ import { CIRCULATION_DEFAULTS, modelFromCase, type PatientModel } from '../physi
 
 /** Integration settings and activation shape: fixed, not part of the patient. */
 const FIXED: CirculationConfig = {
-  TmaxV: 0.8, TmaxA: 0.13, actM1: 1.32, actM2: 21.9, actT1: 0.27, actT2: 0.45, dt: 5e-4,
+  TmaxV: 0.8, TmaxA: CIRC.atrialTmax, actM1: CIRC.actM1, actM2: CIRC.actM2, actT1: CIRC.actT1, actT2: CIRC.actT2, dt: 5e-4,
 };
 const COUPLE_S = 0.1;
 
@@ -58,7 +59,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
   const sim = new Circulation({ ...CIRCULATION_DEFAULTS, ...FIXED, baroEnabled: true });
   (sim as any).engine = heart;
   /* The sinus node is driven by the autonomic state the baroreflex sets. */
-  heart.rateSource = () => (sim.baroEnabled ? sim.modulatedHR() : sim.HR);
+  heart.rateSource = () => (sim.baroEnabled ? sim.modulatedHR() : sim.openLoopHR());
   let model = m;
   const body = () => ({ age: model.patient.age, sex: model.patient.sex, heightCm: model.patient.heightCm, weightKg: model.patient.weightKg });
   const resp = new Respiratory(m.respiratory, body());
@@ -84,7 +85,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     sim.Rpul = model.circulation.Rpul * resp.rpulMult();
     /* Blood viscosity rises with haematocrit: anaemic blood flows more easily, so resistance falls and output rises.
        Angiotensin II and vasopressin constrict arterioles and capacitance veins. */
-    sim.Rsys = model.circulation.Rsys * (0.6 + 0.4 * Math.min(1.6, out.Hb / 150)) * milieu.rsysMult();
+    sim.Rsys = model.circulation.Rsys * (CIRC.viscosityFixed + (1 - CIRC.viscosityFixed) * Math.min(CIRC.viscosityCap, out.Hb / CIRC.viscosityHbRef)) * milieu.rsysMult();
     sim.V0sv = model.circulation.V0sv * milieu.v0svMult();
     sim.Emax = model.circulation.Emax * milieu.contractility();
     /* Septic vessels respond poorly to sympathetic drive as well. */
@@ -103,8 +104,8 @@ export function createCirculation(m: PatientModel): CirculationRun {
     if (mt) {
       const rvWall = ((mt.PpaSys ?? 20) + (mt.CVPmean ?? 3)) / 2;
       const ratio = ((mt.Pmean ?? 90) - rvWall) / Math.max(10, mt.PpaSys ?? 20);
-      const target = Math.max(0, Math.min(0.75, (2.2 - ratio) / 1.8));
-      sim.rvIschaemia = (sim.rvIschaemia ?? 0) + (target - (sim.rvIschaemia ?? 0)) * (1 - Math.exp(-COUPLE_S / 12));
+      const target = Math.max(0, Math.min(CIRC.rvIschaemiaMax, (CIRC.rvPerfusionRatio - ratio) / CIRC.rvPerfusionSpan));
+      sim.rvIschaemia = (sim.rvIschaemia ?? 0) + (target - (sim.rvIschaemia ?? 0)) * (1 - Math.exp(-COUPLE_S / CIRC.rvIschaemiaTau));
     }
     sim.EmaxRv = model.circulation.EmaxRv * (1 - (sim.rvIschaemia ?? 0));
     sim.chemoDrive = Math.min(1.5, resp.chemoDrive() + milieu.adrenergic());

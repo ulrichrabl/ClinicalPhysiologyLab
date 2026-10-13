@@ -3,6 +3,8 @@ import { CHEMISTRY_DEFAULTS } from '../../models/chemistry/public-state.ts';
 import { ELECTRICAL_DEFAULTS, ELECTRICAL_PRESETS, type ElectricalParams } from './heart/electrical.ts';
 import { RESPIRATORY_DEFAULTS, type RespiratoryParams } from './lung/respiratory.ts';
 import { BODY_DEFAULTS, type BodyParams } from './body/body.ts';
+import { CIRC, BARO, klotzV0, klotzV30 } from '../evidence/circulation.ts';
+const r1 = (x: number) => Math.round(x * 10) / 10;
 
 /* ===========================================================================
    The patient's model state: every parameter of every physiological model,
@@ -13,16 +15,18 @@ import { BODY_DEFAULTS, type BodyParams } from './body/body.ts';
 
 /** Circulation parameters, as the closed-loop model names them, with healthy adult values. */
 export const CIRCULATION_DEFAULTS: Record<string, number> = {
-  Emax: 2.7, Emin: 0.06, V0: 12, edpA: 0.5, edpB: 0.022,
-  EmaxRv: 0.62, V0rv: 22, edpArv: 0.42, edpBrv: 0.020,
-  ElaMax: 0.25, ElaMin: 0.13, V0la: 16, EraMax: 0.20, EraMin: 0.10, V0ra: 18,
-  Csa: 1.2, V0sa: 620, Csv: 62, V0sv: 3200, Rsys: 1.05, Rven: 0.023,
-  Cpa: 4.2, V0pa: 92, Cpv: 8.5, V0pv: 212, Rpul: 0.075, Rpv: 0.011,
-  Rmitral: 0.01, Raortic: 0.02, Rtricuspid: 0.009, Rpulmonic: 0.02,
+  /* Left ventricle: linear ESPVR, Klotz's normalised human EDPVR between its zero-pressure volume and its volume at 30 mmHg. */
+  Emax: CIRC.lvEes, V0: CIRC.lvV0, edpV0: r1(klotzV0(CIRC.lvEdvRef, CIRC.lvEdpRef)), edpV30: r1(klotzV30(CIRC.lvEdvRef, CIRC.lvEdpRef)),
+  EmaxRv: CIRC.rvEes, V0rv: CIRC.rvV0, edpV0rv: r1(klotzV0(CIRC.rvEdvRef, CIRC.rvEdpRef)), edpV30rv: r1(klotzV30(CIRC.rvEdvRef, CIRC.rvEdpRef)),
+  ElaMax: CIRC.laEmax, ElaMin: CIRC.laEmin, V0la: CIRC.laV0, EraMax: CIRC.raEmax, EraMin: CIRC.raEmin, V0ra: CIRC.raV0,
+  Csa: CIRC.Csa, V0sa: CIRC.V0sa, Csv: CIRC.Csv, V0sv: CIRC.V0sv, Rsys: CIRC.Rsys, Rven: CIRC.Rven,
+  Cpa: CIRC.Cpa, V0pa: CIRC.V0pa, Cpv: CIRC.Cpv, V0pv: CIRC.V0pv, Rpul: CIRC.Rpul, Rpv: CIRC.Rpv,
+  Rmitral: CIRC.Rmitral, Raortic: CIRC.Raortic, Rtricuspid: CIRC.Rtricuspid, Rpulmonic: CIRC.Rpulmonic,
   regMitral: 0, regAortic: 0, regTricuspid: 0, regPulmonic: 0,
-  bloodVolume: 5000, HR: 72, K: 4,
-  pericardialFluid: 0, periV0: 420, septalShift: 1.5,
-  baroEnabled: 1, Pn: 95, tauS: 2.5, tauP: 0.3, gS: 0.5, gP: 0.4, gR: 0.6, gV: 0.26, gE: 0.45,
+  /* HR is the intrinsic sinus rate; the resting rate is what autonomic tone makes of it. */
+  bloodVolume: CIRC.bloodVolume, HR: BARO.intrinsicHr, K: 4,
+  pericardialFluid: 0, periV0: CIRC.periV0, septalShift: CIRC.septalShift, septalRef: CIRC.septalRef,
+  baroEnabled: 1, Pn: BARO.Pn, tauS: BARO.tauS, tauP: BARO.tauP, gS: BARO.gS, gP: BARO.gP, gR: BARO.gR, gV: BARO.gV, gE: BARO.gE,
 };
 
 export interface PatientModel {
