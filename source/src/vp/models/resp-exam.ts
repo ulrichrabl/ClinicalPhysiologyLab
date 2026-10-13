@@ -1,5 +1,6 @@
 import type { ExamContext, Side } from '../model/types.ts';
 import { LUNG } from '../evidence/lung.ts';
+import { EXAM } from '../evidence/exam.ts';
 import type { Resolved, Resolver, RuntimeView } from '../engine/observe.ts';
 import { pulseOximeter, idealWeight, type LobeId, type RespSnapshot } from '../physiology/lung/respiratory.ts';
 import { CARDIO_RESOLVERS } from './cardio-exam.ts';
@@ -197,7 +198,7 @@ export const RESP_RESOLVERS: Record<string, Resolver> = {
     const c = CARDIO_RESOLVERS['general.appearance']?.(view, ref, ctx);
     const r = rs(view);
     if (!r) return c;
-    const cyanosed = r.deoxyHb >= 40;
+    const cyanosed = r.deoxyHb >= EXAM.cyanosis;
     const distress = r.effort >= 1.2 || r.SaO2 < 0.8 ? 'severe' : r.effort >= 0.6 || r.RR >= 26 ? 'moderate' : r.effort >= 0.35 || r.RR >= 21 ? 'mild' : 'none';
     if (!cyanosed && distress === 'none' && !(r.PaCO2 >= 8)) return c;
     const base = (c?.value as Record<string, unknown> | undefined) ?? { distress: 'none', colour: 'normal', sweating: false };
@@ -208,7 +209,7 @@ export const RESP_RESOLVERS: Record<string, Resolver> = {
         colour: cyanosed ? 'cyanosed' : base.colour,
         sweating: !!base.sweating || r.PaCO2 >= 8 || distress === 'severe',
       },
-      basis: `${c?.basis ? c.basis + '; ' : ''}capillary deoxygenated haemoglobin ${r.deoxyHb.toFixed(0)} g/L (cyanosis from about 40), SaO₂ ${(r.SaO2 * 100).toFixed(0)} %, respiratory rate ${r.RR.toFixed(0)}/min`,
+      basis: `${c?.basis ? c.basis + '; ' : ''}capillary deoxygenated haemoglobin ${r.deoxyHb.toFixed(0)} g/L (cyanosis from about ${EXAM.cyanosis}), SaO₂ ${(r.SaO2 * 100).toFixed(0)} %, respiratory rate ${r.RR.toFixed(0)}/min`,
     };
   },
 };

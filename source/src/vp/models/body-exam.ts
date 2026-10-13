@@ -1,4 +1,5 @@
 import type { Resolved, Resolver, RuntimeView } from '../engine/observe.ts';
+import { EXAM } from '../evidence/exam.ts';
 import { ADR } from '../evidence/endocrine.ts';
 
 /* ===========================================================================
@@ -33,12 +34,12 @@ export const BODY_EXAM_RESOLVERS: Record<string, Resolver> = {
   },
   'body.sclera': (view): Resolved | undefined => {
     const b = body(view); if (!b) return undefined;
-    const icterus = b.bilirubin >= 85 ? 'marked' : b.bilirubin >= 40 ? 'mild' : 'none';
-    return { value: { icterus }, basis: `bilirubin ${b.bilirubin.toFixed(0)} µmol/L (visible in the sclerae from about 40)` };
+    const icterus = b.bilirubin >= EXAM.icterusMarked ? 'marked' : b.bilirubin >= EXAM.icterusMild ? 'mild' : 'none';
+    return { value: { icterus }, basis: `bilirubin ${b.bilirubin.toFixed(0)} µmol/L (visible in the sclerae from about ${EXAM.icterusMild})` };
   },
   'body.conjunctiva': (view): Resolved | undefined => {
     const b = body(view); if (!b) return undefined;
-    const pallor = b.haemoglobin < 75 ? 'marked' : b.haemoglobin < 105 ? 'mild' : 'none';
+    const pallor = b.haemoglobin < EXAM.pallorMarked ? 'marked' : b.haemoglobin < EXAM.pallorMild ? 'mild' : 'none';
     return { value: { pallor }, basis: `haemoglobin ${b.haemoglobin.toFixed(0)} g/L` };
   },
   'body.asterixis': (view): Resolved | undefined => {
@@ -47,7 +48,7 @@ export const BODY_EXAM_RESOLVERS: Record<string, Resolver> = {
   },
   'body.ascites': (view): Resolved | undefined => {
     const b = body(view); if (!b) return undefined;
-    const grade = b.ascites >= 4 ? 'tense' : b.ascites >= 1.5 ? 'shifting' : b.ascites >= 0.8 ? 'flank' : 'none';
+    const grade = b.ascites >= 4 ? 'tense' : b.ascites >= EXAM.ascitesShifting ? 'shifting' : b.ascites >= EXAM.ascitesFlank ? 'flank' : 'none';
     return { value: { ascites: grade }, basis: `ascites ${b.ascites.toFixed(1)} L (shifting dullness needs about 1.5 L)` };
   },
   'body.rectal': (view): Resolved | undefined => {
@@ -92,7 +93,7 @@ export const BODY_LAB_RESOLVERS: Record<string, Resolver> = {
     if (b.urineMlPerH < 3) return { value: { voided: false }, basis: 'no urine produced' };
     const glucose = step(b.glucosuria, [2.8, 5.5, 14, 28, 55], ['negative', 'trace', '1+', '2+', '3+', '4+']);
     const ketones = step(0.3 * b.ketonuria, [0.5, 1.5, 4, 8], ['negative', 'trace', '1+', '2+', '3+']);
-    const sg = r1(1.0 + 0.000033 * b.urineOsm + (b.glucosuria > 50 ? 0.004 : 0), 3);
+    const sg = r1(1.0 + EXAM.sgPerOsm * b.urineOsm + (b.glucosuria > 50 ? 0.004 : 0), 3);
     const ph = r1(Math.min(8.5, Math.max(4.6, 6.0 + 1.6 * b.bicarbonaturia / (b.bicarbonaturia + 25) - 0.9 * Math.log10(Math.max(4, b.NH4) / 28))) * 2, 0) / 2;
     /* An infected urine: white cells (leukocyte esterase), nitrite from Gram-negative bacteria, some blood and protein from the inflamed urothelium. */
     const uti = (b.params.urinarySource ?? 0) > 0 && (b.params.infection ?? 0) > 0.15;
@@ -196,6 +197,6 @@ export function orthostatic(view: RuntimeView): { dSys: number; dDia: number; dH
   const d = Math.max(deficit(view), 0.4 * ecfLost);
   const blunt = (1 + 0.01 * Math.max(0, view.patient.age - 50)) * (1 + 0.5 * (b?.params.aceInhibitor ?? 0));
   const dSys = -Math.min(55, (3 + 200 * d) * blunt), dDia = -Math.min(30, Math.max(-3, -2 + 90 * d * blunt));
-  const dHR = Math.min(45, (10 + 250 * d) / Math.sqrt(blunt));
+  const dHR = Math.min(45, (EXAM.orthostaticHrBase + EXAM.orthostaticHrPerDeficit * d) / Math.sqrt(blunt));
   return { dSys, dDia, dHR, basis: `standing pools about 600 mL in the legs; blood volume ${(deficit(view) * 100).toFixed(0)} % and extracellular fluid ${(ecfLost * 100).toFixed(0)} % below normal${blunt > 1.2 ? '; reflexes blunted by age and ACE inhibition' : ''}` };
 }
