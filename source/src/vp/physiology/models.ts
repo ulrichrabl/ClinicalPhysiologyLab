@@ -1,5 +1,6 @@
 import { CIRC, BARO } from '../evidence/circulation.ts';
 import { LUNG } from '../evidence/lung.ts';
+import { ECG } from '../evidence/ecg.ts';
 import { INF } from '../evidence/inflammation.ts';
 import { THY, CA } from '../evidence/endocrine.ts';
 import { WAT, KID } from '../evidence/renal.ts';
@@ -279,9 +280,9 @@ const ELECTRICAL: ModelDef = {
       L('The AV node delays the wave so the atria finish filling the ventricles; the ventricles then activate in under a tenth of a second and repolarise over several tenths.',
         'Der AV-Knoten verzögert die Erregung, damit die Vorhöfe die Kammern fertig füllen; die Kammern erregen sich dann in weniger als einer Zehntelsekunde und repolarisieren über mehrere Zehntel.')),
     eq('rate-qt', 'textbook', L('Repolarisation shortens as the heart speeds up', 'Die Repolarisation verkürzt sich mit steigender Frequenz'),
-      [v('QT')], [v('QTc'), '·', { fn: 'sqrt', args: [v('RR')] }],
-      L('Bazett’s description of rate adaptation, which the model uses: QTc is the repolarisation time the cell would have at 60/min. Calcium shortens it; hypokalaemia and many drugs lengthen it.',
-        'Bazetts Beschreibung der Frequenzanpassung, die das Modell verwendet: QTc ist die Repolarisationszeit bei 60/min. Kalzium verkürzt sie; Hypokaliämie und viele Medikamente verlängern sie.')),
+      [v('QT')], [{ text: 'QT₁' }, '−', n(ECG.qtRateSlope), '·', paren('1', '−', v('RR'))],
+      L(`QT shortens linearly with the heart period (Sagie, 5018 Framingham subjects); QT₁, the QT at 60/min, is ${ECG.qtRef} ms in health. Calcium shortens it; hypokalaemia and many drugs lengthen it. ECG machines still report QTc by Bazett (QT/√RR), which overcorrects at fast rates: a tachycardic patient’s QTc reads long.`,
+        `QT verkürzt sich linear mit der Herzperiode (Sagie, 5018 Framingham-Probanden); QT₁, das QT bei 60/min, beträgt beim Gesunden ${ECG.qtRef} ms. Kalzium verkürzt es; Hypokaliämie und viele Medikamente verlängern es. EKG-Geräte geben QTc weiter nach Bazett an (QT/√RR), der bei hoher Frequenz überkorrigiert: Bei Tachykardie liest sich das QTc lang.`)),
     eq('dipole', 'full', L('The cardiac vector: activation fronts as a sum of dipoles', 'Der Herzvektor: Erregungsfronten als Summe von Dipolen'),
       [{ text: 'H⃗(t)' }], [{ text: 'Σ' }, { text: 'a_i' }, '·', { sup: [['e'], ['−(t−t_i)²/2σ_i²']] }, '·', { text: 'u⃗_i' }],
       L('Each part of the activation (septum, right ventricle, left ventricular free wall, base; right and left atrium; repolarisation) contributes a lobe in time along its own direction. Block a bundle branch and the sequence, so the vector loop, changes; thicken the wall and its lobe grows.',
@@ -296,6 +297,7 @@ const ELECTRICAL: ModelDef = {
     };
   },
   diagram: 'conduction',
+  constants: ['ecg'],
   sources: ['Klabunde RE. Cardiovascular Physiology Concepts, 3rd ed. 2021.', 'Malmivuo J, Plonsey R. Bioelectromagnetism. Oxford University Press 1995, ch. 15–16.', 'Edenbrandt L, Pahlm O. Vectorcardiogram synthesized from a 12-lead ECG. J Electrocardiol 1988;21:361–7.'],
 };
 

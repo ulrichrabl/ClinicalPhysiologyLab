@@ -556,7 +556,7 @@ of the original. Where the model misses measured data, the test reports it as a
 known gap (△, with the numbers) instead of being loosened until it passes; the
 gaps are listed below. Migration: the endocrine, water, kidney, circulation,
 baroreflex and inflammation models and the reachable part of the kidney are in
-the registry, and the lungs; the ECG and the examination thresholds follow.
+the registry, and the lungs and the ECG; the examination thresholds follow.
 
 **Where the circulation and baroreflex constants come from.** The reference man
 (45 years, 176 cm, 76 kg, supine) is anchored to human normals: left ventricular
@@ -614,6 +614,17 @@ source. Not grounded: the disease multipliers of rate and mechanics, hypoxic
 pulmonary vasoconstriction, lung water beyond the Gaar equation, the embolism
 mapping and the sympathetic share of the chemoreflex; with Weil's stronger
 hypoxic drive a hypoxaemic COPD patient is about 10 /min faster than before.
+
+**Where the ECG constants come from.** Normal intervals sit in Mason's reference
+ranges from 46,129 low-risk adults (PR 160, QRS 92 ms). QT now follows the heart
+period linearly as in Framingham (Sagie: QT₁ 385 ms, slope 154 ms per second of
+RR), and the machine reports QTc by Bazett, so a tachycardic patient's QTc reads
+long as on a real machine. The hyperkalaemia sequence (peaked T from 5.4, PR and P
+from 6–6.5, QRS from 6.8) is the experimental textbook one, applied to everyone;
+clinically the ECG is insensitive and no threshold could be established
+(Montague). The dipole's shape (direction, size and width of each lobe) is fitted
+to a normal vectorcardiogram and the textbook conduction patterns and is not listed
+as measured; the leads are Dower's (Edenbrandt & Pahlm).
 
 **Known gaps (reported by the tests).** Haemorrhage raises the heart rate +3 %
 against +14 % and lowers CVP 2.7 against 4.7 mmHg: there is no cardiopulmonary

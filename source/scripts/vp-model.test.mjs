@@ -1014,6 +1014,18 @@ console.log('\nHormones: thyroid, adrenal cortex and calcium');
     JSON.stringify({ bone: inv(Hc, 'bone-profile'), pth: inv(Hc, 'pth'), urea: Hc.view.chemistry.urea, qtc: ecg.qtc }));
 }
 
+console.log('\nThe ECG against human data');
+{
+  const H = settleModel(healthyModel(), 12).snapshot.ecgMetrics;
+  ok('resting ECG within Mason’s reference ranges: PR 113–212, QRS 69–109, QTc (Bazett) 361–457 ms, axis −40° to 91°',
+    H.PR >= 113 && H.PR <= 212 && H.QRS >= 69 && H.QRS <= 109 && H.QTc >= 361 && H.QTc <= 457 && H.qrsAxis >= -40 && H.qrsAxis <= 91,
+    `PR ${H.PR} QRS ${H.QRS} QT ${H.QT} QTc ${H.QTc} axis ${H.qrsAxis}`);
+  const fast = settleModel((() => { const m = healthyModel(); m.circulation.HR = 150; return m; })(), 12).snapshot.ecgMetrics;
+  const rrS = 60 / fast.HR, sagie = 385 - 154 * (1 - rrS);
+  ok('QT shortens with rate as in Framingham (Sagie: QT = QT₁ − 154·(1 − RR)), so Bazett’s QTc reads longer at a fast rate',
+    Math.abs(fast.QT - sagie) < 15 && fast.QTc > H.QTc, `HR ${fast.HR}: QT ${fast.QT} (Sagie ${sagie.toFixed(0)}), QTc ${fast.QTc} vs ${H.QTc} at rest`);
+}
+
 console.log('\nThe lungs against human data');
 {
   const r = new Respiratory({}, { age: 45, sex: 'M', heightCm: 176, weightKg: 76 }); const s = r.snapshot();
@@ -1085,7 +1097,7 @@ console.log('\nEvidence: every constant has a status, every grounded one a refer
   const src = [...walk('src/vp'), ...walk('src/domains/cardio/sim')].filter((f) => !f.includes('/evidence/')).map((f) => readFileSync(f, 'utf8')).join('\n');
   const issues = constantIssues();
   ok('the constant registry has no errors (measured and derived constants cite references; derived and assumed ones show their working)', issues.length === 0, issues.join('; '));
-  const alias = { thyroid: 'THY', adrenal: 'ADR', calcium: 'CA', water: 'WAT', kidney: 'KID', circulation: 'CIRC', baroreflex: 'BARO', inflammation: 'INF', lung: 'LUNG' };
+  const alias = { thyroid: 'THY', adrenal: 'ADR', calcium: 'CA', water: 'WAT', kidney: 'KID', circulation: 'CIRC', baroreflex: 'BARO', inflammation: 'INF', lung: 'LUNG', ecg: 'ECG' };
   const unused = Object.values(CONSTANTS).filter((c) => alias[c.group] && !new RegExp(`\\b${alias[c.group]}\\.${c.id.split('.')[1]}\\b`).test(src)).map((c) => c.id);
   ok('every registered constant is used by the model (no stale entries)', unused.length === 0, unused.join(', '));
   const refsUsed = new Set(Object.values(CONSTANTS).flatMap((c) => c.refs ?? []));
