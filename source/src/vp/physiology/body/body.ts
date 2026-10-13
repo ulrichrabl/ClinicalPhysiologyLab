@@ -40,6 +40,7 @@
 
 import { THY, ADR, CA } from '../../evidence/endocrine.ts';
 import { WAT, KID } from '../../evidence/renal.ts';
+import { INF } from '../../evidence/inflammation.ts';
 
 export interface BodyParams {
   /** How long the present illness has acted, hours. */
@@ -355,15 +356,15 @@ export class Body {
     const arterial = Math.max(hypo, WAT.adhArterialGain * Math.max(0, 1 - vEff));
 
     /* -- infection and inflammation: cytokines, fever, the acute-phase response, and what severe sepsis does -- */
-    const ilTarget = 2.2 * Math.max(0, p.infection) ** 1.5;
-    s.IL = relax(s.IL, ilTarget, dt, 4);
-    const sev = clamp((s.IL - 0.8) / 1.2, 0, 1);                       // organ dysfunction: sepsis
-    const Tset = 36.9 + 2.6 * s.IL / (s.IL + 0.6) - 2.2 * sev * sev * clamp((65 - i.MAP) / 20, 0, 1) + clamp(THY.tempSetPerFold * (this.thyroidEffect() - 1), -1, 1.2);
-    s.T = relax(s.T, Tset, dt, 1.5);
-    s.CRP += (0.11 + 8 * s.IL - 0.0365 * s.CRP) * dt;
-    s.WCC = relax(s.WCC, (7 + 13 * s.IL / (s.IL + 0.5) - 12 * Math.max(0, sev - 0.7)) * Math.min(1, clamp(p.marrow, 0, 2)) * (1 - 0.3 * clamp(p.portalHypertension, 0, 1)), dt, 8);
-    s.Plt = relax(s.Plt, 250 * (1 - 0.5 * sev) * (1 - 0.55 * clamp(p.portalHypertension, 0, 1)) * (1 - 0.25 * clamp(p.alcohol, 0, 1)) * Math.min(1, clamp(p.marrow, 0, 2)), dt, 24);
-    s.Alb = relax(s.Alb, r.Alb * (1 - 0.45 * sev - 0.1 * Math.min(1, s.IL)) * clamp(p.liverFunction, 0.05, 1.2) ** 0.5, dt, sev > 0.05 ? 30 : 240);   // synthesis by the liver, half-life ~20 days   // leak into the tissues, less synthesis
+    const ilTarget = INF.ilGain * Math.max(0, p.infection) ** INF.ilExponent;
+    s.IL = relax(s.IL, ilTarget, dt, INF.ilTau);
+    const sev = this.sepsis();                       // organ dysfunction: sepsis
+    const Tset = INF.tempBase + INF.feverMax * s.IL / (s.IL + INF.feverHalf) - INF.shockHypothermia * sev * sev * clamp((INF.hypothermiaMap - i.MAP) / INF.hypothermiaSpan, 0, 1) + clamp(THY.tempSetPerFold * (this.thyroidEffect() - 1), -1, 1.2);
+    s.T = relax(s.T, Tset, dt, INF.tempTau);
+    s.CRP += (INF.crpBasal + INF.crpSynthesis * s.IL - INF.crpClearance * s.CRP) * dt;
+    s.WCC = relax(s.WCC, (INF.wccBase + INF.wccRise * s.IL / (s.IL + INF.wccHalf) - INF.wccCollapse * Math.max(0, sev - INF.wccCollapseOnset)) * Math.min(1, clamp(p.marrow, 0, 2)) * (1 - 0.3 * clamp(p.portalHypertension, 0, 1)), dt, INF.wccTau);
+    s.Plt = relax(s.Plt, INF.plateletBase * (1 - INF.plateletSepticLoss * sev) * (1 - 0.55 * clamp(p.portalHypertension, 0, 1)) * (1 - 0.25 * clamp(p.alcohol, 0, 1)) * Math.min(1, clamp(p.marrow, 0, 2)), dt, INF.plateletTau);
+    s.Alb = relax(s.Alb, r.Alb * (1 - INF.albuminSepticLoss * sev - INF.albuminInflammationLoss * Math.min(1, s.IL)) * clamp(p.liverFunction, 0.05, 1.2) ** 0.5, dt, sev > 0.05 ? INF.albuminSepticTau : 240);   // synthesis by the liver, half-life ~20 days   // leak into the tissues, less synthesis
     const st = this.stressEff();
 
     /* -- thyroid: TSH drives the gland; thyroxine suppresses TSH (a log-linear relation: TSH changes about 100-fold for
@@ -427,7 +428,7 @@ export class Body {
     s.ALT = relax(s.ALT, 25 + 2500 * clamp(p.hepatitis, 0, 1) + 15 * clamp(p.alcohol, 0, 1) + 20 * (1 - Math.min(1, lf)), dt, 30);
     s.ALP = relax(s.ALP, 80 + 450 * clamp(p.cholestasis, 0, 1) + 40 * ph + THY.alpPerFold * clamp(this.thyroidEffect() - 1.3, 0, 2) + 25 * Math.max(0, Math.log((s.PTH ?? CA.pthNormal) / CA.pthNormal)) + 150 * clamp(p.boneResorption, 0, 2), dt, 48);   // bone ALP: turnover
     s.GGT = relax(s.GGT, 30 + 400 * clamp(p.cholestasis, 0, 1) + 250 * clamp(p.alcohol, 0, 1), dt, 72);
-    s.INR = relax(s.INR, 1 + 2.4 * clamp(1 - lf, 0, 1) ** 1.3 + 0.5 * clamp(p.cholestasis, 0, 1) + 2 * clamp(p.anticoagulant, 0, 1) + 0.4 * this.sepsis(), dt, 12);
+    s.INR = relax(s.INR, 1 + 2.4 * clamp(1 - lf, 0, 1) ** 1.3 + 0.5 * clamp(p.cholestasis, 0, 1) + 2 * clamp(p.anticoagulant, 0, 1) + INF.inrSepsis * this.sepsis(), dt, 12);
     const nh3Load = (p.proteinIntake * clamp(p.foodIntake, 0, 2) / 70 + 0.6 * Math.max(0, p.upperGIBleed) / 100) * (1 + 0.3 * clamp(4 - c.K, 0, 2));
     const nh3Clear = lf * (1 - 0.6 * ph) + 0.12;
     s.NH3 = relax(s.NH3, clamp(30 * (nh3Load + 0.2) / 1.2 / Math.pow(nh3Clear / 1.12, 1.2), 5, 400), dt, 3);
@@ -501,7 +502,7 @@ export class Body {
     /* -- lactate -- */
     const ER = i.VO2 / Math.max(50, i.DO2);
     /* Anaerobic glycolysis once oxygen extraction nears its limit; tissues also turn their demand down, so production saturates. */
-    const lacProd = 0.75 * BW + 2.2 * BW * Math.tanh(Math.max(0, ER - 0.45) ** 1.5 / 0.25) + 20 * st + 0.5 * BW * sev;   // and in sepsis, from adrenaline and the microcirculation
+    const lacProd = 0.75 * BW + 2.2 * BW * Math.tanh(Math.max(0, ER - 0.45) ** 1.5 / 0.25) + 20 * st + INF.lactateSepsis * BW * sev;   // and in sepsis, from adrenaline and the microcirculation
     const hepatic = clamp(i.CO / 5.2, 0.15, 1.3) ** 0.5 * clamp((i.MAP - 25) / 45, 0.2, 1);
     const lacClear = (0.75 * BW / 0.9) * hepatic * Math.min(1, lf + 0.1) ** 0.7 * c.Lac / (1 + c.Lac / 12);
 
@@ -671,7 +672,7 @@ export class Body {
   /** Counter-regulatory hormones: what the case sets, or what an infection raises. */
   stressEff(): number { return Math.max(this.p.stress, Math.min(1, 0.6 * this.s.IL)); }
   /** Severity of sepsis (organ dysfunction), 0–1. */
-  sepsis(): number { return clamp((this.s.IL - 0.8) / 1.2, 0, 1); }
+  sepsis(): number { return clamp((this.s.IL - INF.sepsisOnset) / INF.sepsisSpan, 0, 1); }
   /** Adrenaline from the adrenal medulla: illness, fever, hypoglycaemia, severe acidaemia. Drives rate and contractility (0–1). */
   adrenergic(): number {
     const c = this.conc();
@@ -695,17 +696,17 @@ export class Body {
      vascular gain is about halved at a complete deficit. Linear in the deficit is an assumption. */
   adrenergicResponse(): number { return 1 - ADR.vascularGainLoss * this.cortisolDeficit(); }
   /** Sepsis: nitric oxide dilates arterioles and veins, and the myocardium is depressed. */
-  vasoplegia(): number { return this.sepsis() ** 1.3; }
-  contractility(): number { return (1 - 0.2 * this.sepsis()) * clamp(this.thyroidEffect(), 0.3, 3) ** THY.contractilityExponent; }
+  vasoplegia(): number { return this.sepsis() ** INF.vasoplegiaExponent; }
+  contractility(): number { return (1 - INF.myocardialDepression * this.sepsis()) * clamp(this.thyroidEffect(), 0.3, 3) ** THY.contractilityExponent; }
   /** Cytokines and fever drive breathing: the tachypnoea of sepsis comes before any acidosis. */
-  ventilatoryDrive(): number { return 1.0 * this.sepsis() + 0.25 * Math.min(1, this.s.IL) + 0.08 * Math.max(0, this.s.T - 37.5); }
+  ventilatoryDrive(): number { return INF.ventilationSepsis * this.sepsis() + INF.ventilationIl * Math.min(1, this.s.IL) + INF.ventilationFever * Math.max(0, this.s.T - 37.5); }
   /** Angiotensin II and vasopressin constrict arterioles and veins; the constriction they add needs cortisol as
       noradrenaline's does (the same receptor-to-IP₃ pathway in the vessel wall), so it is scaled by the same gain. */
   private hormonalTone(): number { const h = Math.max(0.05, this.s.AngII) ** KID.angiotensinVascular * Math.max(0.3, this.s.ADH / 1.5) ** KID.vasopressinVascular; return h > 1 ? 1 + (h - 1) * this.adrenergicResponse() : h; }
-  rsysMult(): number { return clamp(this.hormonalTone(), 0.6, 1.8) * (1 - 0.6 * this.vasoplegia()) * (1 - 0.3 * clamp(this.p.portalHypertension, 0, 1) * clamp(1 - this.p.liverFunction, 0, 1))
+  rsysMult(): number { return clamp(this.hormonalTone(), 0.6, 1.8) * (1 - INF.resistanceLoss * this.vasoplegia()) * (1 - 0.3 * clamp(this.p.portalHypertension, 0, 1) * clamp(1 - this.p.liverFunction, 0, 1))
       * (this.thyroidEffect() >= 1 ? Math.min(5, this.thyroidEffect()) ** THY.svrHyperExponent : Math.max(0.2, this.thyroidEffect()) ** THY.svrHypoExponent)   // with the reflex and blood volume: SVR 0.6× and 1.5× in overt hyper- and hypothyroidism (Klein & Danzi)
       * (1 - ADR.basalResistanceLoss * this.cortisolDeficit()); }   // glucocorticoid receptor blockade lowers basal resistance about 20 % with output unchanged (RU 486 in rats)
-  v0svMult(): number { const ven = -KID.angiotensinVenous * Math.log(Math.max(0.05, this.s.AngII)) - KID.vasopressinVenous * Math.log(Math.max(0.3, this.s.ADH / 1.5)); return clamp(1 + (ven < 0 ? ven * this.adrenergicResponse() : ven), 0.8, 1.15) * (1 + 0.2 * this.vasoplegia()); }
+  v0svMult(): number { const ven = -KID.angiotensinVenous * Math.log(Math.max(0.05, this.s.AngII)) - KID.vasopressinVenous * Math.log(Math.max(0.3, this.s.ADH / 1.5)); return clamp(1 + (ven < 0 ? ven * this.adrenergicResponse() : ven), 0.8, 1.15) * (1 + INF.venousCapacity * this.vasoplegia()); }
 
   snapshot(): BodySnapshot {
     const c = this.conc(), s = this.s, r = this.ref, f = this.f;
@@ -727,7 +728,7 @@ export class Body {
       ironStores: s.Fe, b12: 320 * (1 - 0.85 * clamp(this.p.b12Deficiency, 0, 1)), epo: 10 * s.EPO,
       ldh: 180 + 600 * Math.max(0, this.p.haemolysis) + 500 * clamp(this.p.b12Deficiency, 0, 1) + 0.5 * Math.max(0, s.ALT - 25), haptoglobin: Math.max(0.05, 1.2 / (1 + 3 * Math.max(0, this.p.haemolysis)) * (1 - 0.5 * (1 - this.p.liverFunction)) * (1 + 0.8 * Math.min(1, s.IL))),
       bilirubin: (s.BilU + s.BilC) / c.ECF, bilirubinConjugated: s.BilC / c.ECF, alt: s.ALT, alp: s.ALP, ggt: s.GGT, inr: s.INR, ammonia: s.NH3, ascites: s.Asc,
-      encephalopathy: clamp((s.NH3 - 50) / 40 + CA.encephalopathyPerMmol * Math.max(0, s.Ca - 3.0) + ADR.encephalopathy * this.cortisolDeficit() ** 2 + THY.encephalopathy * Math.max(0, 0.4 - this.thyroidEffect()) / 0.4 + 0.5 * Math.min(1, s.IL) * (this.p.liverFunction < 0.6 ? 1 : 0.2) + 0.8 * this.sepsis() + 0.3 * Math.max(0, 3.2 - c.K) + 0.04 * Math.max(0, 128 - c.Na), 0, 4),
+      encephalopathy: clamp((s.NH3 - 50) / 40 + CA.encephalopathyPerMmol * Math.max(0, s.Ca - 3.0) + ADR.encephalopathy * this.cortisolDeficit() ** 2 + THY.encephalopathy * Math.max(0, 0.4 - this.thyroidEffect()) / 0.4 + INF.encephalopathyIl * Math.min(1, s.IL) * (this.p.liverFunction < 0.6 ? 1 : INF.encephalopathyIlLiverOk) + INF.encephalopathySepsis * this.sepsis() + 0.3 * Math.max(0, 3.2 - c.K) + 0.04 * Math.max(0, 128 - c.Na), 0, 4),
       tsh: s.TSH, ft4: s.T4, ft3: THY.ft3Normal * this.thyroidEffect() ** THY.ft3Exponent, thyroidEffect: this.thyroidEffect(),
       cortisol: ADR.cortisolNormal * s.Cort, acth: ADR.acthNormal * s.ACTH, renin: 1.5 * (s.PRA ?? 1), aldosteronePmol: KID.aldosteroneNormal * s.Ald,
       calcium: s.Ca, calciumTotal: s.Ca - 0.02 * (40 - c.alb), ionisedCalcium: s.Ca * CA.ionisedFraction * (1 + CA.ionisedPhSlope * (7.4 - c.pH)), pth: s.PTH,

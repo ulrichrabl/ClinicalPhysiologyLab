@@ -554,9 +554,9 @@ if a reference is unknown, or if a registered constant is no longer used; it
 prints how much of each model is grounded and which constants still await a read
 of the original. Where the model misses measured data, the test reports it as a
 known gap (△, with the numbers) instead of being loosened until it passes; the
-gaps are listed below. Migration: the endocrine, water, kidney, circulation and
-baroreflex models are in the registry; sepsis and inflammation, the rest of the
-kidney, the lungs, the ECG and the examination thresholds follow in that order.
+gaps are listed below. Migration: the endocrine, water, kidney, circulation,
+baroreflex and inflammation models are in the registry; the rest of the kidney,
+the lungs, the ECG and the examination thresholds follow in that order.
 
 **Where the circulation and baroreflex constants come from.** The reference man
 (45 years, 176 cm, 76 kg, supine) is anchored to human normals: left ventricular
@@ -578,6 +578,25 @@ cardiovagal baroreflex sensitivity 17 ms/mmHg (Monahan: 19 young, 8 older) and a
 graded 1 L haemorrhage (Johnson 2014): pressure held, stroke volume −15 % (−20 %),
 output −10 % (−11 %). With the reflex switched off, autonomic tone is held at rest.
 
+**Where the inflammation constants come from.** The inflammatory signal is
+abstract (1 = the response to a systemic infection) and severity runs from its
+onset to septic shock as Sepsis-3 defines it. Grounded: CRP clearance (19 h
+half-life, the same in health and disease: Vigushin), normal temperature
+(Mackowiak), the time course of albumin loss (escape rate 5 %/h, more than
+quadrupled in septic shock: Fleck). The arteriolar resistance lost to vasoplegia
+is calibrated on the coupled model so that full severity, after 30 mL/kg of
+saline, holds SVR at about half of normal: endotoxin alone lowered the SVR index
+46 % in healthy volunteers (Suffredini), and an SVRI below about 0.7 of normal
+marked those who died of septic shock (Parker 1987). Checked against outcomes: after
+the fluid the output is high (1.4× normal) and the pressure needs a vasopressor
+(MAP 67), with lactate about 2. Myocardial depression is real and reversible
+(Parker 1984, Suffredini) but its size is assumed. The model's septic patient
+looks like Parker's nonsurvivors: rate about 145 and small ventricles even after
+fluid, not the dilated ventricle of survivors. Cytokine dynamics, the white cell
+and platelet responses, capillary leak and vascular hyporeactivity are not yet
+grounded. (The chapter's equation had printed 0.55 for a resistance loss the
+model applied as 0.6; both now read the registry.)
+
 **Known gaps (reported by the tests).** Haemorrhage raises the heart rate +3 %
 against +14 % and lowers CVP 2.7 against 4.7 mmHg: there is no cardiopulmonary
 (low-pressure) afferent and no pulse-pressure component of the baroreceptor
@@ -585,9 +604,7 @@ signal. The embolism-to-resistance mapping and right ventricular ischaemia are
 ungrounded: moderate PE raises mean PA pressure only 2.4 mmHg and massive PE
 shows shock without CVP above 10. Lung water at a wedge of 20 lowers PaO2 1.3 kPa.
 Hypothyroid cardiac output falls 25 % (reported 30–50 %). The Addisonian crisis
-lies at 113 systolic (half of crises present at 110 or less). The septic shock
-tests now miss hypotension: the sepsis constants were fitted to the old
-circulation and are the next package. The heart rate is not yet a function of age,
+lies at 113 systolic (half of crises present at 110 or less). The heart rate is not yet a function of age,
 and arterial and pulmonary compliances, atrial elastances, valve and pericardial
 constants are not yet sourced.
 
