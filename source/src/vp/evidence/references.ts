@@ -219,4 +219,17 @@ export const REFERENCES: Record<string, Reference> = Object.fromEntries([
   R({ id: 'mackowiak1992', authors: 'Mackowiak PA, Wasserman SS, Levine MM', title: 'A critical appraisal of 98.6 °F, the upper limit of the normal body temperature, and other legacies of Carl Reinhold August Wunderlich',
     journal: 'JAMA', year: 1992, volume: '268', pages: '1578–80', pmid: '1302471', verified: 'abstract',
     note: 'Abstract, 148 healthy adults aged 18–40: mean oral temperature 36.8 °C, upper limit 37.7 °C, diurnal amplitude 0.5 °C.' }),
+  /* Kidney: potassium, tubular injury, autoregulation */
+  R({ id: 'rabelink1990', authors: 'Rabelink TJ, Koomans HA, Hené RJ, Dorhout Mees EJ', title: 'Early and late adjustment to potassium loading in humans',
+    journal: 'Kidney Int', year: 1990, volume: '38', pages: '942–7', doi: '10.1038/ki.1990.295', pmid: '2266680', verified: 'abstract',
+    note: 'Abstract, 6 healthy subjects on 400 mmol K/day: balance (urinary K about 80 % of intake) in the second 24 h, with plasma K and aldosterone raised; at 20 days aldosterone was back at baseline while kaliuresis per meal was larger than at the start (renal adaptation).' }),
+  R({ id: 'miller1978', authors: 'Miller TR, Anderson RJ, Linas SL, et al.', title: 'Urinary diagnostic indices in acute renal failure: a prospective study',
+    journal: 'Ann Intern Med', year: 1978, volume: '89', pages: '47–50', doi: '10.7326/0003-4819-89-1-47', pmid: '666184', verified: 'abstract',
+    note: 'Abstract: prerenal azotaemia likely with urine osmolality > 500, urine sodium < 20 mmol/L; acute tubular necrosis with urine osmolality < 350, urine sodium > 40, and a fractional sodium excretion that separates the two.' }),
+  R({ id: 'carlstrom2015', authors: 'Carlström M, Wilcox CS, Arendshorst WJ', title: 'Renal autoregulation in health and disease',
+    journal: 'Physiol Rev', year: 2015, volume: '95', pages: '405–511', doi: '10.1152/physrev.00042.2012', pmid: '25834230', verified: 'abstract',
+    note: 'Review, abstract: renal blood flow and GFR are held independent of perfusion pressure over about 80–180 mmHg (largely from animal studies).' }),
+  R({ id: 'asfar2014', authors: 'Asfar P, Meziani F, Hamel JF, et al.', title: 'High versus low blood-pressure target in patients with septic shock',
+    journal: 'N Engl J Med', year: 2014, volume: '370', pages: '1583–93', doi: '10.1056/NEJMoa1312173', pmid: '24635770', verified: 'abstract',
+    note: 'Abstract, 776 patients: MAP 80–85 vs 65–70 did not change mortality; among patients with chronic hypertension the higher target needed less renal-replacement therapy.' }),
 ].map((r) => [r.id, r]));
