@@ -1,6 +1,6 @@
 """Screenshots and checks for the patient figure.
 
-  python3 studio/figure/shoot.py                 # poses + states sheets, touch check (fast, a few seconds)
+  python3 studio/figure/shoot.py                 # poses, states and body sheets, touch check (fast, a few seconds)
   python3 studio/figure/shoot.py motion          # a transition in frames
   python3 studio/figure/shoot.py zoom <patient-id> <pose> [chest,abdomen]
   python3 studio/figure/shoot.py app             # the figure inside the real app page, light desktop + dark phone
@@ -85,6 +85,7 @@ with sync_playwright() as p:
     if mode in ('default', 'all'):
         bad += summarise(*sheet(b, 'poses', 'sheet=poses', 6))
         bad += summarise(*sheet(b, 'states', 'sheet=states', 6))
+        bad += summarise(*sheet(b, 'body', 'sheet=body', 5))
     if mode == 'all':
         bad += summarise(*sheet(b, 'poses-all', 'sheet=poses&all=1', 6, 150))
     if mode in ('motion', 'all'):

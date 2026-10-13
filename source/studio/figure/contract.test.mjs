@@ -62,5 +62,37 @@ for (let i = 0; i < 300; i++) { fig.figureSvg(fig.lerpPose(fig.POSES.supine, fig
 const ms = (performance.now() - t0) / n;
 ok('fast enough to redraw every frame of a transition (under 2 ms per figure)', ms < 2, `${ms.toFixed(2)} ms`);
 
+ok('figureLookFor carries the body: BMI from height and weight, fat and muscle, the model\'s findings', (() => {
+  const l = fig.figureLookFor({ age: 66, sex: 'M', heightCm: 175, weightKg: 48, appearance: { skinTone: 1, hair: 'grey', build: 'slim' } }, {}, 1, { oedema: 'knee', ascites: 'tense', colour: 'jaundiced' });
+  return Math.abs(l.body.bmi - 15.7) < 0.1 && l.body.muscle === 'wasted' && l.body.fat === 'central' && l.body.oedema === 'knee' && l.body.ascites === 'tense' && l.body.colour === 'jaundiced';
+})());
+
+/* Acceptance for the redesign (run.sh runs it; not part of npm test until the new figure lands): the drawing must
+   respond to everything the look carries. Each pair differs in one thing only. */
+if (process.env.FIGURE_ACCEPTANCE) {
+  console.log('\nAcceptance: the drawing responds to the patient');
+  const base = { age: 45, sex: 'M', heightCm: 176, weightKg: 76, appearance: { skinTone: 2, hair: 'brown, short', build: 'average' } };
+  const d = (patient, findings = {}, state = { exposure: ['chest', 'neck', 'arm', 'abdomen'] }, k = 'reclined-45') => fig.figureSvg(fig.POSES[k], fig.figureLookFor(patient, state, 1, findings));
+  const same = (a, b) => a === b;
+  const pairs = [
+    ['sex', d(base), d({ ...base, sex: 'F' })],
+    ['age', d(base), d({ ...base, age: 85 })],
+    ['BMI (weight)', d(base), d({ ...base, weightKg: 118 })],
+    ['fat distribution', d({ ...base, weightKg: 105 }), d({ ...base, weightKg: 105, appearance: { ...base.appearance, fat: 'peripheral' } })],
+    ['muscle wasting', d(base), d({ ...base, appearance: { ...base.appearance, muscle: 'wasted' } })],
+    ['long hair', d(base), d({ ...base, appearance: { ...base.appearance, hair: 'brown, long' } })],
+    ['baldness only when described', d(base), d({ ...base, appearance: { ...base.appearance, hair: 'brown, receding' } })],
+    ['oedema', d(base), d(base, { oedema: 'knee' })],
+    ['ascites', d(base), d(base, { ascites: 'tense' })],
+    ['jaundice', d(base), d(base, { colour: 'jaundiced', icterus: 'marked' })],
+    ['pallor', d(base), d(base, { colour: 'pale' })],
+    ['cyanosis', d(base), d(base, { colour: 'cyanosed' })],
+    ['sweating', d(base), d(base, { sweating: true })],
+    ['hyperinflated chest', d(base), d(base, { breathing: { hyperinflated: true, accessory: true, pursedLips: false } })],
+    ['oxygen', d(base, {}, { exposure: [] }), d(base, {}, { exposure: [], oxygen: { device: 'nasal cannula 2 L/min', fio2: 0.28 } })],
+  ];
+  for (const [what, a, b] of pairs) ok(`the figure shows ${what}`, !same(a, b));
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
