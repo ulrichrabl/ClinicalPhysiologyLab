@@ -1145,5 +1145,73 @@ console.log('\nEvidence: every constant has a status, every grounded one a refer
   ok('references cited by constants exist and are recorded with how far they were checked', [...refsUsed].every((r) => REFERENCES[r] && REFERENCES[r].verified));
 }
 
+
+/* ---- teaching cards against the model ---------------------------------------------------------------------------
+   A card says a sign occurs in a condition. Where the case library has a patient with that condition, the model must
+   show the sign in that patient, at any site where the card's technique looks. A link that is not shown is listed
+   below with its reason: either this patient does not have the sign (the card is still right), or the model cannot
+   produce it yet (a model gap to work on). A new mismatch fails; a listed one that starts to show is reported, so the
+   list stays honest. */
+console.log('\nTeaching cards against the cases');
+{
+  const CARD_EXCEPTIONS = {
+    /* the model cannot produce the sign yet */
+    'auscultate.heart.pulmonary/0/pulmonary-embolism': 'model: no loud P2 in pulmonary hypertension',
+    'auscultate.heart.pulmonary/0/copd-exacerbation': 'model: no loud P2 in pulmonary hypertension',
+    'auscultate.heart.tricuspid/0/pulmonary-embolism': 'model: no tricuspid regurgitation murmur',
+    ...Object.fromEntries(['upper-zone', 'mid-zone', 'axilla', 'upper-back', 'base'].map((k) => [`${k === 'base' ? 'auscultate.lung-base' : `auscultate.lung-${k}`}/5/pulmonary-embolism`, 'model: no pleural rub'])),
+    'inspect.legs/1/pulmonary-embolism': 'model: no deep vein thrombosis',
+    'inspect.mouth/1/iron-deficiency-anaemia': 'model: no glossitis or angular cheilitis',
+    'smell.breath/1/decompensated-cirrhosis': 'model: no fetor hepaticus',
+    'smell.breath/2/acute-kidney-injury': 'model: no uraemic fetor',
+    'measure.bp/2/aortic-stenosis': 'model: aortic stenosis does not narrow the resting pulse pressure (112/76)',
+    'measure.rr/0/diabetic-ketoacidosis': 'model: ketoacidosis deepens breathing but the rate stays at 18',
+    'inspect.jvp/1/diabetic-ketoacidosis': 'model: right atrial pressure 2 mmHg reads as a normal JVP, not an empty one',
+    /* this patient does not have the sign; the card is right */
+    'measure.spo2/0/community-acquired-pneumonia': 'case: saturation 94 % on air, at the threshold',
+    ...Object.fromEntries(['nasal-2', 'venturi-28', 'venturi-35', 'mask-6', 'nrb-15', 'off'].map((d) => [`give.oxygen.${d}/0/community-acquired-pneumonia`, 'case: saturation 94 % on air, little shunt to show'])),
+    'measure.crt/0/urosepsis': 'case: warm septic shock, skin vessels dilated, refill normal',
+    'inspect.jvp/0/pulmonary-embolism': 'case: submassive embolism, right atrial pressure normal',
+    'inspect.legs/0/acute-kidney-injury': 'case: the triple-whammy patient is dry, not overloaded',
+    'test.asterixis/0/acute-kidney-injury': 'case: no uraemic encephalopathy',
+    'test.asterixis/0/copd-exacerbation': 'case: no CO₂ narcosis',
+    'measure.bp.lying-standing/1/hyponatraemia-thiazide': 'case: small volume deficit, systolic falls only 10 mmHg',
+    'test.visual-fields/0/ischaemic-stroke-left-mca': 'case: motor and language deficit without hemianopia',
+    'test.face-sensation/0/ischaemic-stroke-left-mca': 'case: no hemisensory loss',
+    'test.arm.pinprick/1/ischaemic-stroke-left-mca': 'case: no hemisensory loss',
+    'test.leg.tone/0/ischaemic-stroke-left-mca': 'case: an hour after onset tone is not yet spastic (the card says so)',
+  };
+  const caseFor = Object.fromEntries(CASES.map((c) => [c.diagnosis.primary, c]));
+  const views = {};
+  const viewOf = (c) => views[c.id] ??= (() => {
+    const m = modelFromCase(c); const snap = settleModel(m, 16).snapshot;
+    return buildView(c, { circulation: snap, chemistry: chemistryState(snap, m.chemistry), state: { ...c.initialState, exposure: ['chest', 'arm', 'neck', 'abdomen', 'legs'] } });
+  })();
+  let shown = 0, noCase = 0;
+  const missing = [], nowShown = [], reasons = [];
+  for (const m of Object.values(CATALOG.manoeuvres)) for (const [i, f] of (m.teaching?.abnormal ?? []).entries()) for (const d of f.conditions ?? []) {
+    const c = caseFor[d];
+    if (!c) { noCase++; continue; }
+    const v = viewOf(c);
+    const sibs = Object.values(CATALOG.manoeuvres).filter((x) => x.section === m.section);
+    let hit = false;
+    for (const p of f.properties ?? []) {
+      const pd = CATALOG.properties[p];
+      const ctxs = sibs.flatMap((x) => x.reveals.filter((r) => r.property === p).map((r) => ({ ...(x.context ?? {}), ...(r.context ?? {}) })));
+      if (!ctxs.length) ctxs.push({});
+      for (const ctx of ctxs) for (const side of (pd.paired || m.paired) ? ['L', 'R'] : [undefined]) {
+        const [ref, cx] = pd.paired ? [`${p}.${side}`, ctx] : [p, side && ctx.site ? { ...ctx, site: `${ctx.site}.${side}` } : ctx];
+        if (!obs(c, v, ref, cx).normal) hit = true;
+      }
+    }
+    const key = `${m.id}/${i}/${d}`;
+    if (hit) { shown++; if (CARD_EXCEPTIONS[key]) nowShown.push(key); } else if (CARD_EXCEPTIONS[key]) reasons.push(`${key}: ${CARD_EXCEPTIONS[key]}`); else missing.push(key);
+  }
+  console.log(`  · ${shown} card links shown by their case, ${reasons.length} listed exceptions, ${noCase} links to conditions without a case yet`);
+  for (const r of reasons) console.log(`    – ${r}`);
+  ok('every card link to a condition with a case shows in that case, or is a listed exception', missing.length === 0, J(missing));
+  ok('no listed exception shows its sign now (remove it from the list)', nowShown.length === 0, J(nowShown));
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps\n`);
 process.exit(fail ? 1 : 0);
