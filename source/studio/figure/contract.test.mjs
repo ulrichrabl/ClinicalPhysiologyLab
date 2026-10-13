@@ -67,10 +67,10 @@ ok('figureLookFor carries the body: BMI from height and weight, fat and muscle, 
   return Math.abs(l.body.bmi - 15.7) < 0.1 && l.body.muscle === 'wasted' && l.body.fat === 'central' && l.body.oedema === 'knee' && l.body.ascites === 'tense' && l.body.colour === 'jaundiced';
 })());
 
-/* Acceptance for the redesign (run.sh runs it; not part of npm test until the new figure lands): the drawing must
-   respond to everything the look carries. Each pair differs in one thing only. */
-if (process.env.FIGURE_ACCEPTANCE) {
-  console.log('\nAcceptance: the drawing responds to the patient');
+/* The drawing responds to everything the look carries. Each pair differs in one thing only. (These were the acceptance
+   checks for the anatomical redesign; they are part of the contract now that it has landed.) */
+{
+  console.log('\nThe drawing responds to the patient');
   const base = { age: 45, sex: 'M', heightCm: 176, weightKg: 76, appearance: { skinTone: 2, hair: 'brown, short', build: 'average' } };
   const d = (patient, findings = {}, state = { exposure: ['chest', 'neck', 'arm', 'abdomen'] }, k = 'reclined-45') => fig.figureSvg(fig.POSES[k], fig.figureLookFor(patient, state, 1, findings));
   const same = (a, b) => a === b;
