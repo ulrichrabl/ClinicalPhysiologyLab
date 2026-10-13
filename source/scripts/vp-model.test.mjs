@@ -56,7 +56,10 @@ console.log('\nCatalog and case validation');
     CATALOG.manoeuvres['measure.hr'].order === 0 && CATALOG.manoeuvres['test.heel-shin'].section === 'neuro.coordination'
     && CATALOG.manoeuvres['give.oxygen.off'].order === placed.length - 1);
   const cards = Object.values(CATALOG.manoeuvres).filter((m) => m.teaching);
-  console.log(`  · teaching cards: ${cards.length} / ${Object.keys(CATALOG.manoeuvres).length} manoeuvres (${cards.map((m) => m.id).join(', ')})`);
+  ok('every manoeuvre has a teaching card', cards.length === Object.keys(CATALOG.manoeuvres).length,
+    J(Object.values(CATALOG.manoeuvres).filter((m) => !m.teaching).map((m) => m.id)));
+  ok('every teaching card says what it tests, how, what is normal and at least one abnormal finding',
+    cards.every((m) => m.teaching.assesses.en && m.teaching.how.en.length && m.teaching.normal.en && m.teaching.abnormal.length));
   ok('every teaching card links its abnormal findings to properties or diagnoses', cards.every((m) => m.teaching.abnormal.length && m.teaching.abnormal.every((f) => (f.properties?.length ?? 0) + (f.conditions?.length ?? 0) > 0)));
   /* Suggestions: names are found in every language, by eponym, and by the sign a test looks for. */
   const top = (q, l) => suggest(CATALOG, q, l, 5)[0];

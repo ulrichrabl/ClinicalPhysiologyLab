@@ -771,7 +771,7 @@ export function mount(root: HTMLElement) {
   const actHtml = (m: ManoeuvreDef, side?: Side) => {
     const label = esc(tr(m.label, lang));
     if (!m.paired || side) return `<div class="act-row"><button type="button" class="act" data-act="${m.id}" ${side ? `data-side="${side}"` : ''}>${label}</button>${infoBtn(m)}</div>`;
-    return `<div class="act-pair"><span>${label}</span><button type="button" class="tog small" data-act="${m.id}" data-side="R">${t('right')}</button><button type="button" class="tog small" data-act="${m.id}" data-side="L">${t('left')}</button>${infoBtn(m)}</div>`;
+    return `<div class="act-row"><div class="act-pair"><span>${label}</span><span class="sides"><button type="button" class="tog small" data-act="${m.id}" data-side="R">${t('right')}</button><button type="button" class="tog small" data-act="${m.id}" data-side="L">${t('left')}</button></span></div>${infoBtn(m)}</div>`;
   };
   /** The sections that hold any of these manoeuvres, in order, each with its manoeuvres in order. */
   const sectionsFor = (keep: (m: ManoeuvreDef) => boolean) => CATALOG.examSystems.map((sys) => ({

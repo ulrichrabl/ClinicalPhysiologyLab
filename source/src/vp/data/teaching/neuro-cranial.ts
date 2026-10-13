@@ -1,0 +1,433 @@
+import type { TeachingCard } from '../../model/types.ts';
+import { f, l, t } from './helpers.ts';
+
+/* Nervous system: speech, eyes, balance organ and hearing, and the other cranial nerves. */
+export const NEURO_CRANIAL: Record<string, TeachingCard> = {
+  'test.speech': {
+    aliases: l(['aphasia', 'dysphasia', 'dysarthria'], ['Aphasie', 'Dysarthrie']),
+    assesses: t('Language (dominant, usually left hemisphere) as distinct from articulation (dysarthria: the muscles and their control).',
+      'Die Sprache (dominante, meist linke Hemisphäre), getrennt vom Sprechen (Dysarthrie: die Muskulatur und ihre Steuerung).'),
+    how: l([
+      'Listen to spontaneous speech: fluency, effort, word-finding, wrong or invented words (paraphasias).',
+      'Naming: point to a watch, its strap, its buckle.',
+      'Repetition: “No ifs, ands or buts.”',
+      'Comprehension: a three-step command (“Take this paper, fold it in half, put it on the floor”).',
+      'Articulation: “British constitution”, “baby hippopotamus”.',
+    ], [
+      'Spontansprache anhören: Flüssigkeit, Anstrengung, Wortfindung, falsche oder erfundene Wörter (Paraphasien).',
+      'Benennen: auf eine Uhr, das Armband, die Schnalle zeigen.',
+      'Nachsprechen: „Es gibt kein Wenn und Aber.“',
+      'Sprachverständnis: ein dreiteiliger Auftrag („Nehmen Sie das Blatt, falten Sie es in der Mitte, legen Sie es auf den Boden“).',
+      'Artikulation: „Schellfischflosse“, „Dritte reitende Artilleriebrigade“.',
+    ]),
+    normal: t('Fluent, correct speech; names, repeats and follows commands; clear articulation.', 'Flüssige, korrekte Sprache; benennt, spricht nach und befolgt Aufträge; deutliche Artikulation.'),
+    abnormal: [
+      f(t('Halting, effortful speech with good comprehension (expressive aphasia).', 'Stockende, mühsame Sprache bei gutem Verständnis (motorische Aphasie, Broca).'),
+        t('A lesion of the left inferior frontal lobe (Broca’s area), usually stroke in the middle cerebral artery territory.',
+          'Eine Läsion des linken unteren Frontallappens (Broca-Areal), meist ein Schlaganfall im Mediastromgebiet.'),
+        ['speech.language'], ['ischaemic-stroke-left-mca', 'intracerebral-haemorrhage', 'tia']),
+      f(t('Fluent speech full of wrong words, with poor comprehension (receptive aphasia).', 'Flüssige Sprache voller falscher Wörter bei schlechtem Verständnis (sensorische Aphasie, Wernicke).'),
+        t('A lesion of the left posterior superior temporal lobe (Wernicke’s area).', 'Eine Läsion des linken hinteren oberen Temporallappens (Wernicke-Areal).'),
+        ['speech.language'], ['ischaemic-stroke-left-mca']),
+      f(t('Slurred, scanning or explosive speech with normal language.', 'Verwaschene, skandierende oder explosive Sprache bei intakter Sprachfunktion.'),
+        t('Dysarthria: cerebellar (scanning), bulbar or pseudobulbar weakness, or facial weakness.', 'Dysarthrie: zerebellär (skandierend), bulbäre oder pseudobulbäre Schwäche oder Fazialisparese.'),
+        ['speech.language'], ['cerebellar-stroke', 'motor-neurone-disease', 'myasthenia-gravis']),
+    ],
+    pitfalls: l(['Confusion (delirium) is not aphasia: the delirious patient’s speech is disorganised because thinking is.'],
+      ['Verwirrtheit (Delir) ist keine Aphasie: die Sprache des deliranten Patienten ist ungeordnet, weil das Denken es ist.']),
+  },
+
+  'test.count-to-50': {
+    aliases: l(['single-breath count', 'bulbar fatigue'], ['Zählversuch', 'bulbäre Ermüdbarkeit']),
+    assesses: t('Fatigable weakness of the bulbar and breathing muscles, the hallmark of myasthenia gravis.',
+      'Belastungsabhängige Schwäche der bulbären und der Atemmuskulatur, das Kennzeichen der Myasthenia gravis.'),
+    how: l(['Ask the patient to count aloud from 1 to 50 at a steady pace.', 'Listen to the voice and note how far they get on a single breath.'],
+      ['Den Patienten gleichmäßig laut von 1 bis 50 zählen lassen.', 'Auf die Stimme hören und notieren, wie weit er mit einem Atemzug kommt.']),
+    normal: t('The voice stays clear and strong to 50.', 'Die Stimme bleibt bis 50 klar und kräftig.'),
+    abnormal: [
+      f(t('The voice becomes quieter, nasal and slurred as the count goes on.', 'Die Stimme wird beim Zählen leiser, näselnd und verwaschen.'),
+        t('Fatigable bulbar weakness: myasthenia gravis.', 'Ermüdbare bulbäre Schwäche: Myasthenia gravis.'), ['speech.fatigue'], ['myasthenia-gravis']),
+      f(t('Running out of breath early.', 'Früh außer Atem.'),
+        t('Weak breathing muscles: measure the vital capacity, which falls before the oxygen saturation does.', 'Schwache Atemmuskulatur: die Vitalkapazität messen, die vor der Sauerstoffsättigung fällt.'),
+        ['speech.fatigue'], ['guillain-barre', 'myasthenia-gravis']),
+    ],
+  },
+
+  'inspect.eyes': {
+    aliases: l(['ptosis', 'anisocoria'], ['Ptosis', 'Anisokorie']),
+    assesses: t('Pupil size and symmetry, the height of the lids, the position of the eyes at rest and any spontaneous nystagmus.',
+      'Größe und Symmetrie der Pupillen, die Lidhöhe, die Augenstellung in Ruhe und einen Spontannystagmus.'),
+    how: l(['Face the patient in good light, eyes looking straight ahead at a distant point.', 'Compare the two pupils, the two lids and the position of the eyes; watch for a minute for nystagmus.'],
+      ['Dem Patienten bei gutem Licht gegenübersitzen, Blick geradeaus in die Ferne.', 'Beide Pupillen, beide Lider und die Augenstellung vergleichen; eine Minute auf einen Nystagmus achten.']),
+    normal: t('Equal round pupils (a difference up to 0.5 mm is common), symmetrical lids, eyes aligned and still.',
+      'Gleich große runde Pupillen (ein Unterschied bis 0,5 mm ist häufig), symmetrische Lider, Augen parallel und ruhig.'),
+    abnormal: [
+      f(t('A small pupil with a slight drooping of the same lid.', 'Eine enge Pupille mit leicht hängendem Lid derselben Seite.'),
+        t('Horner’s syndrome: the sympathetic chain to the eye is interrupted (brainstem, neck, apex of the lung).',
+          'Horner-Syndrom: die sympathische Bahn zum Auge ist unterbrochen (Hirnstamm, Hals, Lungenspitze).'),
+        ['eye.pupil', 'eye.lid'], ['horner-syndrome', 'lateral-medullary-syndrome', 'lung-cancer']),
+      f(t('A large pupil with a complete ptosis, the eye turned down and out.', 'Eine weite Pupille mit vollständiger Ptosis, das Auge nach unten außen gedreht.'),
+        t('Third nerve palsy; a painful one with a dilated pupil may be an aneurysm.', 'Okulomotoriusparese; eine schmerzhafte mit weiter Pupille kann ein Aneurysma sein.'),
+        ['eye.pupil', 'eye.lid'], ['third-nerve-palsy']),
+      f(t('Nystagmus while looking straight ahead.', 'Nystagmus beim Geradeausblick.'),
+        t('Acute vestibular imbalance, peripheral or central: examine further with Frenzel goggles and the head impulse test.',
+          'Akutes vestibuläres Ungleichgewicht, peripher oder zentral: mit Frenzel-Brille und Kopfimpulstest weiter untersuchen.'),
+        ['eyes.nystagmus'], ['vestibular-neuritis', 'cerebellar-stroke']),
+    ],
+  },
+
+  'inspect.eyes.dim': {
+    aliases: l(['dilation lag'], ['Erweiterungsverzögerung']),
+    assesses: t('Which pupil is the abnormal one when they differ: in the dark, the sympathetic system dilates the pupils.',
+      'Welche Pupille die auffällige ist, wenn sie sich unterscheiden: im Dunkeln erweitert der Sympathikus die Pupillen.'),
+    how: l(['Dim the room light.', 'Light the eyes from below with a torch held low, and compare the pupils again; watch how quickly each widens.'],
+      ['Das Raumlicht abdunkeln.', 'Die Augen mit einer tief gehaltenen Lampe von unten beleuchten und die Pupillen erneut vergleichen; beachten, wie schnell sich jede erweitert.']),
+    normal: t('Both pupils widen equally.', 'Beide Pupillen erweitern sich gleich.'),
+    abnormal: [
+      f(t('The difference grows in the dark, the small pupil widening slowly.', 'Der Unterschied nimmt im Dunkeln zu, die enge Pupille erweitert sich langsam.'),
+        t('The small pupil is abnormal: Horner’s syndrome.', 'Die enge Pupille ist die kranke: Horner-Syndrom.'), ['eye.pupil'], ['horner-syndrome', 'lateral-medullary-syndrome']),
+      f(t('The difference is greater in bright light.', 'Der Unterschied ist bei hellem Licht größer.'),
+        t('The large pupil is abnormal: it cannot constrict (third nerve palsy, a tonic pupil, mydriatic drops).',
+          'Die weite Pupille ist die kranke: sie kann sich nicht verengen (Okulomotoriusparese, Pupillotonie, Mydriatika).'),
+        ['eye.pupil'], ['third-nerve-palsy']),
+    ],
+  },
+
+  'test.pupils.light': {
+    aliases: l(['light reflex', 'direct and consensual reflex'], ['direkte und konsensuelle Lichtreaktion']),
+    assesses: t('The light reflex arc: optic nerve in (afferent), both third nerves out (efferent). Light in one eye constricts both pupils.',
+      'Den Lichtreflexbogen: N. opticus hinein (afferent), beide Nn. oculomotorii hinaus (efferent). Licht in einem Auge verengt beide Pupillen.'),
+    how: l([
+      'Dim the light; ask the patient to look into the distance.',
+      'Bring the torch in from the side into one eye and watch that pupil (direct), then again watching the other pupil (consensual).',
+      'Repeat for the other eye.',
+    ], [
+      'Licht abdunkeln; den Patienten in die Ferne blicken lassen.',
+      'Die Lampe von der Seite in ein Auge führen und diese Pupille beobachten (direkt), dann erneut die andere Pupille beobachten (konsensuell).',
+      'Für das andere Auge wiederholen.',
+    ]),
+    normal: t('Both pupils constrict briskly and equally, whichever eye is lit.', 'Beide Pupillen verengen sich prompt und gleich, egal welches Auge beleuchtet wird.'),
+    abnormal: [
+      f(t('One pupil does not constrict, whichever eye is lit.', 'Eine Pupille verengt sich nicht, egal welches Auge beleuchtet wird.'),
+        t('An efferent defect: third nerve palsy on that side. A fixed dilated pupil in a drowsy patient means the brain is herniating.',
+          'Ein efferenter Defekt: Okulomotoriusparese dieser Seite. Eine lichtstarre weite Pupille beim somnolenten Patienten bedeutet eine Einklemmung.'),
+        ['eye.pupil'], ['third-nerve-palsy', 'subdural-haematoma', 'intracerebral-haemorrhage']),
+      f(t('Light in one eye constricts neither pupil; light in the other constricts both.', 'Licht in einem Auge verengt keine Pupille; Licht im anderen verengt beide.'),
+        t('An afferent defect: that optic nerve does not carry the light.', 'Ein afferenter Defekt: dieser Sehnerv leitet das Licht nicht.'), ['eye.pupil'], ['multiple-sclerosis']),
+    ],
+  },
+
+  'test.swinging-light': {
+    aliases: l(['relative afferent pupillary defect', 'RAPD', 'Marcus Gunn pupil'], ['relativer afferenter Pupillendefekt', 'RAPD', 'Marcus-Gunn-Pupille']),
+    assesses: t('Whether one optic nerve carries less light than the other: the most sensitive bedside test of optic nerve disease.',
+      'Ob ein Sehnerv weniger Licht leitet als der andere: der empfindlichste Test am Bett für eine Sehnervenerkrankung.'),
+    how: l(['In a dim room, shine the torch into one eye for 2–3 seconds, then swing it quickly to the other; swing back and forth several times.', 'Watch the pupil that is lit each time.'],
+      ['In abgedunkeltem Raum die Lampe 2–3 Sekunden in ein Auge halten, dann schnell zum anderen schwenken; mehrmals hin und her.', 'Jeweils die beleuchtete Pupille beobachten.']),
+    normal: t('The pupils stay equally constricted as the light swings.', 'Die Pupillen bleiben beim Schwenken gleich eng.'),
+    abnormal: [
+      f(t('Both pupils widen when the light swings to one eye.', 'Beide Pupillen werden weiter, wenn das Licht zu einem Auge schwenkt.'),
+        t('A relative afferent pupillary defect on that side: optic neuritis, optic nerve compression, a large retinal lesion.',
+          'Ein relativer afferenter Pupillendefekt dieser Seite: Optikusneuritis, Optikuskompression, große Netzhautläsion.'),
+        ['eyes.swinging-light'], ['multiple-sclerosis']),
+    ],
+    pitfalls: l(['Cataract and other media opacities do not cause a relative afferent defect.'], ['Katarakt und andere Medientrübungen verursachen keinen relativen afferenten Defekt.']),
+  },
+
+  'test.visual-fields': {
+    aliases: l(['confrontation', 'hemianopia'], ['Gesichtsfeldprüfung', 'Hemianopsie']),
+    assesses: t('The visual pathway from retina to occipital cortex; the shape of a field defect shows where along it the lesion is.',
+      'Die Sehbahn von der Netzhaut bis zur Sehrinde; die Form des Gesichtsfeldausfalls zeigt, wo entlang der Bahn die Läsion liegt.'),
+    how: l([
+      'Sit facing the patient at arm’s length, eyes level.',
+      'The patient covers one eye and looks at your opposite eye; you close your own matching eye.',
+      'Bring a moving finger (or a red pin) in from the periphery in each quadrant, halfway between you, and ask when it is first seen.',
+      'Then test both eyes together with fingers moving on both sides at once (visual inattention).',
+    ], [
+      'Dem Patienten auf Armlänge gegenübersitzen, Augen auf gleicher Höhe.',
+      'Der Patient deckt ein Auge ab und blickt in das gegenüberliegende Auge des Untersuchers; der Untersucher schließt sein entsprechendes Auge.',
+      'Einen bewegten Finger (oder eine rote Nadel) in jedem Quadranten von außen auf halbem Weg zwischen beiden heranführen und fragen, wann er zuerst gesehen wird.',
+      'Dann beide Augen zusammen mit gleichzeitig beidseits bewegten Fingern prüfen (visueller Neglect).',
+    ]),
+    normal: t('The patient sees the target when you do, in every quadrant.', 'Der Patient sieht das Ziel gleichzeitig mit dem Untersucher, in jedem Quadranten.'),
+    abnormal: [
+      f(t('The same half of the field lost in both eyes (homonymous hemianopia).', 'Dieselbe Gesichtsfeldhälfte an beiden Augen ausgefallen (homonyme Hemianopsie).'),
+        t('A lesion behind the chiasm on the opposite side: optic radiation or occipital cortex, usually stroke.', 'Eine Läsion hinter dem Chiasma auf der Gegenseite: Sehstrahlung oder Sehrinde, meist Schlaganfall.'),
+        ['eye.field'], ['ischaemic-stroke-left-mca', 'intracerebral-haemorrhage']),
+      f(t('The outer halves lost in both eyes (bitemporal hemianopia).', 'Die äußeren Hälften an beiden Augen ausgefallen (bitemporale Hemianopsie).'),
+        t('Compression of the chiasm, usually by a pituitary tumour.', 'Kompression des Chiasmas, meist durch einen Hypophysentumor.'), ['eye.field']),
+      f(t('A central blind spot in one eye (central scotoma).', 'Ein zentraler Ausfall an einem Auge (Zentralskotom).'),
+        t('Optic nerve disease, typically optic neuritis.', 'Sehnervenerkrankung, typisch Optikusneuritis.'), ['eye.field'], ['multiple-sclerosis']),
+    ],
+  },
+
+  'test.fundoscopy': {
+    aliases: l(['ophthalmoscopy', 'papilloedema'], ['Ophthalmoskopie', 'Augenspiegeln', 'Stauungspapille']),
+    assesses: t('The optic disc, retinal vessels and retina: the only place where nerve and vessels can be looked at directly.',
+      'Papille, Netzhautgefäße und Netzhaut: der einzige Ort, an dem man Nerv und Gefäße direkt sehen kann.'),
+    how: l([
+      'Darken the room; the patient fixes on a distant point.',
+      'Use your right eye for the patient’s right eye. From 30 cm, find the red reflex.',
+      'Approach from about 15° temporal until the retina is in focus; follow a vessel to the disc.',
+      'Examine the disc (colour, margins, cup), the vessels, the four quadrants, and the macula last (it dazzles).',
+    ], [
+      'Den Raum abdunkeln; der Patient fixiert einen fernen Punkt.',
+      'Mit dem rechten Auge das rechte Auge des Patienten untersuchen. Aus 30 cm den Rotreflex suchen.',
+      'Aus etwa 15° temporal annähern, bis die Netzhaut scharf ist; einem Gefäß zur Papille folgen.',
+      'Papille (Farbe, Rand, Exkavation), Gefäße, die vier Quadranten und zuletzt die Makula (sie blendet) untersuchen.',
+    ]),
+    normal: t('A pink disc with sharp margins and a cup less than half its diameter; spontaneous venous pulsation; arteries narrower than veins.',
+      'Eine rosige, scharf begrenzte Papille mit einer Exkavation unter dem halben Durchmesser; spontane Venenpulsation; Arterien schmaler als Venen.'),
+    abnormal: [
+      f(t('A swollen disc with blurred margins, lost venous pulsation, haemorrhages around it.', 'Eine geschwollene, unscharf begrenzte Papille ohne Venenpulsation mit Blutungen am Rand.'),
+        t('Papilloedema: raised intracranial pressure.', 'Stauungspapille: erhöhter Hirndruck.'), ['eye.fundus'], ['intracerebral-haemorrhage', 'subdural-haematoma']),
+      f(t('A pale disc.', 'Eine blasse Papille.'), t('Optic atrophy after optic neuritis or compression.', 'Optikusatrophie nach Optikusneuritis oder Kompression.'), ['eye.fundus'], ['multiple-sclerosis']),
+    ],
+    pitfalls: l(['Spontaneous venous pulsation is absent in about one in ten normal people; its presence argues against raised pressure.'],
+      ['Spontane Venenpulsationen fehlen bei etwa jedem zehnten Gesunden; sind sie vorhanden, spricht das gegen einen erhöhten Hirndruck.']),
+  },
+
+  'test.eye-movements': {
+    aliases: l(['H test', 'ocular motility', 'gaze-evoked nystagmus', 'smooth pursuit'], ['Okulomotorik', 'Blickrichtungsnystagmus', 'Blickfolge']),
+    assesses: t('Cranial nerves III, IV and VI and their brainstem connections; nystagmus in gaze and the smoothness of pursuit (cerebellum).',
+      'Die Hirnnerven III, IV und VI und ihre Verbindungen im Hirnstamm; Nystagmus bei Blickwendung und die Glätte der Blickfolge (Kleinhirn).'),
+    how: l([
+      'Hold a target about 50 cm away; the head stays still.',
+      'Move it slowly in an H shape, pausing at each end; ask about double vision.',
+      'Watch for limited movement, jerky pursuit and nystagmus held in each direction.',
+    ], [
+      'Ein Ziel in etwa 50 cm Abstand halten; der Kopf bleibt ruhig.',
+      'Es langsam in Form eines H bewegen und an jedem Ende verweilen; nach Doppelbildern fragen.',
+      'Auf eingeschränkte Bewegungen, sakkadierte Blickfolge und Nystagmus in jeder Blickrichtung achten.',
+    ]),
+    normal: t('Full, smooth, conjugate movements without double vision; a few beats of nystagmus at the extreme of gaze are normal.',
+      'Volle, glatte, konjugierte Bewegungen ohne Doppelbilder; einige Schläge Endstellnystagmus sind normal.'),
+    abnormal: [
+      f(t('One eye fails to abduct, with horizontal double vision.', 'Ein Auge abduziert nicht, horizontale Doppelbilder.'), t('Sixth nerve palsy.', 'Abduzensparese.'), ['eye.motility'], ['sixth-nerve-palsy']),
+      f(t('The eye is down and out, with ptosis.', 'Das Auge steht unten außen, mit Ptosis.'), t('Third nerve palsy.', 'Okulomotoriusparese.'), ['eye.motility'], ['third-nerve-palsy']),
+      f(t('Horizontal nystagmus beating in one direction, stronger when looking that way.', 'Horizontaler Nystagmus in eine Richtung, stärker beim Blick in diese Richtung.'),
+        t('Peripheral vestibular loss: the fast phase beats away from the affected ear.', 'Peripherer vestibulärer Ausfall: die schnelle Phase schlägt vom kranken Ohr weg.'),
+        ['eyes.nystagmus'], ['vestibular-neuritis', 'labyrinthitis']),
+      f(t('Nystagmus that changes direction with the direction of gaze; jerky pursuit.', 'Nystagmus, der mit der Blickrichtung die Richtung wechselt; sakkadierte Blickfolge.'),
+        t('Central: cerebellum or brainstem.', 'Zentral: Kleinhirn oder Hirnstamm.'), ['eyes.nystagmus', 'eyes.pursuit'], ['cerebellar-stroke', 'multiple-sclerosis']),
+      f(t('Double vision that varies and worsens with effort.', 'Doppelbilder, die wechseln und bei Anstrengung zunehmen.'),
+        t('Myasthenia gravis.', 'Myasthenia gravis.'), ['eye.motility'], ['myasthenia-gravis']),
+    ],
+  },
+
+  'test.cover': {
+    aliases: l(['alternate cover test', 'skew deviation'], ['alternierender Abdecktest', 'Skew Deviation', 'vertikale Divergenz']),
+    assesses: t('Whether the eyes are aligned when fusion is broken; in acute vertigo, a vertical misalignment (skew deviation) is a sign of a central lesion.',
+      'Ob die Augen parallel stehen, wenn die Fusion aufgehoben ist; beim akuten Schwindel ist eine vertikale Fehlstellung (Skew Deviation) ein Zeichen einer zentralen Läsion.'),
+    how: l(['The patient fixes on your nose.', 'Cover one eye, then move the cover quickly to the other eye, back and forth.', 'Watch the eye being uncovered: does it move to refixate?'],
+      ['Der Patient fixiert die Nase des Untersuchers.', 'Ein Auge abdecken, dann die Abdeckung schnell zum anderen Auge wechseln, hin und her.', 'Das gerade aufgedeckte Auge beobachten: macht es eine Einstellbewegung?']),
+    normal: t('No refixation movement.', 'Keine Einstellbewegung.'),
+    abnormal: [
+      f(t('A vertical refixation: one eye moves down, the other up.', 'Eine vertikale Einstellbewegung: ein Auge bewegt sich nach unten, das andere nach oben.'),
+        t('Skew deviation: brainstem or cerebellar lesion; part of the HINTS examination for stroke.', 'Skew Deviation: Läsion von Hirnstamm oder Kleinhirn; Teil der HINTS-Untersuchung auf Schlaganfall.'),
+        ['eyes.alignment'], ['lateral-medullary-syndrome', 'cerebellar-stroke']),
+      f(t('A horizontal refixation.', 'Eine horizontale Einstellbewegung.'), t('A squint, often longstanding, or a sixth nerve palsy.', 'Ein Schielen, oft seit Langem, oder eine Abduzensparese.'), ['eyes.alignment'], ['sixth-nerve-palsy']),
+    ],
+  },
+
+  'test.sustained-upgaze': {
+    aliases: l(['fatigable ptosis', 'Simpson test'], ['ermüdbare Ptosis', 'Simpson-Test']),
+    assesses: t('Fatigability of the lid elevator (levator palpebrae): the neuromuscular junction tires with sustained use in myasthenia.',
+      'Die Ermüdbarkeit des Lidhebers (M. levator palpebrae): bei Myasthenie ermüdet die neuromuskuläre Übertragung bei anhaltender Beanspruchung.'),
+    how: l(['Ask the patient to look up at your finger without moving the head, and hold it there for one minute.', 'Watch the lids and ask about double vision.'],
+      ['Den Patienten ohne Kopfbewegung nach oben auf den Finger blicken lassen und eine Minute halten.', 'Die Lider beobachten und nach Doppelbildern fragen.']),
+    normal: t('The lids stay up for the full minute.', 'Die Lider bleiben die ganze Minute oben.'),
+    abnormal: [
+      f(t('One or both lids sink progressively.', 'Ein oder beide Lider sinken zunehmend.'), t('Myasthenia gravis.', 'Myasthenia gravis.'), ['eye.lid'], ['myasthenia-gravis']),
+    ],
+  },
+
+  'test.frenzel': {
+    aliases: l(['spontaneous nystagmus', 'fixation suppression'], ['Spontannystagmus', 'Fixationssuppression']),
+    assesses: t('Nystagmus without visual fixation. Peripheral vestibular nystagmus is suppressed by fixation and shows behind magnifying lenses; central nystagmus is not suppressed.',
+      'Nystagmus ohne visuelle Fixation. Peripher-vestibulärer Nystagmus wird durch Fixation unterdrückt und zeigt sich hinter Vergrößerungsgläsern; zentraler Nystagmus wird nicht unterdrückt.'),
+    how: l(['Put on the Frenzel goggles (+20 dioptre lenses, lit from inside): the patient cannot fix, you see the eyes magnified.', 'Look in the primary position and in gaze to each side.'],
+      ['Die Frenzel-Brille aufsetzen (+20 Dioptrien, innen beleuchtet): der Patient kann nicht fixieren, die Augen erscheinen vergrößert.', 'In Geradeausblick und bei Blick zu jeder Seite beobachten.']),
+    normal: t('No nystagmus.', 'Kein Nystagmus.'),
+    abnormal: [
+      f(t('Horizontal-torsional nystagmus beating in one direction, much stronger without fixation.', 'Horizontal-rotierender Nystagmus in eine Richtung, ohne Fixation deutlich stärker.'),
+        t('Peripheral vestibular loss on the side opposite to the fast phase.', 'Peripherer vestibulärer Ausfall auf der Seite, die der schnellen Phase gegenüberliegt.'),
+        ['eyes.nystagmus'], ['vestibular-neuritis', 'labyrinthitis']),
+      f(t('Purely vertical or purely torsional nystagmus, or nystagmus no stronger without fixation.', 'Rein vertikaler oder rein rotierender Nystagmus oder einer, der ohne Fixation nicht zunimmt.'),
+        t('Central: brainstem or cerebellum.', 'Zentral: Hirnstamm oder Kleinhirn.'), ['eyes.nystagmus'], ['cerebellar-stroke', 'lateral-medullary-syndrome']),
+    ],
+  },
+
+  'test.head-impulse': {
+    aliases: l(['HIT', 'Halmagyi test', 'vestibulo-ocular reflex', 'HINTS'], ['Halmagyi-Test', 'vestibulookulärer Reflex', 'HINTS']),
+    assesses: t('The horizontal vestibulo-ocular reflex of each ear, which keeps the eyes on target while the head turns.',
+      'Den horizontalen vestibulookulären Reflex jedes Ohrs, der die Augen bei Kopfdrehung auf dem Ziel hält.'),
+    how: l([
+      'The patient fixes on your nose; hold the head in both hands.',
+      'Make small (10–20°), fast, unpredictable turns of the head to one side, then the other.',
+      'Watch the eyes at the end of each turn.',
+    ], [
+      'Der Patient fixiert die Nase des Untersuchers; den Kopf mit beiden Händen halten.',
+      'Kleine (10–20°), schnelle, unvorhersehbare Kopfdrehungen zu einer Seite, dann zur anderen.',
+      'Am Ende jeder Drehung die Augen beobachten.',
+    ]),
+    normal: t('The eyes stay on target.', 'Die Augen bleiben auf dem Ziel.'),
+    abnormal: [
+      f(t('A catch-up saccade after turning towards one side.', 'Eine Korrektursakkade nach Drehung zu einer Seite.'),
+        t('Loss of the vestibulo-ocular reflex of that ear: peripheral, as in vestibular neuritis. In acute vertigo this is reassuring.',
+          'Ausfall des vestibulookulären Reflexes dieses Ohrs: peripher, wie bei Neuritis vestibularis. Beim akuten Schwindel ist das beruhigend.'),
+        ['eye.head-impulse'], ['vestibular-neuritis', 'labyrinthitis']),
+      f(t('A normal head impulse in a patient with acute continuous vertigo and nystagmus.', 'Ein normaler Kopfimpulstest bei akutem Dauerschwindel mit Nystagmus.'),
+        t('A danger sign: the vertigo is probably central (stroke). With direction-changing nystagmus or skew deviation, this is the HINTS pattern of stroke.',
+          'Ein Warnzeichen: der Schwindel ist wahrscheinlich zentral (Schlaganfall). Mit richtungswechselndem Nystagmus oder Skew Deviation ist das das HINTS-Muster eines Schlaganfalls.'),
+        ['eye.head-impulse'], ['cerebellar-stroke', 'lateral-medullary-syndrome']),
+    ],
+    pitfalls: l(['Only meaningful in acute continuous vertigo with nystagmus; avoid in neck injury or severe neck disease.'],
+      ['Nur beim akuten Dauerschwindel mit Nystagmus aussagekräftig; bei Halswirbelsäulenverletzung oder schwerer HWS-Erkrankung vermeiden.']),
+  },
+
+  'test.whisper': {
+    aliases: l(['hearing screen'], ['Hörprüfung', 'Flüstertest']),
+    assesses: t('Hearing in each ear, screened at a quiet voice level.', 'Das Gehör jedes Ohrs, gesiebt mit leiser Stimme.'),
+    how: l(['Stand behind the patient at arm’s length.', 'Mask the other ear by rubbing the tragus.', 'Breathe out and whisper a combination of numbers and letters; ask the patient to repeat it.'],
+      ['Hinter dem Patienten auf Armlänge stehen.', 'Das andere Ohr durch Reiben am Tragus vertäuben.', 'Ausatmen und eine Kombination aus Zahlen und Buchstaben flüstern; den Patienten nachsprechen lassen.']),
+    normal: t('Repeats most of the whispered items correctly with each ear.', 'Spricht mit jedem Ohr den Großteil des Geflüsterten richtig nach.'),
+    abnormal: [
+      f(t('Cannot repeat the whisper on one side.', 'Kann das Geflüsterte auf einer Seite nicht nachsprechen.'),
+        t('Hearing loss on that side: Rinne and Weber tell conductive from sensorineural.', 'Hörminderung auf dieser Seite: Rinne und Weber unterscheiden Schallleitung von Schallempfindung.'),
+        ['ear.whisper'], ['labyrinthitis', 'menieres', 'vestibular-schwannoma']),
+    ],
+  },
+
+  'test.rinne': {
+    aliases: l(['air and bone conduction'], ['Luft- und Knochenleitung']),
+    assesses: t('Whether air conduction (through the ear canal and middle ear) is better than bone conduction, as it should be.',
+      'Ob die Luftleitung (durch Gehörgang und Mittelohr) besser ist als die Knochenleitung, wie sie sein sollte.'),
+    how: l(['Strike a 512 Hz tuning fork and place its base on the mastoid.', 'When the patient no longer hears it, hold the prongs beside the ear canal: is it heard again?'],
+      ['Eine 512-Hz-Stimmgabel anschlagen und den Fuß auf das Mastoid setzen.', 'Wenn der Patient sie nicht mehr hört, die Zinken vor den Gehörgang halten: wird sie wieder gehört?']),
+    normal: t('Air conduction louder than bone (Rinne positive).', 'Luftleitung lauter als Knochenleitung (Rinne positiv).'),
+    abnormal: [
+      f(t('Bone conduction louder than air (Rinne negative).', 'Knochenleitung lauter als Luftleitung (Rinne negativ).'),
+        t('Conductive hearing loss in that ear: wax, otitis media, otosclerosis. In sensorineural loss air stays better than bone, both reduced.',
+          'Schallleitungsschwerhörigkeit dieses Ohrs: Cerumen, Otitis media, Otosklerose. Bei Schallempfindungsschwerhörigkeit bleibt die Luftleitung besser, beide vermindert.'),
+        ['ear.rinne']),
+    ],
+    pitfalls: l(['A completely deaf ear can seem Rinne negative because the other cochlea hears the bone conduction (false negative).'],
+      ['Ein völlig taubes Ohr kann Rinne-negativ erscheinen, weil die andere Cochlea die Knochenleitung hört (falsch negativ).']),
+  },
+
+  'test.weber': {
+    aliases: l(['lateralisation'], ['Lateralisation']),
+    assesses: t('Which ear hears bone-conducted sound better, to tell a conductive from a sensorineural loss.',
+      'Welches Ohr knochengeleiteten Schall besser hört, um Schallleitungs- von Schallempfindungsschwerhörigkeit zu unterscheiden.'),
+    how: l(['Place a vibrating 512 Hz fork in the middle of the forehead or on the vertex.', 'Ask: is it heard in the middle, or more on one side?'],
+      ['Eine schwingende 512-Hz-Stimmgabel auf die Stirnmitte oder den Scheitel setzen.', 'Fragen: wird sie in der Mitte gehört oder mehr auf einer Seite?']),
+    normal: t('Heard in the middle.', 'In der Mitte gehört.'),
+    abnormal: [
+      f(t('Louder in the deaf ear.', 'Im schwerhörigen Ohr lauter.'), t('Conductive loss in that ear.', 'Schallleitungsstörung in diesem Ohr.'), ['head.weber']),
+      f(t('Louder in the better ear.', 'Im besseren Ohr lauter.'), t('Sensorineural loss in the other ear: cochlea or nerve.', 'Schallempfindungsstörung im anderen Ohr: Cochlea oder Hörnerv.'),
+        ['head.weber'], ['vestibular-schwannoma', 'labyrinthitis', 'menieres']),
+    ],
+  },
+
+  'test.face-sensation': {
+    aliases: l(['trigeminal nerve', 'corneal reflex', 'V1 V2 V3'], ['Trigeminus', 'Kornealreflex']),
+    assesses: t('The sensory trigeminal nerve in its three divisions, and the corneal reflex (in through V1, out through VII).',
+      'Den sensiblen N. trigeminus in seinen drei Ästen und den Kornealreflex (afferent über V1, efferent über VII).'),
+    how: l([
+      'Touch lightly and with a pin on the forehead (V1), cheek (V2) and chin (V3), on both sides, eyes closed: is it the same?',
+      'Corneal reflex: touch the edge of the cornea with a wisp of cotton wool from the side; both eyes should blink.',
+    ], [
+      'Leicht und mit einer Nadel Stirn (V1), Wange (V2) und Kinn (V3) beidseits berühren, Augen geschlossen: ist es gleich?',
+      'Kornealreflex: den Hornhautrand mit einem Wattefaden von der Seite berühren; beide Augen sollen blinzeln.',
+    ]),
+    normal: t('Equal sensation in all divisions; a brisk blink of both eyes.', 'Gleiche Sensibilität in allen Ästen; promptes Blinzeln beider Augen.'),
+    abnormal: [
+      f(t('Loss on one side of the face together with the body on the same side.', 'Ausfall einer Gesichtshälfte zusammen mit dem Körper derselben Seite.'),
+        t('A lesion of the opposite hemisphere or thalamus.', 'Eine Läsion der gegenseitigen Hemisphäre oder des Thalamus.'), ['face.sensation'], ['ischaemic-stroke-left-mca']),
+      f(t('Loss of pain on one side of the face and on the opposite side of the body.', 'Schmerzausfall einer Gesichtshälfte und der gegenüberliegenden Körperhälfte.'),
+        t('A crossed pattern: lateral medulla (Wallenberg).', 'Ein gekreuztes Muster: laterale Medulla (Wallenberg).'), ['face.sensation'], ['lateral-medullary-syndrome']),
+      f(t('An absent corneal reflex on one side.', 'Ein fehlender Kornealreflex auf einer Seite.'),
+        t('Trigeminal involvement, an early sign of a cerebellopontine angle tumour.', 'Beteiligung des Trigeminus, ein frühes Zeichen eines Kleinhirnbrückenwinkeltumors.'), ['face.sensation'], ['vestibular-schwannoma']),
+    ],
+    pitfalls: l(['The angle of the jaw is supplied by C2–C3, not the trigeminal: loss there that includes the angle suggests a non-organic cause.'],
+      ['Der Kieferwinkel wird von C2–C3 versorgt, nicht vom Trigeminus: ein Ausfall, der den Kieferwinkel einschließt, spricht für eine nicht organische Ursache.']),
+  },
+
+  'test.jaw': {
+    aliases: l(['muscles of mastication', 'jaw jerk'], ['Kaumuskulatur', 'Masseterreflex']),
+    assesses: t('The motor trigeminal nerve (masseter, temporalis, pterygoids).', 'Den motorischen N. trigeminus (M. masseter, M. temporalis, Mm. pterygoidei).'),
+    how: l(['Feel the masseters as the patient clenches the teeth.', 'Ask the patient to open the mouth against your hand under the chin; watch for deviation.', 'Tap the chin with the mouth slightly open (jaw jerk).'],
+      ['Die Masseteren tasten, während der Patient die Zähne zusammenbeißt.', 'Den Mund gegen die Hand unter dem Kinn öffnen lassen; auf eine Abweichung achten.', 'Bei leicht geöffnetem Mund auf das Kinn klopfen (Masseterreflex).']),
+    normal: t('Strong, symmetrical; the jaw opens in the midline; the jaw jerk is small or absent.', 'Kräftig, symmetrisch; der Kiefer öffnet sich in der Mitte; der Masseterreflex ist schwach oder fehlt.'),
+    abnormal: [
+      f(t('The jaw deviates to one side on opening.', 'Der Kiefer weicht beim Öffnen zu einer Seite ab.'), t('Weak pterygoids on that side: motor trigeminal lesion.', 'Schwache Pterygoidei auf dieser Seite: motorische Trigeminusläsion.'), ['jaw.opening']),
+      f(t('A brisk jaw jerk.', 'Ein lebhafter Masseterreflex.'), t('Bilateral upper motor neurone lesion above the pons (pseudobulbar palsy, motor neurone disease).', 'Beidseitige Läsion des ersten Motoneurons oberhalb der Brücke (Pseudobulbärparalyse, Motoneuronerkrankung).'),
+        ['jaw.opening'], ['motor-neurone-disease']),
+    ],
+  },
+
+  'test.face-movement': {
+    aliases: l(['facial nerve', 'facial palsy', 'Bell’s palsy'], ['Fazialisparese', 'periphere und zentrale Fazialisparese']),
+    assesses: t('The facial nerve (VII) and its upper motor neurone. The forehead is supplied from both hemispheres, the lower face mainly from the opposite one.',
+      'Den N. facialis (VII) und sein erstes Motoneuron. Die Stirn wird von beiden Hemisphären versorgt, das untere Gesicht vor allem von der Gegenseite.'),
+    how: l(['Look at the face at rest (nasolabial folds, mouth corners).', 'Ask the patient to raise the eyebrows, screw the eyes shut against your fingers, puff out the cheeks and show the teeth.'],
+      ['Das Gesicht in Ruhe ansehen (Nasolabialfalten, Mundwinkel).', 'Stirn runzeln, Augen gegen den Widerstand der Finger fest zukneifen, Backen aufblasen und Zähne zeigen lassen.']),
+    normal: t('Symmetrical movement of forehead, eyes and mouth.', 'Symmetrische Bewegung von Stirn, Augen und Mund.'),
+    abnormal: [
+      f(t('Weakness of the whole of one side, forehead included; the eye does not close.', 'Schwäche einer ganzen Gesichtshälfte einschließlich der Stirn; das Auge schließt nicht.'),
+        t('Lower motor neurone (peripheral) facial palsy: the nerve itself, as in Bell’s palsy.', 'Periphere Fazialisparese: der Nerv selbst, wie bei der idiopathischen Fazialisparese.'), ['face.movement'], ['bells-palsy']),
+      f(t('Weakness of the lower face with the forehead spared.', 'Schwäche des unteren Gesichts bei erhaltener Stirnmotorik.'),
+        t('Upper motor neurone (central) facial palsy: the opposite hemisphere, usually stroke.', 'Zentrale Fazialisparese: die gegenseitige Hemisphäre, meist Schlaganfall.'), ['face.movement'], ['ischaemic-stroke-left-mca', 'intracerebral-haemorrhage']),
+      f(t('Weakness on both sides.', 'Schwäche beidseits.'), t('Guillain–Barré syndrome, myasthenia, sarcoidosis.', 'Guillain-Barré-Syndrom, Myasthenie, Sarkoidose.'), ['face.movement'], ['guillain-barre', 'myasthenia-gravis', 'sarcoidosis']),
+    ],
+  },
+
+  'test.palate': {
+    aliases: l(['glossopharyngeal and vagus nerves', 'gag reflex', 'uvula'], ['Nn. glossopharyngeus und vagus', 'Würgreflex', 'Kulissenphänomen']),
+    assesses: t('The vagus (X) lifting the soft palate, and the gag reflex (in through IX, out through X).', 'Den N. vagus (X), der das Gaumensegel hebt, und den Würgreflex (afferent über IX, efferent über X).'),
+    how: l(['Ask the patient to open the mouth and say “aah”; watch the palate and uvula.', 'Gag reflex, if needed and with consent: touch the back of the pharynx on each side.'],
+      ['Den Patienten den Mund öffnen und „aaa“ sagen lassen; Gaumensegel und Uvula beobachten.', 'Würgreflex, falls nötig und mit Einverständnis: die Rachenhinterwand auf jeder Seite berühren.']),
+    normal: t('The palate rises symmetrically and the uvula stays central.', 'Das Gaumensegel hebt sich symmetrisch, die Uvula bleibt mittig.'),
+    abnormal: [
+      f(t('The uvula is pulled to one side.', 'Die Uvula wird zu einer Seite gezogen (Kulissenphänomen).'),
+        t('Weakness of the palate on the other side: a vagus lesion on the side away from which the uvula points, as in lateral medullary syndrome.',
+          'Gaumensegelschwäche der Gegenseite: eine Vagusläsion auf der Seite, von der die Uvula wegzeigt, wie beim Wallenberg-Syndrom.'),
+        ['mouth.palate'], ['lateral-medullary-syndrome']),
+      f(t('The palate hardly moves on either side; nasal speech.', 'Das Gaumensegel bewegt sich beidseits kaum; näselnde Sprache.'),
+        t('Bulbar weakness: motor neurone disease, myasthenia, Guillain–Barré. Assess swallowing before anything is given by mouth.',
+          'Bulbäre Schwäche: Motoneuronerkrankung, Myasthenie, Guillain-Barré. Vor jeder oralen Gabe das Schlucken prüfen.'),
+        ['mouth.palate'], ['motor-neurone-disease', 'myasthenia-gravis', 'guillain-barre']),
+    ],
+    pitfalls: l(['A normal gag does not prove a safe swallow, and many healthy people have little gag.'], ['Ein normaler Würgreflex beweist kein sicheres Schlucken, und viele Gesunde haben kaum einen.']),
+  },
+
+  'test.tongue': {
+    aliases: l(['hypoglossal nerve', 'fasciculations'], ['N. hypoglossus', 'Faszikulationen']),
+    assesses: t('The hypoglossal nerve (XII) and, through wasting and fasciculation, the lower motor neurone.', 'Den N. hypoglossus (XII) und über Atrophie und Faszikulationen das zweite Motoneuron.'),
+    how: l(['Look at the tongue lying in the floor of the mouth for wasting and fasciculation.', 'Ask the patient to stick it out and move it from side to side.'],
+      ['Die Zunge in Ruhe im Mundboden auf Atrophie und Faszikulationen ansehen.', 'Herausstrecken und von Seite zu Seite bewegen lassen.']),
+    normal: t('No wasting or fasciculation; protrudes in the midline; moves freely.', 'Keine Atrophie oder Faszikulationen; wird mittig herausgestreckt; frei beweglich.'),
+    abnormal: [
+      f(t('Deviates to one side when stuck out, with wasting on that side.', 'Weicht beim Herausstrecken zu einer Seite ab, mit Atrophie dieser Seite.'),
+        t('A lower motor neurone lesion of XII on the side it points to.', 'Eine Läsion des zweiten Motoneurons des XII auf der Seite, zu der sie zeigt.'), ['mouth.tongue']),
+      f(t('Wasted, fasciculating tongue.', 'Atrophische, faszikulierende Zunge.'), t('Bulbar motor neurone disease.', 'Bulbäre Motoneuronerkrankung.'), ['mouth.tongue'], ['motor-neurone-disease']),
+      f(t('Deviates slightly towards the weak side of the body, without wasting.', 'Weicht leicht zur gelähmten Körperseite ab, ohne Atrophie.'),
+        t('Upper motor neurone weakness from a hemisphere stroke.', 'Zentrale Schwäche bei Hemisphereninfarkt.'), ['mouth.tongue'], ['ischaemic-stroke-left-mca']),
+    ],
+  },
+
+  'test.shrug': {
+    aliases: l(['accessory nerve', 'trapezius', 'sternomastoid'], ['N. accessorius', 'M. trapezius', 'M. sternocleidomastoideus']),
+    assesses: t('The accessory nerve (XI): trapezius (shrugging) and sternomastoid (turning the head to the opposite side).',
+      'Den N. accessorius (XI): M. trapezius (Schulterheben) und M. sternocleidomastoideus (Kopfdrehung zur Gegenseite).'),
+    how: l(['Ask the patient to shrug the shoulders against your hands.', 'Ask them to turn the head against your hand on the cheek, each side; feel the opposite sternomastoid.'],
+      ['Den Patienten die Schultern gegen die Hände des Untersuchers heben lassen.', 'Den Kopf gegen die Hand an der Wange drehen lassen, beidseits; den gegenseitigen M. sternocleidomastoideus tasten.']),
+    normal: t('Strong and symmetrical.', 'Kräftig und symmetrisch.'),
+    abnormal: [
+      f(t('Weak shrug or head turning on one side, with wasting.', 'Schwaches Schulterheben oder Kopfdrehen auf einer Seite, mit Atrophie.'),
+        t('A lesion of the accessory nerve, often after surgery in the neck.', 'Eine Läsion des N. accessorius, oft nach Operationen am Hals.'), ['shoulder.shrug']),
+      f(t('Weak neck and shoulders on both sides.', 'Schwache Hals- und Schultermuskulatur beidseits.'),
+        t('Motor neurone disease, myasthenia (a dropped head), myopathy.', 'Motoneuronerkrankung, Myasthenie (Fallkopf), Myopathie.'), ['shoulder.shrug'], ['motor-neurone-disease', 'myasthenia-gravis']),
+    ],
+  },
+};

@@ -1,6 +1,6 @@
 # Examination menu, search and teaching cards
 
-Last updated: 13 October 2026.
+Last updated: 13 October 2026 (all teaching cards written).
 
 This document describes how the bedside examination is organised and searched, and how each examination carries its own teaching card. It also covers what the data model is built to support later and what is still to do.
 
@@ -29,7 +29,7 @@ Search matches names in all languages at once, so an English learner who types "
 - **A section's `kind`** is `measure`, `examine` or `intervene`.
   - Interventions (positioning, exposing, oxygen) are kept out of the examination menu and shown as a separate control.
   - `layout: 'chips' | 'select'` sets how they are displayed: chips for positions, a dropdown for oxygen devices.
-- **`data/teaching.ts`** holds one `TeachingCard` per manoeuvre, keyed by manoeuvre id. A card has:
+- **`data/teaching/`** holds one `TeachingCard` per manoeuvre, keyed by manoeuvre id, one file per system (vitals, general, cardio, resp, abdomen, neuro-cranial, neuro-limbs, neuro-coordination, care). A card has:
   - `aliases`: eponyms and the names used in other languages; these are also searched.
   - `assesses`: the function and pathway the test examines.
   - `how`: the steps.
@@ -68,8 +68,14 @@ Search matches names in all languages at once, so an English learner who types "
 - **Animations:** `animation` names a renderer, drawn in the same style as the patient figure.
 - **Checking cards against the model:** a test that runs each linked condition through the model and confirms it produces the stated sign, so the cards stay honest the way the evidence registry does.
 
+## Names
+
+Each manoeuvre's label is the name a medical student learns it by, in each language: "Romberg test" / "Romberg-Stehversuch", "Pronator drift" / "Armvorhalteversuch", "Facial nerve (VII)" / "N. facialis (VII)", "Lying and standing blood pressure" / "Schellong-Test". How to perform the test is on its card, not in the label.
+
 ## Status and what is missing
 
-- Teaching cards: **1 of 109** written (heel–shin test). The test suite prints the coverage.
-- Next: cards for the rest of the nervous system first (coordination, cranial nerves, motor, sensory), then the cardiovascular, respiratory and abdominal examinations, then the general examination and vital signs.
-- Some labels are long sentences ("Arms out, palms up, eyes closed: pronator drift"). A short name per manoeuvre, with the sentence kept as the instruction, would make the lists easier to scan.
+- Teaching cards: **109 of 109** written, in English and German; the tests require a card for every manoeuvre.
+- Repeated techniques share one card body with a site-specific line: the five heart auscultation areas, and percussion, breath sounds and vocal resonance at five lung sites.
+- Interventions (positions, exposure, oxygen devices) have cards too: what each is for, and what the patient's response shows (for example orthopnoea when lying flat, or a saturation that will not rise on oxygen because of shunt).
+- The cards cite references where a threshold rests on a study: McGee (postural pulse), Schriger & Baraff (capillary refill), Hung (jaundice), Sheth and Kalantri (pallor), Lundsgaard and Comroe (cyanosis), Mackowiak (temperature). The rest is standard clinical teaching and has no references yet.
+- Not yet done: the check that each condition a card links to actually produces the sign in the model; review modes; animations.
