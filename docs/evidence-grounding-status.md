@@ -1,0 +1,96 @@
+# Evidence grounding: status and what is still missing
+
+Last updated: 13 October 2026, after PRs #13–#20.
+
+Every model constant lives in the registry under `source/src/vp/evidence/`. Each entry records:
+
+- its value, unit and meaning;
+- a status: `measured`, `derived`, `assumed` or `ungrounded` (not yet sourced);
+- the references it rests on, and the working for derived and assumed values.
+
+References are in `references.ts`, each with its DOI/PMID and how far it was checked (full text, abstract,
+secondary or record only).
+
+The test suite (`scripts/vp-model.test.mjs`) does three things:
+
+- **Checks the registry:** every grounded constant cites a reference, every derived or assumed one shows its working, and every registered constant is used.
+- **Prints a grounding summary.**
+- **Compares the model with measured human data** in the sections "… against human data". Where the model misses the data, the test reports a **known gap** (△) with the numbers instead of being loosened.
+
+## Method (agreed)
+
+1. Ground coefficients in measured human data; set them once.
+2. Validate against outcomes that were *not* used for fitting.
+3. Report mismatches honestly; do not tune a constant to make an expected answer come out.
+4. Do not extrapolate a fitted relation beyond the range it was measured in. This caused the renin overshoot; the hypoxia–CO2 interaction is now clamped to Weil's ±5 mmHg.
+5. Before any comparison, settle the circulation for at least 20–30 s after a change.
+
+## Packages done
+
+| Package | PR | What changed in the physiology |
+|---|---|---|
+| Registry, endocrine | #13 | Registry, chapter tables, validator. Thyroid, adrenal and calcium constants. |
+| Water and kidney | #14 | Blood-volume sensing; renin separate from angiotensin II; fits to salt reduction (Graudal) and fluid kinetics (Hahn). |
+| Circulation and baroreflex | #15 | Klotz EDPVR for both ventricles; PVR from Kovacs; RV Ees from Kuehne; stressed volume from Maas; intrinsic heart rate (Jose) with vagal/sympathetic gains from atropine data; checked against Johnson's graded haemorrhage. |
+| Sepsis and inflammation | #16 | Septic resistance loss recalibrated to the grounded circulation (Suffredini, Parker 1987). Also: CRP clearance (Vigushin), temperature (Mackowiak), albumin time course (Fleck). |
+| Kidney, second pass | #17 | Distal K⁺ secretion adapts to the potassium eaten (Rabelink); secretion ceiling 6 → 25 mmol/h; ATN and prerenal indices checked against Miller. |
+| Lungs | #18 | Weil's hypoxic drive with its CO2 interaction; Hey's breathing pattern; Tobin normals; CO2 response 2.1 L/min/mmHg; Sorbini PaO2. |
+| ECG | #19 | QT follows Framingham (Sagie); intervals checked against Mason's ranges; hyperkalaemia sequence marked as textbook (Montague). |
+| Examination | #20 | Capillary refill (Schriger & Baraff), postural pulse (McGee), pallor (Sheth, Kalantri), cyanosis (Lundsgaard, Comroe), icterus (Hung). |
+
+## Grounding by group (after #20)
+
+"Grounded" means measured or derived.
+
+| Group | Grounded / total | Assumed | Not yet sourced |
+|---|---|---|---|
+| lung | 28 / 57 | 11 | 18 |
+| kidney | 25 / 108 | 12 | 71 |
+| circulation | 14 / 66 | 17 | 35 |
+| thyroid | 11 / 29 | 3 | 15 |
+| water | 10 / 47 | 16 | 21 |
+| adrenal | 7 / 19 | 1 | 11 |
+| baroreflex | 6 / 17 | 5 | 6 |
+| exam | 6 / 18 | 8 | 4 |
+| ecg | 5 / 37 | 14 | 18 |
+| calcium | 4 / 37 | 5 | 28 |
+| inflammation | 4 / 41 | 8 | 29 |
+
+## Known gaps (reported by the tests)
+
+1. **Haemorrhage heart rate:** HR rises +3 % against Johnson's +14 %, and CVP falls 2.7 against 4.7 mmHg. The model has no cardiopulmonary (low-pressure) afferent and no pulse-pressure component of the baroreceptor signal. *This is the most physiological of the open items. Fix it first:* add a low-pressure reflex and a rate-sensitive arterial afferent (Ursino), and calibrate against Zoller 1972 and Schobel 1995 (LBNP).
+2. **Moderate PE:** mean PA pressure rises only 2.4 mmHg. The embolism-to-resistance mapping is ungrounded (McIntyre & Sasahara 1971: record only).
+3. **Massive PE:** the shock is there, but CVP does not exceed 10 and RV ischaemia stays small. The RV perfusion constants are ungrounded.
+4. **Lung water:** at a wedge pressure of 20, PaO2 falls only 1.3 kPa. The Starling and lung-water constants are ungrounded beyond the Gaar equation.
+5. **Hypothyroidism:** cardiac output falls 25 % (Klein & Danzi: 30–50 %).
+6. **Addisonian crisis:** the patient lies at a systolic of 113 (half of real crises are at 110 or below).
+7. **Diarrhoea (prerenal):** urine sodium is 32 (Miller: below 20). FENa and osmolality are correct.
+8. **Triple-whammy potassium:** 5.8 against the 6.2 or more such patients present with. How far RAAS blockade impairs the kaliuretic adaptation is not grounded.
+
+## Not grounded yet, and why
+
+- **Kidney:**
+  - Acid handling (NH4⁺ production and capacity) and diuretic natriuresis. Sartorius 1949, Lemann 1966 and Wilcox 1983 exist only as scanned full text, which could not be read here.
+  - Autoregulation shifts with ACE inhibitors and NSAIDs; the tubular-injury and CKD modifiers.
+  - Renal potassium conservation on a poor intake is not modelled at all.
+- **Circulation:**
+  - Arterial and pulmonary compliances; atrial elastances; valve and pericardial constants; septal mechanics.
+  - Heart rate as a function of age: the intrinsic rate falls with age (Jose), but vagal tone is not modelled per age.
+- **Inflammation:** cytokine dynamics, white cell and platelet responses, capillary leak, vascular hyporeactivity, myocardial depression size.
+- **Lungs:**
+  - The disease multipliers of rate and mechanics; hypoxic pulmonary vasoconstriction.
+  - The sympathetic share of the chemoreflex. With Weil's stronger drive, hypoxaemic COPD patients now run about 10 /min faster.
+- **ECG:** the dipole geometry is fitted, not measured, and stays so on purpose. The electrolyte effect sizes and the AF/flutter/escape timings are not sourced.
+- **Examination:** crackle, murmur, apex and neurological-sign thresholds are heuristics. The orthostatic response is still a formula; it should become a simulated stand (600 mL pooled) through the circulation.
+- **Not started:**
+  - Fuels: glucose, insulin, ketones, lactate.
+  - Blood and liver: some sourced, many literals still inline in `body.ts`.
+  - The legacy cardio domain worker (`domains/cardio`) keeps its own defaults.
+
+## Suggested order when this work resumes
+
+1. Cardiopulmonary reflex and rate-sensitive baroreceptor afferent (gap 1). Re-check the GI-bleed case.
+2. Fuels and the remaining blood and liver literals in `body.ts`.
+3. Pulmonary embolism and lung water (gaps 2–4), with the lung chapter.
+4. Age-dependent vagal tone, so resting heart rate and baroreflex sensitivity follow age (Monahan).
+5. The kidney's acid handling, if the original studies can be obtained.
