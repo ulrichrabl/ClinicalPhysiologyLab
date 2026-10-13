@@ -11,6 +11,8 @@
    chooses where to look.
 --------------------------------------------------------------------------- */
 
+import { appearanceOf } from './face-canvas.ts';
+
 export interface Pose {
   torso: number;            // degrees from horizontal, toward the head (180 = lying, head to the left)
   neck: number;             // head tilt relative to torso
@@ -56,7 +58,37 @@ function limb(points: Array<{ x: number; y: number }>, width: number, fill: stri
     + `<path d="${d}" fill="none" stroke="${fill}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/></g>`;
 }
 
-export interface FigureLook { skin: string; shade: string; hair: string; gown: string; gownShade: string; exposed: Set<string>; sex: 'F' | 'M' }
+/** Everything the figure draws besides the pose. Built by figureLookFor from the case's patient and state; the app
+    never assembles it itself, so the figure can use more of the patient (age, build, hair) without touching the app. */
+export interface FigureLook {
+  skin: string; shade: string;           // skin colour and its shadow
+  hair: string;                          // hair colour
+  hairText: string;                      // the case's own description: 'long, dark blonde', 'grey, thinning', 'tied back'
+  gown: string; gownShade: string;
+  exposed: Set<string>;                  // structures uncovered: 'chest', 'abdomen', …
+  sex: 'F' | 'M';
+  age: number;
+  build: 'slim' | 'average' | 'heavy';
+  oxygen?: string;                       // device on the patient, if any ('nasal cannula 2 L/min', …)
+}
+
+/** The parts of a case's patient the figure uses (CaseDef['patient'] satisfies it). */
+export interface FigurePatient {
+  age: number; sex: 'F' | 'M';
+  appearance: { skinTone: number; hair: string; build?: 'slim' | 'average' | 'heavy'; eyes?: string };
+}
+/** The parts of the encounter state the figure uses (PatientState satisfies it). */
+export interface FigureState { exposure?: string[]; oxygen?: { device: string; fio2: number } }
+
+export function figureLookFor(patient: FigurePatient, state: FigureState, seed: number): FigureLook {
+  const ap = appearanceOf(patient as Parameters<typeof appearanceOf>[0], seed);
+  return {
+    skin: ap.skin, shade: ap.skinShade, hair: ap.hair, hairText: patient.appearance.hair.toLowerCase(),
+    gown: '#9fc4d9', gownShade: '#7fa9c2', exposed: new Set(state.exposure ?? []), sex: patient.sex, age: patient.age,
+    build: patient.appearance.build ?? 'average',
+    oxygen: state.oxygen && state.oxygen.fio2 > 0.21 ? state.oxygen.device : undefined,
+  };
+}
 
 const L = { torso: 104, neck: 12, head: 19, upper: 52, fore: 46, thigh: 82, shin: 76, foot: 22 };
 

@@ -81,7 +81,19 @@ Notes:
 - **Card content review.** The card texts are standard clinical teaching, written but not yet read by a clinician, the German especially. References are cited only where a threshold rests on a study.
 - **Review modes.** Spaced repetition, and matching tests to conditions, can be generated from the cards (see `docs/examination-and-teaching.md`); none is built.
 
-## Next topic: animations
+## Next topic: the patient figure, then animations
+
+The bedside figure is to be redrawn first, so it looks as good as the face canvas. A separate studio was set up for this: `source/studio/figure/`. Its `BRIEF.md` is self-contained and is all an agent needs to read. It covers:
+
+- the job;
+- the contract with the app;
+- what may change;
+- one-command screenshots: contact sheets of 9 patients × 6 poses, exposure and oxygen states, transitions, a zoom, and the panel inside the real app in light and dark;
+- a touch check that every body region stays tappable.
+
+`studio/figure/contract.test.mjs` is part of `npm test`.
+
+## After that: animations
 
 ### What animates today
 

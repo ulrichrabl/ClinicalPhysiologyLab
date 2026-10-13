@@ -18,7 +18,7 @@ import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
 import { EyeView } from '../render/eye-view.ts';
 import { FaceView, type FaceFinding } from '../render/face-view.ts';
 import { appearanceOf } from '../render/face-canvas.ts';
-import { figureSvg, lerpPose, POSES, type FigureLook, type Pose } from '../render/patient-figure.ts';
+import { figureSvg, figureLookFor, lerpPose, POSES, type FigureLook, type Pose } from '../render/patient-figure.ts';
 import { drawEcgPaper, drawSweep, PAPER_MM } from '../render/ecg-paper.ts';
 import { recordLeads, measuredAxis, standardPlacement, type Placement, type LeadName } from '../measurements/ecg.ts';
 import { healthyModel, modelFromCase, caseWithModel, type PatientModel } from '../physiology/state.ts';
@@ -741,11 +741,10 @@ export function mount(root: HTMLElement) {
   const renderFigure = (force = false) => {
     if (!s) return;
     const c = s.caseDef, st = s.state;
-    const ap = appearanceOf(c.patient, seedOf(base.id));
-    const exposed = new Set(st.exposure ?? []);
-    const lk: FigureLook = { skin: ap.skin, shade: ap.skinShade, hair: ap.hair, gown: '#9fc4d9', gownShade: '#7fa9c2', exposed, sex: c.patient.sex };
+    const lk: FigureLook = figureLookFor(c.patient, st, seedOf(base.id));
+    const exposed = lk.exposed;
     const target = POSES[st.position] ?? POSES.supine;
-    const key = `${base.id}|${c.patient.sex}|${st.position}|${[...exposed].sort().join(',')}`;
+    const key = `${base.id}|${c.patient.sex}|${st.position}|${[...exposed].sort().join(',')}|${lk.oxygen ?? ''}`;
     const g = $('#fig') as unknown as SVGGElement;
     if (key !== poseKey || force) {
       const firstForCase = !poseKey.startsWith(`${base.id}|`);
