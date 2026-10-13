@@ -9,7 +9,7 @@ import { DIAGNOSES } from './diagnoses.ts';
 import { INVESTIGATIONS } from './investigations.ts';
 import { MEASUREMENTS } from './measurements.ts';
 import { EXAM_SYSTEMS } from './exam-structure.ts';
-import { TEACHING } from './teaching.ts';
+import { TEACHING } from './teaching/index.ts';
 
 /* ---------------------------------------------------------------------------
    The catalog: every shared vocabulary item, indexed by id. Cases refer into
