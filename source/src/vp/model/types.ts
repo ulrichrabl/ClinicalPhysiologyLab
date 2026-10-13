@@ -208,6 +208,68 @@ export interface ManoeuvreDef {
   renderer?: string;
   /** Reached through a focused view (tap another site) or by typing; not listed in the region menu. */
   hidden?: boolean;
+  /** Where it belongs in the examination (data/exam-structure.ts), filled in when the catalog is built. */
+  section?: string;
+  /** Its place in a clinician's sequence, across all sections (lower comes first). */
+  order?: number;
+  /** What the test is, how it is done and what it shows (data/teaching.ts). */
+  teaching?: TeachingCard;
+}
+
+/* ---- How the examination is organised ----------------------------------------
+   Systems in the order a clinician examines, each with sections, each listing its
+   manoeuvres in the order they are done (look, feel, tap, listen). The order of
+   the arrays is the order shown to the learner. */
+
+/** Measuring a vital sign, examining, or doing something to the patient. */
+export type ManoeuvreKind = 'measure' | 'examine' | 'intervene';
+
+export interface ExamSectionDef {
+  id: string;                     // 'neuro.coordination'
+  label: LocalizedText;
+  kind: ManoeuvreKind;
+  manoeuvres: string[];           // in clinical order
+  /** 'chips' lays short alternatives (positions) out in a row; 'select' offers mutually exclusive ones (oxygen devices) as a choice. */
+  layout?: 'list' | 'chips' | 'select';
+}
+
+export interface ExamSystemDef {
+  id: string;                     // 'neuro'
+  label: LocalizedText;
+  sections: ExamSectionDef[];
+}
+
+/* ---- Teaching: what a test is and what it shows ------------------------------
+   One card per manoeuvre, in every language the app offers. The abnormal
+   findings link to the model's properties and to diagnoses, so that a card can
+   be turned into a review question ("which test shows this?") or a matching
+   challenge ("which test tells these two apart?") without writing anything new.
+   A learner's progress through cards is stored per learner, keyed by the
+   manoeuvre id, and never here. */
+
+export interface TeachingFinding {
+  sign: LocalizedText;            // 'Overshoots the knee, the heel wobbles down the shin'
+  means: LocalizedText;           // 'A lesion of the cerebellar hemisphere on the same side'
+  /** Model properties that report this sign (they must exist in the catalog). */
+  properties?: string[];
+  /** Diagnoses in which it occurs (they must exist in the catalog). */
+  conditions?: string[];
+}
+
+export interface TeachingCard {
+  /** Other names, eponyms and the names used in other languages; also searched. */
+  aliases?: LocalizedList;
+  /** The function and pathway the test examines. */
+  assesses: LocalizedText;
+  /** How to do it, step by step. */
+  how: LocalizedList;
+  normal: LocalizedText;
+  abnormal: TeachingFinding[];
+  pitfalls?: LocalizedList;
+  /** Reference ids from evidence/references.ts. */
+  refs?: string[];
+  /** An animation that shows the test, once one exists (renderer id). */
+  animation?: string;
 }
 
 /* ---- Patient state (non-physiological, changes during an encounter) ------- */

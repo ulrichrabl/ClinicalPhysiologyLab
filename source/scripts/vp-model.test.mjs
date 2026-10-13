@@ -15,7 +15,7 @@ unlinkSync(bundle);
 const { CATALOG, REGISTRY, CASES, buildView, observe, startEncounter, perform, order, ask, opening, parseAction, autoNote, describe,
   validateCatalog, validateCase, evaluate, interpret, commit, figureSvg, lerpPose, POSES, eyeAngles, measuredSlowPhaseVelocity, exportCatalog,
   settleCirculation, settleModel, createCirculation, healthyModel, modelFromCase, pathologyOf, caseWithModel, applyPreset, MODELS, VARIABLE_BY_ID,
-  recordLeads, measuredAxis, misplaced, standardPlacement, chemistryState, parseRef, Respiratory, pulseOximeter, perform: performM, CONSTANTS, REFERENCES, constantIssues, groundingSummary } = vp;
+  recordLeads, measuredAxis, misplaced, standardPlacement, chemistryState, parseRef, Respiratory, pulseOximeter, perform: performM, CONSTANTS, REFERENCES, constantIssues, groundingSummary, suggest } = vp;
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => {
@@ -48,6 +48,26 @@ console.log('\nCatalog and case validation');
   ok('catalog has properties, manoeuvres, topics and diagnoses',
     Object.keys(CATALOG.properties).length >= 25 && Object.keys(CATALOG.manoeuvres).length >= 35
     && Object.keys(CATALOG.topics).length >= 40 && Object.keys(CATALOG.diagnoses).length >= 15);
+  /* The examination is organised for the learner: every manoeuvre sits in exactly one section, in clinical order. */
+  const placed = CATALOG.examSystems.flatMap((sys) => sys.sections.flatMap((sec) => sec.manoeuvres));
+  ok('every manoeuvre is placed in exactly one exam section', Object.keys(CATALOG.manoeuvres).every((id) => placed.filter((x) => x === id).length === 1) && placed.length === Object.keys(CATALOG.manoeuvres).length,
+    J(Object.keys(CATALOG.manoeuvres).filter((id) => !placed.includes(id))));
+  ok('manoeuvres carry their section and a clinical order (vital signs first, interventions last)',
+    CATALOG.manoeuvres['measure.hr'].order === 0 && CATALOG.manoeuvres['test.heel-shin'].section === 'neuro.coordination'
+    && CATALOG.manoeuvres['give.oxygen.off'].order === placed.length - 1);
+  const cards = Object.values(CATALOG.manoeuvres).filter((m) => m.teaching);
+  console.log(`  · teaching cards: ${cards.length} / ${Object.keys(CATALOG.manoeuvres).length} manoeuvres (${cards.map((m) => m.id).join(', ')})`);
+  ok('every teaching card links its abnormal findings to properties or diagnoses', cards.every((m) => m.teaching.abnormal.length && m.teaching.abnormal.every((f) => (f.properties?.length ?? 0) + (f.conditions?.length ?? 0) > 0)));
+  /* Suggestions: names are found in every language, by eponym, and by the sign a test looks for. */
+  const top = (q, l) => suggest(CATALOG, q, l, 5)[0];
+  ok('suggest: "knie" finds the heel–shin test for an English learner', top('knie', 'en')?.id === 'test.heel-shin');
+  ok('suggest: "heel" finds the Knie-Hacke-Versuch for a German learner', top('heel', 'de')?.id === 'test.heel-shin' && top('heel', 'de').label === 'Knie-Hacke-Versuch');
+  ok('suggest: "romberg" finds the stance test by its eponym', top('romberg', 'en')?.id === 'test.romberg');
+  ok('suggest: "ataxia" finds the tests that show it', suggest(CATALOG, 'ataxia', 'en').some((x) => x.id === 'test.heel-shin'));
+  ok('suggest: "reflexes left" keeps the side', suggest(CATALOG, 'reflexes left', 'en').some((x) => x.kind === 'act' && x.side === 'L'));
+  ok('suggest: "chest pain" offers the question', suggest(CATALOG, 'chest pain', 'en').some((x) => x.kind === 'ask'));
+  ok('suggest: "blutbild" offers the order', suggest(CATALOG, 'blutbild', 'de').some((x) => x.kind === 'order'));
+  ok('suggest: a single letter suggests nothing yet', suggest(CATALOG, 'k', 'en').length === 0);
   const exported = JSON.parse(exportCatalog());
   ok('catalog exports to JSON and back', exported.schema === 'vp.catalog/1' && exported.properties.length === Object.keys(CATALOG.properties).length);
 

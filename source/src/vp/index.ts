@@ -7,6 +7,8 @@ export { observe, evaluate, matches, normalFor, isNormal, parseRef, refString, t
 export { buildView } from './engine/view.ts';
 export { startEncounter, perform, order, observeIn, abilities, advanceCourse, type Session } from './engine/encounter.ts';
 export { ask, opening, parseAction, parseOrder, interpret, matchTopics, type Interpretation } from './engine/language.ts';
+export { suggest, type Suggestion } from './engine/suggest.ts';
+export { EXAM_SYSTEMS } from './data/exam-structure.ts';
 export { commit, elicited, type DebriefResult, type Commit } from './engine/debrief.ts';
 export { autoNote, describe } from './engine/notes.ts';
 export { validateCatalog, validateCase, checkValue, type Issue } from './engine/validate.ts';
