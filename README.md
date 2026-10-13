@@ -1,5 +1,7 @@
 # Clinical Physiology Lab
 
+> Working on the code? Start at [`docs/HANDOVER.md`](docs/HANDOVER.md): build and test commands, agreed rules, what is done, open lists, and where the next work begins.
+
 A multi-domain medical simulation for learning. Three domains are live —
 **Circulation**, **Neurology** and **Labs** — sharing one patient, so what you do
 in one shows up in the others.

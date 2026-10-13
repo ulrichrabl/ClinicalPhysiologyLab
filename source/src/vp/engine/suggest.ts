@@ -24,14 +24,14 @@ export type Suggestion =
 const SIDE_WORDS: Record<string, Side> = { left: 'L', links: 'L', linke: 'L', linken: 'L', linkes: 'L', right: 'R', rechts: 'R', rechte: 'R', rechten: 'R', rechtes: 'R' };
 
 /** How well a typed query matches one name, 0..1: whole-name prefix beats word prefix beats substring beats all words. */
-function nameScore(q: string, qWords: string[], name: string): number {
+function nameScore(q: string, qWords: string[], name: string, wordsOnly = false): number {
   const n = normalise(name);
   if (!n) return 0;
   if (n === q) return 1;
   if (n.startsWith(q)) return 0.95;
   const words = n.split(/[\s-]+/);
   if (words.some((w) => w.startsWith(q))) return 0.85;
-  if (q.length >= 3 && n.includes(q)) return 0.75;
+  if (!wordsOnly && q.length >= 3 && n.includes(q)) return 0.75;
   if (qWords.length > 1 && qWords.every((qw) => words.some((w) => w.startsWith(qw)))) return 0.7;
   return 0;
 }
@@ -39,7 +39,8 @@ function nameScore(q: string, qWords: string[], name: string): number {
 function bestOf(q: string, qWords: string[], names: Array<[string, number]>): { score: number; name?: string } {
   let score = 0, name: string | undefined;
   for (const [nm, weight] of names) {
-    const s = nameScore(q, qWords, nm) * weight;
+    /* Long descriptive texts (signs, meanings) match by word only, or "romb" would find "thrombosis". */
+    const s = nameScore(q, qWords, nm, weight < 0.6) * weight;
     if (s > score) { score = s; name = nm; }
   }
   return { score, name };
