@@ -269,4 +269,14 @@ export const REFERENCES: Record<string, Reference> = Object.fromEntries([
   R({ id: 'gaar1967', authors: 'Gaar KA, Taylor AE, Owens LJ, Guyton AC', title: 'Pulmonary capillary pressure and filtration coefficient in the isolated perfused lung',
     journal: 'Am J Physiol', year: 1967, volume: '213', pages: '910–4', doi: '10.1152/ajplegacy.1967.213.4.910', pmid: '6051189', verified: 'record',
     note: 'The source of the Gaar equation, Pc = Pla + 0.4·(Ppa − Pla), measured in isolated dog lungs.' }),
+  /* The heart's electrical activity */
+  R({ id: 'sagie1992', authors: 'Sagie A, Larson MG, Goldberg RJ, Bengtson JR, Levy D', title: 'An improved method for adjusting the QT interval for heart rate (the Framingham Heart Study)',
+    journal: 'Am J Cardiol', year: 1992, volume: '70', pages: '797–801', doi: '10.1016/0002-9149(92)90562-d', pmid: '1519533', verified: 'abstract',
+    note: 'Abstract, 5018 subjects aged 28–62: mean RR 0.81 s, mean QT 0.35 s (men) and 0.36 s (women), range 0.24–0.49; QTLC = QT + 0.154·(1 − RR) for both sexes; Bazett overcorrects at fast rates and undercorrects at slow ones.' }),
+  R({ id: 'mason2007', authors: 'Mason JW, Ramseth DJ, Chanter DO, et al.', title: 'Electrocardiographic reference ranges derived from 79,743 ambulatory subjects',
+    journal: 'J Electrocardiol', year: 2007, volume: '40', pages: '228–34', doi: '10.1016/j.jelectrocard.2006.09.003', pmid: '17276451', verified: 'abstract',
+    note: 'Abstract, 46,129 low-risk subjects, 2nd–98th percentiles: heart rate 48–98, PR 113–212 ms, QRS 69–109 ms, QRS axis −40° to 91°, QT 325–452 ms, QTc (Bazett) 361–457 ms.' }),
+  R({ id: 'montague2008', authors: 'Montague BT, Ouellette JR, Buller GK', title: 'Retrospective review of the frequency of ECG changes in hyperkalemia',
+    journal: 'Clin J Am Soc Nephrol', year: 2008, volume: '3', pages: '324–30', doi: '10.2215/CJN.04611007', pmid: '18235147', verified: 'abstract',
+    note: 'Abstract, 90 patients with K ≥ 6: the ECG was insensitive; T-wave amplitude tracked subjective peaking but no diagnostic threshold could be established; the probability of changes rose with potassium.' }),
 ].map((r) => [r.id, r]));

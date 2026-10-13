@@ -1,4 +1,5 @@
 import type { LocalizedText } from '../../model/i18n.ts';
+import { ECG } from '../../evidence/ecg.ts';
 
 /* ===========================================================================
    The heart's electrical activity, as physiology.
@@ -263,7 +264,7 @@ export class HeartElectrical {
     if (p.ventricular === 'vt') {
       while (this.nextVentricularMs <= end) {
         this.queue(this.nextVentricularMs, 'vt', null);
-        this.nextVentricularMs += 60000 / 165;
+        this.nextVentricularMs += 60000 / ECG.vtRate;
       }
       // the sinus node carries on, dissociated
     }
@@ -273,14 +274,14 @@ export class HeartElectrical {
         /* The AV node lets through a random selection of a chaotic barrage: intervals scatter widely
            around the mean the autonomic state sets, never shorter than its refractory period. */
         const mean = 60000 / this.rate();
-        this.nextVentricularMs += Math.max(320, mean * (1 + 0.24 * this.rng.gauss()));
+        this.nextVentricularMs += Math.max(ECG.afMinRR, mean * (1 + ECG.afIrregularity * this.rng.gauss()));
       }
     } else if (p.atrial === 'flutter') {
       while (this.nextAtrialMs <= end) {
         this.flutterCount++;
-        const ratio = Math.max(2, Math.min(4, Math.round(300 / this.rate())));
+        const ratio = Math.max(2, Math.min(4, Math.round(60000 / ECG.flutterCycle / this.rate())));
         if (p.ventricular === 'none' && p.avBlock !== 'complete' && this.flutterCount % ratio === 0) this.queue(this.nextAtrialMs + 120, 'conducted', null);
-        this.nextAtrialMs += 200;
+        this.nextAtrialMs += ECG.flutterCycle;
       }
     } else {
       while (this.nextAtrialMs <= end) {
@@ -292,7 +293,7 @@ export class HeartElectrical {
           let prNow = pr;
           if (p.avBlock === 'wenckebach') {
             /* Each beat finds the node less recovered: the PR lengthens by smaller steps until one fails. */
-            if (this.wenckebach >= 3) { conduct = false; this.wenckebach = 0; } else { prNow = pr + 140 * (1 - Math.pow(0.45, this.wenckebach)); this.wenckebach++; }
+            if (this.wenckebach >= 3) { conduct = false; this.wenckebach = 0; } else { prNow = pr + ECG.wenckebachIncrement * (1 - Math.pow(ECG.wenckebachDecay, this.wenckebach)); this.wenckebach++; }
           } else if (p.avBlock === 'mobitz2') {
             this.mobitz = (this.mobitz + 1) % 3;
             if (this.mobitz === 0) conduct = false;
@@ -300,7 +301,7 @@ export class HeartElectrical {
           if (conduct) this.queue(t + prNow, 'conducted', prNow);
         }
         /* Respiratory sinus arrhythmia: a few per cent, at the breathing rate. */
-        const rsa = 1 + 0.035 * Math.sin((2 * Math.PI * t) / 4200);
+        const rsa = 1 + ECG.rsaDepth * Math.sin((2 * Math.PI * t) / 4200);
         this.nextAtrialMs += 60000 / this.rate() / rsa;
       }
     }
@@ -309,7 +310,7 @@ export class HeartElectrical {
       const lastQueued = this.pending.length ? this.pending[this.pending.length - 1].t : this.lastVentricularMs;
       /* Below the AV node a ventricular focus fires at about 40/min if nothing reaches it; with intact conduction
          a long pause (a dropped beat, sinus arrest) is rescued later, by the junction. */
-      const escapeAt = Math.max(lastQueued, this.lastVentricularMs) + (p.avBlock === 'complete' ? 1500 : 2000);
+      const escapeAt = Math.max(lastQueued, this.lastVentricularMs) + (p.avBlock === 'complete' ? ECG.ventricularEscape : ECG.junctionalEscape);
       if (escapeAt <= end + 1) {
         const conductedSoon = this.pending.some((b) => b.t <= escapeAt + 1);
         if (!conductedSoon) this.queue(escapeAt, 'escape', null);
@@ -320,16 +321,16 @@ export class HeartElectrical {
   private queue(t: number, kind: 'conducted' | 'escape' | 'vt', pr: number | null): void {
     // A ventricle activated within its refractory period cannot activate again.
     const last = Math.max(this.lastVentricularMs, ...this.pending.map((b) => b.t));
-    if (t - last < 280) return;
+    if (t - last < ECG.refractory) return;
     this.pending.push({ t, kind, pr });
     this.pending.sort((a, b) => a.t - b.t);
   }
 
   private prInterval(): number {
     const p = this.p;
-    let pr = 150 / Math.pow(Math.max(0.2, p.av), 0.9);
-    if (this.K > 6) pr += 18 * (this.K - 6);
-    if (p.accessory) pr = Math.min(pr, 105);
+    let pr = ECG.prNormal / Math.pow(Math.max(0.2, p.av), 0.9);
+    if (this.K > ECG.prOnsetK) pr += ECG.prPerK * (this.K - ECG.prOnsetK);
+    if (p.accessory) pr = Math.min(pr, ECG.preexcitedPr);
     return pr;
   }
 
@@ -337,7 +338,7 @@ export class HeartElectrical {
   private atrialBeat(t: number): void {
     const p = this.p;
     let amp = 0.11;
-    if (this.K > 6.5) amp *= Math.max(0, 1 - 0.45 * (this.K - 6.5));   // atrial myocytes fail first in hyperkalaemia
+    if (this.K > ECG.pLossOnset) amp *= Math.max(0, 1 - ECG.pLossPerK * (this.K - ECG.pLossOnset));   // atrial myocytes fail first in hyperkalaemia
     const ra = amp * (1 + 1.6 * (p.raSize - 1));
     const la = amp * 0.95 * (1 + 1.3 * (p.laSize - 1));
     const laDelay = 30 + 28 * (p.laSize - 1);
@@ -359,12 +360,12 @@ export class HeartElectrical {
     this.rr.push(rrMs); if (this.rr.length > 8) this.rr.shift();
 
     /* Hyperkalaemia slows conduction in the ventricles too: the QRS widens. */
-    const w = 1 + Math.max(0, K - 6.8) * 0.32;
+    const w = 1 + Math.max(0, K - ECG.qrsOnsetK) * ECG.qrsPerK;
     const k: Kernel[] = [];
     const lbbBlock = p.lbb < 0.35, rbbBlock = p.rbb < 0.35;
     const lvGain = 1 + 1.5 * (p.lvMass - 1);
     const lvDir = p.lvMass > 1 ? mix(D.lv, norm([0.75, 0.45, 0.55]), Math.min(1, (p.lvMass - 1) * 0.8)) : D.lv;
-    let qrs = 92 * w;
+    let qrs = ECG.qrsNormal * w;
     let synchrony = 1;
     let discordant = 0;     // how much the T wave turns away from the QRS (secondary repolarisation change)
     let qrsMean: Vec3;
@@ -374,7 +375,7 @@ export class HeartElectrical {
     if (kind === 'vt') {
       k.push({ t: t + 35 * w, sl: 22, sr: 22, v: scale(norm([-0.4, -0.55, -0.7]), 1.3) });
       k.push({ t: t + 95 * w, sl: 30, sr: 26, v: scale(norm([-0.6, -0.7, -0.1]), 1.9) });
-      qrs = 165 * w; synchrony = 0.7; discordant = 1;
+      qrs = ECG.vtQrs * w; synchrony = 0.7; discordant = 1;
     } else if (kind === 'escape') {
       k.push({ t: t + 40 * w, sl: 22, sr: 22, v: scale(norm([0.2, -0.6, 0.6]), 0.9) });
       k.push({ t: t + 95 * w, sl: 26, sr: 24, v: scale(norm([0.6, -0.5, 0.55]), 1.5) });
@@ -385,7 +386,7 @@ export class HeartElectrical {
       k.push({ t: t + 18 * w, sl: 10, sr: 10, v: scale(norm([0.55, 0.1, 0.6]), 0.4) });
       k.push({ t: t + 62 * w, sl: 20, sr: 18, v: scale(norm([0.7, 0.25, 0.65]), 1.25 * lvGain) });
       k.push({ t: t + 108 * w, sl: 18, sr: 16, v: scale(norm([0.8, 0.05, 0.55]), 1.15 * lvGain) });
-      qrs = (148 + 40 * (0.35 - p.lbb)) * w; synchrony = 0.82; discordant = 1;
+      qrs = (ECG.lbbbQrs + 40 * (0.35 - p.lbb)) * w; synchrony = 0.82; discordant = 1;
     } else {
       // septum, right ventricle, left ventricle, base
       const rbbDelay = rbbBlock ? 1 : Math.max(0, (1 - p.rbb) * 0.4);
@@ -397,12 +398,12 @@ export class HeartElectrical {
       if (rbbBlock) {
         /* The right ventricle activates late, from the left, and unopposed: a terminal rightward, anterior vector — R′ in V1, slurred S in I and V6. */
         k.push({ t: t + 104 * w, sl: 15, sr: 13, v: scale(norm([-0.45, 0.15, -0.85]), 0.75) });
-        qrs = 136 * w; synchrony = 0.92; discordant = 0.45;
+        qrs = ECG.rbbbQrs * w; synchrony = 0.92; discordant = 0.45;
       }
       if (p.accessory) {
         /* The accessory pathway activates ventricle early and slowly before the normal wave arrives: the delta wave. */
         k.push({ t: t - 18, sl: 26, sr: 14, v: scale(norm([0.35, 0.45, -0.82]), 0.55) });
-        qrs = Math.max(qrs, 122 * w); discordant = Math.max(discordant, 0.5);
+        qrs = Math.max(qrs, ECG.preexcitedQrs * w); discordant = Math.max(discordant, 0.5);
       }
       qrs += 10 * Math.max(0, p.lvMass - 1);
     }
@@ -411,11 +412,12 @@ export class HeartElectrical {
 
     /* ---- repolarisation ---- */
     const rr = Math.max(300, rrMs);
-    let qtc = 405 * p.repolarisation;
-    qtc -= 70 * (this.Ca - 2.4);                    // calcium shortens the plateau
-    qtc -= 40 * p.digoxin;
-    if (K < 3.5) qtc += 25 * (3.5 - K);
-    let QT = Math.max(240, qtc * Math.sqrt(rr / 1000));
+    /* QT follows the heart period linearly (Sagie, Framingham); a machine still reports QTc by Bazett. */
+    let qt1 = ECG.qtRef * p.repolarisation;
+    qt1 -= ECG.calciumQt * (this.Ca - ECG.calciumRef);                    // calcium shortens the plateau
+    qt1 -= ECG.digoxinQt * p.digoxin;
+    if (K < ECG.hypoKOnset) qt1 += ECG.hypoKQt * (ECG.hypoKOnset - K);
+    let QT = Math.max(ECG.qtMin, qt1 - ECG.qtRateSlope * (1 - rr / 1000));
     QT = Math.max(QT, qrs + 160);
     const jPoint = t + qrs;
     let tDir: Vec3 = discordant ? mix(D.t, scale(qrsMean, -1) as Vec3, discordant) : D.t;
@@ -426,9 +428,9 @@ export class HeartElectrical {
       tDir = mix(tDir, scale(lvDir, -1) as Vec3, Math.min(0.9, (p.lvMass - 1.35) * 1.6));
       this.plateaus.push({ t0: jPoint, t1: t + QT - 80, rise: 25, fall: 60, v: scale(lvDir, -0.07 * Math.min(1.5, p.lvMass - 1.2)) });
     }
-    if (K > 5.4) { tAmp *= 1 + 0.75 * (K - 5.4); const narrow = Math.max(0.45, 1 - 0.14 * (K - 5.4)); sl *= narrow; sr *= narrow; }
-    if (K < 3.5) tAmp *= Math.max(0.2, 1 - 0.38 * (3.5 - K));
-    if (p.digoxin > 0) tAmp *= 1 - 0.55 * p.digoxin;
+    if (K > ECG.tPeakOnset) { tAmp *= 1 + ECG.tPeakGain * (K - ECG.tPeakOnset); const narrow = Math.max(0.45, 1 - ECG.tNarrowing * (K - ECG.tPeakOnset)); sl *= narrow; sr *= narrow; }
+    if (K < ECG.hypoKOnset) tAmp *= Math.max(0.2, 1 - ECG.hypoKT * (ECG.hypoKOnset - K));
+    if (p.digoxin > 0) tAmp *= 1 - ECG.digoxinT * p.digoxin;
     if (kind === 'vt' || kind === 'escape') tAmp = 0.55;
     if (discordant >= 1) tAmp = Math.max(tAmp, 0.5);
 
@@ -460,11 +462,11 @@ export class HeartElectrical {
       this.kernels.push({ t: t + QT - 90, sl: 0.17 * QT, sr: 40, v: scale(v, -0.22 * p.brugada) });
     }
     if (p.digoxin > 0) this.plateaus.push({ t0: jPoint, t1: t + QT - 60, rise: 50, fall: 40, v: scale(D.t, -0.09 * p.digoxin) });
-    if (K < 3.5) this.plateaus.push({ t0: jPoint, t1: t + QT - 60, rise: 30, fall: 40, v: scale(D.t, -0.025 * (3.5 - K)) });
+    if (K < ECG.hypoKOnset) this.plateaus.push({ t0: jPoint, t1: t + QT - 60, rise: 30, fall: 40, v: scale(D.t, -0.025 * (ECG.hypoKOnset - K)) });
 
     const tPeak = t + QT - 2.2 * sr;
     this.kernels.push({ t: tPeak, sl, sr, v: scale(norm(tDir), tAmp) });
-    if (K < 3.6) this.kernels.push({ t: t + QT + 70, sl: 40, sr: 45, v: scale(D.t, 0.05 + 0.1 * (3.6 - K)) });   // U wave
+    if (K < ECG.uWaveOnset) this.kernels.push({ t: t + QT + 70, sl: 40, sr: 45, v: scale(D.t, 0.05 + 0.1 * (ECG.uWaveOnset - K)) });   // U wave
 
     /* ---- the beat drives the mechanics ---- */
     for (const chamber of ['LV', 'RV'] as const) {
