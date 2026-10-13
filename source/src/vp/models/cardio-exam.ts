@@ -1,4 +1,5 @@
 import type { ExamContext } from '../model/types.ts';
+import { EXAM } from '../evidence/exam.ts';
 import type { Resolved, Resolver, RuntimeView } from '../engine/observe.ts';
 import { orthostatic } from './body-exam.ts';
 
@@ -136,7 +137,7 @@ export const CARDIO_RESOLVERS: Record<string, Resolver> = {
   },
   'circulation.jvp': (view): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;
-    const heightCm = Math.round((h.cvp * 1.36 - 5) * 2) / 2;   // cmH2O above the right atrium, minus ~5 cm to the sternal angle
+    const heightCm = Math.round((h.cvp * 1.36 - EXAM.jvpSternalOffset) * 2) / 2;   // cmH2O above the right atrium, minus ~5 cm to the sternal angle
     return { value: { heightCm, waveform: h.regTricuspid > 0.2 ? 'large-v' : 'normal' }, basis: `mean right atrial pressure ${h.cvp.toFixed(1)} mmHg` };
   },
   'circulation.apex': (view): Resolved | undefined => {
@@ -169,7 +170,8 @@ export const CARDIO_RESOLVERS: Record<string, Resolver> = {
     const h = hemo(view); if (!h) return undefined;
     /* In vasodilatory (septic) shock the skin vessels are open too: warm peripheries and a brisk refill, until late. */
     const warm = (view.body?.vasoplegia ?? 0) > 0.35;
-    const crt = h.map < 50 ? 5 : h.map < 65 ? (warm ? 2 : 3.5) : 2;
+    const normal = view.patient.age >= 65 ? EXAM.crtNormalOld : view.patient.sex === 'F' ? EXAM.crtNormalWoman : EXAM.crtNormalMan;   // Schriger & Baraff
+    const crt = h.map < 50 ? EXAM.crtProfound : h.map < 65 ? (warm ? Math.max(normal, 1.5) : EXAM.crtShock) : normal;
     return { value: crt, basis: `mean arterial pressure ${h.map.toFixed(0)} mmHg${warm ? '; skin vessels dilated by sepsis' : ''}` };
   },
   'circulation.oedema': (view): Resolved | undefined => {
@@ -177,7 +179,7 @@ export const CARDIO_RESOLVERS: Record<string, Resolver> = {
     /* Oedema is interstitial fluid gained (2–3 L before it pits at the ankle), pushed out by venous pressure or held by too little albumin. */
     const isf = (view.body?.dISF ?? 0) - (view.body?.ascites ?? 0);   // ascites is interstitial fluid in the peritoneum, not the legs
     const scale = Math.max(0.6, (view.patient.weightKg ?? 70) / 70);
-    const byIsf = isf >= 7 * scale ? 3 : isf >= 4.5 * scale ? 2 : isf >= 2.5 * scale ? 1 : 0;
+    const byIsf = isf >= 7 * scale ? 3 : isf >= 4.5 * scale ? 2 : isf >= EXAM.oedemaAnkle * scale ? 1 : 0;
     const byCvp = h.cvp >= 16 ? 3 : h.cvp >= 13 ? 2 : h.cvp >= 10 ? 1 : 0;
     const g = Math.max(byIsf, byCvp);
     if (!g) return undefined;
@@ -187,7 +189,7 @@ export const CARDIO_RESOLVERS: Record<string, Resolver> = {
     const h = hemo(view); if (!h) return undefined;
     /* Fever: the skin flushed and sweating as heat is shed (or pale and shivering while the set point is still being climbed). */
     const T = view.body?.temperature ?? 37;
-    if (h.map >= 60 && T >= 38.3) return { value: { distress: 'mild', colour: 'flushed', sweating: true }, basis: `core temperature ${T.toFixed(1)} °C` };
+    if (h.map >= 60 && T >= EXAM.feverFlush) return { value: { distress: 'mild', colour: 'flushed', sweating: true }, basis: `core temperature ${T.toFixed(1)} °C` };
     /* Thyrotoxicosis: heat produced faster than it can be lost, shed through warm, flushed, sweating skin. */
     const thy = view.body?.thyroidEffect ?? 1;
     if (h.map >= 60 && thy >= 1.8) return { value: { distress: 'mild', colour: 'flushed', sweating: true }, basis: `thyroid hormone action ×${thy.toFixed(2)}: metabolic rate ×${(view.body?.metabolicMult ?? 1).toFixed(2)}` };

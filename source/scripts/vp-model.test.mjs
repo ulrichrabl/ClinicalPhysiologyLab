@@ -1014,6 +1014,20 @@ console.log('\nHormones: thyroid, adrenal cortex and calcium');
     JSON.stringify({ bone: inv(Hc, 'bone-profile'), pth: inv(Hc, 'pth'), urea: Hc.view.chemistry.urea, qtc: ecg.qtc }));
 }
 
+console.log('\nThe examination against human data');
+{
+  const c = caseById('foot-drop-right-l5');
+  const at = (loss) => { const m = modelFromCase(c); m.body.courseHours = 0.1; m.circulation.bloodVolume = m.circulation.bloodVolume * (1 - loss); const snap = settleModel(m, 12).snapshot;
+    const view = buildView(c, { circulation: snap, state: { ...c.initialState } });
+    return obs(c, view, 'vitals.hr', { position: 'standing' }).value - obs(c, view, 'vitals.hr').value; };
+  const d0 = at(0), dMod = at(0.09), dLarge = at(0.17);
+  ok('postural pulse rise: under 30 /min when well and after a moderate bleed (about 9 % of blood), 30 or more after a large one (17 %) (McGee 1999)',
+    d0 < 30 && dMod < 30 && dLarge >= 30, `well +${d0}, moderate +${dMod}, large +${dLarge} /min`);
+  const view = buildView(c, { circulation: settleModel(modelFromCase(c), 12).snapshot, state: { ...c.initialState } });
+  const crt = obs(c, view, 'hands.crt').value;
+  ok('capillary refill of a well adult at Schriger & Baraff’s median for age and sex (1.0–1.8 s)', crt >= 1.0 && crt <= 1.8, `${crt} s (patient ${c.patient.age} ${c.patient.sex})`);
+}
+
 console.log('\nThe ECG against human data');
 {
   const H = settleModel(healthyModel(), 12).snapshot.ecgMetrics;
@@ -1097,7 +1111,7 @@ console.log('\nEvidence: every constant has a status, every grounded one a refer
   const src = [...walk('src/vp'), ...walk('src/domains/cardio/sim')].filter((f) => !f.includes('/evidence/')).map((f) => readFileSync(f, 'utf8')).join('\n');
   const issues = constantIssues();
   ok('the constant registry has no errors (measured and derived constants cite references; derived and assumed ones show their working)', issues.length === 0, issues.join('; '));
-  const alias = { thyroid: 'THY', adrenal: 'ADR', calcium: 'CA', water: 'WAT', kidney: 'KID', circulation: 'CIRC', baroreflex: 'BARO', inflammation: 'INF', lung: 'LUNG', ecg: 'ECG' };
+  const alias = { thyroid: 'THY', adrenal: 'ADR', calcium: 'CA', water: 'WAT', kidney: 'KID', circulation: 'CIRC', baroreflex: 'BARO', inflammation: 'INF', lung: 'LUNG', ecg: 'ECG', exam: 'EXAM' };
   const unused = Object.values(CONSTANTS).filter((c) => alias[c.group] && !new RegExp(`\\b${alias[c.group]}\\.${c.id.split('.')[1]}\\b`).test(src)).map((c) => c.id);
   ok('every registered constant is used by the model (no stale entries)', unused.length === 0, unused.join(', '));
   const refsUsed = new Set(Object.values(CONSTANTS).flatMap((c) => c.refs ?? []));

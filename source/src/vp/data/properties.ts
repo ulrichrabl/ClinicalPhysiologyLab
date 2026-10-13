@@ -136,7 +136,7 @@ export const PROPERTIES: PropertyDef[] = [
 
   {
     id: 'hands.crt', structure: 'hands', label: { en: 'Capillary refill time', de: 'Rekapillarisierungszeit' },
-    value: q('s', 0, 10), normal: { value: 2, range: [0, 2] },
+    value: q('s', 0, 10), normal: { value: 1, range: [0, 2] },   // Schriger & Baraff: median 1.0 s in adult men, upper limit 2 s
     source: 'model-or-case', resolver: 'circulation.crt', formatter: 'hands.crt',
   },
   {

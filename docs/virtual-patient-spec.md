@@ -556,7 +556,7 @@ of the original. Where the model misses measured data, the test reports it as a
 known gap (△, with the numbers) instead of being loosened until it passes; the
 gaps are listed below. Migration: the endocrine, water, kidney, circulation,
 baroreflex and inflammation models and the reachable part of the kidney are in
-the registry, and the lungs and the ECG; the examination thresholds follow.
+the registry, and the lungs, the ECG and the main examination thresholds.
 
 **Where the circulation and baroreflex constants come from.** The reference man
 (45 years, 176 cm, 76 kg, supine) is anchored to human normals: left ventricular
@@ -625,6 +625,19 @@ clinically the ECG is insensitive and no threshold could be established
 (Montague). The dipole's shape (direction, size and width of each lobe) is fitted
 to a normal vectorcardiogram and the textbook conduction patterns and is not listed
 as measured; the leads are Dower's (Edenbrandt & Pahlm).
+
+**Where the examination thresholds come from.** The point at which a sign
+appears is placed where the evidence says it usually does, though many signs are
+unreliable in practice and the model reports them deterministically: scleral
+icterus from about 40 µmol/L (physicians detect jaundice about 70 % of the time,
+Hung), pallor below 100 g/L and marked below 70 (Sheth, Kalantri), central
+cyanosis at about 40 g/L of capillary deoxyhaemoglobin (Lundsgaard; Comroe), a
+normal capillary refill at Schriger & Baraff's median for age and sex (1.0 s in a
+man, previously 2 s for everyone), and a postural pulse rise that crosses 30 /min
+at about 12 % of blood volume lost, so that, as McGee found, it is present after a
+large bleed and mostly absent after a moderate one (the old slope crossed it at 8 %).
+The remaining thresholds in the examination models (crackles, murmurs, apex,
+neurological signs) are heuristics described where they are used, not yet sourced.
 
 **Known gaps (reported by the tests).** Haemorrhage raises the heart rate +3 %
 against +14 % and lowers CVP 2.7 against 4.7 mmHg: there is no cardiopulmonary
