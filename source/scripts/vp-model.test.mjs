@@ -1014,6 +1014,23 @@ console.log('\nHormones: thyroid, adrenal cortex and calcium');
     JSON.stringify({ bone: inv(Hc, 'bone-profile'), pth: inv(Hc, 'pth'), urea: Hc.view.chemistry.urea, qtc: ecg.qtc }));
 }
 
+console.log('\nThe lungs against human data');
+{
+  const r = new Respiratory({}, { age: 45, sex: 'M', heightCm: 176, weightKg: 76 }); const s = r.snapshot();
+  const mm = 7.50062;
+  ok('quiet breathing: rate 14–19 /min and tidal volume 300–480 mL (Tobin: 16.6 ± 2.8, 383 ± 91), Ti/Ttot about 0.42',
+    s.RR > 14 && s.RR < 19 && s.VT > 0.3 && s.VT < 0.48 && Math.abs(s.Ti / (s.Ti + s.Te) - 0.42) < 0.03, `RR ${s.RR.toFixed(1)} VT ${(s.VT * 1000).toFixed(0)} mL`);
+  ok('PaO2 at 45 years within 5 mmHg of Sorbini’s 109 − 0.43 × age, PaCO2 38–42 mmHg', Math.abs(s.PaO2 * mm - (109 - 0.43 * 45)) < 5 && s.PaCO2 * mm > 38 && s.PaCO2 * mm < 42,
+    `PaO2 ${(s.PaO2 * mm).toFixed(1)} PaCO2 ${(s.PaCO2 * mm).toFixed(1)} mmHg`);
+  const c = r.controllerCurve([5.33, 5.33 + 10 / mm]);
+  const hcvr = (c[1] - c[0]) / 10;
+  ok('CO2 response 1.5–2.8 L/min/mmHg (Westerman: 2.13 ± 0.17 SE; Ben-Dov: 2.46)', hcvr > 1.5 && hcvr < 2.8, `${hcvr.toFixed(2)} L/min/mmHg`);
+  const rr = r, m = rr.mechanics(), cap = rr.capacity(m);
+  const ve = (p) => rr.delivered(rr.demand(p / mm, 5.33, m), cap);
+  const A = (ve(45) - ve(100)) / (1 / (45 - 32) - 1 / (100 - 32));
+  ok('isocapnic hypoxic response: Weil’s A 130–230 L/min·mmHg (Weil: 180 ± 14.5 SEM)', A > 130 && A < 230, `A ${A.toFixed(0)}`);
+}
+
 console.log('\nThe kidney against human data');
 {
   const K = (body, chronic) => { const m = healthyModel(); if (chronic) { m.chronic = chronic; Object.assign(m.body, chronic.body); } Object.assign(m.body, body); return settleModel(m, 12).snapshot.body; };
@@ -1068,7 +1085,7 @@ console.log('\nEvidence: every constant has a status, every grounded one a refer
   const src = [...walk('src/vp'), ...walk('src/domains/cardio/sim')].filter((f) => !f.includes('/evidence/')).map((f) => readFileSync(f, 'utf8')).join('\n');
   const issues = constantIssues();
   ok('the constant registry has no errors (measured and derived constants cite references; derived and assumed ones show their working)', issues.length === 0, issues.join('; '));
-  const alias = { thyroid: 'THY', adrenal: 'ADR', calcium: 'CA', water: 'WAT', kidney: 'KID', circulation: 'CIRC', baroreflex: 'BARO', inflammation: 'INF' };
+  const alias = { thyroid: 'THY', adrenal: 'ADR', calcium: 'CA', water: 'WAT', kidney: 'KID', circulation: 'CIRC', baroreflex: 'BARO', inflammation: 'INF', lung: 'LUNG' };
   const unused = Object.values(CONSTANTS).filter((c) => alias[c.group] && !new RegExp(`\\b${alias[c.group]}\\.${c.id.split('.')[1]}\\b`).test(src)).map((c) => c.id);
   ok('every registered constant is used by the model (no stale entries)', unused.length === 0, unused.join(', '));
   const refsUsed = new Set(Object.values(CONSTANTS).flatMap((c) => c.refs ?? []));

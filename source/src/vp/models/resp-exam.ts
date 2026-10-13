@@ -1,4 +1,5 @@
 import type { ExamContext, Side } from '../model/types.ts';
+import { LUNG } from '../evidence/lung.ts';
 import type { Resolved, Resolver, RuntimeView } from '../engine/observe.ts';
 import { pulseOximeter, idealWeight, type LobeId, type RespSnapshot } from '../physiology/lung/respiratory.ts';
 import { CARDIO_RESOLVERS } from './cardio-exam.ts';
@@ -179,7 +180,7 @@ export const RESP_RESOLVERS: Record<string, Resolver> = {
     const r = rs(view); if (!r) return undefined;
     const p = respParams(view);
     const vtKg = (r.VT * 1000) / idealWeight({ age: view.patient.age, sex: view.patient.sex, heightCm: view.patient.heightCm ?? 170, weightKg: view.patient.weightKg ?? 70 });
-    const depth = vtKg < 5.5 ? 'shallow' : vtKg > 8.5 ? 'deep' : 'normal';
+    const depth = vtKg < LUNG.tidalShallow ? 'shallow' : vtKg > LUNG.tidalDeep ? 'deep' : 'normal';
     const load = r.effort;
     const hypoxic = r.SaO2 < 0.85;
     const speech = load >= 4 || r.SaO2 < 0.7 ? 'unable' : load >= 1.2 || r.SaO2 < 0.8 ? 'words' : load >= 0.55 || hypoxic || r.RR >= 26 ? 'phrases' : 'sentences';
