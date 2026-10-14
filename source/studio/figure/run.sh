@@ -5,6 +5,6 @@
 set -e
 cd "$(dirname "$0")/../.."
 node studio/figure/build.mjs
-FIGURE_ACCEPTANCE=1 node studio/figure/contract.test.mjs | grep -E '✗|passed' || true
+node studio/figure/contract.test.mjs | grep -E '✗|passed' || true
 if [ "$1" = "app" ] || [ "$1" = "all" ]; then node scripts/build-vp-demo.mjs > /dev/null; fi
 python3 studio/figure/shoot.py "$@"
