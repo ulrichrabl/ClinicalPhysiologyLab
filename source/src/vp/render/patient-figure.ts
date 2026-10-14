@@ -211,6 +211,14 @@ const maxY = (pts: Pt[]) => pts.reduce((m, p) => Math.max(m, p.y), -Infinity);
 /** A pillow's thickness under the head, reference cm. */
 const PILLOW = 7;
 
+/** The trolley's backrest: the head section of the mattress, hinged at a fixed point on the frame. Only its angle
+    changes, so raising or lowering it never moves the hinge. */
+const BACKREST_LEN = 128;
+function backrestOf(p: Pose): { pivot: Pt; angle: number; len: number } | null {
+  if (p.backrest <= 1 || p.bed === 'none') return null;
+  return { pivot: { x: p.bedLeft + BACKREST_LEN, y: BED_TOP }, angle: 180 - p.backrest, len: BACKREST_LEN };
+}
+
 function place(p0: Pose, sh: Shape): Skeleton {
   /* Lying, the trunk rests on two places, the buttocks and the shoulder blades (prone: pelvis and chest). A big
      buttock or a big belly would otherwise prop the trunk up at one end; the trunk is tilted until both touch. */
@@ -235,6 +243,18 @@ function place(p0: Pose, sh: Shape): Skeleton {
   const floorDy = FLOOR - 1 - feet;
   const dy = Math.min(lerp(bedDy, floorDy, clamp(p.ground, 0, 1)), floorDy);
   let k = skeleton(p, sh, { x: p.hipX, y: dy });
+  /* Leaning back, the patient slides along the mattress until the back rests on the backrest; the backrest itself
+     never moves off its hinge. Sitting up straighter than it, the patient leaves it; the back never passes through. */
+  const rest = backrestOf(p);
+  if (rest) {
+    const n = dir(rest.angle - 90);                               // from the backrest toward the patient
+    const gap = Math.min(...trunkOutline(k, sh, 14, 99).map((q) => (q.x - rest.pivot.x) * n.x + (q.y - rest.pivot.y) * n.y));
+    /* resting on it while the trunk is no steeper than the backrest (raising it lifts the patient with it) */
+    const pull = gap < 0 ? 1 : (1 - smooth(4, 14, (180 - p.torso) - p.backrest)) * smooth(20, 40, p.backrest);
+    /* a nearly flat backrest is moved against by sliding a long way, so the slide is capped */
+    const dx = clamp((-gap * pull) / n.x, -12 * sh.u, 12 * sh.u);
+    if (Math.abs(dx) > 0.05) { p = { ...p, hipX: p.hipX + dx }; k = skeleton(p, sh, { x: p.hipX, y: dy }); }
+  }
   /* and the head lies on the pillow rather than hovering over it: the neck bends down until the occiput reaches it */
   if (lieW > 0) {
     const occ = headFrame(k)(8, -10.4), top = BED_TOP - PILLOW * sh.u;
@@ -279,16 +299,7 @@ export function figureSvg(p: Pose, look: FigureLook): string {
   let backrest: { pivot: Pt; angle: number; len: number } | null = null;
   /* what the hair rests on: the floor when upright, else the mattress, backrest or pillow under the head */
   let support: Support = { p: { x: 0, y: FLOOR }, n: { x: 0, y: -1 } };
-  if (p.backrest > 1 && p.bed !== 'none') {
-    /* The backrest is laid against the back: a line at the backrest angle touching the trunk, hinged on the mattress. */
-    const ang = 180 - p.backrest, n = dir(ang - 90);           // n points from the backrest toward the patient
-    const backPts = trunkOutline(k, sh, 14, 99);
-    const c = Math.min(...backPts.map((q) => q.x * n.x + q.y * n.y));
-    /* pivot: where that line meets the mattress top */
-    const d = dir(ang), base = { x: n.x * c, y: n.y * c };
-    const pivot = { x: base.x + d.x * ((BED_TOP - base.y) / d.y), y: BED_TOP };
-    backrest = { pivot, angle: ang, len: Math.max(60, (k.headJoint.x - pivot.x) / d.x + 30 * u) };
-  }
+  backrest = backrestOf(p);
   /* Pillow: it lies on the mattress (or the backrest) under the back of the head and is as thick as the gap it fills,
      within what a pillow can be. When the head leaves it (sitting up) it stays where it was, at the head of the bed. */
   let pillow: Pt[] | null = null;
