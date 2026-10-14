@@ -300,27 +300,25 @@ export function figureSvg(p: Pose, look: FigureLook): string {
   /* what the hair rests on: the floor when upright, else the mattress, backrest or pillow under the head */
   let support: Support = { p: { x: 0, y: FLOOR }, n: { x: 0, y: -1 } };
   backrest = backrestOf(p);
-  /* Pillow: it lies on the mattress (or the backrest) under the back of the head and is as thick as the gap it fills,
-     within what a pillow can be. When the head leaves it (sitting up) it stays where it was, at the head of the bed. */
-  let pillow: Pt[] | null = null;
-  const hangs = H(8, -10.4).x < p.bedLeft + 8;
-  if (!hangs) {
-    const occ = H(8, -10.4);
-    const down = backrest ? dir(backrest.angle + 90) : { x: 0, y: 1 };
-    const along = backrest ? dir(backrest.angle) : { x: -1, y: 0 };
-    const surf = (q: Pt) => {
-      if (!backrest) return { x: clamp(q.x, p.bedLeft + 30, p.bedLeft + 66), y: BED_TOP };
-      const d = dir(backrest.angle), r = { x: q.x - backrest.pivot.x, y: q.y - backrest.pivot.y }, t = r.x * d.x + r.y * d.y;
-      return { x: backrest.pivot.x + d.x * t, y: backrest.pivot.y + d.y * t };
-    };
-    const base = surf(occ);
-    const gap = (base.x - occ.x) * down.x + (base.y - occ.y) * down.y;
-    const h = clamp(gap + 0.6, 3.5 * u, 9 * u), half = 15 * u;
-    const at = (t: number, lift: number) => ({ x: base.x + along.x * t * half - down.x * lift, y: base.y + along.y * t * half - down.y * lift });
-    pillow = [at(-1.05, 0), at(-0.9, h * 0.75), at(-0.2, h * 1.02), at(0.6, h * 0.95), at(1.0, h * 0.6), at(1.05, 0)];
-    const lying = p.ground < 0.5 && upright < 0.95;
-    support = lying ? { p: at(0, Math.min(h, Math.max(gap, 0))), n: { x: -down.x, y: -down.y } } : { p: { x: 0, y: p.ground < 0.5 ? BED_TOP : FLOOR }, n: { x: 0, y: -1 } };
-  }
+  /* Pillow: it belongs to the head section of the trolley (flat, or raised as the backrest) and is placed along it,
+     measured from the hinge. While the head rests on it, it sits under the back of the head and is as thick as the gap
+     it fills, within what a pillow can be; as the head leaves it (sitting up, standing) it settles at its place at the
+     head of the bed and keeps it. It is never placed anywhere the head section is not. */
+  const sec = backrest ?? { pivot: { x: p.bedLeft + BACKREST_LEN, y: BED_TOP }, angle: 180, len: BACKREST_LEN };
+  const along = dir(sec.angle), down = dir(sec.angle + 90);   // toward the head end; into the mattress
+  const occ = H(8, -10.4), rel = { x: occ.x - sec.pivot.x, y: occ.y - sec.pivot.y };
+  const dHead = rel.x * along.x + rel.y * along.y, gap = -(rel.x * down.x + rel.y * down.y);
+  const half = 15 * u;
+  const onSection = smooth(0, half, dHead) * (1 - smooth(sec.len - half * 0.3, sec.len + half, dHead));
+  const resting = (1 - smooth(10 * u, 22 * u, gap)) * onSection * (1 - clamp(p.ground, 0, 1));
+  const dPillow = lerp(sec.len - 30 * u, clamp(dHead, half, sec.len - half * 0.7), resting);
+  const h = lerp(PILLOW * u, clamp(gap + 0.6, 3.5 * u, 9 * u), resting);
+  const base = { x: sec.pivot.x + along.x * dPillow, y: sec.pivot.y + along.y * dPillow };
+  const at = (t: number, lift: number) => ({ x: base.x + along.x * t * half - down.x * lift, y: base.y + along.y * t * half - down.y * lift });
+  const pillow: Pt[] = [at(-1.05, 0), at(-0.9, h * 0.75), at(-0.2, h * 1.02), at(0.6, h * 0.95), at(1.0, h * 0.6), at(1.05, 0)];
+  /* hair rests on the pillow while the head does, else on whatever is below */
+  support = resting > 0.5 ? { p: at(0, Math.min(h, Math.max(gap, 0))), n: { x: -down.x, y: -down.y } }
+    : { p: { x: 0, y: p.ground < 0.5 ? BED_TOP : FLOOR }, n: { x: 0, y: -1 } };
   out.push(`<line x1="8" y1="${FLOOR}" x2="352" y2="${FLOOR}" stroke="#c4cdca" stroke-width="2" stroke-linecap="round" pointer-events="none"/>`);
   out.push(trolley(p.bedLeft, backrest, pillow, clamp(p.ground, 0, 1)));
 
