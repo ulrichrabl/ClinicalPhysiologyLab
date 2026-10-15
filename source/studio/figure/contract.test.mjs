@@ -6,6 +6,8 @@
    2. Touch regions: data-region="head|neck|chest|abdomen" and data-region="arm|legs" with data-side="R|L".
    3. The look follows the state: exposing a structure changes the drawing; oxygen on the patient changes it.
    4. Valid, finite, deterministic markup, fast enough to redraw every animation frame.
+   5. Views: figureSvg(pose, look, view) from the right (default), the foot of the bed and the left, with every touch
+      region in each; viewAt(phi) walks round the bed; the chest views (thorax.ts) draw the same body.
    (Tap reachability and the frame are checked in the browser by shoot.py.) */
 import * as esbuild from '../../node_modules/esbuild/lib/main.js';
 import { JSDOM } from '../../node_modules/jsdom/lib/api.js';
@@ -19,6 +21,10 @@ const out = join(tmpdir(), `figure-contract-${Date.now()}.mjs`);
 await esbuild.build({ entryPoints: [join(here, '../../src/vp/render/patient-figure.ts')], bundle: true, outfile: out, format: 'esm', platform: 'node', logLevel: 'error' });
 const fig = await import(pathToFileURL(out).href);
 unlinkSync(out);
+const outT = join(tmpdir(), `thorax-contract-${Date.now()}.mjs`);
+await esbuild.build({ entryPoints: [join(here, '../../src/vp/render/thorax.ts')], bundle: true, outfile: outT, format: 'esm', platform: 'node', logLevel: 'error' });
+const thorax = await import(pathToFileURL(outT).href);
+unlinkSync(outT);
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => { if (cond) { pass++; console.log(`  ✓ ${name}`); } else { fail++; console.log(`  ✗ ${name}${detail ? ' — ' + detail : ''}`); } };
@@ -61,6 +67,27 @@ const t0 = performance.now(); let n = 0;
 for (let i = 0; i < 300; i++) { fig.figureSvg(fig.lerpPose(fig.POSES.supine, fig.POSES.standing, i / 300), look({ exposure: [] })); n++; }
 const ms = (performance.now() - t0) / n;
 ok('fast enough to redraw every frame of a transition (under 2 ms per figure)', ms < 2, `${ms.toFixed(2)} ms`);
+
+const viewProblems = [];
+for (const [pi, p] of patients.entries()) for (const name of ['front', 'left']) for (const k of APP_POSES) {
+  const svg = fig.figureSvg(fig.POSES[k], fig.figureLookFor(p, { exposure: [] }, pi + 1), fig.viewAt(fig.VIEW_ANGLE[name]));
+  if (/NaN|undefined|Infinity/.test(svg)) { viewProblems.push(`${name} ${k} p${pi}: NaN/undefined`); continue; }
+  const doc = parse(svg);
+  if (doc.getElementsByTagName('parsererror').length) { viewProblems.push(`${name} ${k} p${pi}: not well-formed`); continue; }
+  for (const [r, side] of REGIONS) if (!doc.querySelector(`[data-region="${r}"]${side ? `[data-side="${side}"]` : ''}`)) viewProblems.push(`${name} ${k} p${pi}: no ${r}${side ? ' ' + side : ''}`);
+}
+ok('every patient × pose renders every touch region from the foot of the bed and from the left', viewProblems.length === 0, viewProblems.slice(0, 5).join('; '));
+ok('walking round the bed (right → front → left) draws finite markup at every step', [0, 17, 45, 89, 90, 91, 135, 163, 180].every((phi) =>
+  APP_POSES.every((k) => !/NaN|undefined|Infinity/.test(fig.figureSvg(fig.POSES[k], look({ exposure: ['chest', 'abdomen'] }), fig.viewAt(phi))))));
+ok('the chest views draw this patient from the front and the back, and know an arm from the chest', (() => {
+  const f = fig.figureLookFor({ age: 54, sex: 'M', heightCm: 178, weightKg: 74, appearance: { skinTone: 3, hair: 'dark', build: 'thin', muscle: 'wasted' } }, {}, 1, { ascites: 'tense' });
+  const tl = { skin: f.skin, shade: f.shade, sex: f.sex, figure: f };
+  const front = thorax.thoraxSvg(tl, 'front'), back = thorax.thoraxSvg(tl, 'back');
+  const limbs = thorax.thoraxLimbSites(tl);
+  const armR = thorax.thoraxPartAt(tl, ...limbs['right-arm']), legL = thorax.thoraxPartAt(tl, ...limbs['left-leg']), mid = thorax.thoraxPartAt(tl, 3, 4);
+  return !/NaN|undefined/.test(front + back) && parse(front).getElementsByTagName('parsererror').length === 0 && front !== back
+    && armR?.part === 'arm' && armR.side === 'R' && legL?.part === 'leg' && legL.side === 'L' && mid?.part === 'chest';
+})());
 
 ok('figureLookFor carries the body: BMI from height and weight, fat and muscle, the model\'s findings', (() => {
   const l = fig.figureLookFor({ age: 66, sex: 'M', heightCm: 175, weightKg: 48, appearance: { skinTone: 1, hair: 'grey', build: 'slim' } }, {}, 1, { oedema: 'knee', ascites: 'tense', colour: 'jaundiced' });

@@ -11,7 +11,19 @@
    are.
 
    Drawn facing the patient: the patient's left is on the viewer's right.
+
+   The body is the patient figure itself (patient-figure.ts), standing, seen
+   from the front or the back with the chest and abdomen bare, and placed so
+   the 4th intercostal space at the midline is (0, 0) and a unit is a
+   reference centimetre. So the chest has this patient's build, sex, age,
+   fat, wasting, ascites and colour, in the same style as the bedside
+   figure. The ribs, sternum and costal margins are drawn over it faintly,
+   as a teaching aid for counting spaces; they show more in the thin and
+   less in the obese. Without a figure look the old outline is drawn.
 =========================================================================== */
+
+import { figureSvg, POSES, VIEW_BACK, VIEW_FRONT, type FigureLook } from './patient-figure.ts';
+import type { Pt } from './figure-geom.ts';
 
 export const TORSO_A = 15;      // half-width, cm (matches the lead field's ellipse)
 
@@ -79,7 +91,74 @@ export function percussionHand(x: number, y: number, tap: number, skin: string, 
     ${tap > 0.9 ? `<circle cx="1.2" cy="-0.9" r="${f(1.6 * tap)}" fill="none" stroke="rgba(200,71,61,0.6)" stroke-width="0.2"/>` : ''}</g>`;
 }
 
-export interface ThoraxLook { skin: string; shade: string; sex: 'F' | 'M'; line?: string; muted?: string }
+export interface ThoraxLook { skin: string; shade: string; sex: 'F' | 'M'; line?: string; muted?: string; figure?: FigureLook }
+
+/** The drawing's box in chest centimetres: wider and taller with the patient's own body (arms out to the hands, the
+    upper thighs below the drape). */
+export const thoraxBox = (look: ThoraxLook) => (look.figure ? { x: -31, y: -21, w: 62, h: 79 } : { x: -26, y: -25, w: 52, h: 62 });
+/** A transparent rectangle over the whole drawing, for the focus views' taps. */
+export const thoraxHit = (look: ThoraxLook) => { const b = thoraxBox(look); return `<rect class="hit" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="transparent"/>`; };
+
+/** The chest views show the patient standing, chest, abdomen, arms and upper legs bare. */
+const chestLook = (f: FigureLook): FigureLook => ({ ...f, exposed: new Set(['chest', 'abdomen', 'arm', 'neck', 'legs']) });
+
+interface ChestGeom { parts: Array<{ kind: string; side: 'R' | 'L' | ''; pts: Pt[] }>; wrist: Record<'R' | 'L', Pt>; thigh: Record<'R' | 'L', Pt> }
+let geomKey = '', geomVal: ChestGeom | null = null;
+function chestGeometry(f: FigureLook): ChestGeom {
+  const key = JSON.stringify({ ...f, exposed: [] });
+  if (key === geomKey && geomVal) return geomVal;
+  const g: ChestGeom = { parts: [], wrist: { R: { x: -21, y: 20 }, L: { x: 21, y: 20 } }, thigh: { R: { x: -9, y: 49 }, L: { x: 9, y: 49 } } };
+  figureSvg(POSES.standing, chestLook(f), VIEW_FRONT, { scene: false, head: false, chestFrame: true, collect: (kind, side, pts) => {
+    if (kind === 'wrist' && side) g.wrist[side] = pts[0];
+    else if (kind === 'thigh' && side) g.thigh[side] = pts[0];
+    else g.parts.push({ kind, side, pts });
+  } });
+  geomKey = key; geomVal = g;
+  return g;
+}
+const inside = (pts: Pt[], x: number, y: number) => {
+  let c = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const a = pts[i], b = pts[j];
+    if ((a.y > y) !== (b.y > y) && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) c = !c;
+  }
+  return c;
+};
+/** What lies under a point of the front view of this patient's chest: an arm, a leg, or the chest wall (null: off the body). */
+export function thoraxPartAt(look: ThoraxLook, x: number, y: number): { part: 'arm' | 'leg' | 'chest'; side: 'R' | 'L' } | null {
+  if (!look.figure) return null;
+  const g = chestGeometry(look.figure);
+  const hit = (kind: string) => g.parts.find((p) => p.kind === kind && inside(p.pts, x, y));
+  const arm = hit('arm'); if (arm) return { part: 'arm', side: arm.side as 'R' | 'L' };
+  const trunk = hit('chest') ?? hit('abdomen');
+  if (trunk && y >= -13.5 && y <= 17) return { part: 'chest', side: x < 0 ? 'R' : 'L' };
+  const leg = hit('legs'); if (leg) return { part: 'leg', side: leg.side as 'R' | 'L' };
+  return null;
+}
+/** Where limb electrodes go on this patient by default: the forearm above the wrist, the upper thigh. */
+export function thoraxLimbSites(look: ThoraxLook): Record<'right-arm' | 'left-arm' | 'right-leg' | 'left-leg', [number, number]> | null {
+  if (!look.figure) return null;
+  const g = chestGeometry(look.figure);
+  const p = (q: Pt): [number, number] => [q.x, q.y];
+  return { 'right-arm': p(g.wrist.R), 'left-arm': p(g.wrist.L), 'right-leg': p(g.thigh.R), 'left-leg': p(g.thigh.L) };
+}
+
+/** The bones a clinician counts by, over the patient's own chest: faint, plainer in the thin, fainter in the obese. */
+function bonesOver(look: ThoraxLook): string {
+  const bmi = look.figure?.body.bmi ?? 24;
+  const op = Math.max(0.12, Math.min(0.6, 0.3 + (20 - bmi) * 0.05));
+  const line = `rgba(60,50,40,${op.toFixed(2)})`;
+  const out: string[] = [];
+  out.push(`<path d="M -2 -11.4 L 2 -11.4 L 2.3 -7.6 L 1.9 5.4 L 0 7.4 L -1.9 5.4 L -2.3 -7.6 Z" fill="none" stroke="${line}" stroke-width="0.3"/>`);
+  out.push(`<path d="M -2.3 -7.6 L 2.3 -7.6" stroke="${line}" stroke-width="0.3"/>`);
+  for (let n = 2; n <= 8; n++) for (const sd of [-1, 1]) {
+    const x0 = n <= 7 ? 2.3 : 6, x1 = n <= 6 ? 14.4 : 13.6, pts: string[] = [];
+    for (let x = x0; x <= x1; x += 0.8) pts.push(`${f(sd * x)},${f(ribY(n, x))}`);
+    out.push(`<polyline points="${pts.join(' ')}" fill="none" stroke="${line}" stroke-width="${n === 2 ? 0.3 : 0.24}" stroke-linecap="round"/>`);
+  }
+  out.push(`<path d="M 0 7.4 C 4 9 9 12 13.2 15 M 0 7.4 C -4 9 -9 12 -13.2 15" fill="none" stroke="${line}" stroke-width="0.35"/>`);
+  return `<g pointer-events="none">${out.join('')}</g>`;
+}
 
 const f = (x: number) => x.toFixed(2);
 
@@ -155,7 +234,14 @@ export function landmarks(color = 'rgba(31,111,102,0.55)'): string {
 }
 
 export function thoraxSvg(look: ThoraxLook, view: 'front' | 'back', inner = ''): string {
-  return `<svg viewBox="-26 -25 52 62" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${view === 'front' ? 'Chest, front' : 'Chest, back'}">
+  const label = view === 'front' ? 'Chest, front' : 'Chest, back';
+  if (look.figure) {
+    const b = thoraxBox(look);
+    const body = figureSvg(POSES.standing, chestLook(look.figure), view === 'front' ? VIEW_FRONT : VIEW_BACK, { scene: false, head: false, chestFrame: true });
+    return `<svg viewBox="${b.x} ${b.y} ${b.w} ${b.h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}">
+      <g>${body}${view === 'front' ? bonesOver(look) : ''}</g>${inner}</svg>`;
+  }
+  return `<svg viewBox="-26 -25 52 62" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}">
     <g>${outline(look)}${skeleton(look, view)}</g>${inner}</svg>`;
 }
 

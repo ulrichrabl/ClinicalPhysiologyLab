@@ -1,4 +1,4 @@
-import { thoraxSvg, landmarks, frontX, phiOf, type ThoraxLook } from '../render/thorax.ts';
+import { thoraxSvg, landmarks, frontX, phiOf, type ThoraxLook, thoraxHit, thoraxPartAt, thoraxLimbSites } from '../render/thorax.ts';
 import { ELECTRODES, STANDARD_SITES, standardPlacement, type ElectrodeId, type Placement, type Site } from '../measurements/ecg.ts';
 import { tr } from '../model/i18n.ts';
 import type { Lang } from './diagrams.ts';
@@ -28,14 +28,22 @@ export interface EcgPlacementOptions {
 
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
-/** Where a site is drawn. */
-function drawnAt(site: Site, drop?: [number, number]): [number, number] {
-  if ('limb' in site) return drop ?? LIMB_AT[site.limb];
+/** Where a site is drawn: on this patient's own arms and legs when the drawing is their body. */
+function drawnAt(site: Site, drop?: [number, number], look?: ThoraxLook): [number, number] {
+  if ('limb' in site) return drop ?? (look && thoraxLimbSites(look)?.[site.limb]) ?? LIMB_AT[site.limb];
   return [frontX(site.chest.phi), site.chest.y];
 }
 
-/** The site at a point on the drawing, or null if it is not on the body. */
-function siteAt(x: number, y: number): Site | null {
+/** The site at a point on the drawing, or null if it is not on the body. On the patient's own body this follows its
+    outline (a wide abdomen is not an arm); the old drawing uses fixed bands. */
+function siteAt(x: number, y: number, look?: ThoraxLook): Site | null {
+  if (look?.figure) {
+    const hit = thoraxPartAt(look, x, y);
+    if (!hit) return null;
+    if (hit.part === 'arm') return { limb: hit.side === 'R' ? 'right-arm' : 'left-arm' };
+    if (hit.part === 'leg') return { limb: hit.side === 'R' ? 'right-leg' : 'left-leg' };
+    return { chest: { phi: phiOf(Math.max(-15, Math.min(15, x))), y } };
+  }
   if (y > 25.5 && Math.abs(x) < 14) return { limb: x < 0 ? 'right-leg' : 'left-leg' };
   if (Math.abs(x) > 16.3 && y > -14 && y < 26) return { limb: x < 0 ? 'right-arm' : 'left-arm' };
   if (Math.abs(x) <= 15.8 && y >= -13.5 && y <= 17) return { chest: { phi: phiOf(Math.max(-15, Math.min(15, x))), y } };
@@ -81,11 +89,11 @@ export function mountEcgPlacement(host: HTMLElement, o: EcgPlacementOptions): ()
     for (const id of ELECTRODES) {
       const s = placed[id];
       if (!s || drag?.id === id) continue;
-      const [x, y] = drawnAt(s, drops[id]);
+      const [x, y] = drawnAt(s, drops[id], o.look);
       inner += electrodeSvg(id, x, y);
     }
     if (drag?.inside) inner += electrodeSvg(drag.id, drag.x, drag.y, true);
-    svgHost.innerHTML = thoraxSvg(o.look, 'front', `<rect class="hit" x="-26" y="-25" width="52" height="62" fill="transparent"/>${inner}`).replace('<svg ', '<svg class="thorax" ');
+    svgHost.innerHTML = thoraxSvg(o.look, 'front', `${thoraxHit(o.look)}${inner}`).replace('<svg ', '<svg class="thorax" ');
     tray.innerHTML = ELECTRODES.map((id) => `<button type="button" class="chip-el ${placed[id] ? 'placed' : ''}" data-chip="${id}" aria-pressed="${selected === id}"><i style="background:${COLOR[id]}"></i>${id}</button>`).join('');
     const all = ELECTRODES.every((id) => placed[id]);
     (host.querySelector('[data-record]') as HTMLButtonElement).disabled = !all;
@@ -101,7 +109,7 @@ export function mountEcgPlacement(host: HTMLElement, o: EcgPlacementOptions): ()
     return { x: p.x, y: p.y, inside };
   };
   const place = (id: ElectrodeId, x: number, y: number) => {
-    const s = siteAt(x, y);
+    const s = siteAt(x, y, o.look);
     if (!s) { host.querySelector('[data-cap]')!.textContent = L('That is not on the patient.', 'Das ist nicht auf dem Patienten.'); return false; }
     placed[id] = s; drops[id] = 'limb' in s ? [x, y] : undefined;
     return true;

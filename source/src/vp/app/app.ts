@@ -18,7 +18,7 @@ import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
 import { EyeView } from '../render/eye-view.ts';
 import { FaceView, type FaceFinding } from '../render/face-view.ts';
 import { appearanceOf } from '../render/face-canvas.ts';
-import { figureSvg, figureLookFor, lerpPose, POSES, type FigureFindings, type FigureLook, type Pose } from '../render/patient-figure.ts';
+import { figureSvg, figureLookFor, lerpPose, POSES, VIEW_ANGLE, viewAt, type FigureFindings, type FigureLook, type Pose } from '../render/patient-figure.ts';
 import { drawEcgPaper, drawSweep, PAPER_MM } from '../render/ecg-paper.ts';
 import { recordLeads, measuredAxis, standardPlacement, type Placement, type LeadName } from '../measurements/ecg.ts';
 import { healthyModel, modelFromCase, caseWithModel, type PatientModel } from '../physiology/state.ts';
@@ -53,6 +53,12 @@ const UI: Record<string, Record<Lang, string>> = {
   feed: { en: 'Encounter', de: 'Verlauf' }, notes: { en: 'Notes', de: 'Notizen' }, mine: { en: 'My notes', de: 'Meine Notizen' },
   wait: { en: 'Wait 10 min', de: '10 min warten' }, commit: { en: 'Commit diagnosis', de: 'Diagnose festlegen' }, leave: { en: 'Ward', de: 'Übersicht' },
   whole: { en: 'All examinations', de: 'Alle Untersuchungen' }, tapHint: { en: 'You stand at the patient’s right: the near arm and leg are the right ones. Tap a part of the body, open all examinations, or type below to search.', de: 'Sie stehen rechts vom Patienten: der nahe Arm und das nahe Bein sind die rechten. Tippen Sie auf eine Körperregion, öffnen Sie alle Untersuchungen oder suchen Sie unten im Eingabefeld.' },
+  tapHintLeft: { en: 'You stand at the patient’s left: the near arm and leg are the left ones. Tap a part of the body, open all examinations, or type below to search.', de: 'Sie stehen links vom Patienten: der nahe Arm und das nahe Bein sind die linken. Tippen Sie auf eine Körperregion, öffnen Sie alle Untersuchungen oder suchen Sie unten im Eingabefeld.' },
+  tapHintFront: { en: 'You stand at the foot of the bed, facing the patient: their right is on your left. Tap a part of the body, open all examinations, or type below to search.', de: 'Sie stehen am Fußende und blicken den Patienten an: seine rechte Seite ist links von Ihnen. Tippen Sie auf eine Körperregion, öffnen Sie alle Untersuchungen oder suchen Sie unten im Eingabefeld.' },
+  view: { en: 'View', de: 'Ansicht' }, viewRight: { en: 'Right side', de: 'Rechts' }, viewFront: { en: 'Front', de: 'Vorne' }, viewLeft: { en: 'Left side', de: 'Links' },
+  figRight: { en: 'The patient, seen from the right side of the bed', de: 'Der Patient, von der rechten Bettseite gesehen' },
+  figFront: { en: 'The patient, seen from the foot of the bed', de: 'Der Patient, vom Fußende gesehen' },
+  figLeft: { en: 'The patient, seen from the left side of the bed', de: 'Der Patient, von der linken Bettseite gesehen' },
   sugExamine: { en: 'Examine', de: 'Untersuchen' }, sugOrder: { en: 'Order', de: 'Anordnen' }, sugAsk: { en: 'Ask', de: 'Fragen' },
   sugHint: { en: 'Type to search examinations, tests and questions in any language: “pupils”, “Knie-Hacke”, “chest pain?”. ↑↓ to choose, Enter to do it, Tab to fill in.', de: 'Tippen, um Untersuchungen, Tests und Fragen in jeder Sprache zu suchen: „Pupillen“, „heel shin“, „Brustschmerz?“. ↑↓ wählen, Enter ausführen, Tab übernehmen.' },
   aboutTest: { en: 'About this test', de: 'Über diese Untersuchung' }, assesses: { en: 'What it tests', de: 'Was sie prüft' }, howTo: { en: 'How to do it', de: 'Durchführung' },
@@ -390,9 +396,11 @@ export function mount(root: HTMLElement) {
   };
 
   /* ---- what the examiner sees and hears ------------------------------------------- */
+  /* The chest views draw this patient's own body (build, sex, age, fat, wasting, ascites, colour), as the bedside
+     figure does. */
   const look = (): ThoraxLook => {
     const ap = appearanceOf(s!.caseDef.patient, seedOf(base.id));
-    return { skin: ap.skin, shade: ap.skinShade, sex: s!.caseDef.patient.sex };
+    return { skin: ap.skin, shade: ap.skinShade, sex: s!.caseDef.patient.sex, figure: figureLookFor(s!.caseDef.patient, s!.state, seedOf(base.id), figureFindings()) };
   };
   const visualFor = (m: ManoeuvreDef, side: Side | undefined, findings: Finding[]) => {
     if (!s) return;
@@ -719,7 +727,7 @@ export function mount(root: HTMLElement) {
     $('#wait').textContent = t('wait'); $('#to-commit').textContent = t('commit'); $('#leave').textContent = t('leave');
     $('#to-commit').hidden = free || committed;
     ($('#cmd') as HTMLInputElement).placeholder = t('placeholder'); $('#send').textContent = t('send');
-    $('#touch-hint').textContent = t('tapHint'); $('#whole').textContent = t('whole');
+    $('#touch-hint').textContent = t(figView === 'left' ? 'tapHintLeft' : figView === 'front' ? 'tapHintFront' : 'tapHint'); $('#whole').textContent = t('whole');
     for (const k of ['feed', 'notes', 'mine'] as const) {
       const b = $(`[data-tab="${k}"]`); b.textContent = t(k); b.setAttribute('aria-selected', String(tab === k));
       $(`#tab-${k}`).hidden = tab !== k;
@@ -748,30 +756,44 @@ export function mount(root: HTMLElement) {
       breathing: b ? { hyperinflated: !!b.hyperinflated, accessory: !!b.accessory, pursedLips: !!b.pursedLips } : undefined,
     };
   };
+  /* Where the examiner stands: the right side of the bed, its foot, or the left side. Changing it walks round the bed
+     (the figure turns, eased like a change of position), so the left arm and leg can be reached as well. */
+  let figView: keyof typeof VIEW_ANGLE = 'right';
   let posePrev: Pose = POSES['reclined-45'], poseTarget: Pose = POSES['reclined-45'], poseT0 = 0, poseRaf = 0, poseKey = '';
+  let viewPrev = 0, viewTarget = 0;
+  const ease = (x: number) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
   const renderFigure = (force = false) => {
     if (!s) return;
     const c = s.caseDef, st = s.state;
     const lk: FigureLook = figureLookFor(c.patient, st, seedOf(base.id), figureFindings());
     const exposed = lk.exposed;
     const target = POSES[st.position] ?? POSES.supine;
-    const key = `${base.id}|${c.patient.sex}|${st.position}|${[...exposed].sort().join(',')}|${lk.oxygen ?? ''}|${JSON.stringify(lk.body)}`;
+    const key = `${base.id}|${c.patient.sex}|${st.position}|${figView}|${[...exposed].sort().join(',')}|${lk.oxygen ?? ''}|${JSON.stringify(lk.body)}`;
     const g = $('#fig') as unknown as SVGGElement;
     if (key !== poseKey || force) {
       const firstForCase = !poseKey.startsWith(`${base.id}|`);
-      posePrev = firstForCase ? target : lerpPose(posePrev, poseTarget, Math.min(1, (performance.now() - poseT0) / 700));
-      poseTarget = target; poseT0 = performance.now(); poseKey = key;
+      const e0 = ease(Math.min(1, (performance.now() - poseT0) / 700));
+      posePrev = firstForCase ? target : lerpPose(posePrev, poseTarget, e0);
+      viewPrev = firstForCase ? VIEW_ANGLE[figView] : viewPrev + (viewTarget - viewPrev) * e0;
+      poseTarget = target; viewTarget = VIEW_ANGLE[figView]; poseT0 = performance.now(); poseKey = key;
       cancelAnimationFrame(poseRaf);
       const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
       const step = (now: number) => {
-        const x = reduce ? 1 : Math.min(1, (now - poseT0) / 700);
-        const e = x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
-        g.innerHTML = figureSvg(lerpPose(posePrev, poseTarget, e), lk);
-        if (x < 1) poseRaf = requestAnimationFrame(step);
+        const e = ease(reduce ? 1 : Math.min(1, (now - poseT0) / 700));
+        g.innerHTML = figureSvg(lerpPose(posePrev, poseTarget, e), lk, viewAt(viewPrev + (viewTarget - viewPrev) * e));
+        if (e < 1) poseRaf = requestAnimationFrame(step);
       };
-      g.innerHTML = figureSvg(posePrev, lk);
+      g.innerHTML = figureSvg(posePrev, lk, viewAt(viewPrev));
       poseRaf = requestAnimationFrame(step);
+      $('#figure').setAttribute('aria-label', t(figView === 'left' ? 'figLeft' : figView === 'front' ? 'figFront' : 'figRight'));
     }
+    $('#views').innerHTML = `<span class="care-label">${esc(t('view'))}</span><div class="chips">${(['right', 'front', 'left'] as const).map((v) =>
+      `<button type="button" class="chip" data-view="${v}" aria-pressed="${figView === v}">${esc(t(v === 'right' ? 'viewRight' : v === 'front' ? 'viewFront' : 'viewLeft'))}</button>`).join('')}</div>`;
+    $('#views').querySelectorAll<HTMLButtonElement>('[data-view]').forEach((b) => b.onclick = () => {
+      figView = b.dataset.view as typeof figView;
+      $('#touch-hint').textContent = t(figView === 'left' ? 'tapHintLeft' : figView === 'front' ? 'tapHintFront' : 'tapHint');
+      renderFigure();
+    });
     $('#state-line').textContent = `${t('position')}: ${POSITION[st.position]?.[lang] ?? st.position} · ${t('exposed')}: ${exposed.size ? [...exposed].map((x) => tr(CATALOG.structures[x]?.label, lang)).join(', ') : t('nothing')}${st.oxygen && st.oxygen.fio2 > 0.21 ? ` · O₂: ${st.oxygen.device}` : ''}`;
   };
 
