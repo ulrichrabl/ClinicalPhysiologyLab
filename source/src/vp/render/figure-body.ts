@@ -87,12 +87,21 @@ export function bodyShape(look: FigureLook, upright: number): Shape {
     [-10, 6.6, 7.4, 15.6], [-4, 8.2, 11.2, 17.0], [2, 8.6, 11.0, 16.2], [8, 9.4, 8.6, 15.0], [14, 10.0, 6.6, 14.0], [20, 9.9, 6.6, 14.3],
     [26, 10.1, 8.0, 15.0], [32, 11.4, 9.9, 15.5], [38, 11.8, 10.8, 16.0], [44, 10.8, 10.4, 16.4], [49, 8.6, 9.0, 15.6], [51, 7.5, 7.9, 12], [53, 6.4, 6.8, 9.6], [56, 5.6, 5.6, 6.0],
   ];
-  /* From the front the shoulder is the trunk's outline: the trapezius slopes from the neck to the acromion and the
-     deltoid rounds over it; the arm hangs below. */
-  const shoulderZ = (female ? 14.6 : 16.2) + Math.max(0, fat) * 0.08;
-  const deltoid = 3.0 * (0.55 + 0.45 * muscle / (female ? 0.86 : 1)) + Math.max(0, fat) * 0.06;
+  /* From the front the shoulder line is carried by the clavicle: the trapezius curves down briefly beside the neck,
+     then the line runs out nearly level (10–15°) over the clavicle to the acromion, about 40 cm across in a man and 36
+     in a woman, where the deltoid rounds over. The deltoid is not part of the trunk: it is the top of the arm (see
+     upper), so it moves with the arm. */
+  const shoulderZ = (female ? 15.4 : 17.0) + Math.max(0, fat) * 0.08;
+  const acro = shoulderZ + 2.0;                         // half the width across the acromions
+  const slope: Array<[number, number]> = [[46.5, acro + 0.2], [48.5, acro + 0.1], [50.0, acro - 0.2], [50.9, acro - 0.9],
+    [51.5, acro - 2.6], [52.1, lerp(acro - 2.6, 12.6, 0.5)], [52.8, 12.6], [53.6, 10.6], [54.4, 9.0], [55.2, 7.6], [56, 6.8]];
+  const T0 = (sv: number): [number, number] => {      // the table's depths at any level (linear between rows)
+    for (let i = 1; i < T.length; i++) if (sv <= T[i][0]) { const t = (sv - T[i - 1][0]) / (T[i][0] - T[i - 1][0]); return [lerp(T[i - 1][1], T[i][1], t), lerp(T[i - 1][2], T[i][2], t)]; }
+    return [T[T.length - 1][1], T[T.length - 1][2]];
+  };
+  const rows: Array<[number, number, number, number]> = [...T.filter(([sv]) => sv < 46), ...slope.map(([sv, w]): [number, number, number, number] => [sv, ...T0(sv), w])];
   const ascBelly = [0, 3, 7.5, 15][asc];
-  const trunk = T.map(([s, a0, p0, w0]) => {
+  const trunk = rows.map(([s, a0, p0, w0]) => {
     let a = a0, p = p0, w = w0;
     if (female) {
       a += -0.9 * bump(s, 20, 8) + 0.5 * bump(s, 4, 6);          // narrower waist, rounder lower belly
@@ -120,9 +129,7 @@ export function bodyShape(look: FigureLook, upright: number): Shape {
     /* the ribcage and pelvis are bone: they never get thinner than this */
     a = Math.max(a, s > 28 ? 9.6 : s > 22 ? 7 : s < -6 ? 5 : 4.5);
     p = Math.max(p, s > 30 ? 8.6 : s < 6 ? 6.6 : 5.6);
-    w = Math.max(w, s > 50 ? w0 * 0.92 : s > 24 ? 13.2 : s < 4 ? 14 : 12);
-    if (s === 49) w = shoulderZ + deltoid;
-    if (s === 51) w = shoulderZ + deltoid * 0.25;
+    w = Math.max(w, s > 46 ? w0 * 0.96 : s > 24 ? 13.2 : s < 4 ? 14 : 12);
     return { s, a, p, w };
   });
   /* belly beyond the ribs: what the details (navel, folds) and the gown's drape need */
@@ -150,8 +157,12 @@ export function bodyShape(look: FigureLook, upright: number): Shape {
     const s38 = shin[6], s31 = shin[5], s43 = shin[7];
     s38.p = Math.max(s38.p, (s31.p + s43.p) / 2 + 0.6); s43.a += 0.6; s43.p += 0.5;
   }
-  const upper = limb([[-5, 5.4, 5.6, 0.12, 0.14], [0, 5.7, 5.9, 0.14, 0.18], [8, 5.2, 5.1, 0.16, 0.26], [17, 4.4, 4.7, 0.14, 0.3], [26, 3.6, 3.9, 0.08, 0.16],
-    [32.7, 3.1, 3.5, 0.04, 0.06], [35.5, 2.4, 2.4, 0.03, 0.03]], 1.6, 99, (s) => (s < -2 ? 0.5 : s < 4 ? 0.95 : s > 30 ? 1.12 : 0.9));   // the cap above the joint is the shoulder seen from the side, not from the front
+  /* The upper arm starts with the deltoid: a dome over the head of the humerus (its top level with the acromion),
+     broadest a little below the joint, wider than the arm from the front and the side, and tapering to its insertion
+     a third of the way down, where biceps and triceps take over. It shrinks with the muscle. */
+  const upper = limb([[-2.0, 3.4, 3.8, 0.08, 0.1], [-0.6, 5.2, 5.6, 0.12, 0.14], [2.5, 6.0, 6.1, 0.14, 0.18], [6, 5.8, 5.6, 0.16, 0.22], [10, 5.1, 5.1, 0.16, 0.26],
+    [14, 4.5, 4.8, 0.15, 0.3], [20, 4.3, 4.6, 0.12, 0.26], [26, 3.6, 3.9, 0.08, 0.16],
+    [32.7, 3.1, 3.5, 0.04, 0.06], [35.5, 2.4, 2.4, 0.03, 0.03]], 1.6, 99, (s) => (s < -1 ? 0.92 : s < 6 ? 1.0 : s > 30 ? 1.12 : 0.9));
   const fore = limb([[-3, 3.0, 3.0, 0.04, 0.04], [0, 3.6, 3.4, 0.06, 0.06], [6, 4.1, 3.6, 0.07, 0.06], [15, 3.2, 2.9, 0.04, 0.04], [25.7, 2.3, 2.1, 0.02, 0.02]], 1.4, 99, (s) => (s > 20 ? 1.25 : 1.0));
   /* the palm to the knuckles; the fingers are a second segment so they can curl (figureSvg) */
   const hand: Station[] = [[-1.5, 2.1, 1.9], [3, 2.4, 1.6], [7, 2.0, 1.5], [9.8, 1.6, 1.3]]

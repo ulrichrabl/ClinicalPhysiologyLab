@@ -36,7 +36,7 @@
 
 import { appearanceOf } from './face-canvas.ts';
 import { add, clamp, closedPath, darken, dir, f, lerp, lighten, openPath, smooth, tint, type Pt } from './figure-geom.ts';
-import { bodyShape, footOutline, limb3, limbOutline, skeleton, stationAt, trunk3, trunkOutline, trunkPt, trunkA, type Shape, type Skeleton } from './figure-body.ts';
+import { LEN, bodyShape, footOutline, limb3, limbOutline, skeleton, stationAt, trunk3, trunkOutline, trunkPt, trunkA, type Shape, type Skeleton } from './figure-body.ts';
 import { ear, face, hairBehind, hairFront, hairOver, headFrame, headOutline, oxygenSvg, type Palette, type Support } from './figure-head.ts';
 import { BED_TOP, FLOOR, bra, cloth, dressDefs, gown, sleeveSvg, trolley } from './figure-dress.ts';
 import { Projector, frontness, onTube, VIEW_RIGHT, type FigureView } from './figure-view.ts';
@@ -361,17 +361,22 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
       foot: pr.profile ? [footOutline(k, sh, i)] : limb3(pr, k.ankle[i], k.footA[i], sh.footSt, k.flip, z.ankle, z.ankle),
     };
   };
-  /* The cap above the shoulder joint is the shoulder's roundness seen from the side. From the front the shoulder is
-     the trunk's outline, so as the patient turns the cap folds down onto the joint. */
-  const frontish = 1 - Math.abs(pr.c), w0 = stationAt(sh.upper, 0).w ?? 4;
-  const upperSt = sh.upper.map((t) => (t.s < 0 ? { ...t, s: lerp(t.s, -0.6, frontish), w: lerp(t.w ?? w0, w0 * 0.92, frontish) } : t));
+  /* The deltoid (the top of the upper arm) is the shoulder from every side: its dome meets the trapezius at the acromion. */
+  const upperSt = sh.upper;
+  /* From the front and back the deltoid is drawn with the trunk, as one silhouette (no line where shoulder meets arm),
+     and the arm proper starts below it; from the side the arm is drawn whole over the trunk. */
+  const joinShoulder = Math.abs(pr.c) <= 0.64;
+  const DELT = 9, ARM0 = 5.5;
+  const deltSt = [...sh.upper.filter((t) => t.s < DELT), stationAt(sh.upper, DELT)];
+  const armSt = [stationAt(sh.upper, ARM0), ...sh.upper.filter((t) => t.s > ARM0)];
+  const deltoid = (i: 0 | 1, grow = 0) => { const z = armZ(i); return limb3(pr, k.shoulder, k.upperA[i], deltSt, k.flip, z.sh, z.sh + ((z.el - z.sh) * DELT) / LEN.upper, grow, false)[0]; };
   /* fingers curl a little at rest; in distress the hands grip */
   const curl = b.distress === 'severe' ? 70 : b.distress === 'moderate' ? 34 : 16;
   const knuckle = (i: 0 | 1) => add(k.wrist[i], k.handA[i], 9.6 * u);
   const arm = (i: 0 | 1) => {
     const z = armZ(i);
     return {
-      upper: limb3(pr, k.shoulder, k.upperA[i], upperSt, k.flip, z.sh, z.el), fore: limb3(pr, k.elbow[i], k.foreA[i], sh.fore, k.flip, z.el, z.wr),
+      upper: joinShoulder ? limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh, z.el) : limb3(pr, k.shoulder, k.upperA[i], upperSt, k.flip, z.sh, z.el), fore: limb3(pr, k.elbow[i], k.foreA[i], sh.fore, k.flip, z.el, z.wr),
       hand: limb3(pr, k.wrist[i], k.handA[i], sh.hand, k.flip, z.wr, z.wr),
       fingers: limb3(pr, knuckle(i), k.handA[i] + curl * k.flip, sh.fingers, k.flip, z.wr, z.wr),
       thumb: limb3(pr, add(add(k.wrist[i], k.handA[i], 1.5 * u), k.handA[i] + 90 * k.flip, 1.2 * u), k.handA[i] + (28 + curl * 0.3) * k.flip,
@@ -463,6 +468,7 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
     { attrs: 'data-region="chest"', parts: [{ pts: chest, fill: gChest }] },
     ...legsInBody.map((i) => ({ attrs: `data-region="legs" data-side="${sideAttr(i)}"`, parts: legParts(i, legFills(i)) })),
     { attrs: 'data-region="neck"', parts: neckPts.map((pts) => ({ pts, fill: gNeck })) },
+    ...(joinShoulder ? ([0, 1] as const).map((i) => ({ attrs: `data-region="arm" data-side="${sideAttr(i)}"`, parts: [{ pts: deltoid(i), fill: armFills(i)[0] }] })) : []),
     ...(withHead ? [{ attrs: 'data-region="head"', parts: head.map((pts) => ({ pts, fill: gHead })) }] : []),
   ], pal.line, lineW));
 
@@ -479,10 +485,27 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
     out.push(front(() => faceFront(fctx) + hairFront3(fctx)));
   }
 
+  /* From the front (and back) the deltoid runs into the chest (and the back) with no edge: the arm's own outline begins
+     at the armpit. A patch of the arm's skin over its inner edge, fading out at both ends, hides the line above it. */
+  const deltoidBlend = (i: 0 | 1, fill: string) => {
+    const z = armZ(i), fr = { from: k.shoulder, a: k.upperA[i], flip: k.flip };
+    const st = (x: number) => w3s(stationAt(sh.upper, x), 0);
+    const psi = i === 0 ? 90 : -90;                      // toward the midline
+    const zs = (x: number) => z.sh + ((z.el - z.sh) * x) / LEN.upper;
+    const S = [-1.4, -0.5, 0.5, 2, 3.5, 5, 6.5, 8, 9];
+    const taper = (x: number) => Math.sin((Math.PI * (x + 1.8)) / 11.2) ** 0.6;
+    const outer = S.map((x) => onTube(pr, fr, st, x, psi, zs(x), 1.0 * taper(x)).p);
+    const inner = S.map((x) => onTube(pr, fr, st, x, psi, zs(x), -0.35 * taper(x)).p).reverse();
+    return `<path d="${closedPath([...outer, ...inner])}" fill="${fill}" pointer-events="none"/>`;
+  };
+
   /* ---- arms, over the trunk: the near one from the side, both from the front ---- */
   const armsOver: Array<0 | 1> = sideOn ? [near] : [0, 1];
   for (const i of armsOver) {
     out.push(layer([{ attrs: `data-region="arm" data-side="${sideAttr(i)}"`, parts: armParts(i, armFills(i)) }], pal.line, lineW));
+    /* the top of the arm proper disappears under the deltoid (its fill, inside its outline) */
+    if (joinShoulder) out.push(`<path d="${closedPath(deltoid(i, -0.3))}" fill="${armFills(i)[0]}" pointer-events="none"/>`);
+    if (!dress.sleeve) out.push(front(() => deltoidBlend(i, gChest)));
     if (i === 0 && near === 0) out.push(prof(() => armDetails(k, look, pal, curl)));
     if (dress.sleeve) out.push(sleeveSvg(dress.sleeve[i], gownFill, pal.gownLine, pr.profile ? dress.sleeveCut[i] : ''));
   }
