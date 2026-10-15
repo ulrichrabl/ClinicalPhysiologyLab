@@ -363,20 +363,45 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
   };
   /* The deltoid (the top of the upper arm) is the shoulder from every side: its dome meets the trapezius at the acromion. */
   const upperSt = sh.upper;
-  /* From the front and back the deltoid is drawn with the trunk, as one silhouette (no line where shoulder meets arm),
-     and the arm proper starts below it; from the side the arm is drawn whole over the trunk. */
+  /* The shoulder from the front (and back) is not the profile's cap over the arm. The clavicle carries the shoulder line
+     out to the acromion; from there the deltoid makes one convex arc down and out, broadest just below the acromion,
+     into the outer edge of the arm, which narrows below its insertion. On the inner side there is no dome: the deltoid's
+     front border runs down from the outer clavicle (the deltopectoral groove) and the arm parts from the trunk at the
+     armpit. So in these views the shoulder is drawn as that shape, joined to the trunk without a line, and the arm
+     proper starts under it; the gown's sleeve is cut from the same shape. From the side the arm is drawn whole. */
   const joinShoulder = Math.abs(pr.c) <= 0.64;
-  const DELT = 9, ARM0 = 5.5;
-  const deltSt = [...sh.upper.filter((t) => t.s < DELT), stationAt(sh.upper, DELT)];
+  const ARM0 = 0.5;
   const armSt = [stationAt(sh.upper, ARM0), ...sh.upper.filter((t) => t.s > ARM0)];
-  const deltoid = (i: 0 | 1, grow = 0) => { const z = armZ(i); return limb3(pr, k.shoulder, k.upperA[i], deltSt, k.flip, z.sh, z.sh + ((z.el - z.sh) * DELT) / LEN.upper, grow, false)[0]; };
+  const acroZ = sh.shoulderZ + 2.0;
+  /** The shoulder shape for arm i: grown by `grow` (cloth), pulled in by `inset` (a fill that must stay inside the
+      outline), down the arm to sEnd; `med` how far its inner edge lies beyond the arm's above the armpit. */
+  const shoulderShape = (i: 0 | 1, grow: number, inset: number, sEnd: number, med: number): Pt[] => {
+    const z = armZ(i), sg2 = i === 0 ? -1 : 1, fr = { from: k.shoulder, a: k.upperA[i], flip: k.flip };
+    const st = (x: number) => w3s(stationAt(sh.upper, x), 0);
+    const zs = (x: number) => z.sh + ((z.el - z.sh) * x) / LEN.upper;
+    const L = (x: number, dr: number) => onTube(pr, fr, st, x, sg2 * 90, zs(x), dr).p;
+    const M = (x: number, dr: number) => onTube(pr, fr, st, x, -sg2 * 90, zs(x), dr).p;
+    const T = (sv: number, zz: number) => { const t = stationAt(sh.trunk, sv); return pr.P(trunkPt(k, sv, (t.a - t.p) / 2), zz); };
+    const d = grow - inset, sTop = 51.0 + grow * 0.7 - inset;
+    /* the deltoid stands out beyond the arm below it, most just under the acromion, and narrows to its insertion */
+    const bulge = (x: number) => { const t = Math.max(0, 1 - Math.abs(x - 3) / 8.5); return 1.0 * t * t * (3 - 2 * t); };
+    const A = T(sTop, sg2 * (acroZ - 1.2));
+    const E = L(1, d + bulge(1));
+    const K = T(sTop - 0.2, sg2 * (Math.abs(z.sh) + (st(1).w ?? 6) + d + bulge(1)));
+    const arc = [0.25, 0.5, 0.75].map((t) => ({ x: (1 - t) ** 2 * A.x + 2 * t * (1 - t) * K.x + t * t * E.x, y: (1 - t) ** 2 * A.y + 2 * t * (1 - t) * K.y + t * t * E.y }));
+    /* below the bulge a skin shape keeps inside the arm's own outline (which then takes over); cloth flares to its hem */
+    const lat = [2, 3.5, 5, 7, 9, 11, sEnd].filter((x) => x <= sEnd).map((x) => L(x, d + bulge(x) + (grow ? 0.35 * (x / sEnd) : -0.95 * (1 - bulge(x)))));
+    const inner = [M(sEnd, grow ? d + 0.35 : d), M((sEnd + 8) / 2, d + (med - d) * 0.5), M(8, med)];
+    const C = T(sTop - 0.3, sg2 * (sh.shoulderZ - 7.5));
+    return [A, ...arc, E, ...lat, ...inner, C];
+  };
   /* fingers curl a little at rest; in distress the hands grip */
   const curl = b.distress === 'severe' ? 70 : b.distress === 'moderate' ? 34 : 16;
   const knuckle = (i: 0 | 1) => add(k.wrist[i], k.handA[i], 9.6 * u);
   const arm = (i: 0 | 1) => {
     const z = armZ(i);
     return {
-      upper: joinShoulder ? limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh, z.el) : limb3(pr, k.shoulder, k.upperA[i], upperSt, k.flip, z.sh, z.el), fore: limb3(pr, k.elbow[i], k.foreA[i], sh.fore, k.flip, z.el, z.wr),
+      upper: joinShoulder ? limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh + ((z.el - z.sh) * ARM0) / LEN.upper, z.el).map((pts) => pts) : limb3(pr, k.shoulder, k.upperA[i], upperSt, k.flip, z.sh, z.el), fore: limb3(pr, k.elbow[i], k.foreA[i], sh.fore, k.flip, z.el, z.wr),
       hand: limb3(pr, k.wrist[i], k.handA[i], sh.hand, k.flip, z.wr, z.wr),
       fingers: limb3(pr, knuckle(i), k.handA[i] + curl * k.flip, sh.fingers, k.flip, z.wr, z.wr),
       thumb: limb3(pr, add(add(k.wrist[i], k.handA[i], 1.5 * u), k.handA[i] + 90 * k.flip, 1.2 * u), k.handA[i] + (28 + curl * 0.3) * k.flip,
@@ -468,14 +493,15 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
     { attrs: 'data-region="chest"', parts: [{ pts: chest, fill: gChest }] },
     ...legsInBody.map((i) => ({ attrs: `data-region="legs" data-side="${sideAttr(i)}"`, parts: legParts(i, legFills(i)) })),
     { attrs: 'data-region="neck"', parts: neckPts.map((pts) => ({ pts, fill: gNeck })) },
-    ...(joinShoulder ? ([0, 1] as const).map((i) => ({ attrs: `data-region="arm" data-side="${sideAttr(i)}"`, parts: [{ pts: deltoid(i), fill: armFills(i)[0] }] })) : []),
+    ...(joinShoulder ? ([0, 1] as const).map((i) => ({ attrs: `data-region="arm" data-side="${sideAttr(i)}"`, parts: [{ pts: shoulderShape(i, 0, 0, 13, 0), fill: armFills(i)[0] }] })) : []),
     ...(withHead ? [{ attrs: 'data-region="head"', parts: head.map((pts) => ({ pts, fill: gHead })) }] : []),
   ], pal.line, lineW));
 
   /* ---- what shows on the body: bare skin details, then the gown over the rest ---- */
   out.push(prof(() => bodyDetails(k, sh, look, pal)));
   out.push(front(() => trunkFront(fctx) + legsFront(fctx, legZ)));
-  out.push(cloth([...dress.trunk, ...legsInBody.flatMap((i) => dress.thigh[i])], gownFill, pal.gownLine));
+  const sleeveFront = joinShoulder && dress.sleeve;
+  out.push(cloth([...dress.trunk, ...legsInBody.flatMap((i) => dress.thigh[i]), ...(sleeveFront ? [shoulderShape(0, 1.0, 0, 12, 1.0), shoulderShape(1, 1.0, 0, 12, 1.0)] : [])], gownFill, pal.gownLine));
   out.push(prof(() => dress.profileLines));
   out.push(front(() => gownLinesFront(fctx, dress.spans, { thigh: (i, s, psi) => onTube(pr, { from: k.hip, a: k.thighA[i], flip: k.flip }, (x) => w3s(stationAt(sh.thigh, x), 1.1), s, psi, legZ(i).hip + ((legZ(i).knee - legZ(i).hip) * s) / 43) })));
   if (look.exposed.has('chest') && look.sex === 'F') { out.push(prof(() => bra(k, sh))); out.push(front(() => braFront(fctx))); }
@@ -485,29 +511,28 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
     out.push(front(() => faceFront(fctx) + hairFront3(fctx)));
   }
 
-  /* From the front (and back) the deltoid runs into the chest (and the back) with no edge: the arm's own outline begins
-     at the armpit. A patch of the arm's skin over its inner edge, fading out at both ends, hides the line above it. */
-  const deltoidBlend = (i: 0 | 1, fill: string) => {
-    const z = armZ(i), fr = { from: k.shoulder, a: k.upperA[i], flip: k.flip };
+  /* the sleeve from the front: the shoulder's cloth again over the arm, its hem round the arm, its inner edge where it
+     hangs free of the gown's body below the armpit */
+  const sleeveOver = (i: 0 | 1) => {
+    const z = armZ(i), sg2 = i === 0 ? -1 : 1, fr = { from: k.shoulder, a: k.upperA[i], flip: k.flip };
     const st = (x: number) => w3s(stationAt(sh.upper, x), 0);
-    const psi = i === 0 ? 90 : -90;                      // toward the midline
     const zs = (x: number) => z.sh + ((z.el - z.sh) * x) / LEN.upper;
-    const S = [-1.4, -0.5, 0.5, 2, 3.5, 5, 6.5, 8, 9];
-    const taper = (x: number) => Math.sin((Math.PI * (x + 1.8)) / 11.2) ** 0.6;
-    const outer = S.map((x) => onTube(pr, fr, st, x, psi, zs(x), 1.0 * taper(x)).p);
-    const inner = S.map((x) => onTube(pr, fr, st, x, psi, zs(x), -0.35 * taper(x)).p).reverse();
-    return `<path d="${closedPath([...outer, ...inner])}" fill="${fill}" pointer-events="none"/>`;
+    /* round the side of the arm that is seen: from its outer edge over the front (or the back) to its inner edge */
+    const hem = [0, 30, 60, 90, 120, 150, 180].map((t) => onTube(pr, fr, st, 12, sg2 * (backView ? 90 + t : 90 - t), zs(12), 1.35).p);
+    const edge = [12, 10, 7.5].map((x) => onTube(pr, fr, st, x, -sg2 * 90, zs(x), 1.0).p);
+    return `<g pointer-events="none"><path d="${closedPath(shoulderShape(i, 1.0, 0.45, 12, 0.55))}" fill="${gownFill}"/>`
+      + `<path d="${openPath(hem)}" fill="none" stroke="${pal.gownLine}" stroke-width="1.1" stroke-linecap="round"/>`
+      + `<path d="${openPath(edge)}" fill="none" stroke="${pal.gownLine}" stroke-width="0.9" stroke-linecap="round" opacity=".7"/></g>`;
   };
 
   /* ---- arms, over the trunk: the near one from the side, both from the front ---- */
   const armsOver: Array<0 | 1> = sideOn ? [near] : [0, 1];
   for (const i of armsOver) {
     out.push(layer([{ attrs: `data-region="arm" data-side="${sideAttr(i)}"`, parts: armParts(i, armFills(i)) }], pal.line, lineW));
-    /* the top of the arm proper disappears under the deltoid (its fill, inside its outline) */
-    if (joinShoulder) out.push(`<path d="${closedPath(deltoid(i, -0.3))}" fill="${armFills(i)[0]}" pointer-events="none"/>`);
-    if (!dress.sleeve) out.push(front(() => deltoidBlend(i, gChest)));
+    /* the top of the arm proper and its inner edge above the armpit disappear under the shoulder (its fill, inside its outline) */
+    if (joinShoulder && !dress.sleeve) out.push(`<path d="${closedPath(shoulderShape(i, 0, 0.45, 13, 0.5))}" fill="${armFills(i)[0]}" pointer-events="none"/>`);
     if (i === 0 && near === 0) out.push(prof(() => armDetails(k, look, pal, curl)));
-    if (dress.sleeve) out.push(sleeveSvg(dress.sleeve[i], gownFill, pal.gownLine, pr.profile ? dress.sleeveCut[i] : ''));
+    if (dress.sleeve) out.push(joinShoulder ? sleeveOver(i) : sleeveSvg(dress.sleeve[i], gownFill, pal.gownLine, pr.profile ? dress.sleeveCut[i] : ''));
   }
   if (withHead) {
     out.push(prof(() => oxygenSvg(ctx, { x: k.hip.x + 10 * u * Math.cos(rad(p.torso)), y: BED_TOP - 2 })));
