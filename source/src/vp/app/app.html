@@ -243,6 +243,21 @@ canvas.phono { width: 100%; height: 140px; display: block; }
 .chip-el i { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #333; display: inline-block; }
 .chip-el[aria-pressed="true"] { outline: 2px solid var(--accent); }
 .chip-el.placed { opacity: .45; }
+.ecg-live { margin-top: 14px; }
+canvas.ecg-monitor { width: 100%; height: 300px; display: block; border-radius: 10px; }
+@media (max-width: 560px) { canvas.ecg-monitor { height: 460px; } }
+.bed-monitor { display: block; width: 100%; padding: 0; border: 0; border-radius: 10px; background: #0c1412; cursor: pointer; overflow: hidden; }
+.bed-monitor[hidden] { display: none; }
+.bed-monitor canvas { width: 100%; height: 72px; display: block; }
+.paper-wrap.zoomed { max-height: 70vh; overflow: auto; }
+.measure-panel { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 10px; display: grid; gap: 10px; }
+.measure-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.measure-steps { gap: 6px; }
+.measure-how { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: .92rem; }
+.measure-read { font: 500 13px/1.6 var(--font-mono); background: var(--accent-soft); border-radius: 8px; padding: 8px 10px; min-height: 1.6em; }
+.measure-read:empty { display: none; }
+.axis-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; }
+.axis-pick span { font-weight: 700; margin-left: 6px; }
 .paper-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: #fffaf7; max-width: 100%; }
 .paper-wrap canvas { display: block; }
 .film-wrap { display: flex; justify-content: center; background: #050505; border-radius: 10px; padding: 10px; margin: 6px 0; }
@@ -380,6 +395,7 @@ details.grp > summary { cursor: pointer; padding: 8px 14px; font-weight: 700; co
       <div class="grid">
         <div class="panel figure-panel">
           <svg id="figure" viewBox="0 0 360 380" role="img" aria-label="The patient, seen from the right side of the bed"><g id="fig"></g></svg>
+          <button type="button" id="bed-monitor" class="bed-monitor" hidden><canvas></canvas></button>
           <div id="state-line"></div>
           <div id="views" class="care-row"></div>
           <div id="care"></div>

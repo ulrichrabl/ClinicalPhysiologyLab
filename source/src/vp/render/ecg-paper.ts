@@ -13,6 +13,28 @@ export const PAPER_MM = { width: 262, height: 128 };
 
 export interface PaperOptions { pxPerMm: number; header?: string; rhythm?: LeadName; speed?: number; gain?: number }
 
+/** Where things are on the paper (CSS px): the rhythm strip's samples and the 3 × 4 grid's, for tools laid over it. */
+export interface PaperGeometry {
+  mm: number; speed: number; gain: number; width: number; height: number;
+  /** x of sample i on the rhythm strip (bottom row), and its baseline y */
+  rhythmX: (i: number) => number; rhythmY: number;
+  /** x of sample i where it appears in the grid (null when that column does not show it), and each row's baseline */
+  gridX: (lead: LeadName, i: number) => number | null; rowY: (lead: LeadName) => number;
+  /** sample index at an x on the rhythm strip */
+  rhythmIndex: (x: number) => number;
+}
+export function paperGeometry(n: number, fs: number, pxPerMm: number, speed = 25, gain = 10): PaperGeometry {
+  const mm = pxPerMm, seg = Math.round(2.5 * fs), start = Math.max(0, n - 4 * seg), x0 = 10 * mm, rowH = 27 * mm, top = 10 * mm;
+  const where = (lead: LeadName) => { for (let r = 0; r < 3; r++) { const c = LAYOUT[r].indexOf(lead); if (c >= 0) return { r, c }; } return null; };
+  return {
+    mm, speed, gain, width: PAPER_MM.width * mm, height: PAPER_MM.height * mm,
+    rhythmX: (i) => x0 + ((i - start) / fs) * speed * mm, rhythmY: top + rowH * 3 + rowH * 0.5,
+    rhythmIndex: (x) => Math.round(start + ((x - x0) / (speed * mm)) * fs),
+    gridX: (lead, i) => { const w = where(lead); if (!w) return null; const a = start + w.c * seg; if (i < a || i >= a + seg) return null; return x0 + w.c * 2.5 * speed * mm + ((i - a) / fs) * speed * mm; },
+    rowY: (lead) => { const w = where(lead); return w ? top + rowH * w.r + rowH * 0.62 : top + rowH * 3 + rowH * 0.5; },
+  };
+}
+
 export function drawEcgPaper(canvas: HTMLCanvasElement, leads: Record<LeadName, ArrayLike<number>>, fs: number, o: PaperOptions): void {
   const mm = o.pxPerMm, speed = o.speed ?? 25, gain = o.gain ?? 10;
   const W = PAPER_MM.width * mm, H = PAPER_MM.height * mm;

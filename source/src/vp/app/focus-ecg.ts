@@ -1,5 +1,6 @@
 import { thoraxSvg, landmarks, frontX, phiOf, type ThoraxLook, thoraxHit, thoraxPartAt, thoraxLimbSites } from '../render/thorax.ts';
-import { ELECTRODES, STANDARD_SITES, standardPlacement, type ElectrodeId, type Placement, type Site } from '../measurements/ecg.ts';
+import { ELECTRODES, LEAD_NAMES, STANDARD_SITES, leadVectorsOn, standardPlacement, type ElectrodeId, type Placement, type Site } from '../measurements/ecg.ts';
+import { mountMonitor, type MonitorSource } from '../render/ecg-monitor.ts';
 import { tr } from '../model/i18n.ts';
 import type { Lang } from './diagrams.ts';
 
@@ -9,6 +10,12 @@ import type { Lang } from './diagrams.ts';
    the second intercostal space, or arm electrodes swapped, give the
    tracing those mistakes give. Drag an electrode onto the body, or tap it
    and then tap the place.
+
+   A live monitor below shows all twelve leads from the running heart
+   through the electrodes as they are now: a lead comes on when its
+   electrodes are all on, and while an electrode is dragged its leads follow
+   it, so the learner sees what a misplaced V1 or swapped arm leads do
+   before printing. Printing takes the last ten seconds onto paper.
 --------------------------------------------------------------------------- */
 
 const COLOR: Record<ElectrodeId, string> = {
@@ -24,6 +31,10 @@ export interface EcgPlacementOptions {
   chestExposed: boolean;
   onExpose: () => void;
   onRecord: (p: Placement) => void;
+  /** The running heart, for the live monitor. */
+  source?: MonitorSource;
+  /** Called whenever electrodes go on or come off: they stay on the patient (the bedside monitor uses them). */
+  onChange?: (p: Partial<Placement>) => void;
 }
 
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
@@ -73,8 +84,11 @@ export function mountEcgPlacement(host: HTMLElement, o: EcgPlacementOptions): ()
       <div class="focus-tools" style="margin-top:14px">
         <button type="button" class="ghost small" data-standard>${L('Place at standard positions', 'Standardpositionen')}</button>
         <button type="button" class="ghost small" data-clear>${L('Remove all', 'Alle entfernen')}</button>
-        <button type="button" class="primary" data-record disabled>${L('Record 12-lead ECG', '12-Kanal-EKG schreiben')}</button>
-      </div></div></div>`;
+        <button type="button" class="primary" data-record disabled>${L('Print 12-lead ECG', '12-Kanal-EKG drucken')}</button>
+      </div></div></div>
+    ${o.source ? `<div class="ecg-live"><div class="trace-head"><span class="trace-label">${L('Live monitor: all twelve leads, through the electrodes as they are now', 'Live-Monitor: alle zwölf Ableitungen, über die Elektroden, wie sie jetzt liegen')}</span></div>
+      <canvas class="ecg-monitor"></canvas>
+      <p class="focus-caption">${L('Move an electrode and watch its leads change. Monitor filtering steadies the baseline; the printed ECG is the diagnostic record.', 'Verschieben Sie eine Elektrode und beobachten Sie ihre Ableitungen. Der Monitor glättet die Grundlinie; das gedruckte EKG ist der diagnostische Befund.')}</p></div>` : ''}`;
   const svgHost = host.querySelector('.thorax-host') as HTMLElement;
   const tray = host.querySelector('[data-tray]') as HTMLElement;
 
@@ -108,12 +122,30 @@ export function mountEcgPlacement(host: HTMLElement, o: EcgPlacementOptions): ()
     const p = pt.matrixTransform(svg.getScreenCTM()!.inverse());
     return { x: p.x, y: p.y, inside };
   };
+  const changed = () => o.onChange?.(structuredClone(placed));
   const place = (id: ElectrodeId, x: number, y: number) => {
     const s = siteAt(x, y, o.look);
     if (!s) { host.querySelector('[data-cap]')!.textContent = L('That is not on the patient.', 'Das ist nicht auf dem Patienten.'); return false; }
     placed[id] = s; drops[id] = 'limb' in s ? [x, y] : undefined;
+    changed();
     return true;
   };
+  /* What the monitor sees: the electrodes that are on, and the one being dragged where it is over the body now. */
+  let vecKey = '', vecVal = leadVectorsOn(placed);
+  const vectorsNow = () => {
+    const eff: Partial<Placement> = { ...placed };
+    if (drag) { delete eff[drag.id]; const s = drag.inside ? siteAt(drag.x, drag.y, o.look) : null; if (s) eff[drag.id] = s; }
+    const key = JSON.stringify(eff);
+    if (key !== vecKey) { vecKey = key; vecVal = leadVectorsOn(eff); }
+    return vecVal;
+  };
+  const narrow = (host.clientWidth || 800) < 560;
+  const stopMonitor = o.source ? mountMonitor(host.querySelector('.ecg-monitor') as HTMLCanvasElement, o.source, {
+    /* the paper's order across four columns; on a phone, limb leads beside chest leads in two */
+    leads: (narrow ? ['I', 'V1', 'II', 'V2', 'III', 'V3', 'aVR', 'V4', 'aVL', 'V5', 'aVF', 'V6'] : ['I', 'aVR', 'V1', 'V4', 'II', 'aVL', 'V2', 'V5', 'III', 'aVF', 'V3', 'V6']) as Array<typeof LEAD_NAMES[number]>,
+    columns: narrow ? 2 : 4, seconds: 2.5, vectors: vectorsNow, reference: () => !!(placed.RL && drag?.id !== 'RL'), showRate: true, mvRange: 2.6,
+    label: L('ECG · 25 mm/s', 'EKG · 25 mm/s'), offText: L('Lead off', 'Elektrode fehlt'),
+  }) : () => undefined;
 
   const onDown = (ev: PointerEvent) => {
     const t = ev.target as Element;
@@ -136,7 +168,7 @@ export function mountEcgPlacement(host: HTMLElement, o: EcgPlacementOptions): ()
       if (!moved) { selected = selected === id ? null : id; drag = null; render(); return; }
       const p = toSvg(e.clientX, e.clientY);
       drag = null;
-      if (p.inside) place(id, p.x, p.y); else delete placed[id];
+      if (p.inside) place(id, p.x, p.y); else { delete placed[id]; changed(); }
       selected = null;
       render();
     };
@@ -150,11 +182,11 @@ export function mountEcgPlacement(host: HTMLElement, o: EcgPlacementOptions): ()
     render();
   });
   host.querySelector<HTMLButtonElement>('[data-lm]')!.onclick = (e) => { showLandmarks = !showLandmarks; (e.target as HTMLElement).setAttribute('aria-pressed', String(showLandmarks)); render(); };
-  host.querySelector<HTMLButtonElement>('[data-standard]')!.onclick = () => { Object.assign(placed, standardPlacement()); for (const k of ELECTRODES) delete drops[k]; render(); };
-  host.querySelector<HTMLButtonElement>('[data-clear]')!.onclick = () => { for (const k of ELECTRODES) { delete placed[k]; delete drops[k]; } render(); };
+  host.querySelector<HTMLButtonElement>('[data-standard]')!.onclick = () => { Object.assign(placed, standardPlacement()); for (const k of ELECTRODES) delete drops[k]; changed(); render(); };
+  host.querySelector<HTMLButtonElement>('[data-clear]')!.onclick = () => { for (const k of ELECTRODES) { delete placed[k]; delete drops[k]; } changed(); render(); };
   host.querySelector<HTMLButtonElement>('[data-record]')!.onclick = () => { if (ELECTRODES.every((id) => placed[id])) o.onRecord(structuredClone(placed) as Placement); };
   render();
-  return () => host.removeEventListener('pointerdown', onDown);
+  return () => { host.removeEventListener('pointerdown', onDown); stopMonitor(); };
 }
 
 /** How far a placement is from standard, electrode by electrode, in words. */

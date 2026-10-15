@@ -93,6 +93,11 @@ export class LivePatient {
   }
   private courseRun = 0;
 
+  /** How many dipole samples have been produced since the patient was created: a monitor reads the ones it has not
+      drawn yet. */
+  get samples(): number { return this.total; }
+  private total = 0;
+
   /** The last `seconds` of the cardiac dipole (Frank X, Y, Z in mV, 500 Hz). */
   vcg(seconds = 10): Vcg {
     const n = Math.min(this.filled, Math.round(seconds * FS));
@@ -133,6 +138,7 @@ export class LivePatient {
         this.w = (this.w + 1) % N;
       }
       this.filled = Math.min(N, this.filled + v.X.length);
+      this.total += v.X.length;
     }
     delete s.ecgLeads;
     s.electrical = this.run.heart.p;

@@ -20,7 +20,8 @@ export { createCirculation, settleModel, settleCirculation } from './engine/circ
 export { healthyModel, modelFromCase, pathologyOf, caseWithModel, applyPreset, CIRCULATION_DEFAULTS, type PatientModel } from './physiology/state.ts';
 export { MODELS, MODEL_BY_ID, VARIABLE_BY_ID, getPath, setPath } from './physiology/models.ts';
 export { HeartElectrical, ELECTRICAL_DEFAULTS, ELECTRICAL_PRESETS, type ElectricalParams } from './physiology/heart/electrical.ts';
-export { recordLeads, leadVectors, measuredAxis, misplaced, standardPlacement, STANDARD_SITES, LEAD_NAMES } from './measurements/ecg.ts';
+export { recordLeads, leadVectors, leadVectorsOn, measuredAxis, misplaced, standardPlacement, STANDARD_SITES, LEAD_NAMES } from './measurements/ecg.ts';
+export { delineate } from './measurements/ecg-measure.ts';
 export { chemistryState } from './physiology/chemistry.ts';
 export { CONSTANTS, constantIssues, groundingSummary, type ConstantEntry, type ConstantStatus } from './evidence/constants.ts';
 export { REFERENCES, type Reference } from './evidence/references.ts';
