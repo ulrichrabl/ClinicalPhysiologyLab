@@ -31,7 +31,11 @@ function bridge(st: Station[], slope: number): Station[] {
   return st.map((t) => {
     let a = t.a, p = t.p;
     let w = t.w ?? (t.a + t.p) / 2;
-    for (const o of st) { const d = Math.abs(o.s - t.s); a = Math.max(a, o.a - slope * d); p = Math.max(p, o.p - slope * d); w = Math.max(w, (o.w ?? (o.a + o.p) / 2) - slope * d); }
+    for (const o of st) {
+      const d = Math.abs(o.s - t.s); a = Math.max(a, o.a - slope * d); p = Math.max(p, o.p - slope * d);
+      /* across, the cloth lies on the slope of the shoulders (trapezius) rather than spanning from one acromion to the other */
+      if (t.s < 46 && o.s < 46) w = Math.max(w, (o.w ?? (o.a + o.p) / 2) - slope * d);
+    }
     return { s: t.s, a, p, w };
   });
 }
@@ -103,6 +107,8 @@ export function gown(pr: Projector, k: Skeleton, sh: Shape, look: FigureLook, pa
   /* sleeves: short, flared, over the upper arm */
   const sleeve = (i: 0 | 1) => {
     const st: Station[] = sh.upper.filter((t) => t.s <= 10).map((t) => ({ ...t }));
+    /* over the top of the deltoid the sleeve is the gown's shoulder seam: let it reach a little higher, so no skin shows */
+    st.unshift({ s: st[0].s - 0.9, a: st[0].a * 0.8, p: st[0].p * 0.8, w: (st[0].w ?? 3) * 0.8 });
     const end = stationAt(sh.upper, 12);
     st.push({ s: 12, a: end.a + 0.6, p: end.p + 0.7, w: (end.w ?? 4) + 0.8 });
     const [z0, z1] = z.upper(i);
