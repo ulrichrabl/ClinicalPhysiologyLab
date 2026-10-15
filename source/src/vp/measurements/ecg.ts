@@ -116,6 +116,22 @@ export function leadVectors(pl: Placement): Record<LeadName, Vec3> {
   return out;
 }
 
+/** The electrodes each lead needs: a lead is only as good as all of its electrodes being on the skin. */
+export const LEAD_NEEDS: Record<LeadName, ElectrodeId[]> = {
+  I: ['RA', 'LA'], II: ['RA', 'LL'], III: ['LA', 'LL'], aVR: ['RA', 'LA', 'LL'], aVL: ['RA', 'LA', 'LL'], aVF: ['RA', 'LA', 'LL'],
+  V1: ['V1', 'RA', 'LA', 'LL'], V2: ['V2', 'RA', 'LA', 'LL'], V3: ['V3', 'RA', 'LA', 'LL'], V4: ['V4', 'RA', 'LA', 'LL'], V5: ['V5', 'RA', 'LA', 'LL'], V6: ['V6', 'RA', 'LA', 'LL'],
+};
+
+/** Lead vectors for the electrodes that are on, as a monitor sees them while they are being put on: a lead whose
+    electrodes are not all placed is off (null). The right-leg electrode is the machine's reference; it changes no lead. */
+export function leadVectorsOn(pl: Partial<Placement>): Record<LeadName, Vec3 | null> {
+  const full = { ...standardPlacement(), ...pl } as Placement;
+  const L = leadVectors(full);
+  const out = {} as Record<LeadName, Vec3 | null>;
+  for (const name of LEAD_NAMES) out[name] = LEAD_NEEDS[name].every((e) => pl[e]) ? L[name] : null;
+  return out;
+}
+
 export interface Vcg { X: ArrayLike<number>; Y: ArrayLike<number>; Z: ArrayLike<number>; fs: number }
 
 /** Record: project the dipole onto each lead. */

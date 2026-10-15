@@ -15,7 +15,7 @@ unlinkSync(bundle);
 const { CATALOG, REGISTRY, CASES, buildView, observe, startEncounter, perform, order, ask, opening, parseAction, autoNote, describe,
   validateCatalog, validateCase, evaluate, interpret, commit, figureSvg, figureLookFor, lerpPose, POSES, eyeAngles, measuredSlowPhaseVelocity, exportCatalog,
   settleCirculation, settleModel, createCirculation, healthyModel, modelFromCase, pathologyOf, caseWithModel, applyPreset, MODELS, VARIABLE_BY_ID,
-  recordLeads, measuredAxis, misplaced, standardPlacement, chemistryState, parseRef, Respiratory, pulseOximeter, perform: performM, CONSTANTS, REFERENCES, constantIssues, groundingSummary, suggest } = vp;
+  recordLeads, leadVectors, leadVectorsOn, delineate, measuredAxis, misplaced, standardPlacement, chemistryState, parseRef, Respiratory, pulseOximeter, perform: performM, CONSTANTS, REFERENCES, constantIssues, groundingSummary, suggest } = vp;
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => {
@@ -592,6 +592,24 @@ const ecgOf = (preset, seconds = 8, mutate) => {
   ok('hyperkalaemia (a chemistry value, not an ECG pattern): tall T, longer PR', peak(hkLeads.V3) > 1.4 * peak(leads.V3) && hk.metrics.PR > n.metrics.PR, `${peak(hkLeads.V3).toFixed(2)} vs ${peak(leads.V3).toFixed(2)}`);
   const hkView = buildView(caseById('foot-drop-right-l5'), { chemistry: chemistryState(hk.snap, { potassium: 7.2 }) });
   ok('…and the same potassium is what the electrolyte panel reports', REGISTRY.resolvers['chemistry.panel'](hkView, { property: 'electrolytes' }, {}).value.potassium === 7.2);
+
+  /* the live monitor: a lead is on only when all its electrodes are; with all on it is the full projection */
+  const limbs = { RA: { limb: 'right-arm' }, LA: { limb: 'left-arm' }, LL: { limb: 'left-leg' } };
+  const lo = leadVectorsOn(limbs), noRA = leadVectorsOn({ LA: limbs.LA, LL: limbs.LL, V2: standardPlacement().V2 });
+  const allOn = leadVectorsOn(standardPlacement()), full = leadVectors(standardPlacement());
+  ok('live monitor: limb electrodes alone give the six limb leads and no chest lead; without RA only III is on', ['I', 'II', 'III', 'aVR', 'aVL', 'aVF'].every((l) => lo[l]) && ['V1', 'V6'].every((l) => !lo[l])
+    && noRA.III && !noRA.I && !noRA.II && !noRA.aVR && !noRA.V2);
+  ok('…and with all ten on, every lead is the full projection', Object.keys(full).every((l) => allOn[l] && allOn[l].every((x, i) => Math.abs(x - full[l][i]) < 1e-12)));
+
+  /* measuring by hand: the complexes are found on the tracing, and the QRS edges where an expert puts the calipers */
+  const width = (lds, m = {}) => { const f = delineate(lds, 500, m); const w = f.beats.map((b) => (b.qrsOff - b.qrsOn) * 2).sort((a, b) => a - b); return { f, w: w[Math.floor(w.length / 2)] }; };
+  const dn = width(leads), dl = width(recordLeads(lbbb.vcg)), dc = width(recordLeads(chb.vcg));
+  ok('ECG measuring: every complex found and the R–R as the heart had it', Math.abs(dn.f.beats.length - (n.metrics.HR * 8) / 60) <= 1.5 && Math.abs(dn.f.rrMs - n.metrics.RR) < 0.08 * n.metrics.RR /* the model's RR is the last beat's; sinus arrhythmia moves it */ && Math.abs(dc.f.rrMs - 1500) < 40,
+    `${dn.f.beats.length} beats, RR ${dn.f.rrMs} vs ${Math.round(n.metrics.RR)}; CHB ${dc.f.rrMs}`);
+  ok('…the QRS found on the tracing is as wide as the model made it, narrow or bundle-branch broad', Math.abs(dn.w - n.metrics.QRS) <= 20 && Math.abs(dl.w - lbbb.metrics.QRS) <= 20 && Math.abs(dc.w - chb.metrics.QRS) <= 25,
+    `${dn.w}/${n.metrics.QRS}, ${dl.w}/${lbbb.metrics.QRS}, ${dc.w}/${chb.metrics.QRS} ms`);
+  ok('…the quadrants for the axis: normal I+ aVF+, the escape rhythm left (I+ aVF−)', dn.f.netI > 0 && dn.f.netF > 0 && dc.f.netI > 0 && dc.f.netF < 0);
+  ok('…and no P wave to measure from where none conducts (AF)', delineate(recordLeads(af.vcg), 500, { qrs: af.metrics.QRS }).beats.every((b) => b.pOn === null));
 
   const ant = recordLeads(ecgOf('stemi-anterior').vcg);
   const st = (a, beatsFrom) => { // mean of the ST segment: 80–120 ms after the largest slope in each beat

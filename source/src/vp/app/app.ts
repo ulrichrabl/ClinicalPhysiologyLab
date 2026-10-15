@@ -20,7 +20,9 @@ import { FaceView, type FaceFinding } from '../render/face-view.ts';
 import { appearanceOf } from '../render/face-canvas.ts';
 import { figureSvg, figureLookFor, lerpPose, POSES, VIEW_ANGLE, viewAt, type FigureFindings, type FigureLook, type Pose } from '../render/patient-figure.ts';
 import { drawEcgPaper, drawSweep, PAPER_MM } from '../render/ecg-paper.ts';
-import { recordLeads, measuredAxis, standardPlacement, type Placement, type LeadName } from '../measurements/ecg.ts';
+import { recordLeads, measuredAxis, standardPlacement, leadVectorsOn, type Placement, type LeadName } from '../measurements/ecg.ts';
+import { mountMonitor } from '../render/ecg-monitor.ts';
+import { mountMeasureTool } from './ecg-measure-tool.ts';
 import { healthyModel, modelFromCase, caseWithModel, type PatientModel } from '../physiology/state.ts';
 import { VARIABLE_BY_ID } from '../physiology/models.ts';
 import { LivePatient } from '../live/live-patient.ts';
@@ -494,6 +496,8 @@ export function mount(root: HTMLElement) {
           look: look(), lang, placement, chestExposed: (s.state.exposure ?? []).includes('chest'),
           onExpose: () => { doAction('expose.chest'); setVisual({ kind: 'ecg' }); },
           onRecord: recordEcg,
+          source: monitorSource() ?? undefined,
+          onChange: (p) => { placement = p; renderBedMonitor(); },
         });
       } else {
         const box = host.querySelector('[data-paper]') as HTMLElement;
@@ -536,17 +540,31 @@ export function mount(root: HTMLElement) {
     const review = placementReview(p, lang);
     return `<article class="panel result"><header><b>${esc(tr(inv.label, lang))}</b><span>${Math.round(e.t / 60000)} ${t('min')}</span></header>
       <p class="ecg-line">${esc(REGISTRY.formatters[inv.formatter](e.value, {}, lang, CATALOG, { property: inv.id }).replace(/ (The tracing is under Results|Die Kurve liegt unter Befunde)\.$/, ''))}</p>
-      ${traces.has(idx) ? `<div class="paper-wrap"><canvas data-paper-idx="${idx}"></canvas></div>` : ''}
+      ${traces.has(idx) ? `<div class="paper-wrap"><canvas data-paper-idx="${idx}"></canvas></div>
+        <div class="focus-tools"><button type="button" class="tog small" data-measure="${idx}" aria-pressed="false">${lang === 'de' ? 'Ausmessen: Zirkel, Lineal, Kästchen' : 'Measure: calipers, ruler, squares'}</button></div>
+        <div class="measure-panel" data-measure-panel="${idx}" hidden></div>` : ''}
       <p class="focus-caption">${e.detail ? t('placementAsYou') : ''}${review.length ? `: ${esc(review.join('; '))}` : (e.detail ? `. ${t('placementOk')}` : '')}</p>
       ${inBedside ? `<div class="focus-tools"><button type="button" class="ghost small" data-again>${t('recordAgain')}</button><button type="button" class="ghost small" data-to-tests>${t('openTests')}</button></div>` : physicsDetails(inv)}</article>`;
   };
   const paintPapers = (box: HTMLElement) => {
     box.querySelectorAll<HTMLCanvasElement>('[data-paper-idx]').forEach((cv) => {
-      const tr0 = traces.get(+cv.dataset.paperIdx!);
+      const idx = +cv.dataset.paperIdx!;
+      const tr0 = traces.get(idx);
       if (!tr0) return;
       const w = (cv.parentElement as HTMLElement).clientWidth || 800;
       const mm = Math.max(3.2, Math.min(5, (w - 2) / PAPER_MM.width));
-      drawEcgPaper(cv, tr0.leads, tr0.fs, { pxPerMm: mm, header: `${s!.caseDef.patient.name} · ${s!.caseDef.patient.age} · ${lang === 'de' ? '12-Kanal-EKG' : '12-lead ECG'}` });
+      const paint = (px: number) => drawEcgPaper(cv, tr0.leads, tr0.fs, { pxPerMm: px, header: `${s!.caseDef.patient.name} · ${s!.caseDef.patient.age} · ${lang === 'de' ? '12-Kanal-EKG' : '12-lead ECG'}` });
+      paint(mm);
+      /* measuring by hand: calipers and a ruler over this paper, and the steps */
+      const btn = box.querySelector<HTMLButtonElement>(`[data-measure="${idx}"]`), panel = box.querySelector<HTMLElement>(`[data-measure-panel="${idx}"]`);
+      if (!btn || !panel) return;
+      let stop: (() => void) | null = null;
+      btn.onclick = () => {
+        if (stop) { stop(); stop = null; btn.setAttribute('aria-pressed', 'false'); return; }
+        const e = s!.encounter.events[idx] as { value?: Record<string, number> };
+        stop = mountMeasureTool({ wrap: cv.parentElement as HTMLElement, panel, leads: tr0.leads, fs: tr0.fs, pxPerMm: mm, repaint: paint, machine: e?.value ?? {}, sex: s!.caseDef.patient.sex, lang });
+        btn.setAttribute('aria-pressed', 'true');
+      };
     });
   };
   const labCard = (e: { test: string; value: unknown; t: number }) => {
@@ -738,10 +756,34 @@ export function mount(root: HTMLElement) {
     root.querySelectorAll<HTMLButtonElement>('[data-side-act]').forEach((b) => b.onclick = () => { feed.pop(); doAction(b.dataset.sideAct!, b.dataset.side as Side); });
     const fe = $('#tab-feed'); fe.scrollTop = fe.scrollHeight;
     renderFigure();
+    renderBedMonitor();
     renderRegion();
     renderCare();
     if (cardFor) showCard(cardFor);
     if (layer === 'tests') renderTests($('#layer-tests'));
+  };
+
+  /* ---- the ECG monitor: the running heart's dipole, as the monitor reads it ------------------- */
+  const monitorSource = () => {
+    const lp = live;
+    if (!lp) return null;
+    return { samples: () => lp.samples, read: (n: number) => lp.vcg(n / 500), rate: () => (lp.snap.metrics?.HRbeat as number | undefined) ?? null };
+  };
+  /* At the bedside, once electrodes are on: lead II and the rate, like the monitor over the bed. Tap it for the ECG. */
+  let bedMonitorStop: (() => void) | null = null, bedMonitorFor: LivePatient | null = null;
+  const renderBedMonitor = () => {
+    const box = $('#bed-monitor');
+    const on = !!live && Object.keys(placement).length > 0;
+    if (!on || bedMonitorFor !== live) { bedMonitorStop?.(); bedMonitorStop = null; bedMonitorFor = null; }
+    box.hidden = !on;
+    if (!on || bedMonitorStop) return;
+    const src = monitorSource()!;
+    bedMonitorFor = live;
+    bedMonitorStop = mountMonitor(box.querySelector('canvas') as HTMLCanvasElement, src, {
+      leads: ['II'], columns: 1, seconds: 5, vectors: () => leadVectorsOn(placement), reference: () => !!placement.RL, showRate: true, mvRange: 2.2,
+      label: 'Monitor', offText: lang === 'de' ? 'Elektrode fehlt' : 'Lead off',
+    });
+    box.title = lang === 'de' ? 'EKG öffnen' : 'Open the ECG';
   };
 
   /* ---- the patient figure ---------------------------------------------------------- */
@@ -963,6 +1005,7 @@ export function mount(root: HTMLElement) {
     renderRegion();
   });
   $('#whole').onclick = () => { region = { id: 'body' }; renderRegion(); };
+  $('#bed-monitor').onclick = () => setVisual({ kind: 'ecg' });
 
   /* ---- commit and debrief ----------------------------------------------------------- */
   const renderCommit = () => {
