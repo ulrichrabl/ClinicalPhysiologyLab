@@ -20,6 +20,15 @@
    the feet touch the floor. Poses blend those two (ground), so a patient
    standing up rises off the bed rather than sinking through the floor.
 
+   Views. Every part also has a width across the body, so the figure is a
+   light 3D model (figure-view.ts): it can be seen from the right side of the
+   bed, from the foot of the bed (lying: from above; sitting or standing:
+   face to face) and from the left, and the app walks round the bed between
+   them. Drawings that only make sense in profile (the face in profile, the
+   hair, folds) fade out as the patient turns and their front counterparts
+   (figure-front.ts) fade in. The chest views (thorax.ts) draw this same
+   body, standing, from the front and the back.
+
    Changing position interpolates the pose, so the patient sits up, lies
    down or stands rather than jumping. Every body part carries a data-region
    for touch, and none is highlighted: the examiner chooses where to look.
@@ -27,9 +36,22 @@
 
 import { appearanceOf } from './face-canvas.ts';
 import { add, clamp, closedPath, darken, dir, f, lerp, lighten, openPath, smooth, tint, type Pt } from './figure-geom.ts';
-import { bodyShape, footOutline, limbOutline, skeleton, stationAt, trunkOutline, trunkPt, trunkA, type Shape, type Skeleton } from './figure-body.ts';
+import { bodyShape, footOutline, limb3, limbOutline, skeleton, stationAt, trunk3, trunkOutline, trunkPt, trunkA, type Shape, type Skeleton } from './figure-body.ts';
 import { ear, face, hairBehind, hairFront, hairOver, headFrame, headOutline, oxygenSvg, type Palette, type Support } from './figure-head.ts';
-import { BED_TOP, FLOOR, bra, dressDefs, gown, trolley } from './figure-dress.ts';
+import { BED_TOP, FLOOR, bra, cloth, dressDefs, gown, sleeveSvg, trolley } from './figure-dress.ts';
+import { Projector, frontness, onTube, VIEW_RIGHT, type FigureView } from './figure-view.ts';
+import { braFront, earsFront, faceFront, gownLinesFront, hairBehindFront, hairFront3, headEgg, oxygenFront, trunkFront, type FrontCtx } from './figure-front.ts';
+
+export { VIEW_RIGHT, VIEW_LEFT, VIEW_FRONT, VIEW_BACK, type FigureView } from './figure-view.ts';
+
+/** Options for drawing the figure outside the bedside panel (the chest views draw it without the trolley). */
+export interface FigureOptions {
+  scene?: boolean;                 // floor, trolley and pillow (default true)
+  head?: boolean;                  // the head (default true)
+  chestFrame?: boolean;            // place the drawing in chest centimetres: 4th intercostal space at (0, 0)
+  /** Receives the outline of every touch region and a few landmarks, in the drawing's final coordinates. */
+  collect?: (kind: string, side: 'R' | 'L' | '', pts: Pt[]) => void;
+}
 
 export interface Pose {
   hipX: number;             // hip joint, across the drawing
@@ -196,9 +218,10 @@ function layer(groups: Array<{ attrs: string; parts: Part[] }>, line: string, wi
     + groups.map((g, i) => `<g ${g.attrs}>${g.parts.map((p, j) => `<path d="${d[i][j]}" fill="${p.fill}"/>`).join('')}</g>`).join('');
 }
 
-/** A gradient across a part, lit from the upper left: from the lit edge through the base colour to the shaded edge. */
-function shadeAcross(defs: string[], id: string, c: Pt, axis: number, w: number, pal: { light: string; skin: string; dark: string }): string {
-  const n1 = dir(axis + 90), lit = n1.x * -0.55 + n1.y * -0.83 >= 0 ? n1 : { x: -n1.x, y: -n1.y };
+/** A gradient across a part, lit from the upper left: from the lit edge through the base colour to the shaded edge.
+    lx: the light's horizontal direction before a left-side drawing is mirrored (so it still comes from the left). */
+function shadeAcross(defs: string[], id: string, c: Pt, axis: number, w: number, pal: { light: string; skin: string; dark: string }, lx = -0.55): string {
+  const n1 = dir(axis + 90), lit = n1.x * lx + n1.y * -0.83 >= 0 ? n1 : { x: -n1.x, y: -n1.y };
   defs.push(`<linearGradient id="fig-§-${id}" gradientUnits="userSpaceOnUse" x1="${f(c.x + lit.x * w)}" y1="${f(c.y + lit.y * w)}" x2="${f(c.x - lit.x * w)}" y2="${f(c.y - lit.y * w)}">`
     + `<stop offset="0" stop-color="${pal.light}"/><stop offset=".42" stop-color="${pal.skin}"/><stop offset="1" stop-color="${pal.dark}"/></linearGradient>`);
   return `url(#fig-§-${id})`;
@@ -267,35 +290,96 @@ function place(p0: Pose, sh: Shape): Skeleton {
   return k;
 }
 
-export function figureSvg(p: Pose, look: FigureLook): string {
+/** The patient in this pose, seen from the right side of the bed (the default), the left, the front, or the back. */
+export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIGHT, opts: FigureOptions = {}): string {
   const upright = Math.max(0, Math.sin((p.torso * Math.PI) / 180));
   const sh = bodyShape(look, upright);
   const k = place(p, sh);
   const u = k.u, pal = palette(look), b = look.body;
+  const scene = opts.scene !== false, withHead = opts.head !== false;
   const defs: string[] = [dressDefs(pal)];
   const out: string[] = [];
   const lineW = 0.62;
 
-  /* ---- outlines of every part ---- */
-  const abdomen = trunkOutline(k, sh, -99, 29);
-  const chest = trunkOutline(k, sh, 27, 99);
-  const neckPts = limbOutline(k.neckRoot, k.neckA, sh.neck, u, -k.flip);
-  const head = headOutline({ k, sh, look, pal, support: { p: { x: 0, y: FLOOR }, n: { x: 0, y: -1 } } });
-  const leg = (i: 0 | 1) => ({
-    thigh: limbOutline(k.hip, k.thighA[i], sh.thigh, u, k.flip), shin: limbOutline(k.knee[i], k.shinA[i], sh.shin, u, k.flip), foot: footOutline(k, sh, i),
-  });
+  /* ---- the view: turned about the trunk's long axis; prone, "front" means from above, which is the back ---- */
+  const tA = trunkA(k, 40);
+  const pr = new Projector(trunkPt(k, 20, 0), dir(tA), dir(tA - 90 * k.flip), { turn: view.turn * k.flip, side: view.side }, u);
+  /* From the front the examiner is at the foot of the bed: the drawing turns until the trunk is upright, and a lying
+     patient's bed is brought to the middle of the panel. */
+  const stand = pr.sn * pr.sn;
+  const tilt = ((((90 - tA) % 360) + 540) % 360) - 180;      // screen rotation that would make the trunk point up
+  const rotDeg = tilt * stand;
+  const lying = 1 - Math.abs(Math.sin(rad(tA)));
+  const bedMid = { x: 180, y: BED_TOP - 10 };
+  pr.settle(rotDeg, pr.O, { x: 0, y: 0 });
+  if (scene) {
+    /* From the foot of the bed the patient is in the middle of the panel (lying: the bed is), so the front seen on the
+       way round from the right is the same picture as the front seen on the way round from the left. */
+    const m = pr.P(bedMid), o = pr.P(pr.O);
+    const cx = lerp(o.x, m.x, lying);
+    pr.settle(rotDeg, pr.O, { x: (180 - cx) * stand, y: (196 - m.y) * lying * stand });
+  }
+  const fp = frontness(pr);                                  // 0 profile … 1 front or back
+  const lx = view.side < 0 ? 0.55 : -0.55;
+  const M = pr.matrix();
+  /* drawings made for the profile turn with the body and fade out; those for the front fade in */
+  /* (drawn only when they show: each is passed as a function) */
+  const prof = (draw: () => string) => { if (fp >= 1) return ''; const svg = draw(); return !svg ? '' : pr.profile ? svg : `<g transform="${M}" opacity="${f(1 - fp)}">${svg}</g>`; };
+  const front = (draw: () => string) => { if (fp <= 0) return ''; const svg = draw(); return !svg ? '' : fp >= 1 ? svg : `<g opacity="${f(fp)}">${svg}</g>`; };
+  const backView = pr.sn < 0;
+
+  /* ---- how far each limb lies from the midline: legs under the hips; arms beside the trunk, or over the thighs when
+     the hands rest in front of the body ---- */
+  const sg = (i: 0 | 1) => (i === 0 ? -1 : 1);
+  const legZ = (i: 0 | 1) => ({ hip: sg(i) * sh.hipZ, knee: sg(i) * (sh.hipZ - 1.0), ankle: sg(i) * (sh.hipZ - 1.3) });
+  const nearSpine = (q: Pt) => { let bi = 0, bd = Infinity; k.spine.forEach((sp, i) => { const d = (sp.p.x - q.x) ** 2 + (sp.p.y - q.y) ** 2; if (d < bd) { bd = d; bi = i; } }); return bi; };
+  const sideZ = (q: Pt, minZ: number, extra: number, frontZ: number) => {
+    const i = nearSpine(q), sp = k.spine[i], t = stationAt(sh.trunk, i - 14), nA = dir(sp.a - 90 * k.flip);
+    const da = ((q.x - sp.p.x) * nA.x + (q.y - sp.p.y) * nA.y) / u;
+    const before = smooth(t.a - 1, t.a + 7, da);
+    return lerp(Math.max(minZ, (t.w ?? 14) + extra), frontZ, before);
+  };
+  const armZ = (i: 0 | 1) => {
+    const sh0 = sh.shoulderZ;
+    const el = sideZ(k.elbow[i], sh0 + 0.6, (stationAt(sh.upper, 32.7).w ?? 3.3) + 0.5, sh0 * 0.85);
+    const wr = sideZ(k.wrist[i], el + 0.6, (stationAt(sh.fore, 25.7).w ?? 2.6) + 0.4, sh.hipZ + 1.5);
+    return { sh: sg(i) * sh0, el: sg(i) * el, wr: sg(i) * wr };
+  };
+
+  /* ---- outlines of every part, as seen ---- */
+  const abdomen = trunk3(pr, k, sh, -99, 29);
+  const chest = trunk3(pr, k, sh, 27, 99);
+  const neckPts = limb3(pr, k.neckRoot, k.neckA, sh.neck, -k.flip, 0, 0);
+  const H = headFrame(k);
+  const fctx: FrontCtx = { pr, k, sh, look, pal, back: backView, floorY: FLOOR };
+  const headProfile = headOutline({ k, sh, look, pal, support: { p: { x: 0, y: FLOOR }, n: { x: 0, y: -1 } } }).map((q) => pr.P(q));
+  const head: Pt[][] = pr.profile ? [headProfile] : [headProfile, headEgg(fctx), ...earsFront(fctx)];
+  const leg = (i: 0 | 1) => {
+    const z = legZ(i);
+    return {
+      thigh: limb3(pr, k.hip, k.thighA[i], sh.thigh, k.flip, z.hip, z.knee), shin: limb3(pr, k.knee[i], k.shinA[i], sh.shin, k.flip, z.knee, z.ankle),
+      foot: pr.profile ? [footOutline(k, sh, i)] : limb3(pr, k.ankle[i], k.footA[i], sh.footSt, k.flip, z.ankle, z.ankle),
+    };
+  };
+  /* The cap above the shoulder joint is the shoulder's roundness seen from the side. From the front the shoulder is
+     the trunk's outline, so as the patient turns the cap folds down onto the joint. */
+  const frontish = 1 - Math.abs(pr.c), w0 = stationAt(sh.upper, 0).w ?? 4;
+  const upperSt = sh.upper.map((t) => (t.s < 0 ? { ...t, s: lerp(t.s, -0.6, frontish), w: lerp(t.w ?? w0, w0 * 0.92, frontish) } : t));
   /* fingers curl a little at rest; in distress the hands grip */
   const curl = b.distress === 'severe' ? 70 : b.distress === 'moderate' ? 34 : 16;
   const knuckle = (i: 0 | 1) => add(k.wrist[i], k.handA[i], 9.6 * u);
-  const arm = (i: 0 | 1) => ({
-    upper: limbOutline(k.shoulder, k.upperA[i], sh.upper, u, k.flip), fore: limbOutline(k.elbow[i], k.foreA[i], sh.fore, u, k.flip),
-    hand: limbOutline(k.wrist[i], k.handA[i], sh.hand, u, k.flip),
-    fingers: limbOutline(knuckle(i), k.handA[i] + curl * k.flip, sh.fingers, u, k.flip),
-    thumb: limbOutline(add(add(k.wrist[i], k.handA[i], 1.5 * u), k.handA[i] + 90 * k.flip, 1.2 * u), k.handA[i] + (28 + curl * 0.3) * k.flip, [{ s: 0, a: 1.0, p: 1.0 }, { s: 4.5, a: 0.85, p: 0.8 }, { s: 6.6, a: 0.5, p: 0.5 }], u, k.flip),
-  });
+  const arm = (i: 0 | 1) => {
+    const z = armZ(i);
+    return {
+      upper: limb3(pr, k.shoulder, k.upperA[i], upperSt, k.flip, z.sh, z.el), fore: limb3(pr, k.elbow[i], k.foreA[i], sh.fore, k.flip, z.el, z.wr),
+      hand: limb3(pr, k.wrist[i], k.handA[i], sh.hand, k.flip, z.wr, z.wr),
+      fingers: limb3(pr, knuckle(i), k.handA[i] + curl * k.flip, sh.fingers, k.flip, z.wr, z.wr),
+      thumb: limb3(pr, add(add(k.wrist[i], k.handA[i], 1.5 * u), k.handA[i] + 90 * k.flip, 1.2 * u), k.handA[i] + (28 + curl * 0.3) * k.flip,
+        [{ s: 0, a: 1.0, p: 1.0, w: 0.9 }, { s: 4.5, a: 0.85, p: 0.8, w: 0.8 }, { s: 6.6, a: 0.5, p: 0.5, w: 0.5 }], k.flip, z.wr - sg(i) * 1.2, z.wr - sg(i) * 1.6),
+    };
+  };
 
   /* ---- trolley, backrest and pillow ---- */
-  const H = headFrame(k);
   let backrest: { pivot: Pt; angle: number; len: number } | null = null;
   /* what the hair rests on: the floor when upright, else the mattress, backrest or pillow under the head */
   let support: Support = { p: { x: 0, y: FLOOR }, n: { x: 0, y: -1 } };
@@ -319,60 +403,141 @@ export function figureSvg(p: Pose, look: FigureLook): string {
   /* hair rests on the pillow while the head does, else on whatever is below */
   support = resting > 0.5 ? { p: at(0, Math.min(h, Math.max(gap, 0))), n: { x: -down.x, y: -down.y } }
     : { p: { x: 0, y: p.ground < 0.5 ? BED_TOP : FLOOR }, n: { x: 0, y: -1 } };
-  out.push(`<line x1="8" y1="${FLOOR}" x2="352" y2="${FLOOR}" stroke="#c4cdca" stroke-width="2" stroke-linecap="round" pointer-events="none"/>`);
-  out.push(trolley(p.bedLeft, backrest, pillow, clamp(p.ground, 0, 1)));
+  if (scene) {
+    /* the floor is a line only while it is seen edge-on */
+    const fl = pr.P({ x: 180, y: FLOOR }, 60), fl0 = pr.P({ x: 180, y: FLOOR }, -60), edgeOn = 1 - clamp(Math.abs(fl.y - fl0.y) / 30, 0, 1);
+    if (edgeOn > 0.02) {
+      const a = pr.P({ x: 8, y: FLOOR }), bb = pr.P({ x: 352, y: FLOOR });
+      out.push(`<line x1="${f(a.x)}" y1="${f(a.y)}" x2="${f(bb.x)}" y2="${f(bb.y)}" stroke="#c4cdca" stroke-width="2" stroke-linecap="round" opacity="${f(edgeOn)}" pointer-events="none"/>`);
+    }
+    out.push(trolley(pr, p.bedLeft, backrest, pillow, clamp(p.ground, 0, 1)));
+  }
 
   const ctx = { k, sh, look, pal, support };
-  out.push(hairBehind(ctx));
+  if (withHead) { out.push(prof(() => hairBehind(ctx))); if (!backView) out.push(front(() => hairBehindFront(fctx))); }
 
-  /* ---- far limbs, in shade ---- */
-  const farLeg = leg(1), farArm = arm(1);
-  const farPal = { light: pal.far, skin: pal.far, dark: darken(pal.far, 0.12) };
-  const gFar = shadeAcross(defs, 'far', mid(k.hip, k.knee[1]), k.thighA[1], 9 * u, farPal);
-  out.push(layer([
-    { attrs: 'data-region="arm" data-side="L"', parts: [farArm.upper, farArm.fore, farArm.hand, farArm.fingers, farArm.thumb].map((pts) => ({ pts, fill: gFar })) },
-    { attrs: 'data-region="legs" data-side="L"', parts: [farLeg.thigh, farLeg.shin, farLeg.foot].map((pts) => ({ pts, fill: gFar })) },
-  ], pal.farDark, lineW));
-  const dress = gown(k, sh, look, { ...pal, far: tint(pal.gown, pal.gownDark, 0.7) });
-  out.push(dress.far);
+  /* ---- depth: from the side, the far limbs are behind the body, in shade; from the front, both sides are in view ---- */
+  const near: 0 | 1 = view.side * pr.c >= 0 ? 0 : 1, far: 0 | 1 = near === 0 ? 1 : 0;
+  const sideOn = Math.abs(pr.c) > 0.64;
+  const g = (id: string, c: Pt, axis: number, w: number) => shadeAcross(defs, id, c, axis, w * u, pal, lx);
+  const ang = (a: Pt, bb: Pt) => (Math.atan2(-(bb.y - a.y), bb.x - a.x) * 180) / Math.PI;
+  const mid2 = (a: Pt, bb: Pt) => mid(pr.P(a), pr.P(bb));
+  const legParts = (i: 0 | 1, fills: [string, string, string]) => { const l = leg(i); return [...l.thigh.map((pts) => ({ pts, fill: fills[0] })), ...l.shin.map((pts) => ({ pts, fill: fills[1] })), ...l.foot.map((pts) => ({ pts, fill: fills[2] }))]; };
+  /* each limb's shading is centred on the limb itself, where it is across the body */
+  const legFills = (i: 0 | 1): [string, string, string] => {
+    const z = legZ(i), hp = pr.P(k.hip, z.hip), kn = pr.P(k.knee[i], z.knee), an = pr.P(k.ankle[i], z.ankle);
+    return [g(`thigh${i}`, mid(hp, kn), ang(hp, kn), 8.5), g(`shin${i}`, mid(kn, an), ang(kn, an), 6),
+      g(`foot${i}`, an, ang(an, pr.P(add(k.ankle[i], k.footA[i], 10 * u), z.ankle)) + 90, 6)];
+  };
+  const armParts = (i: 0 | 1, fills: [string, string, string]) => { const a = arm(i); return [...a.upper.map((pts) => ({ pts, fill: fills[0] })), ...a.fore.map((pts) => ({ pts, fill: fills[1] })), ...a.hand.map((pts) => ({ pts, fill: fills[2] })), ...a.fingers.map((pts) => ({ pts, fill: fills[2] })), ...a.thumb.map((pts) => ({ pts, fill: fills[2] }))]; };
+  const armFills = (i: 0 | 1): [string, string, string] => {
+    const z = armZ(i), s0 = pr.P(k.shoulder, z.sh), el = pr.P(k.elbow[i], z.el), wr = pr.P(k.wrist[i], z.wr);
+    return [g(`upper${i}`, mid(s0, el), ang(s0, el), 5), g(`fore${i}`, mid(el, wr), ang(el, wr), 3.6), g(`hand${i}`, wr, ang(wr, pr.P(knuckle(i), z.wr)), 3)];
+  };
+  const sideAttr = (i: 0 | 1) => (i === 0 ? 'R' : 'L');
+  const dress = gown(pr, k, { ...sh, upper: upperSt }, look, pal, {
+    thigh: (i) => { const z = legZ(i); return [z.hip, z.knee]; },
+    upper: (i) => { const z = armZ(i); return [z.sh, z.el]; },
+  });
+  const gownFill = 'url(#fig-§-gown)';
+  if (sideOn) {
+    const farPal = { light: pal.far, skin: pal.far, dark: darken(pal.far, 0.12) };
+    const zf = legZ(far), hf = pr.P(k.hip, zf.hip), kf = pr.P(k.knee[far], zf.knee);
+    const gFar = shadeAcross(defs, 'far', mid(hf, kf), ang(hf, kf), 9 * u, farPal, lx);
+    out.push(layer([
+      { attrs: `data-region="arm" data-side="${sideAttr(far)}"`, parts: armParts(far, [gFar, gFar, gFar]) },
+      { attrs: `data-region="legs" data-side="${sideAttr(far)}"`, parts: legParts(far, [gFar, gFar, gFar]) },
+    ], pal.farDark, lineW));
+    out.push(cloth([...dress.thigh[far], ...(dress.sleeve ? dress.sleeve[far] : [])], tint(pal.gown, pal.gownDark, 0.7), pal.gownLine));
+  }
 
-  /* ---- the body: trunk, near leg, neck and head as one silhouette ---- */
-  const nearLeg = leg(0);
-  const g = (id: string, c: Pt, axis: number, w: number) => shadeAcross(defs, id, c, axis, w * u, pal);
-  const gAbd = g('abd', trunkPt(k, 10, 0), trunkA(k, 10), 12 + sh.belly * 0.5);
-  const gChest = g('chest', trunkPt(k, 40, 0), trunkA(k, 40), 12);
-  const gNeck = g('neck', mid(k.neckRoot, k.headJoint), k.neckA, 6);
-  const gHead = g('head', H(8, 0), k.headA - 90, 11);
-  const gThigh = g('thigh', mid(k.hip, k.knee[0]), k.thighA[0], 8.5);
-  const gShin = g('shin', mid(k.knee[0], k.ankle[0]), k.shinA[0], 6);
-  const gFoot = g('foot', k.ankle[0], k.footA[0] + 90, 6);
+  /* ---- the body: trunk, legs in view, neck and head as one silhouette ---- */
+  const tw = (s: number) => ((stationAt(sh.trunk, s).a + stationAt(sh.trunk, s).p) / 2) * Math.abs(pr.c) + (stationAt(sh.trunk, s).w ?? 14) * Math.abs(pr.sn);
+  const gAbd = g('abd', pr.P(trunkPt(k, 10, 0)), ang(pr.P(trunkPt(k, 0, 0)), pr.P(trunkPt(k, 20, 0))), tw(10) + sh.belly * 0.5 * Math.abs(pr.c));
+  const gChest = g('chest', pr.P(trunkPt(k, 40, 0)), ang(pr.P(trunkPt(k, 30, 0)), pr.P(trunkPt(k, 50, 0))), tw(40));
+  const gNeck = g('neck', mid2(k.neckRoot, k.headJoint), ang(pr.P(k.neckRoot), pr.P(k.headJoint)), 6);
+  const gHead = g('head', pr.P(H(8, 0)), ang(pr.P(H(0, 0)), pr.P(H(10, 0))) - 90 * (1 - fp), 11 - 3.5 * fp);
+  const legsInBody: Array<0 | 1> = sideOn ? [near] : [0, 1];
   out.push(layer([
     { attrs: 'data-region="abdomen"', parts: [{ pts: abdomen, fill: gAbd }] },
     { attrs: 'data-region="chest"', parts: [{ pts: chest, fill: gChest }] },
-    { attrs: 'data-region="legs" data-side="R"', parts: [{ pts: nearLeg.thigh, fill: gThigh }, { pts: nearLeg.shin, fill: gShin }, { pts: nearLeg.foot, fill: gFoot }] },
-    { attrs: 'data-region="neck"', parts: [{ pts: neckPts, fill: gNeck }] },
-    { attrs: 'data-region="head"', parts: [{ pts: head, fill: gHead }] },
+    ...legsInBody.map((i) => ({ attrs: `data-region="legs" data-side="${sideAttr(i)}"`, parts: legParts(i, legFills(i)) })),
+    { attrs: 'data-region="neck"', parts: neckPts.map((pts) => ({ pts, fill: gNeck })) },
+    ...(withHead ? [{ attrs: 'data-region="head"', parts: head.map((pts) => ({ pts, fill: gHead })) }] : []),
   ], pal.line, lineW));
 
   /* ---- what shows on the body: bare skin details, then the gown over the rest ---- */
-  out.push(bodyDetails(k, sh, look, pal));
-  out.push(dress.body, dress.lines);
-  if (look.exposed.has('chest') && look.sex === 'F') out.push(bra(k, sh));
-  /* the lock of long hair falls over the gown; the hair on the skull covers its root */
-  out.push(hairFront(ctx), face(ctx), hairOver(ctx), ear(ctx));
+  out.push(prof(() => bodyDetails(k, sh, look, pal)));
+  out.push(front(() => trunkFront(fctx) + legsFront(fctx, legZ)));
+  out.push(cloth([...dress.trunk, ...legsInBody.flatMap((i) => dress.thigh[i])], gownFill, pal.gownLine));
+  out.push(prof(() => dress.profileLines));
+  out.push(front(() => gownLinesFront(fctx, dress.spans, { thigh: (i, s, psi) => onTube(pr, { from: k.hip, a: k.thighA[i], flip: k.flip }, (x) => w3s(stationAt(sh.thigh, x), 1.1), s, psi, legZ(i).hip + ((legZ(i).knee - legZ(i).hip) * s) / 43) })));
+  if (look.exposed.has('chest') && look.sex === 'F') { out.push(prof(() => bra(k, sh))); out.push(front(() => braFront(fctx))); }
+  if (withHead) {
+    /* the lock of long hair falls over the gown; the hair on the skull covers its root */
+    out.push(prof(() => hairFront(ctx) + face(ctx) + hairOver(ctx) + ear(ctx)));
+    out.push(front(() => faceFront(fctx) + hairFront3(fctx)));
+  }
 
-  /* ---- near arm, over the trunk ---- */
-  const nearArm = arm(0);
-  const gUpper = g('upper', mid(k.shoulder, k.elbow[0]), k.upperA[0], 5);
-  const gFore = g('fore', mid(k.elbow[0], k.wrist[0]), k.foreA[0], 3.6);
-  const gHand = g('hand', k.wrist[0], k.handA[0], 3);
-  out.push(layer([{ attrs: 'data-region="arm" data-side="R"', parts: [{ pts: nearArm.upper, fill: gUpper }, { pts: nearArm.fore, fill: gFore }, { pts: nearArm.hand, fill: gHand }, { pts: nearArm.fingers, fill: gHand }, { pts: nearArm.thumb, fill: gHand }] }], pal.line, lineW));
-  out.push(armDetails(k, look, pal, curl));
-  out.push(dress.sleeveNear);
-  out.push(oxygenSvg(ctx, { x: k.hip.x + 10 * u * Math.cos(rad(p.torso)), y: BED_TOP - 2 }));
+  /* ---- arms, over the trunk: the near one from the side, both from the front ---- */
+  const armsOver: Array<0 | 1> = sideOn ? [near] : [0, 1];
+  for (const i of armsOver) {
+    out.push(layer([{ attrs: `data-region="arm" data-side="${sideAttr(i)}"`, parts: armParts(i, armFills(i)) }], pal.line, lineW));
+    if (i === 0 && near === 0) out.push(prof(() => armDetails(k, look, pal, curl)));
+    if (dress.sleeve) out.push(sleeveSvg(dress.sleeve[i], gownFill, pal.gownLine, pr.profile ? dress.sleeveCut[i] : ''));
+  }
+  if (withHead) {
+    out.push(prof(() => oxygenSvg(ctx, { x: k.hip.x + 10 * u * Math.cos(rad(p.torso)), y: BED_TOP - 2 })));
+    out.push(front(() => oxygenFront(fctx, pr.P(trunkPt(k, 30, (stationAt(sh.trunk, 30).a)), 4))));
+  }
 
-  const body = `<defs>${defs.join('')}</defs>${out.join('')}`;
-  return body.replace(/§/g, hash(body));
+  let body = pr.wrap(out.join(''));
+  const anchor = pr.P(trunkPt(k, CHEST_ANCHOR_S, 0));
+  if (opts.chestFrame) body = `<g transform="scale(${f4(1 / u)}) translate(${f(-anchor.x)} ${f(-anchor.y)})">${body}</g>`;
+  if (opts.collect) {
+    /* the same geometry for hit-testing outside the browser (the chest views' electrode drop) */
+    const fin = (q: Pt): Pt => { const x = view.side < 0 ? 360 - q.x : q.x; return opts.chestFrame ? { x: (x - anchor.x) / u, y: (q.y - anchor.y) / u } : { x, y: q.y }; };
+    const put = (kind: string, side: 'R' | 'L' | '', polys: Pt[][]) => polys.forEach((pts) => opts.collect!(kind, side, pts.map(fin)));
+    put('abdomen', '', [abdomen]); put('chest', '', [chest]); put('neck', '', neckPts);
+    for (const i of [0, 1] as const) {
+      const a = arm(i), l = leg(i), side = sideAttr(i);
+      put('arm', side, [...a.upper, ...a.fore, ...a.hand]); put('legs', side, [...l.thigh, ...l.shin, ...l.foot]);
+      const az = armZ(i), lz = legZ(i);
+      opts.collect('wrist', side, [fin(pr.P(add(k.wrist[i], k.foreA[i], -5 * u), az.wr))]);
+      opts.collect('thigh', side, [fin(pr.P(add(k.hip, k.thighA[i], 12 * u), lz.hip + (lz.knee - lz.hip) * 0.28))]);
+    }
+  }
+  const svg = `<defs>${defs.join('')}</defs>${body}`;
+  return svg.replace(/§/g, hash(svg));
+}
+
+/** Walking round the bed: 0 the patient's right, 90 the foot of the bed (the front), 180 the patient's left. The front
+    is the same picture from either side, so a turn from right to left passes through it without a jump. */
+export const VIEW_ANGLE = { right: 0, front: 90, left: 180 } as const;
+export function viewAt(phi: number): FigureView {
+  const x = clamp(phi, 0, 180);
+  return x <= 90 ? { turn: x, side: 1 } : { turn: 180 - x, side: -1 };
+}
+
+/** The station level of the 4th intercostal space: the chest views put it at y = 0. */
+export const CHEST_ANCHOR_S = 42;
+const f4 = (n: number) => (Math.round(n * 10000) / 10000).toString();
+const w3s = (t: { s: number; a: number; p: number; w?: number }, g: number) => ({ s: t.s, a: t.a + g, p: t.p + g, w: (t.w ?? (t.a + t.p) / 2) + g });
+
+/** Kneecaps and ankle bones from the front; oedema hides the bones and makes the shins shine. */
+function legsFront(c: FrontCtx, legZ: (i: 0 | 1) => { hip: number; knee: number; ankle: number }): string {
+  if (c.back) return '';
+  const out: string[] = [], { pr, k, sh, pal } = c, u = k.u;
+  for (const i of [0, 1] as const) {
+    const z = legZ(i);
+    const shinAt = (s: number, psi: number, dr = 0) => onTube(pr, { from: k.knee[i], a: k.shinA[i], flip: k.flip }, (x) => w3s(stationAt(sh.shin, x), 0), s, psi, z.knee + ((z.ankle - z.knee) * s) / 43.3, dr);
+    const kneeAt = (s: number, psi: number) => onTube(pr, { from: k.hip, a: k.thighA[i], flip: k.flip }, (x) => w3s(stationAt(sh.thigh, x), 0), s, psi, z.hip + ((z.knee - z.hip) * s) / 43);
+    const kp = kneeAt(43, 0);
+    if (kp.vis > 0) out.push(`<ellipse cx="${f(kp.p.x)}" cy="${f(kp.p.y)}" rx="${f(2.2 * u)}" ry="${f(2.5 * u)}" fill="none" stroke="${pal.line}" stroke-width=".6" opacity=".4"/>`);
+    if (!sh.oedema) for (const psi of [-80, 80]) { const m = shinAt(41, psi); if (m.vis > 0) out.push(`<ellipse cx="${f(m.p.x)}" cy="${f(m.p.y)}" rx="${f(0.9 * u)}" ry="${f(1.0 * u)}" fill="${pal.dark}" opacity=".22"/>`); }
+    else { const top = [99, 32, 18, 2][sh.oedema]; const pts = [shinAt(top, -15).p, shinAt((top + 43) / 2, -15).p, shinAt(40, -15).p]; out.push(`<path d="${openPath(pts)}" fill="none" stroke="#ffffff" stroke-width="1" opacity=".32" stroke-linecap="round"/>`); }
+  }
+  return `<g pointer-events="none">${out.join('')}</g>`;
 }
 
 const rad = (d: number) => (d * Math.PI) / 180;
@@ -380,7 +545,7 @@ const rad = (d: number) => (d * Math.PI) / 180;
 /** Gradient ids must be unique per drawing on a page of many figures, and the same for the same drawing. */
 function hash(s: string): string {
   let h = 2166136261;
-  for (let i = 0; i < s.length; i += 3) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  for (let i = 0; i < s.length; i += 11) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return (h >>> 0).toString(36);
 }
 

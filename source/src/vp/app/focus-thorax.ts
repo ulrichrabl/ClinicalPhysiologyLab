@@ -1,4 +1,4 @@
-import { thoraxSvg, heartUnderChest, landmarks, stethoscope, AUSCULTATION_SITES, type ThoraxLook } from '../render/thorax.ts';
+import { thoraxSvg, heartUnderChest, landmarks, stethoscope, AUSCULTATION_SITES, type ThoraxLook, thoraxHit } from '../render/thorax.ts';
 import { cycle, phonoSample } from '../render/phono.ts';
 import { traceLoop, playCycle } from './sound.ts';
 import type { Lang } from './diagrams.ts';
@@ -51,7 +51,7 @@ export function mountAuscultation(host: HTMLElement, o: AuscultationOptions): ()
   const draw = (beat: number) => {
     const sx = dx(site.x), sy = site.y;
     const inner = (view === 'front' && o.overlays.anatomy ? heartUnderChest(beat) : '') + (view === 'front' && o.overlays.landmarks ? landmarks() : '')
-      + `<rect class="hit" x="-26" y="-25" width="52" height="62" fill="transparent"/>` + stethoscope(sx, sy, o.bell);
+      + thoraxHit(o.look) + stethoscope(sx, sy, o.bell);
     svgHost.innerHTML = thoraxSvg(o.look, view, inner).replace('<svg ', '<svg class="thorax" ');
   };
   const animate = (now: number) => {

@@ -11,11 +11,16 @@
    plain bra.
 
    The trolley is muted on purpose: it carries the patient and should not be
-   looked at.
+   looked at. It is a few boxes with real width (a 66 cm mattress), so from
+   the front it is seen from above (lying) or end-on (sitting) like the
+   patient on it. The gown's cloth is built in 3D as well; its folds, edges
+   and hem are drawn here for the profile and in figure-front.ts for the
+   front and back.
 --------------------------------------------------------------------------- */
 
 import { add, closedPath, dir, f, openPath, type Pt } from './figure-geom.ts';
-import { limbOutline, stationAt, trunkOutline, trunkPt, type Shape, type Skeleton, type Station } from './figure-body.ts';
+import { limb3, stationAt, trunk3, trunkA, trunkPt, type Shape, type Skeleton, type Station } from './figure-body.ts';
+import { boxCorners, hull, type Projector } from './figure-view.ts';
 import type { FigureLook } from './patient-figure.ts';
 import type { Palette } from './figure-head.ts';
 
@@ -25,14 +30,25 @@ export const BED_TOP = 258, FLOOR = 368, BED_RIGHT = 346;
 function bridge(st: Station[], slope: number): Station[] {
   return st.map((t) => {
     let a = t.a, p = t.p;
-    for (const o of st) { const d = Math.abs(o.s - t.s); a = Math.max(a, o.a - slope * d); p = Math.max(p, o.p - slope * d); }
-    return { s: t.s, a, p };
+    let w = t.w ?? (t.a + t.p) / 2;
+    for (const o of st) { const d = Math.abs(o.s - t.s); a = Math.max(a, o.a - slope * d); p = Math.max(p, o.p - slope * d); w = Math.max(w, (o.w ?? (o.a + o.p) / 2) - slope * d); }
+    return { s: t.s, a, p, w };
   });
 }
 
-export interface GownParts { far: string; body: string; sleeveNear: string; lines: string }
+export interface GownParts {
+  trunk: Pt[][];                       // the cloth over the trunk (one or two pieces)
+  thigh: [Pt[][], Pt[][]];             // the skirt over each thigh [right, left]
+  sleeve: [Pt[][], Pt[][]] | null;     // short sleeves, when the arms are covered
+  sleeveCut: [string, string];         // the sleeve's hem, in profile
+  profileLines: string;                // folds, rolled edges, neckline and hem, drawn for the profile
+  spans: Array<[number, number]>;      // the stretches of trunk it covers (for the front and back drawings)
+  hem: number;                         // where the hem crosses the thighs (station)
+}
 
-export function gown(k: Skeleton, sh: Shape, look: FigureLook, pal: { gown: string; gownLight: string; gownDark: string; gownLine: string; far: string }): GownParts {
+/** The gown on this body in this view. zs: the lateral offsets of the limbs (hip, knee; shoulder, elbow) per side. */
+export function gown(pr: Projector, k: Skeleton, sh: Shape, look: FigureLook, pal: { gown: string; gownLight: string; gownDark: string; gownLine: string },
+  z: { thigh: (i: 0 | 1) => [number, number]; upper: (i: 0 | 1) => [number, number] }): GownParts {
   const ex = look.exposed, chestBare = ex.has('chest'), abdoBare = ex.has('abdomen');
   const armBare = ex.has('arm') || chestBare;
   const u = k.u, g = 1.1;
@@ -42,26 +58,22 @@ export function gown(k: Skeleton, sh: Shape, look: FigureLook, pal: { gown: stri
   else if (chestBare && !abdoBare) spans.push([-99, 23]);
   else if (!chestBare && abdoBare) { spans.push([28, 55.5], [-99, 0]); }
   else spans.push([-99, 0]);
-  const hem = 26;
+  /* bare legs (the chest views, for limb electrodes): only a drape over the groin */
+  const hem = ex.has('legs') ? 5 : 26;
   const thighCloth = bridge(sh.thigh.filter((t) => t.s <= hem), 0.25).map((t, i, all) => ({ ...t, a: t.a + (i === all.length - 1 ? 0.8 : 0), p: t.p + (i === all.length - 1 ? 0.9 : 0) }));
   const thighShape = (i: 0 | 1) => {
-    const st = [...thighCloth];
+    const st: Station[] = [...thighCloth];
     const last = stationAt(sh.thigh, hem);
-    st.push({ s: hem, a: last.a + 0.9, p: last.p + 1.0 });
-    return limbOutline(k.hip, k.thighA[i], st.filter((t) => t.s >= -4), u, k.flip, g);
+    st.push({ s: hem, a: last.a + 0.9, p: last.p + 1.0, w: (last.w ?? 6) + 1.0 });
+    const [z0, z1] = z.thigh(i);
+    return limb3(pr, k.hip, k.thighA[i], st.filter((t) => t.s >= -4), k.flip, z0, z0 + ((z1 - z0) * hem) / 43, g);
   };
   /* cloth bridges the hollows of the part it covers, not of what lies beyond its edge */
-  const clothFor = ([a, b]: [number, number]) => ({ ...sh, trunk: [...sh.trunk.filter((t) => t.s < a - 4), ...bridge(sh.trunk.filter((t) => t.s >= a - 4 && t.s <= b + 4), 0.32), ...sh.trunk.filter((t) => t.s > b + 4)] });
-  const cloth = clothFor(spans[0]);
-  const trunkShapes = spans.map((sp) => trunkOutline(k, clothFor(sp), sp[0], sp[1], g));
-  const grad = `url(#fig-§-gown)`;
-  const shapes = [...trunkShapes, thighShape(0)];
-  const pass = (pts: Pt[][], fill: string, stroke: string) => {
-    const d = pts.map((p) => `<path d="${closedPath(p)}"/>`).join('');
-    return `<g fill="${stroke}" stroke="${stroke}" stroke-width="1.3" stroke-linejoin="round">${d}</g><g fill="${fill}">${d}</g>`;
-  };
+  const clothFor = ([a, b]: [number, number]) => [...sh.trunk.filter((t) => t.s < a - 4), ...bridge(sh.trunk.filter((t) => t.s >= a - 4 && t.s <= b + 4), 0.32), ...sh.trunk.filter((t) => t.s > b + 4)];
+  const cloth = { ...sh, trunk: clothFor(spans[0]) };
+  const trunkShapes = spans.map((sp) => trunk3(pr, k, sh, sp[0], sp[1], g, clothFor(sp)));
 
-  /* folds: where cloth bunches (waist, groin, the elbow of a bent trunk) and long folds from the shoulder */
+  /* folds: where cloth bunches (waist, groin, the elbow of a bent trunk) and long folds from the shoulder (profile) */
   const lines: string[] = [];
   const fold = (pts: Pt[], o = 0.55, w = 0.8) => lines.push(`<path d="${openPath(pts)}" fill="none" stroke="${pal.gownLine}" stroke-width="${f(w)}" stroke-linecap="round" opacity="${o}"/>`);
   const at = (s: number) => stationAt(cloth.trunk, s);
@@ -90,25 +102,44 @@ export function gown(k: Skeleton, sh: Shape, look: FigureLook, pal: { gown: stri
 
   /* sleeves: short, flared, over the upper arm */
   const sleeve = (i: 0 | 1) => {
-    const st = sh.upper.filter((t) => t.s <= 10).map((t) => ({ s: t.s, a: t.a, p: t.p }));
+    const st: Station[] = sh.upper.filter((t) => t.s <= 10).map((t) => ({ ...t }));
     const end = stationAt(sh.upper, 12);
-    st.push({ s: 12, a: end.a + 0.6, p: end.p + 0.7 });
-    return limbOutline(k.shoulder, k.upperA[i], st, u, k.flip, 0.7);
+    st.push({ s: 12, a: end.a + 0.6, p: end.p + 0.7, w: (end.w ?? 4) + 0.8 });
+    const [z0, z1] = z.upper(i);
+    return limb3(pr, k.shoulder, k.upperA[i], st, k.flip, z0, z0 + ((z1 - z0) * 12) / 32.7, 0.7);
   };
-  let sleeveNear = '', far = '';
   const sleeveCut = (i: 0 | 1) => { const e = stationAt(sh.upper, 12); return `<path d="${openPath([add(add(k.shoulder, k.upperA[i], 12.2 * u), k.upperA[i] + 90 * k.flip, (e.a + 1.3) * u), add(k.shoulder, k.upperA[i], 12.6 * u), add(add(k.shoulder, k.upperA[i], 12.2 * u), k.upperA[i] - 90 * k.flip, (e.p + 1.4) * u)])}" fill="none" stroke="${pal.gownLine}" stroke-width="1" opacity=".9"/>`; };
   const sleevesOn = !armBare && !chestBare && spans.some(([, b]) => b >= 55);
-  if (sleevesOn) {
-    /* The sleeve is filled whole but outlined only along its sides: at the top it is the same cloth as the gown. */
-    const sl = sleeve(0), n = sl.length / 2;
-    const side = (pts: Pt[]) => `<path d="${openPath(pts)}" fill="none" stroke="${pal.gownLine}" stroke-width="1.3" stroke-linecap="round"/>`;
-    sleeveNear = `<g pointer-events="none"><path d="${closedPath(sl)}" fill="${grad}"/>${side(sl.slice(1, n))}${side(sl.slice(n + 1, sl.length - 1))}${sleeveCut(0)}</g>`;
+  /* From the front the gown is one skirt over both thighs, not a leg of shorts on each: the cloth between the thighs is
+     the hull of the two (and of the hips it hangs from). */
+  const thighs = [thighShape(0), thighShape(1)] as [Pt[][], Pt[][]];
+  if (!pr.profile && Math.abs(pr.c) < 0.9) {
+    const hips = trunk3(pr, k, sh, -99, 4, g, clothFor(spans[spans.length - 1]));
+    /* only the thighs below the hip joint: their rounded tops belong inside the trunk */
+    const h0 = pr.P(k.hip), up = pr.vec(dir(trunkA(k, 0)));
+    const below = (q: Pt) => (q.x - h0.x) * up.x + (q.y - h0.y) * up.y < 0;
+    const skirt = hull([...thighs[0][0].filter(below), ...thighs[1][0].filter(below), ...hips]);
+    trunkShapes.push(skirt);
+    /* the skirt is the cloth over the thighs now; their own pieces would poke above it */
+    if (Math.abs(pr.c) < 0.5) { thighs[0] = []; thighs[1] = []; }
   }
-  /* the far side: the far thigh's gown and sleeve, in shade */
-  const farParts: Pt[][] = [thighShape(1)];
-  if (sleevesOn) farParts.push(sleeve(1));
-  far = `<g pointer-events="none">${pass(farParts, pal.far, pal.gownLine)}</g>`;
-  return { far, body: `<g pointer-events="none">${pass(shapes, grad, pal.gownLine)}</g>`, sleeveNear, lines: `<g pointer-events="none">${lines.join('')}</g>` };
+  return {
+    trunk: trunkShapes, thigh: thighs, sleeve: sleevesOn ? [sleeve(0), sleeve(1)] : null, sleeveCut: [sleeveCut(0), sleeveCut(1)],
+    profileLines: `<g pointer-events="none">${lines.join('')}</g>`, spans, hem,
+  };
+}
+
+/** Cloth drawn as one piece: all outlines, then all fills. */
+export function cloth(parts: Pt[][], fill: string, stroke: string): string {
+  const d = parts.map((p) => `<path d="${closedPath(p)}"/>`).join('');
+  return `<g pointer-events="none"><g fill="${stroke}" stroke="${stroke}" stroke-width="1.3" stroke-linejoin="round">${d}</g><g fill="${fill}">${d}</g></g>`;
+}
+
+/** A sleeve: filled whole but outlined only along its sides, since at the top it is the same cloth as the gown. */
+export function sleeveSvg(parts: Pt[][], fill: string, line: string, cut: string): string {
+  const sl = parts[0], n = sl.length / 2;
+  const side = (pts: Pt[]) => `<path d="${openPath(pts)}" fill="none" stroke="${line}" stroke-width="1.3" stroke-linecap="round"/>`;
+  return `<g pointer-events="none">${parts.slice(1).map((p) => `<path d="${closedPath(p)}" fill="${fill}"/>`).join('')}<path d="${closedPath(sl)}" fill="${fill}"/>${side(sl.slice(1, n))}${side(sl.slice(n + 1, sl.length - 1))}${cut}</g>`;
 }
 
 /** A plain bra for a woman whose chest is exposed: a soft band over the breasts and a strap to the shoulder. */
@@ -129,29 +160,54 @@ export function bra(k: Skeleton, sh: Shape): string {
 
 /* ---- trolley ---- */
 
-export interface BedGeom { svg: string; pillowTop: number | null }
-
-export function trolley(left: number, backrest: { pivot: Pt; angle: number; len: number } | null, pillow: Pt[] | null, fade: number): string {
+/** The trolley in this view: frame, wheels, mattress, the backrest (head section) and the pillow. */
+export function trolley(pr: Projector, left: number, backrest: { pivot: Pt; angle: number; len: number } | null, pillow: Pt[] | null, fade: number): string {
   const top = BED_TOP, frame = '#b4bfbc', frameDark = '#97a3a0', matt = 'url(#fig-§-matt)';
   const out: string[] = [];
+  const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, fill: string, stroke = '', sw = 1) =>
+    out.push(`<path d="${poly(hull(boxCorners(pr, x0, x1, y0, y1, z0, z1)))}" fill="${fill}"${stroke ? ` stroke="${stroke}" stroke-width="${sw}"` : ''} stroke-linejoin="round"/>`);
+  const topFace = (x0: number, x1: number, y: number, z0: number, z1: number, fill: string) => {
+    const q = [pr.P({ x: x0, y }, z0), pr.P({ x: x1, y }, z0), pr.P({ x: x1, y }, z1), pr.P({ x: x0, y }, z1)];
+    if (Math.abs(area(q)) > 40) out.push(`<path d="${poly(q)}" fill="${fill}" stroke="#c9d2cf" stroke-width="1" stroke-linejoin="round"/>`);
+  };
+  const ZM = 33, ZP = 27;
   out.push(`<g class="bed" pointer-events="none" opacity="${f(1 - 0.45 * fade)}">`);
-  out.push(`<rect x="${f(left)}" y="${top + 13}" width="${f(BED_RIGHT - left)}" height="6" rx="2" fill="${frameDark}"/>`);
-  for (const x of [left + 24, BED_RIGHT - 30]) out.push(`<rect x="${f(x)}" y="${top + 19}" width="6" height="${FLOOR - top - 30}" fill="${frame}"/><circle cx="${f(x + 3)}" cy="${FLOOR - 6}" r="6" fill="#7f8b88"/><circle cx="${f(x + 3)}" cy="${FLOOR - 6}" r="2.2" fill="#c9d1cf"/>`);
-  out.push(`<rect x="${f(left + 20)}" y="${FLOOR - 26}" width="${f(BED_RIGHT - left - 40)}" height="4" rx="2" fill="${frame}"/>`);
+  /* posts, wheels and the lower rail, on both sides of the trolley */
+  for (const zs of [ZP, -ZP]) {
+    for (const x of [left + 24, BED_RIGHT - 30]) {
+      box(x, x + 6, top + 19, FLOOR - 11, zs - 1.5, zs + 1.5, frame);
+      const wheel: Pt[] = []; for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; wheel.push(pr.P({ x: x + 3 + Math.cos(a) * 6, y: FLOOR - 6 + Math.sin(a) * 6 }, zs)); }
+      out.push(`<path d="${poly(wheel)}" fill="#7f8b88"/>`);
+      const hub = pr.P({ x: x + 3, y: FLOOR - 6 }, zs);
+      out.push(`<circle cx="${f(hub.x)}" cy="${f(hub.y)}" r="2.2" fill="#c9d1cf"/>`);
+    }
+    box(left + 20, BED_RIGHT - 20, FLOOR - 26, FLOOR - 22, zs - 1, zs + 1, frame);
+  }
+  box(left, BED_RIGHT, top + 13, top + 19, -ZP - 2, ZP + 2, frameDark);
   if (backrest) {
     const { pivot, angle, len } = backrest;
     const d = dir(angle), n = dir(angle + 90);     // n points into the mattress, away from the patient
-    const p0 = pivot, p1 = { x: pivot.x + d.x * len, y: pivot.y + d.y * len };
+    const p1 = { x: pivot.x + d.x * len, y: pivot.y + d.y * len };
     const q = (p: Pt, t: number) => ({ x: p.x + n.x * t, y: p.y + n.y * t });
-    out.push(`<path d="M${f(p0.x)} ${f(p0.y)}L${f(p1.x)} ${f(p1.y)}L${f(q(p1, 13).x)} ${f(q(p1, 13).y)}L${f(q(p0, 13).x)} ${f(q(p0, 13).y)}Z" fill="${matt}" stroke="#b9c4c1" stroke-width="1" stroke-linejoin="round"/>`);
-    const strut = q(add(p0, angle, len * 0.55), 13);
-    out.push(`<path d="M${f(strut.x)} ${f(strut.y)}L${f(p0.x + (p1.x - p0.x) * 0.15)} ${top + 16}" stroke="${frameDark}" stroke-width="4" stroke-linecap="round"/>`);
+    const strut = q(add(pivot, angle, len * 0.55), 13);
+    for (const zs of [ZP - 4, -ZP + 4]) out.push(`<path d="${poly([pr.P(strut, zs), pr.P({ x: pivot.x + (p1.x - pivot.x) * 0.15, y: top + 16 }, zs)])}" fill="none" stroke="${frameDark}" stroke-width="4" stroke-linecap="round"/>`);
+    const corners = [pivot, p1, q(p1, 13), q(pivot, 13)].flatMap((p) => [pr.P(p, -ZM), pr.P(p, ZM)]);
+    out.push(`<path d="${poly(hull(corners))}" fill="${matt}" stroke="#b9c4c1" stroke-width="1" stroke-linejoin="round"/>`);
+    const face = [pr.P(pivot, -ZM), pr.P(p1, -ZM), pr.P(p1, ZM), pr.P(pivot, ZM)];
+    if (Math.abs(area(face)) > 40) out.push(`<path d="${poly(face)}" fill="#eef2f0" stroke="#c9d2cf" stroke-width="1" stroke-linejoin="round"/>`);
   }
-  out.push(`<rect x="${f(left)}" y="${top}" width="${f(BED_RIGHT - left)}" height="14" rx="6" fill="${matt}" stroke="#b9c4c1" stroke-width="1"/>`);
-  if (pillow) out.push(`<path d="${closedPath(pillow)}" fill="#f4f6f5" stroke="#c8d0ce" stroke-width="1"/>`);
+  const mx0 = backrest ? backrest.pivot.x : left;
+  box(mx0, BED_RIGHT, top, top + 14, -ZM, ZM, matt, '#b9c4c1');
+  topFace(mx0, BED_RIGHT, top, -ZM, ZM, '#eef2f0');
+  if (pillow) {
+    const pts = pillow.flatMap((p) => [pr.P(p, -21), pr.P(p, 21)]);
+    out.push(`<path d="${closedPath(pr.profile ? pillow.map((p) => pr.P(p)) : hull(pts))}" fill="#f4f6f5" stroke="#c8d0ce" stroke-width="1"/>`);
+  }
   out.push('</g>');
   return out.join('');
 }
+const poly = (pts: Pt[]) => pts.map((p, i) => `${i ? 'L' : 'M'}${f(p.x)} ${f(p.y)}`).join('') + 'Z';
+const area = (q: Pt[]) => q.reduce((s, p, i) => { const r = q[(i + 1) % q.length]; return s + p.x * r.y - r.x * p.y; }, 0) / 2;
 
 /** Gradient defs shared by the dress (gown cloth, mattress). */
 export function dressDefs(pal: { gown: string; gownLight: string; gownDark: string }): string {

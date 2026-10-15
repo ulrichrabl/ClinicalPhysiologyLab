@@ -1,4 +1,4 @@
-import { thoraxSvg, landmarks, stethoscope, percussionHand, lobesUnderChest, AUSCULTATION_SITES, LUNG_SITE_IDS, type ThoraxLook } from '../render/thorax.ts';
+import { thoraxSvg, landmarks, stethoscope, percussionHand, lobesUnderChest, AUSCULTATION_SITES, LUNG_SITE_IDS, type ThoraxLook, thoraxHit } from '../render/thorax.ts';
 import { traceLoop, synthBreath, synthPercussion, playLoop, breathFlow, type BreathSpec } from './sound.ts';
 import type { Lang } from './diagrams.ts';
 
@@ -61,7 +61,7 @@ export function mountChest(host: HTMLElement, o: ChestOptions): () => void {
     const f = breathFlow({ ...o.breathing, breath: 'vesicular', added: [] }, (now - t0) / 1000);
     const scale = 1 + 0.006 * Math.max(-0.2, f);
     const inner = (o.overlays.lobes ? lobesUnderChest(view) : '') + (view === 'front' && o.overlays.landmarks ? landmarks() : '')
-      + `<rect class="hit" x="-26" y="-25" width="52" height="62" fill="transparent"/>` + inst;
+      + thoraxHit(o.look) + inst;
     svgHost.innerHTML = thoraxSvg(o.look, view, `<g transform="scale(${scale.toFixed(4)} 1)">${inner}</g>`).replace('<svg ', '<svg class="thorax" ');
     raf = requestAnimationFrame(draw);
   };

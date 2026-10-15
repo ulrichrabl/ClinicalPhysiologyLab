@@ -27,7 +27,7 @@ export interface Palette {
 export interface Support { p: Pt; n: Pt }
 export interface HeadCtx { k: Skeleton; sh: Shape; look: FigureLook; pal: Palette; support: Support }
 
-const HEAD_SCALE = 1.06;   // a touch larger than life: 7.5 heads tall, and the face reads at 190 px
+export const HEAD_SCALE = 1.06;   // a touch larger than life: 7.5 heads tall, and the face reads at 190 px
 
 type AB = [number, number];
 
@@ -78,7 +78,7 @@ export function hairStyle(text: string, sex: 'F' | 'M'): HairStyle {
 
 /** A hair strand hanging from `root`: it leaves along `d0` and bends toward the floor, keeps off the skull, and
     slides along the support (pillow, backrest) instead of passing through it. */
-function strand(root: Pt, d0: Pt, len: number, step: number, sup: Support, avoid: { c: Pt; r: number }): Pt[] {
+export function strand(root: Pt, d0: Pt, len: number, step: number, sup: Support, avoid: { c: Pt; r: number }): Pt[] {
   const pts = [root];
   let p = root, d = d0, rest = 0;
   const n = Math.max(2, Math.round(len / step));
@@ -222,13 +222,13 @@ export function hairOver(c: HeadCtx): string {
   } else out.push(`<path d="${closedPath(shape)}" fill="${pal.hair}" stroke="${pal.hairDark}" stroke-width="${f(0.35 * u)}" stroke-linejoin="round"/>`);
   /* Fine strands, light from the upper left, as on the face canvas. */
   const strands = 6;
-  for (let i = 0; i < strands; i++) {
+  for (let i = 0; i < strands && !st.thin && !horseshoe; i++) {
     const t = (i + 1) / (strands + 1);
-    const line = arc.slice(0, Math.max(2, Math.round(arc.length * 0.9))).map(([a, b]) => {
+    const line = coarse.slice(0, Math.max(2, Math.round(coarse.length * 0.9))).map(([a, b]) => {
       const da = a - center[0], db = b - center[1], m = Math.hypot(da, db);
       return H(a + (da / m) * vol * t * 0.8, b + (db / m) * vol * t * 0.8);
     });
-    if (!st.thin && !horseshoe) out.push(`<path d="${openPath(line)}" fill="none" stroke="${i % 2 ? pal.hairLight : pal.hairDark}" stroke-width="${f(0.18 * u)}" opacity=".5"/>`);
+    out.push(`<path d="${openPath(line)}" fill="none" stroke="${i % 2 ? pal.hairLight : pal.hairDark}" stroke-width="${f(0.18 * u)}" opacity=".5"/>`);
   }
   if (st.curls) for (let i = 1; i < outer.length - 1; i += 2) {
     const [a, b] = outer[i];
