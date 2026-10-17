@@ -30,8 +30,11 @@ export function contextFits(base: Record<string, unknown>, want: WantedContext):
   return Object.entries(want).every(([k, v]) => (Array.isArray(v) ? !(k in base) || v.includes(base[k] as never) : !(k in base) || base[k] === v));
 }
 
+/** Restrict observation to what one test, done on one side (if any), reveals: the findings of that test alone. */
+export interface OnlyTest { test: string; side?: Side }
+
 /** The refs and contexts an examiner can observe `obs` in, restricted to (and merged with) `want`. */
-export function contextsFor(cat: Catalog, obs: string, wanted: WantedContext = {}): Array<{ ref: string; side?: Side; ctx: ExamContext }> {
+export function contextsFor(cat: Catalog, obs: string, wanted: WantedContext = {}, only?: OnlyTest): Array<{ ref: string; side?: Side; ctx: ExamContext }> {
   const want = Object.fromEntries(Object.entries(wanted).filter(([, v]) => !Array.isArray(v))) as ExamContext;
   const pd = cat.properties[obs];
   if (!pd) throw new Error(`unknown observable ${obs}`);
@@ -47,18 +50,21 @@ export function contextsFor(cat: Catalog, obs: string, wanted: WantedContext = {
       for (const k of m?.sideContext ?? []) if (!(k in (want as object))) c[k] = S;
       return c as ExamContext;
     };
-    if (pd.paired) { for (const S of SIDES) push(`${obs}.${S}`, S, m?.sideContext?.length ? sideCtx(S) : ctx); return; }
-    if (m?.paired && ctx.site) { for (const S of SIDES) push(obs, S, { ...ctx, site: `${ctx.site}.${S}` }); return; }
-    if (m?.paired && m.sideContext?.length) { for (const S of SIDES) push(obs, undefined, sideCtx(S)); return; }
+    const sides = only?.side ? [only.side] : SIDES;
+    if (pd.paired) { for (const S of sides) push(`${obs}.${S}`, S, m?.sideContext?.length ? sideCtx(S) : ctx); return; }
+    if (m?.paired && ctx.site) { for (const S of sides) push(obs, S, { ...ctx, site: `${ctx.site}.${S}` }); return; }
+    if (m?.paired && m.sideContext?.length) { for (const S of sides) push(obs, undefined, sideCtx(S)); return; }
+    /* Asked for one side, an observation without sides says nothing about that side. */
+    if (only?.side && !m?.paired) return;
     push(obs, undefined, ctx);
   };
   for (const m of Object.values(cat.manoeuvres)) for (const r of m.reveals ?? []) {
-    if (r.property !== obs) continue;
+    if (r.property !== obs || (only && m.id !== only.test)) continue;
     const base = { ...(m.context ?? {}), ...(r.context ?? {}) } as Record<string, unknown>;
     if (!contextFits(base, wanted)) continue;
     addSides(m, { ...base, ...want } as ExamContext);
   }
-  if (!out.length) addSides(undefined, want);
+  if (!out.length && !only) addSides(undefined, want);
   return out;
 }
 
@@ -88,13 +94,14 @@ function compare(op: Clause['op'], a: any, b: any): boolean {
 /** Reads one patient (one case and its runtime view) and decides sign definitions on it. */
 export class SignEvaluator {
   private cache = new Map<string, Row[]>();
-  constructor(readonly cat: Catalog, private observe: Observer) {}
+  /** `only`: read just what one test (on one side) reveals, to name the signs that test found. */
+  constructor(readonly cat: Catalog, private observe: Observer, readonly only?: OnlyTest) {}
 
   rows(obs: string, want: WantedContext = {}): Row[] {
     const key = obs + JSON.stringify(want);
     let rs = this.cache.get(key);
     if (!rs) {
-      rs = contextsFor(this.cat, obs, want).map(({ ref, side, ctx }) => {
+      rs = contextsFor(this.cat, obs, want, this.only).map(({ ref, side, ctx }) => {
         const f = this.observe(ref, ctx);
         return { side, ctx, value: f.value, normal: f.normal, provenance: f.provenance };
       });

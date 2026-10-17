@@ -66,9 +66,21 @@ Search matches names in all languages at once, so an English learner who types "
 - **Animations:** `animation` names a renderer, drawn in the same style as the patient figure.
 - **Checking cards against the model:** a test that runs each linked condition through the model and confirms it produces the stated sign, so the cards stay honest the way the evidence registry does.
 
+## Signs in the encounter (ADR-016 step 3)
+
+- **After a test, the feed names the signs it found:**
+  - **What is read:** only that test's own observations, on the side it was done.
+  - **Sides:** each sign carries its side, or "both sides". A sign that exists only by comparing the sides, such as anisocoria, has none.
+  - **Normal variants** are named as normal (end-point nystagmus).
+  - **Pertinent negatives:** signs the test looked for but did not find are listed collapsed.
+  - **Interventions** (positioning, exposing, oxygen) name none themselves.
+- **General inspection names what the bedside figure shows,** where the eye alone could find it: jaundice, cyanosis, a distended abdomen, a barrel chest. Shifting dullness and pitting oedema read the same fields but need percussion or pressure, so they are not named by sight.
+- **The Notes tab** lists the signs found so far. With the free patient, and after committing to a diagnosis, it also lists every sign the model produces, whether examined or not.
+- **Every sign chip opens the sign's card.**
+
 ## Names
 
-Each manoeuvre's label is the name a medical student learns it by, in each language: "Romberg test" / "Romberg-Stehversuch", "Pronator drift" / "Armvorhalteversuch", "Facial nerve (VII)" / "N. facialis (VII)", "Lying and standing blood pressure" / "Schellong-Test". How to perform the test is on its card, not in the label.
+Each manoeuvre's label is the name of the test, never of a sign it shows (ADR-016): "Inspection of the sclerae", not "Scleral icterus". The old sign-named labels remain as aliases, so search still finds them. Otherwise the label is the name a medical student learns the test by, in each language: "Romberg test" / "Romberg-Stehversuch", "Pronator drift" / "Armvorhalteversuch", "Facial nerve (VII)" / "N. facialis (VII)", "Lying and standing blood pressure" / "Schellong-Test". How to perform the test is on its card, not in the label.
 
 ## Status and what is missing
 

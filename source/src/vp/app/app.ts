@@ -11,8 +11,10 @@ import { ask, opening, interpret, normalise } from '../engine/language.ts';
 import { autoNote, describe } from '../engine/notes.ts';
 import { commit, type Commit, type DebriefResult } from '../engine/debrief.ts';
 import { tr, list, type LocalizedText } from '../model/i18n.ts';
-import type { CardPresentation, CaseDef, Finding, ManoeuvreDef, Side, InvestigationDef, TeachingCard } from '../model/types.ts';
+import type { CardPresentation, CaseDef, ExamContext, Finding, ManoeuvreDef, Side, InvestigationDef, TeachingCard } from '../model/types.ts';
 import { KNOWLEDGE, labelOf } from '../knowledge/index.ts';
+import { signsFoundBy, signsOnTheFigure } from '../knowledge/elicited.ts';
+import { signsOf } from '../knowledge/coverage.ts';
 import { signCard } from '../knowledge/cards.ts';
 import { suggest, type Suggestion } from '../engine/suggest.ts';
 import { SHORT_LABELS } from '../data/exam-structure.ts';
@@ -76,6 +78,11 @@ const UI: Record<string, Record<Lang, string>> = {
   foundBy: { en: 'Found by', de: 'Erhoben durch' }, presentsAs: { en: 'How it presents', de: 'Wie er sich zeigt' },
   partOf: { en: 'Part of', de: 'Teil von' }, variantsWord: { en: 'Variants', de: 'Varianten' }, variantOf: { en: 'A variant of', de: 'Eine Variante von' },
   backWord: { en: 'Back', de: 'Zurück' },
+  signsFoundWord: { en: 'Signs', de: 'Befunde' }, lookedFor: { en: 'Looked for, not found', de: 'Gesucht, nicht gefunden' },
+  normalWord: { en: 'normal', de: 'normal' }, bothSides: { en: 'both sides', de: 'beidseits' },
+  signsSoFar: { en: 'Signs found so far', de: 'Bisher erhobene Befunde' }, noSignsYet: { en: 'No signs named yet.', de: 'Noch keine Befunde benannt.' },
+  signsInModel: { en: 'Signs this patient shows (from the model)', de: 'Befunde dieses Patienten (aus dem Modell)' },
+  signsInModelHint: { en: 'Everything the simulation produces, whether or not it has been examined.', de: 'Alles, was die Simulation erzeugt, ob untersucht oder nicht.' },
   roleRequired: { en: 'required', de: 'obligat' }, roleAbsent: { en: 'absent', de: 'fehlt' },
   doIt: { en: 'Do it now', de: 'Jetzt durchführen' }, close: { en: 'Close', de: 'Schließen' },
   spoilerHidden: { en: 'The conditions it points to are shown after you commit to a diagnosis.', de: 'Die Krankheitsbilder dazu werden gezeigt, sobald Sie sich auf eine Diagnose festgelegt haben.' },
@@ -143,6 +150,7 @@ type FeedItem =
   | { k: 'act'; manoeuvre: string; side?: Side }
   | { k: 'blocked'; reason: string }
   | { k: 'finding'; finding: Finding }
+  | { k: 'signs'; found: Array<{ sign: string; sides: Side[] }>; normal: string[]; absent: string[] }
   | { k: 'order'; inv: string }
   | { k: 'result'; inv: string; value: unknown }
   | { k: 'system'; text: LocalizedText }
@@ -214,6 +222,8 @@ export function mount(root: HTMLElement) {
   let labTick: (() => void) | null = null;
   const labOpen = new Set<string>(['haemodynamics', 'electrical']);
   let feed: FeedItem[] = [];
+  /* The signs named so far in this encounter, with the sides they were found on ('' = no side). */
+  let signsSeen = new Map<string, Set<string>>();
   let shownResults = new Set<string>();
   let visual: Visual = null;
   let tab: 'feed' | 'notes' | 'mine' = 'feed';
@@ -301,6 +311,7 @@ export function mount(root: HTMLElement) {
     $('#preparing')?.remove();
     const caseDef = free ? caseWithModel(FREE_CASE, model) : base;
     s = startEncounter(CATALOG, REGISTRY, caseDef, buildView(caseDef, { circulation: live.snap, chemistry: live.chemistry }), { locale: lang });
+    signsSeen = new Map();
     feed = [{ k: 'scene', text: { en: `${tr(base.setting.place, 'en')}. ${tr(base.setting.triage, 'en')}`, de: `${tr(base.setting.place, 'de')}. ${tr(base.setting.triage, 'de')}` } }];
     const open = base.history.filter((f) => f.volunteered);
     if (open.length) feed.push({ k: 'patient', facts: open.map((f) => f.id), topics: [], text: opening(s), locale: lang });
@@ -344,7 +355,17 @@ export function mount(root: HTMLElement) {
     if (r.outcome === 'blocked') feed.push({ k: 'blocked', reason: r.reason! });
     if (r.outcome === 'performed' && m.sets?.oxygen) breatheOxygen();
     for (const f of r.findings) feed.push({ k: 'finding', finding: f });
-    if (r.outcome === 'performed') visualFor(m, side, r.findings);
+    if (r.outcome === 'performed') {
+      /* Name the signs this test found (only from its own observations), and at general inspection the signs the
+         bedside figure shows. */
+      const observe = (ref: string, ctx: ExamContext) => observeIn(s!, ref, ctx);
+      const sf = signsFoundBy(KNOWLEDGE, CATALOG, observe, id, side);
+      if (id === 'inspect.general') for (const x of signsOnTheFigure(KNOWLEDGE, CATALOG, observe)) if (!sf.found.some((f) => f.sign === x)) sf.found.push({ sign: x, sides: [] });
+      sf.absent = sf.absent.filter((x) => !sf.found.some((f) => f.sign === x));
+      if (sf.found.length || sf.normal.length || sf.absent.length) feed.push({ k: 'signs', ...sf });
+      for (const f of sf.found) { const set = signsSeen.get(f.sign) ?? new Set<string>(); for (const x of f.sides.length ? f.sides : ['']) set.add(x); signsSeen.set(f.sign, set); }
+      visualFor(m, side, r.findings);
+    }
     afterTime(before);
     renderEncounter();
   };
@@ -731,6 +752,14 @@ export function mount(root: HTMLElement) {
       case 'act': return `<div class="f-act">${esc(tr(CATALOG.manoeuvres[it.manoeuvre].label, lang))}${sideWord(it.side)}</div>`;
       case 'blocked': return `<div class="f-blocked">${esc(blockedText(it.reason))}</div>`;
       case 'finding': return `<div class="f-finding${it.finding.normal ? '' : ' abn'}">${esc(describe(s!, it.finding, lang))}</div>`;
+      case 'signs': {
+        const chip = (id: string, extra = '') => `<button type="button" class="chip" data-sign="${id}">${esc(signLabel(id))}${extra}</button>`;
+        const sideOf = (sides: Side[]) => (sides.length === 2 ? ` (${t('bothSides')})` : sideWord(sides[0]));
+        return `<div class="f-signs">
+          ${it.found.length ? `<p class="chips"><span class="lbl">${esc(t('signsFoundWord'))}:</span>${it.found.map((f) => chip(f.sign, esc(sideOf(f.sides)))).join('')}</p>` : ''}
+          ${it.normal.length ? `<p class="chips">${it.normal.map((x) => chip(x, ` (${esc(t('normalWord'))})`)).join('')}</p>` : ''}
+          ${it.absent.length ? `<details><summary>${esc(t('lookedFor'))} (${it.absent.length})</summary><p class="chips">${it.absent.map((x) => chip(x)).join('')}</p></details>` : ''}</div>`;
+      }
       case 'order': { const inv = CATALOG.investigations[it.inv]; return `<div class="f-act">${t('ordered')}: ${esc(tr(inv.label, lang))}${it.inv === 'ecg-12' ? '' : ` · ${t('resultIn')} ${inv.turnaroundMinutes} ${t('min')}`}</div>`; }
       case 'result': {
         const inv = CATALOG.investigations[it.inv];
@@ -747,6 +776,23 @@ export function mount(root: HTMLElement) {
 
   const notesHtml = (md: string) => md ? md.split('\n').map((l) => l.startsWith('## ') ? `<h3>${esc(l.slice(3))}</h3>` : l.startsWith('- ') ? `<p>${esc(l.slice(2))}</p>` : '').join('') : `<p class="muted">${t('noNotes')}</p>`;
 
+  /* The Notes tab: the signs named so far; with the free patient (or once a case is committed), every sign the
+     model produces, so the learner can see what was there to find. */
+  const signsNotesHtml = () => {
+    if (!s) return '';
+    const chip = (id: string, sides?: Set<string>) => {
+      const sd = sides ? [...sides].filter(Boolean) as Side[] : [];
+      return `<button type="button" class="chip" data-sign="${id}">${esc(signLabel(id))}${sd.length === 2 ? ` (${esc(t('bothSides'))})` : sd.length ? esc(sideWord(sd[0])) : ''}</button>`;
+    };
+    let html = `<h3>${esc(t('signsSoFar'))}</h3>${signsSeen.size ? `<p class="chips">${[...signsSeen].map(([id, sides]) => chip(id, sides)).join('')}</p>` : `<p class="muted">${esc(t('noSignsYet'))}</p>`}`;
+    if ((free || committed) && tab === 'notes') {
+      const all = signsOf(KNOWLEDGE, CATALOG, (ref, ctx) => observeIn(s!, ref, ctx));
+      const shown = Object.entries(all).filter(([id, v]) => v === true && !KNOWLEDGE.signs[id].normalVariant).map(([id]) => id);
+      html += `<h3>${esc(t('signsInModel'))}</h3><p class="muted small">${esc(t('signsInModelHint'))}</p>${shown.length ? `<p class="chips">${shown.map((id) => chip(id)).join('')}</p>` : `<p class="muted">—</p>`}`;
+    }
+    return html;
+  };
+
   const renderEncounter = () => {
     if (!s) return;
     const c = s.caseDef;
@@ -762,8 +808,9 @@ export function mount(root: HTMLElement) {
       $(`#tab-${k}`).hidden = tab !== k;
     }
     $('#tab-feed').innerHTML = feedHtml();
-    $('#tab-notes').innerHTML = notesHtml(autoNote(s, lang));
+    $('#tab-notes').innerHTML = notesHtml(autoNote(s, lang)) + signsNotesHtml();
     ($('#mynotes') as HTMLTextAreaElement).placeholder = t('myNotesHint');
+    root.querySelectorAll<HTMLButtonElement>('#tab-feed [data-sign], #tab-notes [data-sign]').forEach((b) => b.onclick = () => { cardBack = []; cardNow = { kind: 'sign', id: b.dataset.sign! }; renderCard(); });
     root.querySelectorAll<HTMLButtonElement>('[data-side-act]').forEach((b) => b.onclick = () => { feed.pop(); doAction(b.dataset.sideAct!, b.dataset.side as Side); });
     const fe = $('#tab-feed'); fe.scrollTop = fe.scrollHeight;
     renderFigure();
