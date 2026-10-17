@@ -349,7 +349,20 @@ console.log('\nEncounter: preconditions, hazards, history, notes');
 
   const note = autoNote(s, 'de');
   console.log(note.split('\n').map((l) => `      ${l}`).join('\n'));
-  ok('automatic notes in German, by system', /## Augen und Okulomotorik/.test(note) && /## Koordination, Stand und Gang/.test(note) && /## Anamnese/.test(note));
+  ok('automatic notes in German, by system and section as in the menu', /## Nervensystem · Augen: Pupillen/.test(note) && /## Nervensystem · Koordination, Stand und Gang/.test(note) && /## Anamnese/.test(note));
+  {
+    /* Every finding is filed under the system of the test that produced it; none is dropped. */
+    const c = caseById('decompensated-cirrhosis'), sx = startEncounter(CATALOG, REGISTRY, c, buildView(c), { locale: 'en' });
+    sx.state.exposure = ['chest', 'abdomen', 'arm', 'legs', 'neck'];
+    for (const id of ['test.asterixis', 'inspect.mouth', 'smell.breath', 'inspect.breathing', 'palpate.trachea', 'palpate.thyroid', 'inspect.skin', 'measure.crt']) perform(sx, id);
+    const n = autoNote(sx, 'en');
+    const under = (heading, re) => { const block = n.split('## ').find((b) => b.startsWith(heading)) ?? ''; return re.test(block); };
+    ok('notes: asterixis and capillary refill under General examination · Hands, not Cardiovascular',
+      under('General examination · Hands', /asterixis/i) && under('General examination · Hands', /refill/i) && !/## Cardiovascular/.test(n), n);
+    ok('notes: oral mucosa under General examination, not cranial nerves', under('General examination · Inspection', /mucous|mucosa/i) && !/Cranial/.test(n));
+    ok('notes: nothing dropped (breath, breathing, trachea, thyroid and skin all appear)',
+      sx.encounter.events.filter((e) => e.kind === 'finding').every((e) => n.includes(describe(sx, e.finding, 'en'))));
+  }
   ok('notes include the head impulse finding', /Kopfimpuls nach links: die Augen werden mit dem Kopf mitgenommen/.test(note));
   ok('notes include results once available', /Blutzucker \d+,\d mmol\/l/.test(note));
   ok('the encounter log is plain JSON', J(JSON.parse(J(s.encounter))) === J(s.encounter));
