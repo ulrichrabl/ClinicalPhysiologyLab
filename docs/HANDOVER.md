@@ -1,6 +1,6 @@
 # Handover: start here
 
-Last updated: 13 October 2026, after PR #24.
+Last updated: 17 October 2026, after PR #33.
 
 This page is the entry point for anyone (or any agent) picking up the work. It covers:
 
@@ -9,6 +9,8 @@ This page is the entry point for anyone (or any agent) picking up the work. It c
 - what is done;
 - the open lists;
 - where the next topic, animations, starts.
+
+If you will change the patient figure, also read `source/studio/figure/BRIEF.md`.
 
 The detail lives in the other documents linked below.
 
@@ -29,6 +31,15 @@ Notes:
 - **Test output:** the suite ends with "N passed, M failed, K known gaps".
   - A known gap (△) is a comparison with measured data the model does not yet meet. It is reported with its numbers and does not fail the suite.
 - **Built page in git:** `dist/index.html` is tracked although `dist/` is ignored (`git add -f`). A rebuild with no source change differs only in `__BUILD_ID`; do not commit that.
+- **Vendored `node_modules`:** `source/node_modules` is in git and holds macOS binaries.
+  - On Linux the esbuild *CLI* fails with "Exec format error". The JS API works, and the build scripts use it.
+  - `npm run verify` may touch files under `node_modules` and `dist`. Before committing, run `git checkout -- source/node_modules source/dist` and commit source files only.
+- **Deploy:** every push to `main` runs `.github/workflows/deploy.yml`. It tests, builds `dist/lab.html` and publishes it to the `gh-pages` branch, which GitHub Pages serves. A merge is live a few minutes later.
+- **Pictures for PRs:**
+  - `studio/figure/out/` is ignored by git.
+  - Before/after images live on the orphan branch `figure-anatomy-images` and are linked from PR bodies as `https://raw.githubusercontent.com/ulrichrabl/ClinicalPhysiologyLab/figure-anatomy-images/<folder>/<file>.png`.
+- **GitHub from an agent:** the REST API through `gh api` works (`GH_TOKEN=placeholder gh api repos/ulrichrabl/ClinicalPhysiologyLab/pulls -f title=… -f head=… -f base=main -F body=@file`). GraphQL, so most `gh pr …` commands, is blocked.
+- **Branches:** always branch from a freshly pulled `main`. The owner merges quickly, and pushing to a merged branch's head does nothing.
 
 ## Rules agreed so far
 
@@ -53,6 +64,10 @@ Notes:
 | Examination organised by system and section in clinical order; search as you type; interventions separated (#22) | `docs/examination-and-teaching.md` |
 | Teaching cards for all 109 examinations in EN/DE; standard names (#23) | `docs/examination-and-teaching.md`, `src/vp/data/teaching/` |
 | Cards checked against the cases (#24) | test section "Teaching cards against the cases" |
+| Patient figure redrawn as an anatomical body: skeleton + outlines, body shape from the patient and the model, gown, hair, trolley (#26–#30) | `source/studio/figure/BRIEF.md` |
+| Figure seen from the right, the front (foot of the bed) and the left, with Right / Front / Left buttons in the app; the chest examination views are drawn from the same body (#31) | BRIEF, "How the figure is built" |
+| Anatomy from the front: shoulders (clavicle, acromion, deltoid), pectorals, breasts in a bra; arms hang beside the chest (#31, #33) | BRIEF, "Anatomical decisions" |
+| Live ECG: a 12-lead monitor that follows the electrodes while they are dragged; a bedside lead II strip; "Print 12-lead ECG"; a measuring tool with calipers, ruler and guided steps (#32) | "The ECG view" below |
 
 ## Open lists
 
@@ -80,20 +95,66 @@ Notes:
   Each new case makes more of the cards checkable. Some of these links point to broader diagnoses than the case's primary one; for example, the GI-bleed case is `peptic-ulcer-bleed`, while cards say `upper-gi-bleed`. Letting a case count for its broader diagnosis too would make more of those links checkable.
 - **Card content review.** The card texts are standard clinical teaching, written but not yet read by a clinician, the German especially. References are cited only where a threshold rests on a study.
 - **Review modes.** Spaced repetition, and matching tests to conditions, can be generated from the cards (see `docs/examination-and-teaching.md`); none is built.
+- **Patient figure:** see "Open" in `source/studio/figure/BRIEF.md`. In short:
+  - The owner reviews the figure closely and judges anatomy above all, the front view especially. Show close-ups before claiming a fix.
+  - The side view still draws the arm's deltoid with its own outline over the trunk.
+  - The gown has no bust shaping from the front.
+  - Hands are simple.
+- **ECG view:** see "The ECG view", Open, below.
 
-## Next topic: the patient figure, then animations
+## The patient figure
 
-The bedside figure is to be redrawn first, so it looks as good as the face canvas. A separate studio was set up for this: `source/studio/figure/`. Its `BRIEF.md` is self-contained and is all an agent needs to read. It covers:
+It was redrawn in PRs #26–#33. It is anatomical, shows each patient's body and what the illness does to it, and is seen from three sides. All of its code is in `source/src/vp/render/` (`patient-figure.ts` and `figure-*.ts`).
 
-- the job;
-- the contract with the app;
-- what may change;
-- one-command screenshots: contact sheets of 9 patients × 6 poses, exposure and oxygen states, transitions, a zoom, and the panel inside the real app in light and dark;
-- a touch check that every body region stays tappable.
+To work on it, read `source/studio/figure/BRIEF.md`. It covers how the figure is built, the anatomical decisions agreed with the owner, the contract with the app, the screenshot loop and the open list. `studio/figure/contract.test.mjs` is part of `npm test`.
 
-`studio/figure/contract.test.mjs` is part of `npm test`.
+## The ECG view
 
-## After that: animations
+Tapping the chest and choosing the 12-lead ECG opens the electrode-placement view (`app/focus-ecg.ts`). The learner drags the electrodes onto the chest (`render/thorax.ts`, drawn from the patient figure).
+
+### The live monitor
+
+`render/ecg-monitor.ts` shows the 12 leads sweeping like a bedside monitor, in 4 columns or 2 on a phone. It projects the running heart's dipole (`LivePatient.vcg`, 500 Hz) through the electrodes *as they are now*:
+
+- `measurements/ecg.ts` `leadVectorsOn(partialPlacement)` gives null for a lead whose electrodes are not all placed. That lead shows "Lead off".
+- Dragging an electrode changes its leads while it moves.
+- With no right-leg electrode, mains hum appears.
+
+The monitor high-pass filters the baseline, as real monitors do, so ST segments on it are approximate. The caption says the printed ECG is the record.
+
+### The bedside strip
+
+Once any electrode is on, a small lead II strip runs next to the patient (`#bed-monitor` in `app.html`, `renderBedMonitor` in `app.ts`). Tapping it opens the ECG view.
+
+### Printing
+
+"Print 12-lead ECG" records the paper: 25 mm/s, 10 mm/mV, the layout in `render/ecg-paper.ts`. `paperGeometry()` maps paper mm to samples.
+
+### The measuring tool
+
+`app/ecg-measure-tool.ts` opens from "Measure: calipers, ruler, squares" on a printed ECG.
+
+- **Tools:** calipers that count small squares (40 ms) and big squares (200 ms); a draggable ruler in mm, cm and seconds; magnify at Fit, 2× or 3×.
+- **Guided steps, in EN and DE:**
+  - rate: 300 ÷ big squares, 1500 ÷ small squares, or complexes × 6;
+  - rhythm: R–R spread;
+  - PR;
+  - QRS;
+  - QT → QTc: Bazett, worked with the learner's own R–R;
+  - axis: quadrants from I and aVF.
+- **"Show me":** moves the calipers onto fiducials from `measurements/ecg-measure.ts` `delineate()`, then reveals the machine's value.
+  - QRS onset and offset are detected on the tracing: spatial slope, with notches bridged so bundle branch block is measured whole.
+  - P onset and T end come from the model's own PR and QTc, anchored to the detected QRS onset.
+  - Tests cover RR, QRS width for normal, LBBB and complete heart block, axis quadrants, and AF having no P.
+
+### Open
+
+- Lead II is the only bedside strip; the lead cannot be chosen.
+- P onset and T end are not detected on the waveform.
+- The measuring tool works on the rhythm strip and the 12 leads at fixed paper speed and gain. 50 mm/s and 20 mm/mV are not offered.
+- The owner has not yet reviewed the measuring steps' wording clinically.
+
+## Next topic: animations
 
 ### What animates today
 
@@ -106,8 +167,8 @@ Every visual is driven by findings, never by the lesion directly, so it shows ex
 | Heart and carotid auscultation | Chest with stethoscope; phonocardiogram and audio from the heart-sounds finding | `app/focus-thorax.ts`, `render/phono.ts`, `app/sound.ts` |
 | Lung percussion, breath sounds, vocal resonance | Chest front or back, tap any of ten sites | `app/focus-chest.ts`, `render/thorax.ts` |
 | Pulses | Arterial pressure trace from the running circulation | `app.ts` (pulse visual), `app/sound.ts` |
-| 12-lead ECG | Electrodes placed by the learner; tracing from the model's dipole | `app/focus-ecg.ts`, `render/ecg-paper.ts` |
-| Positions | The whole-patient figure moves between poses by interpolating joint angles | `render/patient-figure.ts` |
+| 12-lead ECG | Electrodes placed by the learner; live 12-lead monitor and bedside lead II strip from the running dipole; printed paper with the measuring tool | `app/focus-ecg.ts`, `render/ecg-monitor.ts`, `render/ecg-paper.ts`, `app/ecg-measure-tool.ts` |
+| Positions and views | The whole-patient figure moves between poses by interpolating joint angles, and turns between right, front and left (eased) | `render/patient-figure.ts`, `render/figure-view.ts` |
 | Physiology chapters | Living diagrams of the running models | `app/diagrams.ts` |
 
 The dispatch from a performed manoeuvre to its visual is `visualFor` in `app/app.ts`. Everything else, including all limb, coordination, reflex, sensory, abdominal and general tests, currently produces text only.
@@ -129,6 +190,6 @@ These are tests whose finding *is* a movement:
 - **Stance and walking:** Romberg, gait.
 - **Hands and reflexes:** tremor, asterixis, reflexes.
 
-Their resolvers already return structured values, for example `neuro.coordination` returns dysmetria (none, mild or marked), intention tremor, and whether weakness limits the test. `render/patient-figure.ts` is a jointed skeleton posed by joint angles: a natural base for limb and gait animation in the same style as the bedside figure.
+Their resolvers already return structured values, for example `neuro.coordination` returns dysmetria (none, mild or marked), intention tremor, and whether weakness limits the test. `render/patient-figure.ts` poses a skeleton by joint angles, and every body part hangs on it as an outline (`figure-body.ts`), seen from any side (`figure-view.ts`). It is a natural base for limb and gait animation in the same style as the bedside figure. Animate the `Pose` angles, not the outlines.
 
 Respect `prefers-reduced-motion`, as the figure already does.
