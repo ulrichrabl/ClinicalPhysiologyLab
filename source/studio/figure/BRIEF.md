@@ -1,135 +1,165 @@
-# Brief: an anatomically correct patient
+# Brief: the patient figure
 
-This brief is self-contained. **Do not read the rest of the repository**: everything needed is in this folder and in `src/vp/render/patient-figure.ts`. The rest of the code is large, and nothing in it is needed for this job.
+Last updated: 17 October 2026, after PR #33.
 
-## The job
+This brief is all you need to work on the bedside patient figure. The figure's code is in `src/vp/render/` (`patient-figure.ts` and `figure-*.ts`); this folder holds its bench, contract test and screenshot tools. The rest of the repository is large and nothing in it is needed, except where noted under "What you may change".
 
-The bedside view shows the whole patient in profile, on the trolley, seen from the right side of the bed where the examiner stands.
+## What the figure is
 
-**Goal:** an anatomically correct, cartoon-style depiction of the patient:
+The bedside view shows the whole patient on the trolley. The examiner can stand at three places, chosen with the Right / Front / Left buttons under the figure:
+
+- the patient's right side (the profile; the default);
+- the foot of the bed (from above when lying, face to face when sitting or standing);
+- the patient's left side.
+
+The figure is an anatomically correct, cartoon-style depiction:
 
 - in the same visual family as the face canvas (`reference/face-canvas-*.png`);
 - recognisably *this* patient;
 - showing *what the illness does to the body*.
 
-### Why the figure looks like boxes today
+It was redrawn from capsules to an anatomical body in PRs #26–#30. Views were added in #31, and front anatomy (shoulders, clavicles, pectorals, breasts, arm placement) in #31 and #33. Every part of the original job is done: body shape from the patient, the model's findings, gown, hair, oxygen, trolley, human-looking transitions, all acceptance checks.
 
-Every body segment is one thick stroked line with round caps between two joints:
+The owner is a clinician who reviews the pictures closely. Their feedback has always been about anatomy ("the shoulders look like…", "the pillow flies away"). Judge your own work at zoom, against how a real body looks from that side, before showing it. Show close-ups along with the contact sheets.
 
-- a capsule each for thigh, shin, upper arm, forearm and trunk;
-- a circle with a triangle nose for the head.
+## How the figure is built
 
-There is no outline of a body, so there is no shoulder, no waist, no hip, no calf, no buttock, no breast, no neck taper, no hand and no foot. No amount of tuning capsules fixes that. Throw the capsules away.
+| File | What it does |
+|---|---|
+| `patient-figure.ts` | `FigureLook` and `figureLookFor`; `POSES` and `lerpPose`; `figureSvg`, which assembles everything. Also: placement on the bed or floor, the trolley, backrest and pillow, the views and walking round the bed, where the arms hang (`armZ`), the front shoulder shape (`shoulderShape`), lighting, layers and touch regions. |
+| `figure-body.ts` | `bodyShape`: every part as *stations* along its bone (`s`, front depth `a`, back depth `p`, half-width `w`, in reference cm = 1/176 of height), changed by sex, age, BMI, fat distribution, muscle, oedema, ascites and hyperinflation. `skeleton`: joints from the pose angles, with a lumbar curve. `trunk3` and `limb3`: silhouettes as seen. |
+| `figure-view.ts` | `Projector`: a light 3D model. The profile is turned about the trunk's axis (turn 0 = right profile, 90 = front, −90 = back; side −1 mirrors for the left). `tube` gives silhouettes and end sections; `onTube` gives points on a part's surface. |
+| `figure-front.ts` | What only shows from the front or back: head outline and face, hair, ears, `chestFront` (clavicles, pectorals, breasts, deltoid shading, ribs), `braFront`, gown lines, kneecaps. |
+| `figure-head.ts` | The head in profile: outline, face, hair, ear, oxygen tubing and mask. |
+| `figure-dress.ts` | The gown (cut from the body, hollows bridged, sleeves), the trolley, the bra in profile. |
+| `figure-geom.ts` | Small geometry helpers. |
+| `thorax.ts` | The chest examination views (auscultation, percussion, ECG electrodes). They draw this same body, standing, front and back (`figureSvg(..., { chestFrame: true })`). Electrode and landmark positions are in chest-frame cm. |
 
-### How to draw it instead
+### Rules of the drawing
 
-1. **Keep a skeleton for posing.** Joints are placed by angles, as now; extend it as needed (spine curve with lumbar and thoracic segments, shoulder girdle, head tilt, hands and feet). `lerpPose` interpolates it.
-2. **Hang a body outline on the skeleton.** Each part is a closed outline of smooth curves (cubic Béziers), defined in the part's own frame and placed by its joint.
-   - Use anatomical widths, measured as a fraction of height.
-   - Use contour points where real bodies have them: deltoid, biceps and triceps, forearm taper; buttock, thigh, knee, calf bulge, Achilles, heel; the S-curve of the back; chest and abdomen profiles.
-   - Joints blend: a knee looks like a knee whether bent or straight. Draw joint caps or overlapping outlines, not hinges.
-3. **Proportions.**
-   - An adult is about 7.5 heads tall. The crotch is at about half of height, the elbow at the waist, the fingertips at mid-thigh.
-   - Shoulders are wider than hips in men; hips are relatively wider in women.
-   - The head is an egg in profile, with jaw, chin, nose, lips, brow ridge and ear in their places. It is never a circle.
-4. **Cartoon style.**
-   - Clean outlines (a slightly darker skin shade, not black) and flat base colours.
-   - Soft shading with one or two gradients per part, light from the upper left, as in the face canvas.
-   - No photorealism and no muscle-man anatomy: a believable person, simplified.
-5. **Body shape from the patient, varying continuously.**
-   - **Height** sets the overall scale (the trolley stays the same).
-   - **BMI** (`look.body.bmi`) sets widths. Below about 18.5, show bony prominences (clavicles, ribs, iliac crest, temporal hollowing, thin limbs). Above about 30, show soft tissue: belly, double chin, upper arms, thighs.
-   - **Fat distribution** (`look.body.fat`): `central` puts the extra on the belly (an apple shape, with visceral fat bulging forward, firm); `peripheral` puts it on the hips, buttocks and thighs (a pear shape).
-   - **Muscle** (`look.body.muscle`): `wasted` means thin limbs, hollow temples and a prominent shoulder bone even when the belly is big. Cirrhosis shows exactly that.
-   - **Sex and age:**
-     - Breasts are under the gown in women. With the chest exposed, a woman wears the gown draped over the breasts or a plain bra. Choose a respectful solution.
-     - In the elderly: some kyphosis, thinner limbs, a softer belly, grey or white hair.
-   - **Hair from `look.hairText`:** long hair falls with gravity when lying; there are buns, plaits, curls and bobs. Baldness appears only where the text says receding or thinning.
-6. **What the model says, drawn** (`look.body`, from the running physiology; the figure updates when it changes):
-   - **Oedema** `ankle | shin | knee`: puffy legs up to that level, ankle contours lost, no visible tendons.
-   - **Ascites** `flank | shifting | tense`: from full flanks to a tense, round, protruding belly with an everted navel. When lying, it bulges at the flanks.
-   - **Colour** `pale | grey | flushed | cyanosed | jaundiced`: tint the skin, more subtly than a recolour; lips and nail beds show cyanosis first. Use `icterus` and `pallor` for degree.
-   - **Sweating:** a sheen, as a few highlights.
-   - **Distress:** posture (gripping, tense) and expression, if the head allows.
-   - **Breathing:** `hyperinflated` means a barrel chest; `accessory` means visible neck muscles; `pursedLips` purses the lips.
-7. **Clothing and equipment.**
-   - A hospital gown that reads as cloth: folds, a hem, sleeves, and drape that follows the pose. It opens for exposed chest and abdomen.
-   - Oxygen as `look.oxygen` names it: nasal cannula tubing over the ears, or a face mask with tubing.
-   - A trolley that matches the style without stealing attention.
-8. **Movement that looks human.** The app animates between poses for 700 ms with an eased `t`. A transition must look like a person sitting up or lying down: legs swing over the edge, the trunk rises; limbs never rotate through the mattress. Today the legs leave the frame mid-way; see `out/motion.png`.
+- **Layers:** parts in one layer are drawn as all outlines first, then all fills, so overlapping parts merge into one silhouette. The arms are separate layers drawn over the trunk.
+- **Profile drawings:** drawings made in profile, such as the face, hair, folds and bra, are wrapped in the projector's matrix and fade out as the body turns. Their front counterparts fade in (`prof()` and `front()` in `figureSvg`).
+- **Lighting:** light comes from the upper left of the picture. Each part normally gets its own gradient (`shadeAcross`). From the front and back, one wide gradient (`gWide`) covers chest, neck, shoulders and arms, so no colour seam shows where shoulder meets arm.
+- **Soft shading:** shading in `chestFront` and `braFront` is blurred (an SVG filter with an `id` prefixed `fig-§-`) and clipped to the torso.
 
-The face canvas (`render/face-canvas.ts`) is the style reference only. Do not change it.
+## Anatomical decisions (agreed with the owner)
+
+### Shoulders from the front
+
+The clavicle carries the shoulder line out to the acromion. Across the acromions it is about 40 cm in a man and 37 in a woman (`shoulderZ`, `acro` in `figure-body.ts`). The trapezius slopes briefly beside the neck, then the line runs nearly level.
+
+The deltoid is the top of the arm (the upper-arm stations start with it). From the front and back it is drawn as one convex arc from the acromion down and out into the arm (`shoulderShape`). It stands out beyond the arm and narrows to its insertion. It joins the trunk without a line, and the arm proper starts under it.
+
+There is no dome on the inner side. The deltopectoral groove runs down from the outer clavicle, and the arm parts from the trunk at the armpit. The gown's sleeve is cut from the same shape.
+
+Two earlier attempts were rejected:
+- a cap over a hanging arm, which reads as "a profile shoulder";
+- a steep bottle-neck slope, which reads as "no clavicles".
+
+### Clavicles
+
+They sit a few cm *below* the shoulder line, with a band of trapezius between. The jugular notch is about 50.9 on the trunk scale, the neck root 54. They are drawn as an S with sternal heads, a lit upper edge, shade below and the hollows above. They are clearer in women and lean patients, and fainter with fat.
+
+### Arms
+
+The arms hang *beside* the chest wall and the breast, never through them. At the armpit or bust level the arm's inner edge lies at the side of the chest or breast, overlapping it a little. The humerus is straight, so the elbow swings out as far as that needs, but by at most 4 cm, so a relaxed arm rests against a full chest instead of standing off like a wing (`armZ`).
+
+### Chest
+
+- **Men:** pectoral mass lit from above, a lower border sweeping into the front of the armpit, and a sternal groove.
+- **Women:** wear a plain bra when the chest is exposed. It is sized to the breast (`breastFront`), with shaded cups, a centre piece, the cleavage, the upper slope and the outer curve toward the armpit.
+
+### Body shape
+
+Shape is driven by the patient (`look.body`) and the model's findings. Below a BMI of about 18.5, bones show; above about 30, soft tissue. Central fat gives an apple shape and peripheral fat a pear. Wasted muscle gives thin limbs even with a big belly (cirrhosis). The model's findings drawn on the body are oedema, ascites, colour, sweating, hyperinflation and accessory muscles.
+
+### Bed and pillow
+
+The backrest pivots on a fixed hinge. The pillow belongs to the head section, so it moves with the backrest and never flies off when the patient sits up (#29, #30).
 
 ## What you may change
 
-- **`src/vp/render/patient-figure.ts`:** everything inside it.
-  - New files next to it (`src/vp/render/figure-*.ts`, for example body outlines, hair, gown) are welcome.
-  - Keep files readable, with comments that say *why*, in the style of the existing header comment.
-- **`FigureLook`, `FigureBody` and `figureLookFor`:** add fields as needed. They are built only from the case's patient, the encounter state and the model's findings; the app never assembles a look itself.
-- **`Pose` and `POSES`:** change freely (more joints, spine curve, head turn), as long as every position name stays.
-- **Bench data:**
-  - `studio/figure/build.mjs`, for more bench-only patients.
-  - `patients.json`, by rerunning `node studio/figure/snapshot.mjs`: the case patients with the model's findings at the start of each case. It takes about 30 s and is only needed if cases change.
-
-Do not change anything else. If something outside seems to need a change, write it down for the owner instead.
+- **The figure's code:** everything in `src/vp/render/patient-figure.ts` and `src/vp/render/figure-*.ts`, plus `thorax.ts` for the chest views. New `figure-*.ts` files are welcome. Keep files readable, with comments that say *why*.
+- **`FigureLook`, `FigureBody`, `figureLookFor`:** add fields as needed. They are built only from the case's patient, the encounter state and the model's findings; the app never assembles a look itself.
+- **`Pose` and `POSES`:** change freely, as long as every position name stays.
+- **Bench data:** `studio/figure/build.mjs` (bench-only patients) and `patients.json` (`node studio/figure/snapshot.mjs`, about 30 s, only if cases change).
+- **The app** (`src/vp/app/`): the view buttons and the transitions live in `app.ts` (`figView`, `renderFigure`). Change it only when a figure feature needs it, and say so in the PR.
 
 ## The contract (what the app relies on)
 
 These rules are checked by `contract.test.mjs` (part of `npm test`) and by `shoot.py`.
 
 1. **Exports:**
-   - `figureSvg(pose, look): string`: SVG markup that goes inside `<g id="fig">` of `<svg id="figure" viewBox="0 0 360 380">`. Keep that viewBox.
-   - `figureLookFor(patient, state, seed, findings?): FigureLook`.
+   - `figureSvg(pose, look, view?, opts?)`: SVG markup that goes inside `<g id="fig">` of `<svg id="figure" viewBox="0 0 360 380">`. Keep that viewBox. `view` comes from `viewAt(angle)`. `opts`: `scene`, `head`, `chestFrame`, `collect` (used by `thorax.ts`).
+   - `figureLookFor(patient, state, seed, findings?)`.
    - `POSES` with every position: `supine, reclined-45, sitting, sitting-forward, left-lateral, standing, prone, head-hanging-left, head-hanging-right`.
-   - `lerpPose(a, b, t)`.
-2. **Touch regions:** groups with `data-region="head" | "neck" | "chest" | "abdomen"`, and `data-region="arm" | "legs"` with `data-side="R"` (near) or `"L"` (far).
-   - They must be drawn in every pose, stay inside the viewBox, and the near-side ones must be tappable.
-   - Decorative layers (gown, hair, bed, tubing, highlights) need `pointer-events="none"`.
-   - The far limbs may be hidden in some poses; shoot.py reports that only as a note.
+   - `lerpPose(a, b, t)`; `VIEW_ANGLE` (`right` 0, `front` 90, `left` 180) and `viewAt`.
+2. **Touch regions:** groups with `data-region="head" | "neck" | "chest" | "abdomen"`, and `data-region="arm" | "legs"` with `data-side="R" | "L"` (the patient's right or left).
+   - They must be drawn in every pose and every view, stay inside the viewBox, and be tappable.
+   - Decorative layers (gown, hair, bed, tubing, shading) need `pointer-events="none"`.
+   - The far limbs may be hidden in some profile poses; `shoot.py` reports that only as a note.
 3. **No highlighting:** the examiner chooses where to look. The app darkens a hovered region slightly.
-4. **Speed:** markup only, deterministic, under 2 ms per figure; the app redraws every frame of a transition.
+4. **Speed:** markup only, deterministic, a few ms per figure. The app redraws every frame of a transition.
 5. **Self-contained:**
    - No external images or fonts.
-   - Gradient and filter `id`s are prefixed `fig-`.
-   - Respect `prefers-reduced-motion`: the app already skips the transition, so never add motion that only CSS could stop.
-6. **Fit:** the panel is about 316 px wide on desktop and full width on phones, light and dark. Check `out/app-desktop.png` and `out/app-phone-dark.png`.
+   - Gradient, filter and clip `id`s are `fig-§-…`; `§` is replaced by a hash of the figure, so several figures can share a page.
+   - Respect `prefers-reduced-motion`.
+6. **Fit:** the panel is about 316 px wide on desktop and full width on phones, light and dark. Check `out/app-desktop*.png` and `out/app-phone-dark.png`.
+7. **Body response:** the drawing responds to sex, age, BMI, fat distribution, muscle, long hair, baldness only where described, oedema, ascites, jaundice, pallor, cyanosis, sweating, hyperinflation and oxygen. This is checked in pairs.
 
 ## The loop
 
 Run everything from `source/`.
 
 ```sh
-sh studio/figure/run.sh            # build, contract + acceptance, poses/states/body sheets, touch check  (~10 s)
-python3 studio/figure/shoot.py motion [patient-id]        # transitions in frames
-python3 studio/figure/shoot.py zoom <patient-id> <pose> [chest,abdomen]   # one figure at 720 px: judge anatomy here
-sh studio/figure/run.sh app        # the figure inside the real app page (light desktop, dark phone)
+sh studio/figure/run.sh            # build, contract, poses/states/body/views/chest sheets, touch check (~15 s)
+python3 studio/figure/shoot.py zoom <patient-id> <pose> [chest,abdomen] [right|front|left]   # one figure at 720 px
+python3 studio/figure/shoot.py motion [patient-id]   # transitions in frames
+sh studio/figure/run.sh views      # also the walk round the bed for every patient (views-all.png)
+sh studio/figure/run.sh app        # the figure inside the real app page: desktop right/front/left, dark phone
 add `dark` to any shoot.py command; `sh studio/figure/run.sh all` for everything
 ```
 
-Look at the PNGs in `out/` (Read tool), fix the code, and run again. Judge anatomy at zoom first, then check the contact sheets: a figure has to work at 190 px as well as at 720 px.
+Look at the PNGs in `out/` (Read tool), fix the code, and run again.
 
-- **`poses.png`:** 9 patients (young and old, F and M, slim and heavy, skin tones 1–6, varied hair, cirrhosis and COPD from the case library) × 6 poses.
-- **`body.png`:** central and peripheral obesity, cachexia, cirrhosis (wasted limbs, tense ascites, oedema, jaundice), heart failure with oedema to the knees, COPD, deep jaundice, cyanosis.
-  - Columns: gown and bare at 45°, bare lying flat, sitting, standing.
+- **Order:** judge anatomy at zoom first, cropping and enlarging with PIL, then check the contact sheets. A figure has to work at 190 px as well as at 720 px.
+- **Stale files:** `zoom-*` file names do not include the exposure, so a later zoom without `chest` overwrites one with it. Re-shoot before you judge.
+
+The sheets in `out/`:
+
+- **`poses.png`:** 9 patients (young and old, F and M, slim and heavy, skin tones 1–6, varied hair, cirrhosis and COPD) × 6 poses, from the right.
+- **`body.png`:** obesity (central, peripheral), cachexia, cirrhosis, heart failure, COPD, jaundice and cyanosis. Columns: gown and bare at 45°, bare lying flat, sitting, standing.
+- **`views.png`:** reclined from the right, front and left; supine, sitting and standing from the front; and a walk round the bed.
+- **`chest.png`:** the chest examination views, front, back, and with landmarks and electrodes.
 - **`states.png`:** gown, exposures, oxygen.
-- **Patient ids:** the case ids in `patients.json` plus the bench-only ids in `build.mjs`.
 
-## Done means
+Useful zoom ids:
 
-- **Checks:**
-  - `sh studio/figure/run.sh all` reports 0 contract failures and 0 touch problems.
-  - **All acceptance checks pass:** the drawing responds to sex, age, BMI, fat distribution, muscle, long hair, baldness only where described, oedema, ascites, jaundice, pallor, cyanosis, sweating, hyperinflation and oxygen. Today all 15 fail.
-  - Motion frames stay inside the frame.
-  - `cd source && npm run verify` passes.
-- **Visual:** in `poses.png` and `body.png` every patient is recognisably themselves and anatomically plausible in every pose. A clinician looking at the cirrhosis row should say "decompensated cirrhosis" before reading the label.
-- **Fit:** `app-desktop.png` and `app-phone-dark.png` look at home next to the face canvas.
-- **Delivery:**
-  - Commit on a branch with a message that says what changed and why.
-  - End the commit message with the session's `Co-Authored-By` / `Claude-Session` lines.
-  - Open a PR whose body ends with the Claude Code line and the session link. Before/after images go in the PR; `out/` is ignored by git.
-  - When it lands, move the acceptance checks from `FIGURE_ACCEPTANCE` into the normal contract test.
+| Patient | Id |
+|---|---|
+| Man | `exertional-syncope-as` |
+| Thin man with ascites | `decompensated-cirrhosis` |
+| COPD | `copd-exacerbation` |
+| Women | `pneumonia-right-lower-lobe`, `graves-thyrotoxicosis`, `diabetic-ketoacidosis` |
+
+## Checking a change
+
+- `sh studio/figure/run.sh all` reports 0 contract failures and 0 touch problems.
+- `npm run verify` passes. Then run `git checkout -- node_modules dist` before committing (see `docs/HANDOVER.md`).
+- Visual: every patient is recognisably themselves and anatomically plausible in every pose *and every view*. A clinician looking at the cirrhosis row should say "decompensated cirrhosis" before reading the label.
+- Delivery:
+  - Commit on a branch from a fresh `main`.
+  - Open a PR with before/after images. They go on the `figure-anatomy-images` branch, because `out/` is ignored.
+
+## Open
+
+- **Side view shoulder:** the arm, deltoid included, is drawn whole with its own outline over the trunk. It reads acceptably, but the shoulder does not merge into the trunk the way the front view now does.
+- **Gown from the front:** no bust shaping (no drape or fold under the breasts) and no pectoral form.
+- **Hands:** simple mitten-like shapes with a thumb, and fingers only as a line. They are fine at bedside scale but would need work for hand examinations (asterixis, tremor).
+- **Lying women from above:** long hair spread on the pillow reads as a dark blob.
+- **Animations of examinations** (the next topic, see `docs/HANDOVER.md`): pose the skeleton (`Pose` angles), not the outlines.
 
 ## Reference images (in `reference/`)
 
-- `app-bedside-before.png`: today's figure next to the face canvas.
+- `app-bedside-before.png`: the figure before the redraw, next to the face canvas.
 - `face-canvas-eyes.png`, `face-canvas-facial.png`: the style to match. Note the soft shading, warm skin, fine hair strokes and the muted teal-grey background.
