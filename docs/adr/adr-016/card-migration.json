@@ -1,0 +1,3699 @@
+[
+ {
+  "card": "inspect.general/0",
+  "test": "inspect.general",
+  "text": "Grey, sweaty, mottled, agitated or drowsy.",
+  "signs": [
+   "ashen-complexion",
+   "diaphoresis",
+   "skin-mottling",
+   "agitation",
+   "reduced-consciousness"
+  ],
+  "syndrome": "shock",
+  "conditions": [
+   "sepsis",
+   "urosepsis",
+   "upper-gi-bleed",
+   "acute-coronary-syndrome"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.general/1",
+  "test": "inspect.general",
+  "text": "Central cyanosis: a blue tongue and lips.",
+  "signs": [
+   "central-cyanosis"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation",
+   "community-acquired-pneumonia",
+   "pulmonary-embolism"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.general/2",
+  "test": "inspect.general",
+  "text": "Lying very still, afraid to move; or writhing and unable to settle.",
+  "signs": [
+   "lies-still-peritonism",
+   "restless-writhing"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "acute-appendicitis",
+   "acute-pancreatitis",
+   "spontaneous-bacterial-peritonitis"
+  ],
+  "note": null
+ },
+ {
+  "card": "measure.hr/0",
+  "test": "measure.hr",
+  "text": "Tachycardia: above 100 /min.",
+  "signs": [
+   "tachycardia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "sepsis",
+   "upper-gi-bleed",
+   "pulmonary-embolism",
+   "thyrotoxicosis",
+   "diabetic-ketoacidosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "measure.hr/1",
+  "test": "measure.hr",
+  "text": "Bradycardia: below 60 /min.",
+  "signs": [
+   "bradycardia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "complete-heart-block",
+   "hypothyroidism"
+  ],
+  "note": null
+ },
+ {
+  "card": "measure.hr/2",
+  "test": "measure.hr",
+  "text": "Irregularly irregular.",
+  "signs": [
+   "irregularly-irregular-pulse"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "atrial-fibrillation"
+  ],
+  "note": null
+ },
+ {
+  "card": "measure.bp/0",
+  "test": "measure.bp",
+  "text": "Hypotension: systolic below 90 mmHg or mean pressure below 65 mmHg.",
+  "signs": [
+   "hypotension"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "sepsis",
+   "urosepsis",
+   "upper-gi-bleed",
+   "addisonian-crisis"
+  ],
+  "note": null
+ },
+ {
+  "card": "measure.bp/1",
+  "test": "measure.bp",
+  "text": "Wide pulse pressure with a low diastolic.",
+  "signs": [
+   "wide-pulse-pressure"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "aortic-regurgitation",
+   "thyrotoxicosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "measure.bp/2",
+  "test": "measure.bp",
+  "text": "Narrow pulse pressure.",
+  "signs": [
+   "narrow-pulse-pressure"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "aortic-stenosis",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "measure.rr/0",
+  "test": "measure.rr",
+  "text": "Tachypnoea: above 20 /min.",
+  "signs": [
+   "tachypnoea"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "pulmonary-embolism",
+   "acute-heart-failure",
+   "diabetic-ketoacidosis",
+   "sepsis"
+  ],
+  "note": null
+ },
+ {
+  "card": "measure.rr/1",
+  "test": "measure.rr",
+  "text": "Bradypnoea: below 10 /min.",
+  "signs": [
+   "bradypnoea"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation",
+   "intracerebral-haemorrhage"
+  ],
+  "note": null
+ },
+ {
+  "card": "measure.spo2/0",
+  "test": "measure.spo2",
+  "text": "Below 94 % on room air.",
+  "signs": [
+   "hypoxaemia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "pulmonary-embolism",
+   "copd-exacerbation",
+   "acute-heart-failure",
+   "pneumothorax"
+  ],
+  "note": null
+ },
+ {
+  "card": "measure.temp/0",
+  "test": "measure.temp",
+  "text": "Fever: 38.0 °C or more.",
+  "signs": [
+   "fever"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "urosepsis",
+   "acute-pyelonephritis",
+   "sepsis",
+   "thyroid-storm"
+  ],
+  "note": null
+ },
+ {
+  "card": "measure.temp/1",
+  "test": "measure.temp",
+  "text": "Hypothermia: below 36 °C in an unwell patient, or below 35 °C.",
+  "signs": [
+   "hypothermia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "sepsis",
+   "hypothyroidism"
+  ],
+  "note": "Threshold differs from the sign definition; decide."
+ },
+ {
+  "card": "palpate.pulse.radial/0",
+  "test": "palpate.pulse.radial",
+  "text": "Irregularly irregular.",
+  "signs": [
+   "irregularly-irregular-pulse"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "atrial-fibrillation"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.pulse.radial/1",
+  "test": "palpate.pulse.radial",
+  "text": "Collapsing (water-hammer) pulse: a sharp rise and a quick fall, felt best with the arm raised.",
+  "signs": [
+   "collapsing-pulse"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "aortic-regurgitation",
+   "thyrotoxicosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.pulse.radial/2",
+  "test": "palpate.pulse.radial",
+  "text": "Weak and fast (thready).",
+  "signs": [
+   "thready-pulse"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "upper-gi-bleed",
+   "sepsis"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.pulse.carotid/0",
+  "test": "palpate.pulse.carotid",
+  "text": "Slow-rising, small-volume pulse (pulsus parvus et tardus).",
+  "signs": [
+   "slow-rising-pulse"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "aortic-stenosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.pulse.carotid/1",
+  "test": "palpate.pulse.carotid",
+  "text": "Bounding, collapsing pulse; or a double peak (bisferiens).",
+  "signs": [
+   "bounding-pulse",
+   "collapsing-pulse",
+   "bisferiens-pulse"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "aortic-regurgitation",
+   "hcm"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.jvp/0",
+  "test": "inspect.jvp",
+  "text": "Raised JVP.",
+  "signs": [
+   "raised-jvp"
+  ],
+  "syndrome": "fluid-overload",
+  "conditions": [
+   "acute-heart-failure",
+   "pulmonary-embolism",
+   "pneumothorax",
+   "chronic-kidney-disease"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.jvp/1",
+  "test": "inspect.jvp",
+  "text": "JVP not visible even with the patient flat.",
+  "signs": [
+   "jvp-not-visible"
+  ],
+  "syndrome": "hypovolaemia",
+  "conditions": [
+   "upper-gi-bleed",
+   "gastroenteritis",
+   "diabetic-ketoacidosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.jvp/2",
+  "test": "inspect.jvp",
+  "text": "Cannon waves: large irregular a waves.",
+  "signs": [
+   "cannon-a-waves"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "complete-heart-block",
+   "ventricular-tachycardia"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.apex/0",
+  "test": "palpate.apex",
+  "text": "Displaced down and out, diffuse.",
+  "signs": [
+   "displaced-apex"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "mitral-regurgitation",
+   "aortic-regurgitation",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.apex/1",
+  "test": "palpate.apex",
+  "text": "Not displaced but sustained and heaving.",
+  "signs": [
+   "heaving-apex"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "aortic-stenosis",
+   "hcm"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.heart.aortic/0",
+  "test": "auscultate.heart.aortic",
+  "text": "A harsh ejection systolic (crescendo–decrescendo) murmur radiating to the carotids; a soft or absent S2.",
+  "signs": [
+   "ejection-systolic-murmur",
+   "soft-a2"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "aortic-stenosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.heart.pulmonary/0",
+  "test": "auscultate.heart.pulmonary",
+  "text": "A loud pulmonary component of S2.",
+  "signs": [
+   "loud-p2"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pulmonary-embolism",
+   "copd-exacerbation",
+   "pulmonary-fibrosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.heart.pulmonary/1",
+  "test": "auscultate.heart.pulmonary",
+  "text": "A wide split of S2 that does not change with breathing (fixed splitting).",
+  "signs": [
+   "fixed-split-s2"
+  ],
+  "syndrome": null,
+  "conditions": [],
+  "note": "No condition linked (atrial septal defect has no diagnosis id)."
+ },
+ {
+  "card": "auscultate.heart.erb/0",
+  "test": "auscultate.heart.erb",
+  "text": "A soft, high-pitched early diastolic murmur, decrescendo.",
+  "signs": [
+   "early-diastolic-murmur"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "aortic-regurgitation"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.heart.erb/1",
+  "test": "auscultate.heart.erb",
+  "text": "An ejection systolic murmur that gets louder on standing or straining.",
+  "signs": [
+   "dynamic-outflow-murmur"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "hcm"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.heart.tricuspid/0",
+  "test": "auscultate.heart.tricuspid",
+  "text": "A pansystolic murmur that gets louder on inspiration.",
+  "signs": [
+   "carvallo-sign"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pulmonary-embolism"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.heart.tricuspid/1",
+  "test": "auscultate.heart.tricuspid",
+  "text": "A scratchy, superficial sound with up to three components, varying with position.",
+  "signs": [
+   "pericardial-rub"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pericarditis"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.heart.mitral/0",
+  "test": "auscultate.heart.mitral",
+  "text": "A pansystolic murmur radiating to the axilla.",
+  "signs": [
+   "pansystolic-murmur"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "mitral-regurgitation"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.heart.mitral/1",
+  "test": "auscultate.heart.mitral",
+  "text": "A third heart sound (gallop) early in diastole.",
+  "signs": [
+   "third-heart-sound"
+  ],
+  "syndrome": "fluid-overload",
+  "conditions": [
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.heart.mitral/2",
+  "test": "auscultate.heart.mitral",
+  "text": "A fourth heart sound just before S1.",
+  "signs": [
+   "fourth-heart-sound"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "aortic-stenosis",
+   "hcm"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.heart.apex-bell-left-lateral/0",
+  "test": "auscultate.heart.apex-bell-left-lateral",
+  "text": "A low-pitched, rumbling mid-diastolic murmur, often after an opening snap.",
+  "signs": [
+   "mid-diastolic-murmur",
+   "opening-snap"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "aortic-regurgitation"
+  ],
+  "note": "The card links aortic regurgitation (Austin Flint); an opening snap belongs to mitral stenosis, which has no diagnosis id. Review."
+ },
+ {
+  "card": "auscultate.heart.apex-bell-left-lateral/1",
+  "test": "auscultate.heart.apex-bell-left-lateral",
+  "text": "A third or fourth heart sound.",
+  "signs": [
+   "third-heart-sound",
+   "fourth-heart-sound"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "acute-heart-failure",
+   "aortic-stenosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.heart.lse-sitting-forward/0",
+  "test": "auscultate.heart.lse-sitting-forward",
+  "text": "A soft, blowing, high-pitched early diastolic murmur.",
+  "signs": [
+   "early-diastolic-murmur"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "aortic-regurgitation"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.heart.lse-sitting-forward/1",
+  "test": "auscultate.heart.lse-sitting-forward",
+  "text": "A scratchy rub.",
+  "signs": [
+   "pericardial-rub"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pericarditis"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.carotid/0",
+  "test": "auscultate.carotid",
+  "text": "A bruit loudest high in the neck.",
+  "signs": [
+   "carotid-bruit"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "tia",
+   "ischaemic-stroke-left-mca"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.carotid/1",
+  "test": "auscultate.carotid",
+  "text": "A murmur loudest at the base of the neck and louder still over the aortic area.",
+  "signs": [
+   "ejection-systolic-murmur"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "aortic-stenosis"
+  ],
+  "note": "A transmitted murmur, not a bruit."
+ },
+ {
+  "card": "auscultate.lung-upper-zone/0",
+  "test": "auscultate.lung-upper-zone",
+  "text": "Bronchial breathing: harsh, expiration as long and loud as inspiration, with a gap between.",
+  "signs": [
+   "bronchial-breathing"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-upper-zone/1",
+  "test": "auscultate.lung-upper-zone",
+  "text": "Reduced or absent breath sounds.",
+  "signs": [
+   "reduced-breath-sounds"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pneumothorax",
+   "pleural-effusion",
+   "lung-cancer"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-upper-zone/2",
+  "test": "auscultate.lung-upper-zone",
+  "text": "Wheeze: musical, mainly expiratory, often from many airways at once.",
+  "signs": [
+   "wheeze"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "asthma-exacerbation",
+   "copd-exacerbation",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-upper-zone/3",
+  "test": "auscultate.lung-upper-zone",
+  "text": "Fine end-inspiratory crackles at the bases.",
+  "signs": [
+   "fine-crackles"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "acute-heart-failure",
+   "pulmonary-fibrosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-upper-zone/4",
+  "test": "auscultate.lung-upper-zone",
+  "text": "Coarse crackles that may change with coughing.",
+  "signs": [
+   "coarse-crackles"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "copd-exacerbation"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-upper-zone/5",
+  "test": "auscultate.lung-upper-zone",
+  "text": "A creaking pleural rub.",
+  "signs": [
+   "pleural-rub"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "pulmonary-embolism"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-upper-zone/0",
+  "test": "percuss.lung-upper-zone",
+  "text": "Stony dull.",
+  "signs": [
+   "stony-dull-percussion"
+  ],
+  "syndrome": "pleural-effusion-pattern",
+  "conditions": [
+   "pleural-effusion",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-upper-zone/1",
+  "test": "percuss.lung-upper-zone",
+  "text": "Dull.",
+  "signs": [
+   "dull-percussion"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia",
+   "lung-cancer"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-upper-zone/2",
+  "test": "percuss.lung-upper-zone",
+  "text": "Hyper-resonant.",
+  "signs": [
+   "hyper-resonant-percussion"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pneumothorax",
+   "copd-exacerbation"
+  ],
+  "note": null
+ },
+ {
+  "card": "resonance.lung-upper-zone/0",
+  "test": "resonance.lung-upper-zone",
+  "text": "Increased: the words come through clearly, even when whispered.",
+  "signs": [
+   "increased-vocal-resonance"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia"
+  ],
+  "note": null
+ },
+ {
+  "card": "resonance.lung-upper-zone/1",
+  "test": "resonance.lung-upper-zone",
+  "text": "Reduced or absent.",
+  "signs": [
+   "reduced-vocal-resonance"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pleural-effusion",
+   "pneumothorax"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-mid-zone/0",
+  "test": "auscultate.lung-mid-zone",
+  "text": "Bronchial breathing: harsh, expiration as long and loud as inspiration, with a gap between.",
+  "signs": [
+   "bronchial-breathing"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-mid-zone/1",
+  "test": "auscultate.lung-mid-zone",
+  "text": "Reduced or absent breath sounds.",
+  "signs": [
+   "reduced-breath-sounds"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pneumothorax",
+   "pleural-effusion",
+   "lung-cancer"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-mid-zone/2",
+  "test": "auscultate.lung-mid-zone",
+  "text": "Wheeze: musical, mainly expiratory, often from many airways at once.",
+  "signs": [
+   "wheeze"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "asthma-exacerbation",
+   "copd-exacerbation",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-mid-zone/3",
+  "test": "auscultate.lung-mid-zone",
+  "text": "Fine end-inspiratory crackles at the bases.",
+  "signs": [
+   "fine-crackles"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "acute-heart-failure",
+   "pulmonary-fibrosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-mid-zone/4",
+  "test": "auscultate.lung-mid-zone",
+  "text": "Coarse crackles that may change with coughing.",
+  "signs": [
+   "coarse-crackles"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "copd-exacerbation"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-mid-zone/5",
+  "test": "auscultate.lung-mid-zone",
+  "text": "A creaking pleural rub.",
+  "signs": [
+   "pleural-rub"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "pulmonary-embolism"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-mid-zone/0",
+  "test": "percuss.lung-mid-zone",
+  "text": "Stony dull.",
+  "signs": [
+   "stony-dull-percussion"
+  ],
+  "syndrome": "pleural-effusion-pattern",
+  "conditions": [
+   "pleural-effusion",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-mid-zone/1",
+  "test": "percuss.lung-mid-zone",
+  "text": "Dull.",
+  "signs": [
+   "dull-percussion"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia",
+   "lung-cancer"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-mid-zone/2",
+  "test": "percuss.lung-mid-zone",
+  "text": "Hyper-resonant.",
+  "signs": [
+   "hyper-resonant-percussion"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pneumothorax",
+   "copd-exacerbation"
+  ],
+  "note": null
+ },
+ {
+  "card": "resonance.lung-mid-zone/0",
+  "test": "resonance.lung-mid-zone",
+  "text": "Increased: the words come through clearly, even when whispered.",
+  "signs": [
+   "increased-vocal-resonance"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia"
+  ],
+  "note": null
+ },
+ {
+  "card": "resonance.lung-mid-zone/1",
+  "test": "resonance.lung-mid-zone",
+  "text": "Reduced or absent.",
+  "signs": [
+   "reduced-vocal-resonance"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pleural-effusion",
+   "pneumothorax"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-axilla/0",
+  "test": "auscultate.lung-axilla",
+  "text": "Bronchial breathing: harsh, expiration as long and loud as inspiration, with a gap between.",
+  "signs": [
+   "bronchial-breathing"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-axilla/1",
+  "test": "auscultate.lung-axilla",
+  "text": "Reduced or absent breath sounds.",
+  "signs": [
+   "reduced-breath-sounds"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pneumothorax",
+   "pleural-effusion",
+   "lung-cancer"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-axilla/2",
+  "test": "auscultate.lung-axilla",
+  "text": "Wheeze: musical, mainly expiratory, often from many airways at once.",
+  "signs": [
+   "wheeze"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "asthma-exacerbation",
+   "copd-exacerbation",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-axilla/3",
+  "test": "auscultate.lung-axilla",
+  "text": "Fine end-inspiratory crackles at the bases.",
+  "signs": [
+   "fine-crackles"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "acute-heart-failure",
+   "pulmonary-fibrosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-axilla/4",
+  "test": "auscultate.lung-axilla",
+  "text": "Coarse crackles that may change with coughing.",
+  "signs": [
+   "coarse-crackles"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "copd-exacerbation"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-axilla/5",
+  "test": "auscultate.lung-axilla",
+  "text": "A creaking pleural rub.",
+  "signs": [
+   "pleural-rub"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "pulmonary-embolism"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-axilla/0",
+  "test": "percuss.lung-axilla",
+  "text": "Stony dull.",
+  "signs": [
+   "stony-dull-percussion"
+  ],
+  "syndrome": "pleural-effusion-pattern",
+  "conditions": [
+   "pleural-effusion",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-axilla/1",
+  "test": "percuss.lung-axilla",
+  "text": "Dull.",
+  "signs": [
+   "dull-percussion"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia",
+   "lung-cancer"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-axilla/2",
+  "test": "percuss.lung-axilla",
+  "text": "Hyper-resonant.",
+  "signs": [
+   "hyper-resonant-percussion"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pneumothorax",
+   "copd-exacerbation"
+  ],
+  "note": null
+ },
+ {
+  "card": "resonance.lung-axilla/0",
+  "test": "resonance.lung-axilla",
+  "text": "Increased: the words come through clearly, even when whispered.",
+  "signs": [
+   "increased-vocal-resonance"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia"
+  ],
+  "note": null
+ },
+ {
+  "card": "resonance.lung-axilla/1",
+  "test": "resonance.lung-axilla",
+  "text": "Reduced or absent.",
+  "signs": [
+   "reduced-vocal-resonance"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pleural-effusion",
+   "pneumothorax"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-upper-back/0",
+  "test": "auscultate.lung-upper-back",
+  "text": "Bronchial breathing: harsh, expiration as long and loud as inspiration, with a gap between.",
+  "signs": [
+   "bronchial-breathing"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-upper-back/1",
+  "test": "auscultate.lung-upper-back",
+  "text": "Reduced or absent breath sounds.",
+  "signs": [
+   "reduced-breath-sounds"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pneumothorax",
+   "pleural-effusion",
+   "lung-cancer"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-upper-back/2",
+  "test": "auscultate.lung-upper-back",
+  "text": "Wheeze: musical, mainly expiratory, often from many airways at once.",
+  "signs": [
+   "wheeze"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "asthma-exacerbation",
+   "copd-exacerbation",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-upper-back/3",
+  "test": "auscultate.lung-upper-back",
+  "text": "Fine end-inspiratory crackles at the bases.",
+  "signs": [
+   "fine-crackles"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "acute-heart-failure",
+   "pulmonary-fibrosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-upper-back/4",
+  "test": "auscultate.lung-upper-back",
+  "text": "Coarse crackles that may change with coughing.",
+  "signs": [
+   "coarse-crackles"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "copd-exacerbation"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-upper-back/5",
+  "test": "auscultate.lung-upper-back",
+  "text": "A creaking pleural rub.",
+  "signs": [
+   "pleural-rub"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "pulmonary-embolism"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-upper-back/0",
+  "test": "percuss.lung-upper-back",
+  "text": "Stony dull.",
+  "signs": [
+   "stony-dull-percussion"
+  ],
+  "syndrome": "pleural-effusion-pattern",
+  "conditions": [
+   "pleural-effusion",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-upper-back/1",
+  "test": "percuss.lung-upper-back",
+  "text": "Dull.",
+  "signs": [
+   "dull-percussion"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia",
+   "lung-cancer"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-upper-back/2",
+  "test": "percuss.lung-upper-back",
+  "text": "Hyper-resonant.",
+  "signs": [
+   "hyper-resonant-percussion"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pneumothorax",
+   "copd-exacerbation"
+  ],
+  "note": null
+ },
+ {
+  "card": "resonance.lung-upper-back/0",
+  "test": "resonance.lung-upper-back",
+  "text": "Increased: the words come through clearly, even when whispered.",
+  "signs": [
+   "increased-vocal-resonance"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia"
+  ],
+  "note": null
+ },
+ {
+  "card": "resonance.lung-upper-back/1",
+  "test": "resonance.lung-upper-back",
+  "text": "Reduced or absent.",
+  "signs": [
+   "reduced-vocal-resonance"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pleural-effusion",
+   "pneumothorax"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-base/0",
+  "test": "auscultate.lung-base",
+  "text": "Bronchial breathing: harsh, expiration as long and loud as inspiration, with a gap between.",
+  "signs": [
+   "bronchial-breathing"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-base/1",
+  "test": "auscultate.lung-base",
+  "text": "Reduced or absent breath sounds.",
+  "signs": [
+   "reduced-breath-sounds"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pneumothorax",
+   "pleural-effusion",
+   "lung-cancer"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-base/2",
+  "test": "auscultate.lung-base",
+  "text": "Wheeze: musical, mainly expiratory, often from many airways at once.",
+  "signs": [
+   "wheeze"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "asthma-exacerbation",
+   "copd-exacerbation",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-base/3",
+  "test": "auscultate.lung-base",
+  "text": "Fine end-inspiratory crackles at the bases.",
+  "signs": [
+   "fine-crackles"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "acute-heart-failure",
+   "pulmonary-fibrosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-base/4",
+  "test": "auscultate.lung-base",
+  "text": "Coarse crackles that may change with coughing.",
+  "signs": [
+   "coarse-crackles"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "copd-exacerbation"
+  ],
+  "note": null
+ },
+ {
+  "card": "auscultate.lung-base/5",
+  "test": "auscultate.lung-base",
+  "text": "A creaking pleural rub.",
+  "signs": [
+   "pleural-rub"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "pulmonary-embolism"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-base/0",
+  "test": "percuss.lung-base",
+  "text": "Stony dull.",
+  "signs": [
+   "stony-dull-percussion"
+  ],
+  "syndrome": "pleural-effusion-pattern",
+  "conditions": [
+   "pleural-effusion",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-base/1",
+  "test": "percuss.lung-base",
+  "text": "Dull.",
+  "signs": [
+   "dull-percussion"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia",
+   "lung-cancer"
+  ],
+  "note": null
+ },
+ {
+  "card": "percuss.lung-base/2",
+  "test": "percuss.lung-base",
+  "text": "Hyper-resonant.",
+  "signs": [
+   "hyper-resonant-percussion"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pneumothorax",
+   "copd-exacerbation"
+  ],
+  "note": null
+ },
+ {
+  "card": "resonance.lung-base/0",
+  "test": "resonance.lung-base",
+  "text": "Increased: the words come through clearly, even when whispered.",
+  "signs": [
+   "increased-vocal-resonance"
+  ],
+  "syndrome": "consolidation",
+  "conditions": [
+   "community-acquired-pneumonia"
+  ],
+  "note": null
+ },
+ {
+  "card": "resonance.lung-base/1",
+  "test": "resonance.lung-base",
+  "text": "Reduced or absent.",
+  "signs": [
+   "reduced-vocal-resonance"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pleural-effusion",
+   "pneumothorax"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.breathing/0",
+  "test": "inspect.breathing",
+  "text": "Accessory muscles, recession, unable to speak in sentences.",
+  "signs": [
+   "accessory-muscle-use",
+   "speech-limited"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "asthma-exacerbation",
+   "copd-exacerbation",
+   "acute-heart-failure",
+   "community-acquired-pneumonia"
+  ],
+  "note": "Recession is not modelled."
+ },
+ {
+  "card": "inspect.breathing/1",
+  "test": "inspect.breathing",
+  "text": "Prolonged expiration through pursed lips.",
+  "signs": [
+   "pursed-lip-breathing"
+  ],
+  "syndrome": "hyperinflation-pattern",
+  "conditions": [
+   "copd-exacerbation"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.breathing/2",
+  "test": "inspect.breathing",
+  "text": "Deep, sighing breaths at a normal or raised rate (Kussmaul).",
+  "signs": [
+   "deep-breathing"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "diabetic-ketoacidosis",
+   "lactic-acidosis",
+   "alcoholic-ketoacidosis"
+  ],
+  "note": "Kussmaul breathing: deep breathing caused by a metabolic acidosis."
+ },
+ {
+  "card": "inspect.breathing/3",
+  "test": "inspect.breathing",
+  "text": "Waxing and waning breathing with pauses (Cheyne–Stokes).",
+  "signs": [
+   "cheyne-stokes"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.trachea/0",
+  "test": "palpate.trachea",
+  "text": "Deviated away from the abnormal side.",
+  "signs": [
+   "tracheal-deviation"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pneumothorax",
+   "pleural-effusion"
+  ],
+  "note": "Qualifier: away."
+ },
+ {
+  "card": "palpate.trachea/1",
+  "test": "palpate.trachea",
+  "text": "Deviated towards the abnormal side.",
+  "signs": [
+   "tracheal-deviation"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "lung-cancer",
+   "pulmonary-fibrosis"
+  ],
+  "note": "Qualifier: towards."
+ },
+ {
+  "card": "palpate.chest-expansion/0",
+  "test": "palpate.chest-expansion",
+  "text": "Reduced on one side.",
+  "signs": [
+   "reduced-chest-expansion"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "pleural-effusion",
+   "pneumothorax"
+  ],
+  "note": "Qualifier: one side."
+ },
+ {
+  "card": "palpate.chest-expansion/1",
+  "test": "palpate.chest-expansion",
+  "text": "Reduced on both sides.",
+  "signs": [
+   "reduced-chest-expansion"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation",
+   "pulmonary-fibrosis"
+  ],
+  "note": "Qualifier: both sides."
+ },
+ {
+  "card": "give.oxygen.nasal-2/0",
+  "test": "give.oxygen.nasal-2",
+  "text": "The saturation hardly rises despite a high inspired fraction.",
+  "signs": [
+   "refractory-hypoxaemia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "give.oxygen.nasal-2/1",
+  "test": "give.oxygen.nasal-2",
+  "text": "The saturation rises easily.",
+  "signs": [
+   "hypoxaemia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation",
+   "pulmonary-embolism"
+  ],
+  "note": "A response, not a sign: hypoxaemia that corrects (qualifier oxygen-responsive)."
+ },
+ {
+  "card": "give.oxygen.nasal-2/2",
+  "test": "give.oxygen.nasal-2",
+  "text": "Drowsy and flushed after high-flow oxygen, in a patient with COPD.",
+  "signs": [
+   "reduced-consciousness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation"
+  ],
+  "note": "CO₂ narcosis: consciousness is not an observable yet."
+ },
+ {
+  "card": "give.oxygen.venturi-28/0",
+  "test": "give.oxygen.venturi-28",
+  "text": "The saturation hardly rises despite a high inspired fraction.",
+  "signs": [
+   "refractory-hypoxaemia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "give.oxygen.venturi-28/1",
+  "test": "give.oxygen.venturi-28",
+  "text": "The saturation rises easily.",
+  "signs": [
+   "hypoxaemia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation",
+   "pulmonary-embolism"
+  ],
+  "note": "A response, not a sign: hypoxaemia that corrects (qualifier oxygen-responsive)."
+ },
+ {
+  "card": "give.oxygen.venturi-28/2",
+  "test": "give.oxygen.venturi-28",
+  "text": "Drowsy and flushed after high-flow oxygen, in a patient with COPD.",
+  "signs": [
+   "reduced-consciousness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation"
+  ],
+  "note": "CO₂ narcosis: consciousness is not an observable yet."
+ },
+ {
+  "card": "give.oxygen.venturi-35/0",
+  "test": "give.oxygen.venturi-35",
+  "text": "The saturation hardly rises despite a high inspired fraction.",
+  "signs": [
+   "refractory-hypoxaemia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "give.oxygen.venturi-35/1",
+  "test": "give.oxygen.venturi-35",
+  "text": "The saturation rises easily.",
+  "signs": [
+   "hypoxaemia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation",
+   "pulmonary-embolism"
+  ],
+  "note": "A response, not a sign: hypoxaemia that corrects (qualifier oxygen-responsive)."
+ },
+ {
+  "card": "give.oxygen.venturi-35/2",
+  "test": "give.oxygen.venturi-35",
+  "text": "Drowsy and flushed after high-flow oxygen, in a patient with COPD.",
+  "signs": [
+   "reduced-consciousness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation"
+  ],
+  "note": "CO₂ narcosis: consciousness is not an observable yet."
+ },
+ {
+  "card": "give.oxygen.mask-6/0",
+  "test": "give.oxygen.mask-6",
+  "text": "The saturation hardly rises despite a high inspired fraction.",
+  "signs": [
+   "refractory-hypoxaemia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "give.oxygen.mask-6/1",
+  "test": "give.oxygen.mask-6",
+  "text": "The saturation rises easily.",
+  "signs": [
+   "hypoxaemia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation",
+   "pulmonary-embolism"
+  ],
+  "note": "A response, not a sign: hypoxaemia that corrects (qualifier oxygen-responsive)."
+ },
+ {
+  "card": "give.oxygen.mask-6/2",
+  "test": "give.oxygen.mask-6",
+  "text": "Drowsy and flushed after high-flow oxygen, in a patient with COPD.",
+  "signs": [
+   "reduced-consciousness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation"
+  ],
+  "note": "CO₂ narcosis: consciousness is not an observable yet."
+ },
+ {
+  "card": "give.oxygen.nrb-15/0",
+  "test": "give.oxygen.nrb-15",
+  "text": "The saturation hardly rises despite a high inspired fraction.",
+  "signs": [
+   "refractory-hypoxaemia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "give.oxygen.nrb-15/1",
+  "test": "give.oxygen.nrb-15",
+  "text": "The saturation rises easily.",
+  "signs": [
+   "hypoxaemia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation",
+   "pulmonary-embolism"
+  ],
+  "note": "A response, not a sign: hypoxaemia that corrects (qualifier oxygen-responsive)."
+ },
+ {
+  "card": "give.oxygen.nrb-15/2",
+  "test": "give.oxygen.nrb-15",
+  "text": "Drowsy and flushed after high-flow oxygen, in a patient with COPD.",
+  "signs": [
+   "reduced-consciousness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation"
+  ],
+  "note": "CO₂ narcosis: consciousness is not an observable yet."
+ },
+ {
+  "card": "give.oxygen.off/0",
+  "test": "give.oxygen.off",
+  "text": "The saturation hardly rises despite a high inspired fraction.",
+  "signs": [
+   "refractory-hypoxaemia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "community-acquired-pneumonia",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "give.oxygen.off/1",
+  "test": "give.oxygen.off",
+  "text": "The saturation rises easily.",
+  "signs": [
+   "hypoxaemia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation",
+   "pulmonary-embolism"
+  ],
+  "note": "A response, not a sign: hypoxaemia that corrects (qualifier oxygen-responsive)."
+ },
+ {
+  "card": "give.oxygen.off/2",
+  "test": "give.oxygen.off",
+  "text": "Drowsy and flushed after high-flow oxygen, in a patient with COPD.",
+  "signs": [
+   "reduced-consciousness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation"
+  ],
+  "note": "CO₂ narcosis: consciousness is not an observable yet."
+ },
+ {
+  "card": "measure.crt/0",
+  "test": "measure.crt",
+  "text": "Refill slower than the normal limit for age and sex, in a warm room.",
+  "signs": [
+   "capillary-refill-prolonged"
+  ],
+  "syndrome": "shock",
+  "conditions": [
+   "sepsis",
+   "urosepsis",
+   "upper-gi-bleed",
+   "gastroenteritis"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.legs/0",
+  "test": "inspect.legs",
+  "text": "Bilateral pitting oedema.",
+  "signs": [
+   "pitting-oedema"
+  ],
+  "syndrome": "fluid-overload",
+  "conditions": [
+   "acute-heart-failure",
+   "decompensated-cirrhosis",
+   "chronic-kidney-disease",
+   "acute-kidney-injury"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.legs/1",
+  "test": "inspect.legs",
+  "text": "One swollen, warm, tender calf.",
+  "signs": [
+   "unilateral-calf-swelling"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "pulmonary-embolism"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.legs/2",
+  "test": "inspect.legs",
+  "text": "Non-pitting swelling.",
+  "signs": [
+   "non-pitting-oedema"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "hypothyroidism"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.sclera/0",
+  "test": "inspect.sclera",
+  "text": "Yellow sclerae.",
+  "signs": [
+   "jaundice"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "haemolytic-anaemia",
+   "decompensated-cirrhosis",
+   "alcoholic-hepatitis",
+   "obstructive-jaundice"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.conjunctiva/0",
+  "test": "inspect.conjunctiva",
+  "text": "The front rim is as pale as the rest (no rim contrast).",
+  "signs": [
+   "conjunctival-pallor"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "iron-deficiency-anaemia",
+   "upper-gi-bleed",
+   "b12-deficiency",
+   "haemolytic-anaemia"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.asterixis/0",
+  "test": "test.asterixis",
+  "text": "The hands drop forward briefly and jerk back, irregularly, on both sides.",
+  "signs": [
+   "asterixis"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "hepatic-encephalopathy",
+   "decompensated-cirrhosis",
+   "acute-kidney-injury",
+   "copd-exacerbation"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.shifting-dullness/0",
+  "test": "test.shifting-dullness",
+  "text": "Dullness that shifts when the patient turns.",
+  "signs": [
+   "shifting-dullness"
+  ],
+  "syndrome": "portal-hypertension",
+  "conditions": [
+   "decompensated-cirrhosis",
+   "spontaneous-bacterial-peritonitis"
+  ],
+  "note": null
+ },
+ {
+  "card": "examine.rectal/0",
+  "test": "examine.rectal",
+  "text": "Black, sticky, tarry stool with a characteristic smell (melaena).",
+  "signs": [
+   "melaena"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "peptic-ulcer-bleed",
+   "variceal-bleed",
+   "upper-gi-bleed"
+  ],
+  "note": null
+ },
+ {
+  "card": "examine.rectal/1",
+  "test": "examine.rectal",
+  "text": "A hard, irregular mass in the rectum; fresh blood.",
+  "signs": [
+   "rectal-mass",
+   "fresh-blood-pr"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "colorectal-cancer"
+  ],
+  "note": null
+ },
+ {
+  "card": "examine.rectal/2",
+  "test": "examine.rectal",
+  "text": "Lax anal tone and reduced perianal sensation.",
+  "signs": [
+   "lax-anal-tone",
+   "saddle-anaesthesia"
+  ],
+  "syndrome": "cauda-equina-syndrome",
+  "conditions": [
+   "cauda-equina-syndrome"
+  ],
+  "note": null
+ },
+ {
+  "card": "examine.rectal/3",
+  "test": "examine.rectal",
+  "text": "A smoothly enlarged prostate.",
+  "signs": [
+   "enlarged-prostate"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "urinary-retention"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.skin/0",
+  "test": "inspect.skin",
+  "text": "Several spider naevi, palmar erythema, gynaecomastia, leukonychia.",
+  "signs": [
+   "spider-naevi",
+   "palmar-erythema",
+   "gynaecomastia",
+   "leukonychia"
+  ],
+  "syndrome": "chronic-liver-disease",
+  "conditions": [
+   "decompensated-cirrhosis",
+   "alcoholic-hepatitis"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.skin/1",
+  "test": "inspect.skin",
+  "text": "Caput medusae.",
+  "signs": [
+   "caput-medusae"
+  ],
+  "syndrome": "portal-hypertension",
+  "conditions": [
+   "decompensated-cirrhosis",
+   "variceal-bleed"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.tremor/0",
+  "test": "test.tremor",
+  "text": "A fine, fast tremor of the outstretched fingers.",
+  "signs": [
+   "fine-postural-tremor"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "thyrotoxicosis",
+   "graves-disease",
+   "anxiety-disorder",
+   "phaeochromocytoma",
+   "hypoglycaemia"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.pigmentation/0",
+  "test": "inspect.pigmentation",
+  "text": "Dark palmar creases, brown patches inside the cheeks, pigmented scars.",
+  "signs": [
+   "hyperpigmentation"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "addisonian-crisis",
+   "adrenal-insufficiency"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.thyroid/0",
+  "test": "palpate.thyroid",
+  "text": "A diffuse, smooth, soft goitre with a bruit.",
+  "signs": [
+   "diffuse-goitre",
+   "thyroid-bruit"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "graves-disease"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.thyroid/1",
+  "test": "palpate.thyroid",
+  "text": "An irregular, nodular goitre.",
+  "signs": [
+   "nodular-goitre"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "toxic-multinodular-goitre"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.thyroid/2",
+  "test": "palpate.thyroid",
+  "text": "A tender gland, often after a viral illness.",
+  "signs": [
+   "thyroid-tenderness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "thyroiditis"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.thyroid-eyes/0",
+  "test": "inspect.thyroid-eyes",
+  "text": "Lid retraction and lid lag.",
+  "signs": [
+   "lid-retraction",
+   "lid-lag"
+  ],
+  "syndrome": "thyrotoxicosis-signs",
+  "conditions": [
+   "thyrotoxicosis",
+   "toxic-multinodular-goitre",
+   "thyroiditis",
+   "graves-disease"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.thyroid-eyes/1",
+  "test": "inspect.thyroid-eyes",
+  "text": "Proptosis, chemosis, restricted eye movements, double vision.",
+  "signs": [
+   "exophthalmos",
+   "chemosis"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "graves-disease"
+  ],
+  "note": "Restrictive ophthalmopathy is not modelled; double vision is a symptom."
+ },
+ {
+  "card": "inspect.mouth/0",
+  "test": "inspect.mouth",
+  "text": "A dry tongue and dry mucosa.",
+  "signs": [
+   "dry-mucosa"
+  ],
+  "syndrome": "hypovolaemia",
+  "conditions": [
+   "gastroenteritis",
+   "diabetic-ketoacidosis",
+   "hyperosmolar-hyperglycaemic-state",
+   "hypercalcaemia-malignancy"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.mouth/1",
+  "test": "inspect.mouth",
+  "text": "A smooth, red, sore tongue (glossitis); cracks at the corners of the mouth (angular cheilitis).",
+  "signs": [
+   "glossitis",
+   "angular-cheilitis"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "b12-deficiency",
+   "iron-deficiency-anaemia"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.turgor/0",
+  "test": "test.turgor",
+  "text": "The fold stays up and flattens slowly (tenting).",
+  "signs": [
+   "reduced-skin-turgor"
+  ],
+  "syndrome": "hypovolaemia",
+  "conditions": [
+   "gastroenteritis",
+   "diabetic-ketoacidosis",
+   "hyperosmolar-hyperglycaemic-state"
+  ],
+  "note": null
+ },
+ {
+  "card": "smell.breath/0",
+  "test": "smell.breath",
+  "text": "Sweet, fruity, like pear drops or nail-varnish remover.",
+  "signs": [
+   "ketotic-breath"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "diabetic-ketoacidosis",
+   "alcoholic-ketoacidosis",
+   "starvation-ketosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "smell.breath/1",
+  "test": "smell.breath",
+  "text": "Musty, sweetish (fetor hepaticus).",
+  "signs": [
+   "fetor-hepaticus"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "hepatic-encephalopathy",
+   "decompensated-cirrhosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "smell.breath/2",
+  "test": "smell.breath",
+  "text": "Ammonia-like, fishy (uraemic fetor).",
+  "signs": [
+   "uraemic-fetor"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "chronic-kidney-disease",
+   "acute-kidney-injury"
+  ],
+  "note": null
+ },
+ {
+  "card": "measure.bp.lying-standing/0",
+  "test": "measure.bp.lying-standing",
+  "text": "Heart rate rises by 30 /min or more, or standing is impossible because of dizziness.",
+  "signs": [
+   "postural-tachycardia"
+  ],
+  "syndrome": "hypovolaemia",
+  "conditions": [
+   "upper-gi-bleed",
+   "gastroenteritis",
+   "diabetic-ketoacidosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "measure.bp.lying-standing/1",
+  "test": "measure.bp.lying-standing",
+  "text": "Systolic falls by 20 mmHg or more, or diastolic by 10 or more, within 3 minutes.",
+  "signs": [
+   "orthostatic-hypotension"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "orthostatic-hypotension",
+   "adrenal-insufficiency",
+   "addisonian-crisis",
+   "hyponatraemia-thiazide"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.abdomen/0",
+  "test": "palpate.abdomen",
+  "text": "Guarding, rigidity, rebound or percussion tenderness.",
+  "signs": [
+   "peritonism"
+  ],
+  "syndrome": "peritonitis-signs",
+  "conditions": [
+   "acute-appendicitis",
+   "spontaneous-bacterial-peritonitis",
+   "acute-pancreatitis"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.abdomen/1",
+  "test": "palpate.abdomen",
+  "text": "Tenderness in the right iliac fossa.",
+  "signs": [
+   "rif-tenderness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "acute-appendicitis"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.abdomen/2",
+  "test": "palpate.abdomen",
+  "text": "Epigastric tenderness.",
+  "signs": [
+   "epigastric-tenderness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "peptic-ulcer-bleed",
+   "acute-pancreatitis"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.abdomen/3",
+  "test": "palpate.abdomen",
+  "text": "Enlarged spleen, with or without the liver.",
+  "signs": [
+   "splenomegaly",
+   "hepatomegaly"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "decompensated-cirrhosis",
+   "haemolytic-anaemia"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.abdomen/4",
+  "test": "palpate.abdomen",
+  "text": "A smooth, dull mass rising from the pelvis that cannot be got below.",
+  "signs": [
+   "palpable-bladder"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "urinary-retention"
+  ],
+  "note": null
+ },
+ {
+  "card": "palpate.abdomen/5",
+  "test": "palpate.abdomen",
+  "text": "Loin tenderness, worse on gentle punching.",
+  "signs": [
+   "renal-angle-tenderness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "acute-pyelonephritis",
+   "urosepsis"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.eyes/0",
+  "test": "inspect.eyes",
+  "text": "A small pupil with a slight drooping of the same lid.",
+  "signs": [
+   "anisocoria",
+   "ptosis"
+  ],
+  "syndrome": "horner-syndrome",
+  "conditions": [
+   "horner-syndrome",
+   "lateral-medullary-syndrome",
+   "lung-cancer"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.eyes/1",
+  "test": "inspect.eyes",
+  "text": "A large pupil with a complete ptosis, the eye turned down and out.",
+  "signs": [
+   "fixed-dilated-pupil",
+   "ptosis",
+   "eye-down-and-out"
+  ],
+  "syndrome": "third-nerve-palsy",
+  "conditions": [
+   "third-nerve-palsy"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.eyes/2",
+  "test": "inspect.eyes",
+  "text": "Nystagmus while looking straight ahead.",
+  "signs": [
+   "spontaneous-nystagmus"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "vestibular-neuritis",
+   "cerebellar-stroke"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.eyes.dim/0",
+  "test": "inspect.eyes.dim",
+  "text": "The difference grows in the dark, the small pupil widening slowly.",
+  "signs": [
+   "dilation-lag"
+  ],
+  "syndrome": "horner-syndrome",
+  "conditions": [
+   "horner-syndrome",
+   "lateral-medullary-syndrome"
+  ],
+  "note": null
+ },
+ {
+  "card": "inspect.eyes.dim/1",
+  "test": "inspect.eyes.dim",
+  "text": "The difference is greater in bright light.",
+  "signs": [
+   "anisocoria"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "third-nerve-palsy"
+  ],
+  "note": "Qualifier: greater in light (the large pupil is abnormal)."
+ },
+ {
+  "card": "test.pupils.light/0",
+  "test": "test.pupils.light",
+  "text": "One pupil does not constrict, whichever eye is lit.",
+  "signs": [
+   "fixed-dilated-pupil"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "third-nerve-palsy",
+   "subdural-haematoma",
+   "intracerebral-haemorrhage"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.pupils.light/1",
+  "test": "test.pupils.light",
+  "text": "Light in one eye constricts neither pupil; light in the other constricts both.",
+  "signs": [
+   "afferent-pupillary-defect"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "multiple-sclerosis"
+  ],
+  "note": "Qualifier: absolute (amaurotic)."
+ },
+ {
+  "card": "test.swinging-light/0",
+  "test": "test.swinging-light",
+  "text": "Both pupils widen when the light swings to one eye.",
+  "signs": [
+   "afferent-pupillary-defect"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "multiple-sclerosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.eye-movements/0",
+  "test": "test.eye-movements",
+  "text": "One eye fails to abduct, with horizontal double vision.",
+  "signs": [
+   "abduction-deficit"
+  ],
+  "syndrome": "sixth-nerve-palsy",
+  "conditions": [
+   "sixth-nerve-palsy"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.eye-movements/1",
+  "test": "test.eye-movements",
+  "text": "The eye is down and out, with ptosis.",
+  "signs": [
+   "eye-down-and-out",
+   "ptosis"
+  ],
+  "syndrome": "third-nerve-palsy",
+  "conditions": [
+   "third-nerve-palsy"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.eye-movements/2",
+  "test": "test.eye-movements",
+  "text": "Horizontal nystagmus beating in one direction, stronger when looking that way.",
+  "signs": [
+   "unidirectional-nystagmus"
+  ],
+  "syndrome": "peripheral-vestibular-pattern",
+  "conditions": [
+   "vestibular-neuritis",
+   "labyrinthitis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.eye-movements/3",
+  "test": "test.eye-movements",
+  "text": "Nystagmus that changes direction with the direction of gaze; jerky pursuit.",
+  "signs": [
+   "gaze-evoked-nystagmus",
+   "saccadic-pursuit"
+  ],
+  "syndrome": "cerebellar-syndrome",
+  "conditions": [
+   "cerebellar-stroke",
+   "multiple-sclerosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.eye-movements/4",
+  "test": "test.eye-movements",
+  "text": "Double vision that varies and worsens with effort.",
+  "signs": [
+   "variable-diplopia"
+  ],
+  "syndrome": "neuromuscular-fatigability",
+  "conditions": [
+   "myasthenia-gravis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.frenzel/0",
+  "test": "test.frenzel",
+  "text": "Horizontal-torsional nystagmus beating in one direction, much stronger without fixation.",
+  "signs": [
+   "unidirectional-nystagmus"
+  ],
+  "syndrome": "peripheral-vestibular-pattern",
+  "conditions": [
+   "vestibular-neuritis",
+   "labyrinthitis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.frenzel/1",
+  "test": "test.frenzel",
+  "text": "Purely vertical or purely torsional nystagmus, or nystagmus no stronger without fixation.",
+  "signs": [
+   "central-nystagmus"
+  ],
+  "syndrome": "central-vestibular-pattern",
+  "conditions": [
+   "cerebellar-stroke",
+   "lateral-medullary-syndrome"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.head-impulse/0",
+  "test": "test.head-impulse",
+  "text": "A catch-up saccade after turning towards one side.",
+  "signs": [
+   "head-impulse-positive"
+  ],
+  "syndrome": "peripheral-vestibular-pattern",
+  "conditions": [
+   "vestibular-neuritis",
+   "labyrinthitis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.head-impulse/1",
+  "test": "test.head-impulse",
+  "text": "A normal head impulse in a patient with acute continuous vertigo and nystagmus.",
+  "signs": [],
+  "syndrome": "central-vestibular-pattern",
+  "conditions": [
+   "cerebellar-stroke",
+   "lateral-medullary-syndrome"
+  ],
+  "note": "A pertinent negative: the absence of head-impulse-positive within the pattern."
+ },
+ {
+  "card": "test.cover/0",
+  "test": "test.cover",
+  "text": "A vertical refixation: one eye moves down, the other up.",
+  "signs": [
+   "skew-deviation"
+  ],
+  "syndrome": "central-vestibular-pattern",
+  "conditions": [
+   "lateral-medullary-syndrome",
+   "cerebellar-stroke"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.cover/1",
+  "test": "test.cover",
+  "text": "A horizontal refixation.",
+  "signs": [
+   "horizontal-tropia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "sixth-nerve-palsy"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.visual-fields/0",
+  "test": "test.visual-fields",
+  "text": "The same half of the field lost in both eyes (homonymous hemianopia).",
+  "signs": [
+   "homonymous-hemianopia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "ischaemic-stroke-left-mca",
+   "intracerebral-haemorrhage"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.visual-fields/1",
+  "test": "test.visual-fields",
+  "text": "The outer halves lost in both eyes (bitemporal hemianopia).",
+  "signs": [
+   "bitemporal-hemianopia"
+  ],
+  "syndrome": null,
+  "conditions": [],
+  "note": null
+ },
+ {
+  "card": "test.visual-fields/2",
+  "test": "test.visual-fields",
+  "text": "A central blind spot in one eye (central scotoma).",
+  "signs": [
+   "central-scotoma"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "multiple-sclerosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.fundoscopy/0",
+  "test": "test.fundoscopy",
+  "text": "A swollen disc with blurred margins, lost venous pulsation, haemorrhages around it.",
+  "signs": [
+   "papilloedema"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "intracerebral-haemorrhage",
+   "subdural-haematoma"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.fundoscopy/1",
+  "test": "test.fundoscopy",
+  "text": "A pale disc.",
+  "signs": [
+   "optic-atrophy"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "multiple-sclerosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.whisper/0",
+  "test": "test.whisper",
+  "text": "Cannot repeat the whisper on one side.",
+  "signs": [
+   "whisper-not-heard"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "labyrinthitis",
+   "menieres",
+   "vestibular-schwannoma"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.rinne/0",
+  "test": "test.rinne",
+  "text": "Bone conduction louder than air (Rinne negative).",
+  "signs": [
+   "rinne-negative"
+  ],
+  "syndrome": "conductive-hearing-loss",
+  "conditions": [],
+  "note": null
+ },
+ {
+  "card": "test.weber/0",
+  "test": "test.weber",
+  "text": "Louder in the deaf ear.",
+  "signs": [
+   "weber-lateralised"
+  ],
+  "syndrome": "conductive-hearing-loss",
+  "conditions": [],
+  "note": null
+ },
+ {
+  "card": "test.weber/1",
+  "test": "test.weber",
+  "text": "Louder in the better ear.",
+  "signs": [
+   "weber-lateralised"
+  ],
+  "syndrome": "sensorineural-hearing-loss",
+  "conditions": [
+   "vestibular-schwannoma",
+   "labyrinthitis",
+   "menieres"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.romberg/0",
+  "test": "test.romberg",
+  "text": "Steady with the eyes open, but sways and falls when they close (Romberg positive).",
+  "signs": [
+   "romberg-sign"
+  ],
+  "syndrome": "dorsal-column-syndrome",
+  "conditions": [
+   "b12-deficiency"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.romberg/1",
+  "test": "test.romberg",
+  "text": "Falls consistently towards one side when the eyes close.",
+  "signs": [
+   "lateral-fall-eyes-closed"
+  ],
+  "syndrome": "peripheral-vestibular-pattern",
+  "conditions": [
+   "vestibular-neuritis",
+   "labyrinthitis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.romberg/2",
+  "test": "test.romberg",
+  "text": "Unsteady even with the eyes open, feet together impossible.",
+  "signs": [
+   "truncal-ataxia"
+  ],
+  "syndrome": "cerebellar-syndrome",
+  "conditions": [
+   "cerebellar-stroke"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.gait/0",
+  "test": "test.gait",
+  "text": "Broad-based, staggering; cannot walk heel to toe.",
+  "signs": [
+   "ataxic-gait"
+  ],
+  "syndrome": "cerebellar-syndrome",
+  "conditions": [
+   "cerebellar-stroke",
+   "lateral-medullary-syndrome"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.gait/1",
+  "test": "test.gait",
+  "text": "Veers to one side but walks unaided.",
+  "signs": [
+   "veering-gait"
+  ],
+  "syndrome": "peripheral-vestibular-pattern",
+  "conditions": [
+   "vestibular-neuritis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.gait/2",
+  "test": "test.gait",
+  "text": "One leg stiff and swung outwards in a semicircle, the arm flexed.",
+  "signs": [
+   "hemiplegic-gait"
+  ],
+  "syndrome": "umn-syndrome",
+  "conditions": [
+   "ischaemic-stroke-left-mca"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.gait/3",
+  "test": "test.gait",
+  "text": "High stepping, the foot slapping down.",
+  "signs": [
+   "steppage-gait",
+   "foot-drop"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "l5-radiculopathy",
+   "common-peroneal-palsy"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.gait/4",
+  "test": "test.gait",
+  "text": "Stamping, watching the feet, worse in the dark.",
+  "signs": [
+   "sensory-ataxic-gait"
+  ],
+  "syndrome": "dorsal-column-syndrome",
+  "conditions": [
+   "b12-deficiency"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.finger-nose/0",
+  "test": "test.finger-nose",
+  "text": "A tremor that grows near the target, and overshooting (past-pointing), with eyes open as much as closed.",
+  "signs": [
+   "intention-tremor",
+   "limb-dysmetria"
+  ],
+  "syndrome": "cerebellar-syndrome",
+  "conditions": [
+   "cerebellar-stroke",
+   "multiple-sclerosis",
+   "lateral-medullary-syndrome"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.finger-nose/1",
+  "test": "test.finger-nose",
+  "text": "Accurate with eyes open, lost with eyes closed.",
+  "signs": [
+   "limb-ataxia-eyes-closed"
+  ],
+  "syndrome": "dorsal-column-syndrome",
+  "conditions": [
+   "b12-deficiency"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.face-movement/0",
+  "test": "test.face-movement",
+  "text": "Weakness of the whole of one side, forehead included; the eye does not close.",
+  "signs": [
+   "lmn-facial-weakness",
+   "incomplete-eye-closure"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "bells-palsy"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.face-movement/1",
+  "test": "test.face-movement",
+  "text": "Weakness of the lower face with the forehead spared.",
+  "signs": [
+   "umn-facial-weakness"
+  ],
+  "syndrome": "umn-syndrome",
+  "conditions": [
+   "ischaemic-stroke-left-mca",
+   "intracerebral-haemorrhage"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.face-movement/2",
+  "test": "test.face-movement",
+  "text": "Weakness on both sides.",
+  "signs": [
+   "bilateral-facial-weakness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "guillain-barre",
+   "myasthenia-gravis",
+   "sarcoidosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.face-sensation/0",
+  "test": "test.face-sensation",
+  "text": "Loss on one side of the face together with the body on the same side.",
+  "signs": [
+   "facial-sensory-loss",
+   "hemisensory-loss"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "ischaemic-stroke-left-mca"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.face-sensation/1",
+  "test": "test.face-sensation",
+  "text": "Loss of pain on one side of the face and on the opposite side of the body.",
+  "signs": [
+   "crossed-sensory-loss"
+  ],
+  "syndrome": "lateral-medullary-syndrome",
+  "conditions": [
+   "lateral-medullary-syndrome"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.face-sensation/2",
+  "test": "test.face-sensation",
+  "text": "An absent corneal reflex on one side.",
+  "signs": [
+   "absent-corneal-reflex"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "vestibular-schwannoma"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.jaw/0",
+  "test": "test.jaw",
+  "text": "The jaw deviates to one side on opening.",
+  "signs": [
+   "jaw-deviation"
+  ],
+  "syndrome": null,
+  "conditions": [],
+  "note": null
+ },
+ {
+  "card": "test.jaw/1",
+  "test": "test.jaw",
+  "text": "A brisk jaw jerk.",
+  "signs": [
+   "brisk-jaw-jerk"
+  ],
+  "syndrome": "umn-syndrome",
+  "conditions": [
+   "motor-neurone-disease"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.palate/0",
+  "test": "test.palate",
+  "text": "The uvula is pulled to one side.",
+  "signs": [
+   "uvula-deviation"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "lateral-medullary-syndrome"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.palate/1",
+  "test": "test.palate",
+  "text": "The palate hardly moves on either side; nasal speech.",
+  "signs": [
+   "nasal-speech",
+   "absent-gag"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "motor-neurone-disease",
+   "myasthenia-gravis",
+   "guillain-barre"
+  ],
+  "note": "Palatal movement itself is not modelled."
+ },
+ {
+  "card": "test.tongue/0",
+  "test": "test.tongue",
+  "text": "Deviates to one side when stuck out, with wasting on that side.",
+  "signs": [
+   "tongue-deviation",
+   "tongue-wasting"
+  ],
+  "syndrome": "lmn-syndrome",
+  "conditions": [],
+  "note": null
+ },
+ {
+  "card": "test.tongue/1",
+  "test": "test.tongue",
+  "text": "Wasted, fasciculating tongue.",
+  "signs": [
+   "tongue-wasting",
+   "tongue-fasciculation"
+  ],
+  "syndrome": "lmn-syndrome",
+  "conditions": [
+   "motor-neurone-disease"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.tongue/2",
+  "test": "test.tongue",
+  "text": "Deviates slightly towards the weak side of the body, without wasting.",
+  "signs": [
+   "tongue-deviation"
+  ],
+  "syndrome": "umn-syndrome",
+  "conditions": [
+   "ischaemic-stroke-left-mca"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.shrug/0",
+  "test": "test.shrug",
+  "text": "Weak shrug or head turning on one side, with wasting.",
+  "signs": [
+   "weak-shrug"
+  ],
+  "syndrome": null,
+  "conditions": [],
+  "note": "Wasting of trapezius is not modelled."
+ },
+ {
+  "card": "test.shrug/1",
+  "test": "test.shrug",
+  "text": "Weak neck and shoulders on both sides.",
+  "signs": [
+   "weak-shrug"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "motor-neurone-disease",
+   "myasthenia-gravis"
+  ],
+  "note": "Qualifier: both sides."
+ },
+ {
+  "card": "test.speech/0",
+  "test": "test.speech",
+  "text": "Halting, effortful speech with good comprehension (expressive aphasia).",
+  "signs": [
+   "expressive-aphasia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "ischaemic-stroke-left-mca",
+   "intracerebral-haemorrhage",
+   "tia"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.speech/1",
+  "test": "test.speech",
+  "text": "Fluent speech full of wrong words, with poor comprehension (receptive aphasia).",
+  "signs": [
+   "receptive-aphasia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "ischaemic-stroke-left-mca"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.speech/2",
+  "test": "test.speech",
+  "text": "Slurred, scanning or explosive speech with normal language.",
+  "signs": [
+   "dysarthria"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "cerebellar-stroke",
+   "motor-neurone-disease",
+   "myasthenia-gravis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.count-to-50/0",
+  "test": "test.count-to-50",
+  "text": "The voice becomes quieter, nasal and slurred as the count goes on.",
+  "signs": [
+   "fatigable-dysarthria"
+  ],
+  "syndrome": "neuromuscular-fatigability",
+  "conditions": [
+   "myasthenia-gravis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.count-to-50/1",
+  "test": "test.count-to-50",
+  "text": "Running out of breath early.",
+  "signs": [
+   "reduced-single-breath-count"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "guillain-barre",
+   "myasthenia-gravis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.sustained-upgaze/0",
+  "test": "test.sustained-upgaze",
+  "text": "One or both lids sink progressively.",
+  "signs": [
+   "fatigable-ptosis"
+  ],
+  "syndrome": "neuromuscular-fatigability",
+  "conditions": [
+   "myasthenia-gravis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.arm.tone/0",
+  "test": "test.arm.tone",
+  "text": "A catch that gives way, worse with faster movement (spasticity).",
+  "signs": [
+   "spasticity"
+  ],
+  "syndrome": "umn-syndrome",
+  "conditions": [
+   "ischaemic-stroke-left-mca",
+   "multiple-sclerosis",
+   "motor-neurone-disease"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.arm.tone/1",
+  "test": "test.arm.tone",
+  "text": "Even resistance throughout (lead-pipe), or ratchet-like (cogwheel).",
+  "signs": [
+   "rigidity"
+  ],
+  "syndrome": null,
+  "conditions": [],
+  "note": null
+ },
+ {
+  "card": "test.arm.tone/2",
+  "test": "test.arm.tone",
+  "text": "Floppy with wasting and fasciculation.",
+  "signs": [
+   "hypotonia",
+   "muscle-wasting",
+   "fasciculation"
+  ],
+  "syndrome": "lmn-syndrome",
+  "conditions": [
+   "motor-neurone-disease",
+   "guillain-barre"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.arm.power/0",
+  "test": "test.arm.power",
+  "text": "Extensors weaker than flexors (pyramidal pattern), on one side.",
+  "signs": [
+   "pyramidal-weakness"
+  ],
+  "syndrome": "umn-syndrome",
+  "conditions": [
+   "ischaemic-stroke-left-mca",
+   "intracerebral-haemorrhage"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.arm.power/1",
+  "test": "test.arm.power",
+  "text": "Weakness confined to the muscles of one root (myotome).",
+  "signs": [
+   "myotomal-weakness"
+  ],
+  "syndrome": null,
+  "conditions": [],
+  "note": null
+ },
+ {
+  "card": "test.arm.power/2",
+  "test": "test.arm.power",
+  "text": "Symmetrical weakness, proximal or ascending.",
+  "signs": [
+   "proximal-symmetrical-weakness",
+   "ascending-weakness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "guillain-barre",
+   "myasthenia-gravis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.arm.power/3",
+  "test": "test.arm.power",
+  "text": "Weakness with wasting and fasciculation, mixed with brisk reflexes.",
+  "signs": [
+   "muscle-wasting",
+   "fasciculation",
+   "hyperreflexia"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "motor-neurone-disease"
+  ],
+  "note": "Mixed UMN and LMN signs: motor neurone disease."
+ },
+ {
+  "card": "test.arm.reflexes/0",
+  "test": "test.arm.reflexes",
+  "text": "Brisk, spreading reflexes on one side.",
+  "signs": [
+   "hyperreflexia"
+  ],
+  "syndrome": "umn-syndrome",
+  "conditions": [
+   "ischaemic-stroke-left-mca",
+   "multiple-sclerosis",
+   "motor-neurone-disease"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.arm.reflexes/1",
+  "test": "test.arm.reflexes",
+  "text": "Reflexes absent even with reinforcement.",
+  "signs": [
+   "areflexia"
+  ],
+  "syndrome": "lmn-syndrome",
+  "conditions": [
+   "guillain-barre"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.arm.pinprick/0",
+  "test": "test.arm.pinprick",
+  "text": "Loss in one dermatome.",
+  "signs": [
+   "dermatomal-sensory-loss"
+  ],
+  "syndrome": null,
+  "conditions": [],
+  "note": null
+ },
+ {
+  "card": "test.arm.pinprick/1",
+  "test": "test.arm.pinprick",
+  "text": "Loss over a whole half of the body, face included.",
+  "signs": [
+   "hemisensory-loss"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "ischaemic-stroke-left-mca"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.arm.pinprick/2",
+  "test": "test.arm.pinprick",
+  "text": "Loss in the body on one side and the face on the other.",
+  "signs": [
+   "crossed-sensory-loss"
+  ],
+  "syndrome": "lateral-medullary-syndrome",
+  "conditions": [
+   "lateral-medullary-syndrome"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.arm.vibration/0",
+  "test": "test.arm.vibration",
+  "text": "Vibration and position sense lost at the fingertips.",
+  "signs": [
+   "distal-vibration-loss"
+  ],
+  "syndrome": "dorsal-column-syndrome",
+  "conditions": [
+   "b12-deficiency",
+   "multiple-sclerosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.leg.tone/0",
+  "test": "test.leg.tone",
+  "text": "Spastic tone; sustained clonus.",
+  "signs": [
+   "spasticity",
+   "sustained-clonus"
+  ],
+  "syndrome": "umn-syndrome",
+  "conditions": [
+   "ischaemic-stroke-left-mca",
+   "multiple-sclerosis",
+   "b12-deficiency"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.leg.tone/1",
+  "test": "test.leg.tone",
+  "text": "Floppy, wasted leg.",
+  "signs": [
+   "hypotonia",
+   "muscle-wasting"
+  ],
+  "syndrome": "lmn-syndrome",
+  "conditions": [
+   "guillain-barre",
+   "motor-neurone-disease"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.leg.power/0",
+  "test": "test.leg.power",
+  "text": "Weak dorsiflexion and big toe extension, with weak inversion.",
+  "signs": [
+   "foot-drop",
+   "myotomal-weakness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "l5-radiculopathy"
+  ],
+  "note": "Qualifier: inversion weak (L5)."
+ },
+ {
+  "card": "test.leg.power/1",
+  "test": "test.leg.power",
+  "text": "Weak dorsiflexion and eversion with normal inversion.",
+  "signs": [
+   "foot-drop"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "common-peroneal-palsy"
+  ],
+  "note": "Qualifier: inversion spared (peroneal)."
+ },
+ {
+  "card": "test.leg.power/2",
+  "test": "test.leg.power",
+  "text": "Weak plantarflexion and eversion.",
+  "signs": [
+   "myotomal-weakness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "s1-radiculopathy"
+  ],
+  "note": "S1 myotome."
+ },
+ {
+  "card": "test.leg.power/3",
+  "test": "test.leg.power",
+  "text": "Flexors weaker than extensors, on one side, with the arm.",
+  "signs": [
+   "pyramidal-weakness"
+  ],
+  "syndrome": "umn-syndrome",
+  "conditions": [
+   "ischaemic-stroke-left-mca"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.leg.power/4",
+  "test": "test.leg.power",
+  "text": "Symmetrical weakness rising from the feet.",
+  "signs": [
+   "ascending-weakness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "guillain-barre"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.leg.reflexes/0",
+  "test": "test.leg.reflexes",
+  "text": "The big toe extends upwards and the other toes fan (Babinski sign).",
+  "signs": [
+   "extensor-plantar"
+  ],
+  "syndrome": "umn-syndrome",
+  "conditions": [
+   "ischaemic-stroke-left-mca",
+   "multiple-sclerosis",
+   "motor-neurone-disease"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.leg.reflexes/1",
+  "test": "test.leg.reflexes",
+  "text": "Absent ankle reflex on one side.",
+  "signs": [
+   "absent-ankle-reflex"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "s1-radiculopathy"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.leg.reflexes/2",
+  "test": "test.leg.reflexes",
+  "text": "All reflexes absent.",
+  "signs": [
+   "areflexia"
+  ],
+  "syndrome": "lmn-syndrome",
+  "conditions": [
+   "guillain-barre"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.leg.reflexes/3",
+  "test": "test.leg.reflexes",
+  "text": "Absent ankle reflexes with upgoing plantars.",
+  "signs": [
+   "absent-ankle-reflex",
+   "extensor-plantar"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "b12-deficiency",
+   "motor-neurone-disease"
+  ],
+  "note": "Mixed pattern: B12 deficiency, motor neurone disease."
+ },
+ {
+  "card": "test.leg.pinprick/0",
+  "test": "test.leg.pinprick",
+  "text": "Loss on the top of the foot and big toe.",
+  "signs": [
+   "dermatomal-sensory-loss"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "l5-radiculopathy",
+   "common-peroneal-palsy"
+  ],
+  "note": "L5 or the superficial peroneal nerve."
+ },
+ {
+  "card": "test.leg.pinprick/1",
+  "test": "test.leg.pinprick",
+  "text": "Loss on the outer foot and sole.",
+  "signs": [
+   "dermatomal-sensory-loss"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "s1-radiculopathy"
+  ],
+  "note": "S1."
+ },
+ {
+  "card": "test.leg.pinprick/2",
+  "test": "test.leg.pinprick",
+  "text": "Loss in both feet, fading upwards (stocking).",
+  "signs": [
+   "stocking-sensory-loss"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "b12-deficiency"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.leg.vibration/0",
+  "test": "test.leg.vibration",
+  "text": "Vibration and position sense lost at the toes.",
+  "signs": [
+   "distal-vibration-loss"
+  ],
+  "syndrome": "dorsal-column-syndrome",
+  "conditions": [
+   "b12-deficiency",
+   "multiple-sclerosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.power-repeated/0",
+  "test": "test.power-repeated",
+  "text": "Strength fades with repetition and recovers with rest.",
+  "signs": [
+   "fatigable-weakness"
+  ],
+  "syndrome": "neuromuscular-fatigability",
+  "conditions": [
+   "myasthenia-gravis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.pronator-drift/0",
+  "test": "test.pronator-drift",
+  "text": "One arm turns palm-down and sinks.",
+  "signs": [
+   "pronator-drift"
+  ],
+  "syndrome": "umn-syndrome",
+  "conditions": [
+   "ischaemic-stroke-left-mca",
+   "intracerebral-haemorrhage",
+   "subdural-haematoma"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.pronator-drift/1",
+  "test": "test.pronator-drift",
+  "text": "One arm rises or wanders, the fingers moving restlessly.",
+  "signs": [
+   "pseudoathetosis"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "cerebellar-stroke",
+   "b12-deficiency"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.slr/0",
+  "test": "test.slr",
+  "text": "Pain shooting down the leg below the knee between 30° and 70°.",
+  "signs": [
+   "positive-slr"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "l5-radiculopathy",
+   "s1-radiculopathy"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.heel-shin/0",
+  "test": "test.heel-shin",
+  "text": "The heel overshoots or misses the knee (dysmetria) and wobbles off the shin; the tremor grows as it nears the target (intention tremor), with the eyes open as much as closed.",
+  "signs": [
+   "limb-dysmetria",
+   "intention-tremor"
+  ],
+  "syndrome": "cerebellar-syndrome",
+  "conditions": [
+   "cerebellar-stroke",
+   "lateral-medullary-syndrome",
+   "multiple-sclerosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.heel-shin/1",
+  "test": "test.heel-shin",
+  "text": "Accurate while the patient watches, but the heel wanders once the eyes are closed.",
+  "signs": [
+   "limb-ataxia-eyes-closed"
+  ],
+  "syndrome": "dorsal-column-syndrome",
+  "conditions": [
+   "b12-deficiency"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.heel-shin/2",
+  "test": "test.heel-shin",
+  "text": "The leg cannot be lifted onto the knee, or only slowly and with effort.",
+  "signs": [
+   "pyramidal-weakness"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "ischaemic-stroke-left-mca"
+  ],
+  "note": "Weakness limits the test; not ataxia."
+ },
+ {
+  "card": "test.rapid-alternating/0",
+  "test": "test.rapid-alternating",
+  "text": "Slow, irregular and clumsy, the rhythm breaking down (dysdiadochokinesis).",
+  "signs": [
+   "dysdiadochokinesis"
+  ],
+  "syndrome": "cerebellar-syndrome",
+  "conditions": [
+   "cerebellar-stroke",
+   "multiple-sclerosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.rapid-alternating/1",
+  "test": "test.rapid-alternating",
+  "text": "Slow but regular.",
+  "signs": [
+   "slowed-alternating-movements"
+  ],
+  "syndrome": "umn-syndrome",
+  "conditions": [
+   "ischaemic-stroke-left-mca"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.trunk.pinprick/0",
+  "test": "test.trunk.pinprick",
+  "text": "A level below which pinprick is reduced.",
+  "signs": [
+   "sensory-level"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "multiple-sclerosis",
+   "bone-metastases"
+  ],
+  "note": null
+ },
+ {
+  "card": "test.saddle/0",
+  "test": "test.saddle",
+  "text": "Reduced perianal sensation, often with urinary retention and lax anal tone.",
+  "signs": [
+   "saddle-anaesthesia"
+  ],
+  "syndrome": "cauda-equina-syndrome",
+  "conditions": [
+   "cauda-equina-syndrome"
+  ],
+  "note": null
+ },
+ {
+  "card": "position.supine/0",
+  "test": "position.supine",
+  "text": "Breathless lying flat, better sitting up (orthopnoea).",
+  "signs": [
+   "orthopnoea"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "position.reclined-45/0",
+  "test": "position.reclined-45",
+  "text": "The JVP is visible at the angle of the jaw at 45°.",
+  "signs": [
+   "raised-jvp"
+  ],
+  "syndrome": "fluid-overload",
+  "conditions": [
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "position.sitting/0",
+  "test": "position.sitting",
+  "text": "Insists on sitting bolt upright, leaning on the arms (tripod).",
+  "signs": [
+   "tripod-position"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "copd-exacerbation",
+   "asthma-exacerbation",
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "position.sitting-forward/0",
+  "test": "position.sitting-forward",
+  "text": "Chest pain eased by sitting forward.",
+  "signs": [],
+  "syndrome": null,
+  "conditions": [
+   "pericarditis"
+  ],
+  "note": "A symptom, not a sign: belongs in the history (pericarditis)."
+ },
+ {
+  "card": "position.left-lateral/0",
+  "test": "position.left-lateral",
+  "text": "A diastolic rumble or third heart sound heard only in this position.",
+  "signs": [
+   "mid-diastolic-murmur",
+   "third-heart-sound"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "acute-heart-failure"
+  ],
+  "note": null
+ },
+ {
+  "card": "position.standing/0",
+  "test": "position.standing",
+  "text": "Dizzy or faint on standing.",
+  "signs": [],
+  "syndrome": null,
+  "conditions": [
+   "orthostatic-hypotension",
+   "upper-gi-bleed"
+  ],
+  "note": "A symptom; the sign is orthostatic-hypotension or postural-tachycardia."
+ },
+ {
+  "card": "position.standing/1",
+  "test": "position.standing",
+  "text": "A systolic murmur that gets louder on standing.",
+  "signs": [
+   "dynamic-outflow-murmur"
+  ],
+  "syndrome": null,
+  "conditions": [
+   "hcm"
+  ],
+  "note": null
+ },
+ {
+  "card": "expose.chest/0",
+  "test": "expose.chest",
+  "text": "A midline sternotomy scar, a thoracotomy scar, a pacemaker under the clavicle.",
+  "signs": [
+   "chest-scars"
+  ],
+  "syndrome": null,
+  "conditions": [],
+  "note": null
+ },
+ {
+  "card": "expose.chest/1",
+  "test": "expose.chest",
+  "text": "A barrel-shaped chest.",
+  "signs": [
+   "barrel-chest"
+  ],
+  "syndrome": "hyperinflation-pattern",
+  "conditions": [
+   "copd-exacerbation"
+  ],
+  "note": null
+ },
+ {
+  "card": "expose.abdomen/0",
+  "test": "expose.abdomen",
+  "text": "A distended abdomen with full flanks and an everted umbilicus.",
+  "signs": [
+   "abdominal-distension"
+  ],
+  "syndrome": "portal-hypertension",
+  "conditions": [
+   "decompensated-cirrhosis"
+  ],
+  "note": null
+ },
+ {
+  "card": "expose.abdomen/1",
+  "test": "expose.abdomen",
+  "text": "An abdomen that does not move with breathing.",
+  "signs": [
+   "abdomen-still-on-breathing"
+  ],
+  "syndrome": "peritonitis-signs",
+  "conditions": [
+   "acute-appendicitis",
+   "spontaneous-bacterial-peritonitis"
+  ],
+  "note": null
+ }
+]

@@ -1,6 +1,6 @@
 # Handover: start here
 
-Last updated: 17 October 2026, after PR #33.
+Last updated: 17 October 2026, after PR #34 (ADR-016 proposed).
 
 This page is the entry point for anyone (or any agent) picking up the work. It covers:
 
@@ -8,7 +8,8 @@ This page is the entry point for anyone (or any agent) picking up the work. It c
 - the rules agreed so far;
 - what is done;
 - the open lists;
-- where the next topic, animations, starts.
+- the proposed data model for tests, signs and the knowledge graph, which comes first;
+- where the topic after it, animations, starts.
 
 If you will change the patient figure, also read `source/studio/figure/BRIEF.md`.
 
@@ -155,6 +156,17 @@ Once any electrode is on, a small lead II strip runs next to the patient (`#bed-
 - P onset and T end are not detected on the waveform.
 - The measuring tool works on the rhythm strip and the 12 leads at fixed paper speed and gain. 50 mm/s and 20 mm/mV are not offered.
 - The owner has not yet reviewed the measuring steps' wording clinically.
+
+## First: tests, signs and the knowledge graph (ADR-016, proposed)
+
+Agreed with the owner before more content is added: separate tests from signs, define each sign on the model's observables, and put the clinical knowledge into tables that colleagues can later edit through a backend. The physiology stays in code.
+
+- Decision and migration plan: `docs/adr/ADR-016-tests-signs-knowledge.md`.
+- Inventory for review (202 signs, 25 syndromes, every card finding mapped, where the model shows each sign): `docs/adr/ADR-016-inventory.md`.
+- Draft tables in the target shape: `docs/adr/adr-016/`.
+- Statistics (sensitivity, specificity, likelihood ratios) go into a separate Evidence domain, linked from the sign cards; it gets its own ADR.
+
+Animations (below) should hang on signs once step 1 of the migration is in.
 
 ## Next topic: animations
 
