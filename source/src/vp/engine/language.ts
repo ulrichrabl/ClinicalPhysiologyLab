@@ -18,6 +18,24 @@ export function normalise(text: string): string {
   return text.toLowerCase().normalize('NFC').replace(/[’']/g, '').replace(/[^\p{L}\p{N}\s-]/gu, ' ').replace(/\s+/g, ' ').trim();
 }
 const tokens = (s: string) => normalise(s).split(' ').filter((w) => w.length > 1);
+
+/* What the examiner does, in the learner's words. A phrase like "feel the pulse" matches "check the pulse": the verb is
+   left out of matching, and a verb that names a different way of examining ("listen" against a palpation) counts against. */
+const VERB_FAMILY: Record<string, string> = Object.fromEntries(Object.entries({
+  auscultate: ['listen', 'auscultate', 'auscultation', 'abhören', 'abhoren', 'auskultieren', 'auskultation', 'hören', 'horen'],
+  palpate: ['feel', 'palpate', 'palpation', 'tasten', 'abtasten', 'ertasten', 'fühlen', 'fuhlen', 'palpieren'],
+  inspect: ['look', 'inspect', 'inspection', 'see', 'watch', 'observe', 'ansehen', 'anschauen', 'schauen', 'inspizieren', 'beobachten', 'betrachten'],
+  percuss: ['percuss', 'percussion', 'tap', 'perkutieren', 'perkussion', 'abklopfen', 'klopfen'],
+}).flatMap(([family, words]) => words.map((w) => [w, family])));
+/** Verbs that say only "examine": left out of matching, with no family. */
+const GENERIC_VERBS = new Set(['check', 'examine', 'assess', 'test', 'look for', 'for', 'prüfen', 'prufen', 'überprüfen', 'kontrollieren', 'untersuchen', 'auf', 'nach', 'bitte', 'please', 'can', 'let', 'me', 'ich', 'will', 'möchte']);
+const isVerb = (w: string) => w in VERB_FAMILY || GENERIC_VERBS.has(w);
+/** The way of examining the text names, if any. */
+export function verbFamily(text: string): string | undefined {
+  return tokens(text).map((w) => VERB_FAMILY[w]).find(Boolean);
+}
+/** A light stem, so "legs" finds "leg" and "Beine" finds "Bein". */
+const stem = (w: string) => (w.length > 4 ? w.replace(/(en|es|n|e|s)$/, '') : w.length > 3 ? w.replace(/s$/, '') : w);
 const STOP = new Set(['the', 'a', 'an', 'you', 'your', 'do', 'have', 'any', 'is', 'are', 'did', 'der', 'die', 'das', 'sie', 'ihr', 'ihre', 'haben', 'ist', 'sind', 'ein', 'eine', 'und', 'and', 'or', 'oder', 'to', 'zu', 'at', 'in', 'im', 'mit', 'with']);
 
 /** How well one phrasing matches the text, 0..1. */
@@ -25,16 +43,23 @@ export function phraseScore(text: string, phrase: string): number {
   const t = normalise(text), p = normalise(phrase);
   if (!p) return 0;
   if (` ${t} `.includes(` ${p} `)) return 1;
-  const pt = tokens(p).filter((w) => !STOP.has(w));
-  if (!pt.length) return 0;
+  const all = tokens(p).filter((w) => !STOP.has(w));
+  const pt = all.filter((w) => !isVerb(w));
+  const content = pt.length ? pt : all;
+  if (!content.length) return 0;
   const tt = tokens(t);
-  const hit = pt.filter((w) => tt.some((x) => x === w || (w.length >= 5 && x.length >= 5 && (x.startsWith(w.slice(0, 5)) || w.startsWith(x.slice(0, 5))))));
-  return (hit.length / pt.length) * 0.9;
+  const same = (w: string, x: string) => x === w || stem(x) === stem(w) || (w.length >= 5 && x.length >= 5 && (x.startsWith(w.slice(0, 5)) || w.startsWith(x.slice(0, 5))));
+  const hit = content.filter((w) => tt.some((x) => same(w, x)));
+  return (hit.length / content.length) * 0.9;
 }
 
+/** The best phrasing; a longer phrasing that matches is more specific, counted in words that carry meaning. */
 function best(text: string, phrasings: string[]): number {
   let b = 0;
-  for (const p of phrasings) b = Math.max(b, phraseScore(text, p) * (1 + Math.min(normalise(p).split(' ').length, 4) * 0.05));
+  for (const p of phrasings) {
+    const words = tokens(p).filter((w) => !STOP.has(w) && !isVerb(w)).length || 1;
+    b = Math.max(b, phraseScore(text, p) * (1 + Math.min(words, 4) * 0.05));
+  }
   return b;
 }
 
@@ -86,10 +111,13 @@ export function parseAction(cat: Catalog, text: string, locale: Locale): { manoe
     }
     return false;
   };
+  const family = verbFamily(text);
   for (const m of Object.values(cat.manoeuvres)) {
     let score = best(text, [...list(m.phrases, locale), tr(m.label, locale)]);
     // Naming the body part the manoeuvre acts on settles ties between, say, pinprick in the arm and in the leg.
     if (score > 0 && mentions(m.target)) score += 0.15;
+    // "Listen at the apex" is auscultation, "feel the apex" palpation.
+    if (score > 0 && family && ['auscultate', 'palpate', 'inspect', 'percuss'].includes(m.verb)) score += family === m.verb ? 0.1 : -0.3;
     if (score > bestScore) { bestScore = score; bestId = m.id; }
   }
   if (!bestId || bestScore < 0.6) return undefined;
@@ -107,7 +135,7 @@ export function parseOrder(cat: Catalog, text: string, locale: Locale): { invest
   return id && top >= 0.85 ? { investigation: id, score: top } : undefined;
 }
 
-const QUESTION_START = /^(what|when|where|why|how|who|which|do|does|did|have|has|had|are|is|was|were|can|could|any|tell|wie|was|wann|wo|warum|welche|wer|haben|hatten|hat|sind|waren|ist|war|können|nehmen|rauchen|trinken|gibt|erzählen)\b/;
+const QUESTION_START = /^(what|when|where|why|how|who|which|do you|do u|does|did|have|has|had|are|is|was|were|can|could|any|tell|wie|was|wann|wo|warum|welche|wer|haben|hatten|hat|sind|waren|ist|war|können|nehmen|rauchen|trinken|gibt|erzählen)\b/;
 const ORDER_WORDS = /\b(order|request|arrange|send|get an?|anordnen|veranlassen|anmelden|bestellen|schreiben|ableiten|messen lassen)\b/;
 
 export type Interpretation =
