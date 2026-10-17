@@ -58,7 +58,7 @@
 {"id": "palpate-trachea-2", "tests": ["palpate.trachea"], "signs": ["tracheal-deviation"], "status": "draft"},
 {"id": "palpate-chest-expansion-1", "tests": ["palpate.chest-expansion"], "signs": ["reduced-chest-expansion"], "status": "draft"},
 {"id": "palpate-chest-expansion-2", "tests": ["palpate.chest-expansion"], "signs": ["reduced-chest-expansion"], "status": "draft"},
-{"id": "give-oxygen-nasal-2-1", "tests": ["give.oxygen.nasal-2", "give.oxygen.venturi-28", "give.oxygen.venturi-35", "give.oxygen.mask-6", "give.oxygen.nrb-15", "give.oxygen.off"], "signs": ["refractory-hypoxaemia"], "status": "draft"},
+{"id": "give-oxygen-nasal-2-1", "tests": ["give.oxygen.nasal-2", "give.oxygen.venturi-28", "give.oxygen.venturi-35", "give.oxygen.mask-6", "give.oxygen.nrb-15", "give.oxygen.off"], "signs": ["hypoxaemia-despite-oxygen"], "status": "draft"},
 {"id": "give-oxygen-nasal-2-2", "tests": ["give.oxygen.nasal-2", "give.oxygen.venturi-28", "give.oxygen.venturi-35", "give.oxygen.mask-6", "give.oxygen.nrb-15", "give.oxygen.off"], "signs": ["hypoxaemia"], "status": "draft"},
 {"id": "give-oxygen-nasal-2-3", "tests": ["give.oxygen.nasal-2", "give.oxygen.venturi-28", "give.oxygen.venturi-35", "give.oxygen.mask-6", "give.oxygen.nrb-15", "give.oxygen.off"], "signs": ["reduced-consciousness"], "status": "draft"},
 {"id": "measure-crt-1", "tests": ["measure.crt"], "signs": ["capillary-refill-prolonged"], "syndrome": "shock", "status": "draft"},
