@@ -40,7 +40,7 @@ import { LEN, bodyShape, footOutline, limb3, limbOutline, skeleton, stationAt, t
 import { ear, face, hairBehind, hairFront, hairOver, headFrame, headOutline, oxygenSvg, type Palette, type Support } from './figure-head.ts';
 import { BED_TOP, FLOOR, bra, cloth, dressDefs, gown, sleeveSvg, trolley } from './figure-dress.ts';
 import { Projector, frontness, onTube, VIEW_RIGHT, type FigureView } from './figure-view.ts';
-import { braFront, earsFront, faceFront, gownLinesFront, hairBehindFront, hairFront3, headEgg, oxygenFront, trunkFront, type FrontCtx } from './figure-front.ts';
+import { braFront, chestFront, earsFront, faceFront, gownLinesFront, hairBehindFront, hairFront3, headEgg, oxygenFront, trunkFront, type FrontCtx } from './figure-front.ts';
 
 export { VIEW_RIGHT, VIEW_LEFT, VIEW_FRONT, VIEW_BACK, type FigureView } from './figure-view.ts';
 
@@ -462,7 +462,8 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
   const armParts = (i: 0 | 1, fills: [string, string, string]) => { const a = arm(i); return [...a.upper.map((pts) => ({ pts, fill: fills[0] })), ...a.fore.map((pts) => ({ pts, fill: fills[1] })), ...a.hand.map((pts) => ({ pts, fill: fills[2] })), ...a.fingers.map((pts) => ({ pts, fill: fills[2] })), ...a.thumb.map((pts) => ({ pts, fill: fills[2] }))]; };
   const armFills = (i: 0 | 1): [string, string, string] => {
     const z = armZ(i), s0 = pr.P(k.shoulder, z.sh), el = pr.P(k.elbow[i], z.el), wr = pr.P(k.wrist[i], z.wr);
-    return [g(`upper${i}`, mid(s0, el), ang(s0, el), 5), g(`fore${i}`, mid(el, wr), ang(el, wr), 3.6), g(`hand${i}`, wr, ang(wr, pr.P(knuckle(i), z.wr)), 3)];
+    /* from the front the upper arms share the chest's light (one body, no seam at the shoulder) */
+    return [joinShoulder ? gWide : g(`upper${i}`, mid(s0, el), ang(s0, el), 5), joinShoulder ? gWide : g(`fore${i}`, mid(el, wr), ang(el, wr), 3.6), joinShoulder ? gWide : g(`hand${i}`, wr, ang(wr, pr.P(knuckle(i), z.wr)), 3)];
   };
   const sideAttr = (i: 0 | 1) => (i === 0 ? 'R' : 'L');
   const dress = gown(pr, k, { ...sh, upper: upperSt }, look, pal, {
@@ -484,8 +485,11 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
   /* ---- the body: trunk, legs in view, neck and head as one silhouette ---- */
   const tw = (s: number) => ((stationAt(sh.trunk, s).a + stationAt(sh.trunk, s).p) / 2) * Math.abs(pr.c) + (stationAt(sh.trunk, s).w ?? 14) * Math.abs(pr.sn);
   const gAbd = g('abd', pr.P(trunkPt(k, 10, 0)), ang(pr.P(trunkPt(k, 0, 0)), pr.P(trunkPt(k, 20, 0))), tw(10) + sh.belly * 0.5 * Math.abs(pr.c));
-  const gChest = g('chest', pr.P(trunkPt(k, 40, 0)), ang(pr.P(trunkPt(k, 30, 0)), pr.P(trunkPt(k, 50, 0))), tw(40));
-  const gNeck = g('neck', mid2(k.neckRoot, k.headJoint), ang(pr.P(k.neckRoot), pr.P(k.headJoint)), 6);
+  const gChest0 = g('chest', pr.P(trunkPt(k, 40, 0)), ang(pr.P(trunkPt(k, 30, 0)), pr.P(trunkPt(k, 50, 0))), tw(40));
+  /* from the front and back one light runs across the chest, the shoulders and the upper arms */
+  const gWide = joinShoulder ? g('wide', pr.P(trunkPt(k, 42, 0)), ang(pr.P(trunkPt(k, 30, 0)), pr.P(trunkPt(k, 50, 0))), acroZ + 7) : gChest0;
+  const gChest = joinShoulder ? gWide : gChest0;
+  const gNeck = joinShoulder ? gWide : g('neck', mid2(k.neckRoot, k.headJoint), ang(pr.P(k.neckRoot), pr.P(k.headJoint)), 6);
   const gHead = g('head', pr.P(H(8, 0)), ang(pr.P(H(0, 0)), pr.P(H(10, 0))) - 90 * (1 - fp), 11 - 3.5 * fp);
   const legsInBody: Array<0 | 1> = sideOn ? [near] : [0, 1];
   out.push(layer([
@@ -534,6 +538,14 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
     if (i === 0 && near === 0) out.push(prof(() => armDetails(k, look, pal, curl)));
     if (dress.sleeve) out.push(joinShoulder ? sleeveOver(i) : sleeveSvg(dress.sleeve[i], gownFill, pal.gownLine, pr.profile ? dress.sleeveCut[i] : ''));
   }
+  /* the bare chest's anatomy lies over the tops of the arms (the shoulder) */
+  out.push(front(() => {
+    const svg = chestFront(fctx);
+    if (!svg || !joinShoulder) return svg;
+    /* its shading stays on the body: clipped to the chest and the shoulders */
+    const clip = [chest, shoulderShape(0, 0, 0, 13, 0), shoulderShape(1, 0, 0, 13, 0)].map((pts) => `<path d="${closedPath(pts)}"/>`).join('');
+    return `<clipPath id="fig-§-torso">${clip}</clipPath><g clip-path="url(#fig-§-torso)">${svg}</g>`;
+  }));
   if (withHead) {
     out.push(prof(() => oxygenSvg(ctx, { x: k.hip.x + 10 * u * Math.cos(rad(p.torso)), y: BED_TOP - 2 })));
     out.push(front(() => oxygenFront(fctx, pr.P(trunkPt(k, 30, (stationAt(sh.trunk, 30).a)), 4))));
