@@ -282,8 +282,8 @@
     "evidence": [
       {
         "id": "e-ascites",
-        "kind": "property",
-        "ref": "abdomen.ascites",
+        "kind": "sign",
+        "ref": "shifting-dullness",
         "weight": "essential",
         "why": {
           "en": "Shifting dullness: ascites, from portal hypertension and sodium retention.",
@@ -292,8 +292,8 @@
       },
       {
         "id": "e-jaundice",
-        "kind": "property",
-        "ref": "eyes.sclera",
+        "kind": "sign",
+        "ref": "jaundice",
         "weight": "essential",
         "why": {
           "en": "Jaundice: the liver no longer conjugates and excretes bilirubin.",
@@ -302,8 +302,8 @@
       },
       {
         "id": "e-flap",
-        "kind": "property",
-        "ref": "hands.asterixis",
+        "kind": "sign",
+        "ref": "asterixis",
         "weight": "essential",
         "discriminates": [
           "delirium",
@@ -316,8 +316,8 @@
       },
       {
         "id": "e-stigmata",
-        "kind": "property",
-        "ref": "skin.liver-stigmata",
+        "kind": "sign",
+        "ref": "spider-naevi",
         "weight": "supporting",
         "why": {
           "en": "Spider naevi, palmar erythema, abdominal wall veins: chronic liver disease with portal hypertension.",
@@ -356,8 +356,8 @@
       },
       {
         "id": "e-fever",
-        "kind": "property",
-        "ref": "vitals.temp",
+        "kind": "sign",
+        "ref": "fever",
         "weight": "essential",
         "discriminates": [
           "hepatic-encephalopathy"

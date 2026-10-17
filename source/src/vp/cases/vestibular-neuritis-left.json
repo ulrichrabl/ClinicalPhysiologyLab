@@ -412,8 +412,9 @@
     "evidence": [
       {
         "id": "e-hit",
-        "kind": "property",
-        "ref": "eye.head-impulse.L",
+        "kind": "sign",
+        "ref": "head-impulse-positive",
+        "side": "L",
         "weight": "essential",
         "discriminates": [
           "cerebellar-stroke",
@@ -426,12 +427,8 @@
       },
       {
         "id": "e-nys-unidirectional",
-        "kind": "property",
-        "ref": "eyes.nystagmus",
-        "context": {
-          "gaze": "right",
-          "fixation": true
-        },
+        "kind": "sign",
+        "ref": "spontaneous-nystagmus",
         "weight": "essential",
         "discriminates": [
           "cerebellar-stroke",
@@ -444,12 +441,9 @@
       },
       {
         "id": "e-nys-left-gaze",
-        "kind": "property",
-        "ref": "eyes.nystagmus",
-        "context": {
-          "gaze": "left",
-          "fixation": true
-        },
+        "kind": "sign",
+        "ref": "central-nystagmus",
+        "present": false,
         "weight": "discriminating",
         "discriminates": [
           "cerebellar-stroke"
@@ -461,8 +455,9 @@
       },
       {
         "id": "e-skew",
-        "kind": "property",
-        "ref": "eyes.alignment",
+        "kind": "sign",
+        "ref": "skew-deviation",
+        "present": false,
         "weight": "discriminating",
         "discriminates": [
           "lateral-medullary-syndrome",
@@ -475,12 +470,8 @@
       },
       {
         "id": "e-frenzel",
-        "kind": "property",
-        "ref": "eyes.nystagmus",
-        "context": {
-          "gaze": "primary",
-          "fixation": false
-        },
+        "kind": "sign",
+        "ref": "unidirectional-nystagmus",
         "weight": "supporting",
         "why": {
           "en": "The nystagmus is much larger behind Frenzel lenses: fixation suppresses a peripheral nystagmus.",
@@ -503,8 +494,9 @@
       },
       {
         "id": "e-weber",
-        "kind": "property",
-        "ref": "head.weber",
+        "kind": "sign",
+        "ref": "weber-lateralised",
+        "present": false,
         "weight": "supporting",
         "why": {
           "en": "Weber is not lateralised: no unilateral hearing loss.",
@@ -537,11 +529,8 @@
       },
       {
         "id": "e-romberg",
-        "kind": "property",
-        "ref": "posture.romberg",
-        "context": {
-          "eyesClosed": true
-        },
+        "kind": "sign",
+        "ref": "lateral-fall-eyes-closed",
         "weight": "supporting",
         "why": {
           "en": "She falls toward the side of the lesion with her eyes closed.",

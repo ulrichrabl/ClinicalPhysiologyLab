@@ -366,8 +366,8 @@
       },
       {
         "id": "e-speech",
-        "kind": "property",
-        "ref": "speech.language",
+        "kind": "sign",
+        "ref": "expressive-aphasia",
         "weight": "essential",
         "why": {
           "en": "Non-fluent, effortful speech with intact comprehension and poor repetition: an expressive aphasia, which places the lesion in the dominant frontal lobe.",
@@ -376,8 +376,9 @@
       },
       {
         "id": "e-face",
-        "kind": "property",
-        "ref": "face.movement.R",
+        "kind": "sign",
+        "ref": "umn-facial-weakness",
+        "side": "R",
         "weight": "discriminating",
         "discriminates": [
           "bells-palsy"
@@ -389,8 +390,9 @@
       },
       {
         "id": "e-arm",
-        "kind": "property",
-        "ref": "arm.power.R",
+        "kind": "sign",
+        "ref": "pyramidal-weakness",
+        "side": "R",
         "weight": "essential",
         "why": {
           "en": "Pyramidal weakness of the right arm, extensors more than flexors.",
@@ -409,8 +411,9 @@
       },
       {
         "id": "e-plantar",
-        "kind": "property",
-        "ref": "leg.reflexes.R",
+        "kind": "sign",
+        "ref": "extensor-plantar",
+        "side": "R",
         "weight": "supporting",
         "why": {
           "en": "An extensor plantar on the right confirms an upper motor neuron lesion.",
@@ -419,8 +422,9 @@
       },
       {
         "id": "e-drift",
-        "kind": "property",
-        "ref": "arm.drift.R",
+        "kind": "sign",
+        "ref": "pronator-drift",
+        "side": "R",
         "weight": "supporting",
         "why": {
           "en": "Pronator drift is the most sensitive bedside sign of a subtle pyramidal weakness.",
@@ -429,8 +433,9 @@
       },
       {
         "id": "e-sensory",
-        "kind": "property",
-        "ref": "arm.pinprick.R",
+        "kind": "sign",
+        "ref": "hemisensory-loss",
+        "present": false,
         "weight": "supporting",
         "why": {
           "en": "Sensation is spared: the lesion is in front of the central sulcus.",

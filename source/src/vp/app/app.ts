@@ -12,7 +12,7 @@ import { autoNote, describe } from '../engine/notes.ts';
 import { commit, type Commit, type DebriefResult } from '../engine/debrief.ts';
 import { tr, list, type LocalizedText } from '../model/i18n.ts';
 import type { CardPresentation, CaseDef, ExamContext, Finding, ManoeuvreDef, Side, InvestigationDef, TeachingCard } from '../model/types.ts';
-import { KNOWLEDGE, labelOf } from '../knowledge/index.ts';
+import { KNOWLEDGE, labelOf, testsForSign } from '../knowledge/index.ts';
 import { signsFoundBy, signsOnTheFigure } from '../knowledge/elicited.ts';
 import { signsOf } from '../knowledge/coverage.ts';
 import { signCard } from '../knowledge/cards.ts';
@@ -103,7 +103,11 @@ const UI: Record<string, Record<Lang, string>> = {
   levelState: { en: 'You named the state. What is causing it?', de: 'Sie haben den Zustand benannt. Was ist die Ursache?' },
   levelLab: { en: 'You named the laboratory finding. What is causing it?', de: 'Sie haben den Laborbefund benannt. Was ist die Ursache?' }, diagnosisWas: { en: 'Diagnosis', de: 'Diagnose' },
   expert: { en: 'Expert assessment', de: 'Einschätzung der Expertin' }, evidence: { en: 'The evidence that decides this case', de: 'Die entscheidenden Befunde' },
-  elicited: { en: 'found', de: 'erhoben' }, missed: { en: 'not elicited', de: 'nicht erhoben' }, redFlags: { en: 'Red flags', de: 'Warnzeichen' },
+  elicited: { en: 'found', de: 'erhoben' }, missed: { en: 'not elicited', de: 'nicht erhoben' },
+  signFound: { en: 'found', de: 'gefunden' }, signNotFound: { en: 'not found', de: 'nicht gefunden' },
+  signRuledOut: { en: 'looked for, rightly absent', de: 'gesucht, zu Recht nicht vorhanden' }, signNotLookedFor: { en: 'not looked for', de: 'nicht gesucht' },
+  foundWith: { en: 'Found with', de: 'Gefunden mit' }, lookedForBy: { en: 'Looked for with', de: 'Gesucht mit' }, shownBy: { en: 'Shown by', de: 'Zu finden mit' },
+  absentSign: { en: 'Absent:', de: 'Fehlt:' }, redFlags: { en: 'Red flags', de: 'Warnzeichen' },
   covered: { en: 'asked', de: 'erfragt' }, uncovered: { en: 'not asked', de: 'nicht erfragt' }, hazards: { en: 'Safety', de: 'Sicherheit' }, noHazards: { en: 'Nothing unsafe was done.', de: 'Nichts Unsicheres getan.' },
   time: { en: 'Time', de: 'Zeit' }, budget: { en: 'expert budget', de: 'Expertenbudget' }, ddxConsidered: { en: 'Differential you considered', de: 'Bedachte Differentialdiagnosen' },
   ddxMissed: { en: 'Worth considering too', de: 'Ebenfalls zu bedenken' }, compare: { en: 'Your notes and the automatic notes', de: 'Ihre und die automatischen Notizen' },
@@ -1117,7 +1121,23 @@ export function mount(root: HTMLElement) {
     root.querySelectorAll<HTMLButtonElement>('[data-up]').forEach((b) => b.onclick = () => { const i = +b.dataset.up!; [ddx[i - 1], ddx[i]] = [ddx[i], ddx[i - 1]]; renderCommit(); });
   };
 
+  /* A sign item: the sign, its side, what showed it, or which tests would have. */
+  const signDetail = (e: DebriefResult['evidence'][number]): string => {
+    const it = e.item, present = it.present !== false;
+    const name = `<button type="button" class="chip" data-sign="${it.ref}">${present ? '' : `${esc(t('absentSign'))} `}${esc(signLabel(it.ref))}${esc(sideWord(it.side))}</button>`;
+    const testName = (id: string) => esc(tr(CATALOG.manoeuvres[id]?.label ?? { en: id, de: id }, lang));
+    const showing = [...new Set([...testsForSign(KNOWLEDGE, CATALOG, it.ref), ...Object.values(KNOWLEDGE.presentations).filter((p) => p.signs.includes(it.ref)).flatMap((p) => p.tests)])]
+      .filter((id) => !['position', 'give', 'expose'].includes(CATALOG.manoeuvres[id]?.verb ?? ''));
+    const how = e.elicited
+      ? (e.shown ? `${t(present ? 'foundWith' : 'lookedForBy')}: ${testName(e.shown.test)}${esc(sideWord(e.shown.side))}` : `${t('foundWith')}: ${showing.filter((id) => s!.done.has(id)).map(testName).join(', ')}`)
+      : `${t('shownBy')}: ${showing.map(testName).join(', ') || '—'}`;
+    return `<p class="ev-sign">${name}<span class="muted"> ${how}</span></p>`;
+  };
+  const evidenceState = (e: DebriefResult['evidence'][number]) => e.item.kind !== 'sign' ? t(e.elicited ? 'elicited' : 'missed')
+    : e.item.present === false ? t(e.elicited ? 'signRuledOut' : 'signNotLookedFor') : t(e.elicited ? 'signFound' : 'signNotFound');
+
   const evidenceDetail = (e: DebriefResult['evidence'][number]): string => {
+    if (e.item.kind === 'sign') return s ? signDetail(e) : '';
     if (!s || !e.elicited) return '';
     if (e.finding) return `<p class="finding">${esc(describe(s, e.finding, lang))}</p>`;
     if (e.item.kind === 'fact') { const f = s.caseDef.history.find((x) => x.id === e.item.ref); return f ? `<p class="finding">“${esc(tr(f.say, lang))}”</p>` : ''; }
@@ -1145,8 +1165,8 @@ export function mount(root: HTMLElement) {
       </section>
       <section><h2>${t('expert')}</h2><p class="summary">${esc(tr(c.reference.summary, lang))}</p></section>
       <section><h2>${t('evidence')}</h2><ul class="evidence">${d.evidence.map((e) => `
-        <li class="${e.elicited ? 'got' : 'miss'}"><div class="ev-top"><span class="mark">${e.elicited ? '✓' : '○'}</span>${weight(e.item.weight)}<span class="state">${e.elicited ? t('elicited') : t('missed')}</span></div>
-        <p>${esc(tr(e.item.why, lang))}</p>${evidenceDetail(e)}</li>`).join('')}</ul></section>
+        <li class="${e.elicited ? 'got' : 'miss'}"><div class="ev-top"><span class="mark">${e.elicited ? '✓' : '○'}</span>${weight(e.item.weight)}<span class="state">${evidenceState(e)}</span></div>
+        ${e.item.kind === 'sign' ? evidenceDetail(e) : ''}<p>${esc(tr(e.item.why, lang))}</p>${e.item.kind === 'sign' ? '' : evidenceDetail(e)}</li>`).join('')}</ul></section>
       <section class="two"><div><h2>${t('redFlags')}</h2><ul class="plain">${d.redFlags.map((r) => `<li><span class="mark">${r.covered ? '✓' : '○'}</span> ${esc(tr(r.why, lang))} <span class="muted">(${r.covered ? t('covered') : t('uncovered')})</span></li>`).join('')}</ul></div>
         <div><h2>${t('hazards')}</h2>${d.hazards.length ? `<ul class="plain">${d.hazards.map((h) => `<li>${esc(tr(CATALOG.manoeuvres[h.manoeuvre]?.hazards?.find((x) => x.code === h.code)?.why ?? { en: h.code === 'no-consent' ? 'Examined without asking for consent first.' : h.code, de: h.code === 'no-consent' ? 'Ohne vorherige Einwilligung untersucht.' : h.code }, lang))}</li>`).join('')}</ul>` : `<p class="muted">${t('noHazards')}</p>`}</div></section>
       <section class="two"><div><h2>${t('ddxConsidered')}</h2><p>${d.diagnosis.differentialConsidered.map(dxName).join(', ') || '—'}</p></div>
@@ -1158,6 +1178,7 @@ export function mount(root: HTMLElement) {
       }).join('') || '<li class="muted">—</li>'}</ul></section>
       <section><h2>${t('compare')}</h2><div class="two notes-compare"><div class="mine">${myNotes.trim() ? esc(myNotes).replace(/\n/g, '<br>') : '<span class="muted">—</span>'}</div><div class="auto">${notesHtml(autoNote(s, lang))}</div></div></section>`;
     $('#db-back').onclick = () => { stopLive(); renderWard(); show('ward'); };
+    root.querySelectorAll<HTMLButtonElement>('#debrief [data-sign]').forEach((b) => b.onclick = () => { cardBack = []; cardNow = { kind: 'sign', id: b.dataset.sign! }; renderCard(); });
     $('#db-explore').onclick = () => { show('encounter'); layer = 'physiology'; chapter = /stroke|foot/.test(base.id) ? 'nervous-system' : /vestib/.test(base.id) ? 'vor' : base.tags.includes('respiratory') ? 'gas-exchange' : 'haemodynamics'; live?.start(); renderEncounter(); renderLayer(); };
   };
 

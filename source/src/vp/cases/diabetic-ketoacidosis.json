@@ -354,8 +354,8 @@
       },
       {
         "id": "e-breathing",
-        "kind": "property",
-        "ref": "breathing.pattern",
+        "kind": "sign",
+        "ref": "deep-breathing",
         "weight": "essential",
         "why": {
           "en": "Deep, sighing breathing (Kussmaul), the rate barely raised: the brainstem answering the acid with depth, not the lungs failing.",
@@ -364,8 +364,8 @@
       },
       {
         "id": "e-breath",
-        "kind": "property",
-        "ref": "breath.odour",
+        "kind": "sign",
+        "ref": "ketotic-breath",
         "weight": "supporting",
         "why": {
           "en": "Acetone on the breath.",
@@ -394,8 +394,8 @@
       },
       {
         "id": "e-mucosa",
-        "kind": "property",
-        "ref": "mouth.mucosa",
+        "kind": "sign",
+        "ref": "dry-mucosa",
         "weight": "supporting",
         "why": {
           "en": "Dry: the osmotic diuresis and the vomiting have cost several litres.",
@@ -404,8 +404,8 @@
       },
       {
         "id": "e-hr",
-        "kind": "property",
-        "ref": "vitals.hr",
+        "kind": "sign",
+        "ref": "tachycardia",
         "weight": "supporting",
         "why": {
           "en": "Tachycardia: hypovolaemia, acidaemia and adrenaline.",
