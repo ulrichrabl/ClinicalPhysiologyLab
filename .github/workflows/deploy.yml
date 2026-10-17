@@ -24,7 +24,9 @@ jobs:
           node-version: 20
       - run: npm ci --ignore-scripts
         working-directory: source
-      - run: node scripts/vp-model.test.mjs
+      # The same gate as before a PR: typecheck, every test suite, the smoke test and the builds.
+      # (Nothing in it needs the native canvas, so --ignore-scripts above is enough.)
+      - run: npm run verify
         working-directory: source
       - run: node scripts/build-vp-demo.mjs
         working-directory: source
