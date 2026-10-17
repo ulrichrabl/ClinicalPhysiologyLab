@@ -35,6 +35,12 @@ export function channelsOf(def: SignRow['definition']): Channel[] {
   return CHANNEL_ORDER.filter((c) => out.has(c));
 }
 
+/** Whether a definition reads only what the bedside figure draws (colour, sweating, oedema, ascites, hyperinflation …). */
+export function figureOnly(def: SignRow['definition']): boolean {
+  const parts = partsOf(def);
+  return parts.length > 0 && parts.every((p) => !('fn' in p) && FIGURE_FIELDS.has(`${p.obs}:${(p.path ?? '').split('.')[0]}`));
+}
+
 export function representation(cat: Catalog, s: SignRow): Representation {
   if (!s.definition) return 'not represented';
   if (partsOf(s.definition).some((p) => 'fn' in p && NAMED[p.fn]?.needs)) return 'needs an intervention';

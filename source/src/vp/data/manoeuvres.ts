@@ -172,7 +172,7 @@ export const MANOEUVRES: ManoeuvreDef[] = [
   },
   {
     id: 'auscultate.carotid', verb: 'auscultate', target: 'neck.carotid', paired: true,
-    label: { en: 'Carotid bruit', de: 'Karotisauskultation' },
+    label: { en: 'Auscultation of the carotids', de: 'Auskultation der Karotiden' },
     phrases: { en: ['listen to the carotid', 'carotid bruit', 'auscultate carotid'], de: ['karotis abhören', 'karotis auskultieren', 'strömungsgeräusch hals'] },
     reveals: [{ property: 'heart.sounds', context: { site: 'neck.carotid' } }],
     context: { site: 'neck.carotid', instrument: 'stethoscope-bell', respiration: 'held-expiration' },
@@ -212,31 +212,31 @@ export const MANOEUVRES: ManoeuvreDef[] = [
   },
   {
     id: 'inspect.legs', verb: 'palpate', target: 'legs',
-    label: { en: 'Peripheral oedema', de: 'Periphere Ödeme' },
+    label: { en: 'Legs: pressure test for oedema', de: 'Unterschenkel: Ödemprüfung durch Fingerdruck' },
     phrases: { en: ['ankle oedema', 'ankle edema', 'swollen ankles', 'pitting', 'look at the legs'], de: ['ödeme', 'beinödeme', 'knöchelödeme', 'beine ansehen'] },
     reveals: [{ property: 'legs.oedema' }], requires: { instrument: ['hands'] }, durationSeconds: 15,
   },
   {
     id: 'inspect.sclera', verb: 'inspect', target: 'eyes',
-    label: { en: 'Scleral icterus', de: 'Sklerenikterus' },
+    label: { en: 'Inspection of the sclerae', de: 'Inspektion der Skleren' },
     phrases: { en: ['sclera', 'sclerae', 'whites of the eyes', 'jaundice', 'icterus', 'yellow eyes'], de: ['skleren', 'sklera', 'ikterus', 'gelbe augen', 'gelbsucht'] },
     reveals: [{ property: 'eyes.sclera' }], durationSeconds: 10,
   },
   {
     id: 'inspect.conjunctiva', verb: 'inspect', target: 'eyes',
-    label: { en: 'Conjunctival pallor', de: 'Konjunktivale Blässe' },
+    label: { en: 'Inspection of the conjunctivae', de: 'Inspektion der Konjunktiven' },
     phrases: { en: ['conjunctiva', 'conjunctival pallor', 'pallor', 'anaemia', 'pale', 'lower eyelid'], de: ['konjunktiven', 'bindehaut', 'blässe', 'anämie', 'unterlid'] },
     reveals: [{ property: 'eyes.conjunctiva' }], durationSeconds: 10,
   },
   {
     id: 'test.asterixis', verb: 'test', target: 'hands',
-    label: { en: 'Asterixis (flapping tremor)', de: 'Asterixis (Flapping Tremor)' },
+    label: { en: 'Arms outstretched, wrists bent back', de: 'Arme vorhalten, Handgelenke dorsalflektiert' },
     phrases: { en: ['asterixis', 'flap', 'liver flap', 'hold your hands out', 'cock your wrists'], de: ['flapping tremor', 'asterixis', 'hände vorhalten', 'flattern'] },
     reveals: [{ property: 'hands.asterixis' }], durationSeconds: 20,
   },
   {
     id: 'test.shifting-dullness', verb: 'percuss', target: 'abdomen',
-    label: { en: 'Shifting dullness', de: 'Lageabhängige Flankendämpfung' },
+    label: { en: 'Percussion of the flanks, then on the side', de: 'Perkussion der Flanken mit Lagewechsel' },
     phrases: { en: ['shifting dullness', 'ascites', 'percuss the abdomen', 'fluid thrill', 'flank dullness'], de: ['flankendämpfung', 'aszites', 'abdomen perkutieren', 'undulation', 'bauch abklopfen'] },
     reveals: [{ property: 'abdomen.ascites' }], requires: { instrument: ['hands'], position: ['supine'], exposure: ['abdomen'] }, durationSeconds: 60,
   },
@@ -248,19 +248,19 @@ export const MANOEUVRES: ManoeuvreDef[] = [
   },
   {
     id: 'inspect.skin', verb: 'inspect', target: 'skin',
-    label: { en: 'Stigmata of chronic liver disease', de: 'Leberhautzeichen' },
+    label: { en: 'Inspection of skin, hands and chest wall', de: 'Inspektion von Haut, Händen und Thoraxwand' },
     phrases: { en: ['spider naevi', 'palmar erythema', 'liver stigmata', 'stigmata of chronic liver disease', 'caput medusae', 'skin'], de: ['spider naevi', 'palmarerythem', 'leberhautzeichen', 'caput medusae', 'haut'] },
     reveals: [{ property: 'skin.liver-stigmata' }], requires: { exposure: ['chest', 'abdomen'] }, durationSeconds: 30,
   },
   {
     id: 'test.tremor', verb: 'test', target: 'hands',
-    label: { en: 'Postural tremor', de: 'Haltetremor' },
+    label: { en: 'Arms outstretched, fingers spread', de: 'Arme vorhalten, Finger gespreizt' },
     phrases: { en: ['tremor', 'fine tremor', 'shaky hands', 'fingers spread', 'paper on the hands'], de: ['tremor', 'zittern', 'feinschlägiger tremor', 'finger spreizen', 'blatt auf die hände'] },
     reveals: [{ property: 'hands.tremor' }], durationSeconds: 15,
   },
   {
     id: 'inspect.pigmentation', verb: 'inspect', target: 'skin',
-    label: { en: 'Hyperpigmentation (palmar creases, buccal mucosa)', de: 'Hyperpigmentierung (Handlinien, Wangenschleimhaut)' },
+    label: { en: 'Inspection of palmar creases, buccal mucosa and scars', de: 'Inspektion von Handlinien, Wangenschleimhaut und Narben' },
     phrases: { en: ['pigmentation', 'palmar creases', 'buccal pigmentation', 'tanned', 'skin colour', 'hyperpigmentation'], de: ['pigmentierung', 'handlinien', 'wangenschleimhaut', 'gebräunt', 'hautfarbe', 'hyperpigmentierung'] },
     reveals: [{ property: 'skin.pigmentation' }], requires: { instrument: ['pen-torch'] }, durationSeconds: 20,
   },
@@ -272,7 +272,7 @@ export const MANOEUVRES: ManoeuvreDef[] = [
   },
   {
     id: 'inspect.thyroid-eyes', verb: 'inspect', target: 'eyes',
-    label: { en: 'Thyroid eye signs (lid retraction, lid lag)', de: 'Endokrine Orbitopathie (Lidretraktion, Graefe-Zeichen)' },
+    label: { en: 'Eyes from the front and side, following a finger down', de: 'Augen von vorn und seitlich, Blickfolge nach unten' },
     phrases: { en: ['lid lag', 'lid retraction', 'exophthalmos', 'proptosis', 'stare', 'thyroid eyes', 'eye signs'], de: ['graefe', 'lidretraktion', 'exophthalmus', 'protrusio', 'starrer blick', 'augenzeichen'] },
     reveals: [{ property: 'eyes.thyroid' }], durationSeconds: 30,
   },
@@ -312,7 +312,7 @@ export const MANOEUVRES: ManoeuvreDef[] = [
   /* ---- eyes ----------------------------------------------------------------- */
   {
     id: 'inspect.eyes', verb: 'inspect', target: 'eyes',
-    label: { en: 'Pupils and lids at rest', de: 'Pupillen und Lider in Ruhe' },
+    label: { en: 'Inspection of the eyes at rest', de: 'Inspektion der Augen in Ruhe' },
     phrases: { en: ['look at the eyes', 'inspect eyes', 'pupil size', 'ptosis', 'eyelids'], de: ['augen ansehen', 'augen inspizieren', 'pupillenweite', 'ptosis', 'lidspalte'] },
     reveals: [{ property: 'eye.pupil', side: 'both' }, { property: 'eye.lid', side: 'both' }, { property: 'eyes.nystagmus', context: { gaze: 'primary' } }],
     context: { lightOn: 'none', ambient: 'room', fixation: true, gaze: 'primary' }, durationSeconds: 10,
@@ -523,7 +523,7 @@ export const MANOEUVRES: ManoeuvreDef[] = [
   }),
   {
     id: 'test.power-repeated', verb: 'test', target: 'arm', paired: true,
-    label: { en: 'Fatigable weakness (repeated shoulder abduction)', de: 'Belastungsabhängige Schwäche (wiederholte Schulterabduktion)' },
+    label: { en: 'Repeated shoulder abduction', de: 'Wiederholte Schulterabduktion' },
     phrases: { en: ['repeated shoulder abduction', 'fatigable weakness', 'repeat twenty times'], de: ['wiederholte abduktion', 'ermüdbare schwäche', 'zwanzigmal wiederholen'] },
     reveals: [{ property: 'arm.power', context: { repetition: 20 } }], requires: { ability: ['follows-commands'] }, durationSeconds: 60,
   },
@@ -547,13 +547,13 @@ export const MANOEUVRES: ManoeuvreDef[] = [
   },
   {
     id: 'test.rapid-alternating', verb: 'test', target: 'arm', paired: true,
-    label: { en: 'Dysdiadochokinesis (rapid alternating movements)', de: 'Diadochokinese' },
+    label: { en: 'Rapid alternating movements', de: 'Rasche Wechselbewegungen (Diadochokinese)' },
     phrases: { en: ['rapid alternating', 'dysdiadochokinesia', 'pat your hand'], de: ['diadochokinese', 'dysdiadochokinese', 'schnell abwechselnde bewegungen'] },
     reveals: [{ property: 'arm.rapid-alternating' }], requires: { ability: ['follows-commands'] }, durationSeconds: 15,
   },
   {
     id: 'test.trunk.pinprick', verb: 'test', target: 'trunk',
-    label: { en: 'Sensory level', de: 'Sensibles Niveau' },
+    label: { en: 'Pinprick on the trunk', de: 'Spitz-stumpf-Prüfung am Rumpf' },
     phrases: { en: ['sensory level', 'pinprick on the trunk', 'trunk sensation'], de: ['sensibles niveau', 'rumpfsensibilität', 'niveau'] },
     reveals: [{ property: 'trunk.pinprick', side: 'both' }], requires: { instrument: ['neurotip'], exposure: ['chest'] }, durationSeconds: 40,
   },

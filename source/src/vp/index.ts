@@ -30,9 +30,10 @@ export {
   conditionAncestors, conditionDescendants, SignEvaluator, NAMED, contextsFor, observablesOf,
 } from './knowledge/index.ts';
 export { validateKnowledge, shapeErrors } from './knowledge/validate.ts';
-export { coverage, coverageSummary, signsOf, syndromePresent, representation, channelsOf } from './knowledge/coverage.ts';
+export { coverage, coverageSummary, signsOf, syndromePresent, representation, channelsOf, figureOnly } from './knowledge/coverage.ts';
 export { exportObservables } from './knowledge/observables.ts';
 export { teachingCard, signCard, signsElicitedBy, presentationConditions, type SignCard } from './knowledge/cards.ts';
+export { signsFoundBy, signsOnTheFigure, type SignsFound } from './knowledge/elicited.ts';
 export { withTeaching } from './data/catalog.ts';
 import './evidence/endocrine.ts';
 import './evidence/renal.ts';

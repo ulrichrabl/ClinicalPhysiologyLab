@@ -1266,6 +1266,33 @@ console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)')
     && m.teaching.presentations.every((p) => p.description.de && p.meaning.de))));
   ok('teachingCard reads the tables (no hand-written card left)', JSON.stringify(teachingCard(KNOWLEDGE, CATALOG, 'test.romberg')) === JSON.stringify(CATALOG.manoeuvres['test.romberg'].teaching));
 
+  /* Step 3: after a test, the app names the signs that test found, and only from its own observations. */
+  const { signsFoundBy, signsOnTheFigure, observeIn } = vp;
+  const session = (id) => {
+    const c = caseById(id), m = modelFromCase(c), snap = settleModel(m, 16).snapshot;
+    return startEncounter(CATALOG, REGISTRY, c, buildView(c, { circulation: snap, chemistry: chemistryState(snap, m.chemistry), state: { ...c.initialState, exposure: ['chest', 'arm', 'neck', 'abdomen', 'legs'] } }), { locale: 'en' });
+  };
+  const found = (sess, test, side) => signsFoundBy(KNOWLEDGE, CATALOG, (ref, ctx) => observeIn(sess, ref, ctx), test, side);
+  const has1 = (sf, id, sides) => sf.found.some((f) => f.sign === id && (!sides || J(f.sides) === J(sides)));
+  const cir = session('decompensated-cirrhosis');
+  ok('inspecting the sclerae of the cirrhotic patient names jaundice', has1(found(cir, 'inspect.sclera'), 'jaundice'));
+  const fig = signsOnTheFigure(KNOWLEDGE, CATALOG, (ref, ctx) => observeIn(cir, ref, ctx));
+  ok('general inspection names what the bedside figure shows (jaundice, a distended abdomen), not what needs touch (shifting dullness, pitting)',
+    ['jaundice', 'abdominal-distension'].every((x) => fig.includes(x)) && !fig.includes('shifting-dullness') && !fig.includes('pitting-oedema'), J(fig));
+  ok('a sign from an observation without sides is named without a side', J(found(cir, 'inspect.sclera').found.find((f) => f.sign === 'jaundice')?.sides) === '[]');
+  const stroke = session('acute-stroke-left-mca');
+  ok('a left MCA stroke: the right plantar is extensor, named with its side; the left is not', has1(found(stroke, 'test.leg.reflexes', 'R'), 'extensor-plantar', ['R']) && !has1(found(stroke, 'test.leg.reflexes', 'L'), 'extensor-plantar'));
+  const healthy = session('iron-deficiency-anaemia-caecal');
+  const hm = found(healthy, 'test.eye-movements');
+  ok('healthy eyes: the H test names end-point nystagmus as normal, and no pathological nystagmus', hm.normal.includes('endpoint-nystagmus') && !has1(hm, 'gaze-evoked-nystagmus') && hm.absent.includes('gaze-evoked-nystagmus'));
+  ok('healthy eyes: inspection at rest looked for ptosis and anisocoria and found neither (pertinent negatives)', ['ptosis', 'anisocoria'].every((x) => found(healthy, 'inspect.eyes').absent.includes(x)));
+  const bleed = session('upper-gi-bleed-peptic-ulcer');
+  ok('the pulse names no postural rise: that needs standing, which only the lying-and-standing test does',
+    !has1(found(bleed, 'measure.hr'), 'postural-tachycardia') && has1(found(bleed, 'measure.bp.lying-standing'), 'orthostatic-hypotension'));
+  ok('positioning, exposing and oxygen name no signs themselves', found(bleed, 'position.standing').found.length === 0 && found(bleed, 'expose.chest').absent.length === 0);
+  ok('tests are named as tests, the old sign names still find them', CATALOG.manoeuvres['test.asterixis'].label.en === 'Arms outstretched, wrists bent back'
+    && suggest(CATALOG, 'asterixis', 'en').some((x) => x.id === 'test.asterixis') && suggest(CATALOG, 'Sklerenikterus', 'de').some((x) => x.id === 'inspect.sclera'));
+
   const rows = coverage(KNOWLEDGE, CATALOG, per);
   for (const l of coverageSummary(rows)) console.log(`  · ${l}`);
   const untested = rows.filter((r) => r.representation !== 'not represented' && !r.tests.length);
