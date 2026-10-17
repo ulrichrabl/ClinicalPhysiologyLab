@@ -10,8 +10,10 @@ The physiology stays in code. A sign definition only **reads** what the models p
 |---|---|---|
 | `signs.json` | a sign: its definition on the observables, threshold, notes, model gap | clinicians |
 | `syndromes.json` | a syndrome (its members are links) | clinicians |
+| `tests.json` | the teaching side of a test: references, animation (its mechanics stay in the catalog) | clinicians |
+| `presentations.json` | how signs present on particular tests: the finding a card shows, with its signs and syndrome | clinicians |
 | `relations.json` | a link: `variant-of`, `part-of`, `suggests`, `localises-to`, `is-a` | clinicians |
-| `texts.json` | one text of one entity in one language | clinicians, translators |
+| `texts.json` | the texts of one entity in one language | clinicians, translators |
 | `observables.json` | what the models produce: id, value type, codes, normal, context dimensions | **generated, read-only** |
 | `schema.json` | the shape of every row, shared with a future editing backend | developers |
 
@@ -36,17 +38,46 @@ Each file holds one row per line, so a change shows as a one-line diff.
 - **`modelGap`:** what the model or a view cannot show yet, for a later run.
 - **`normalVariant: true`:** a normal finding worth naming (end-point nystagmus).
 
+## A presentation
+
+```json
+{"id": "inspect-eyes-1", "tests": ["inspect.eyes"], "signs": ["anisocoria", "ptosis"], "syndrome": "horner-syndrome", "status": "draft"}
+```
+
+How signs show on particular tests, in words: its `description` ("a small pupil with a slight drooping of the same lid") and `meaning` ("Horner's syndrome: …") are in the text table. "Dull", "bronchial breathing" and "increased vocal resonance" are three presentations of consolidation.
+
+- **`tests`:** one or more. The five lung sites share one presentation.
+- **`signs`:** must be elicited by those tests, as the signs' definitions say. A sign without a definition is exempt, and the presentation is what says which test would show it.
+- **`accompanying`:** signs its words mention that other tests elicit ("the eye is down and out, *with ptosis*"). They are shown and linked, not claimed for this test.
+- **The conditions it points to** are the `suggests` links that name it in `via`.
+
+A test card shows its presentations, then the further signs the test can elicit, then the normal variants. A sign card gathers the sign's presentations across tests. Both are built in `src/vp/knowledge/cards.ts`; no card is written by hand.
+
 ## Links
 
 ```json
 {"from": "sign:ptosis", "rel": "part-of", "to": "syndrome:horner-syndrome", "role": "required", "status": "draft"}
-{"from": "syndrome:horner-syndrome", "rel": "suggests", "to": "condition:lung-cancer", "source": "card inspect.eyes/0", "status": "draft"}
+{"from": "syndrome:horner-syndrome", "rel": "suggests", "to": "condition:lung-cancer", "via": ["inspect-eyes-1"], "status": "draft"}
 ```
 
 - **`part-of`** takes a `role`: `required`, `supporting`, or `absent` (a pertinent negative).
-- **`suggests`** may list `exceptions`: cases with that condition that do not show the sign, each with `kind` (`model` when the model cannot produce it yet, `case` when this patient rightly lacks it) and `why`.
+- **`suggests`** names in `via` the presentations that assert it. It may list `exceptions`: cases with that condition that do not show the sign, each with `kind` (`model` when the model cannot produce it yet, `case` when this patient rightly lacks it) and `why`.
 - **`is-a`** relates conditions (`peptic-ulcer-bleed` is an `upper-gi-bleed`). A sign that suggests the broader condition also reaches the narrower one.
 - **Conditions and structures** are the diagnosis and structure ids of the catalog (`src/vp/data/`).
+
+## Texts
+
+```json
+{"entity": "test:inspect.eyes", "locale": "de", "fields": {"assesses": "…", "how.1": "…", "how.2": "…", "normal": "…"}}
+```
+
+One row per entity and language. The fields are:
+
+- `label` for signs and syndromes;
+- `description` and `meaning` for presentations;
+- `assesses`, `normal`, `how.N`, `pitfall.N` and `alias.N` for tests.
+
+Numbered lists must have the same length in every language (aliases excepted). Adding a language means adding rows.
 
 ## What is derived, never written
 

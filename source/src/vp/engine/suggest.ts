@@ -2,6 +2,7 @@ import type { Catalog } from '../data/catalog.ts';
 import type { ManoeuvreDef, Side } from '../model/types.ts';
 import { list, tr, SUPPORTED_LOCALES, type Locale } from '../model/i18n.ts';
 import { normalise } from './language.ts';
+import { KNOWLEDGE, labelOf } from '../knowledge/index.ts';
 
 /* ---------------------------------------------------------------------------
    Suggestions as the learner types.
@@ -55,10 +56,17 @@ function manoeuvreNames(m: ManoeuvreDef, locale: Locale): Array<[string, number]
   for (const p of list(m.phrases, locale)) out.push([p, 0.9]);
   for (const p of allLocales((l) => (l === locale ? [] : m.phrases[l] ?? []))) out.push([p, 0.8]);
   for (const a of allLocales((l) => m.teaching?.aliases?.[l] ?? [])) out.push([a, 0.95]);
-  /* The signs a test looks for and what they mean ("ataxia", "nystagmus") find it too, but below its names. */
-  for (const f of m.teaching?.abnormal ?? []) for (const l of SUPPORTED_LOCALES) {
-    if (f.sign[l]) out.push([f.sign[l], 0.55]);
-    if (f.means[l]) out.push([f.means[l], 0.5]);
+  /* The signs a test can show and what they mean ("ataxia", "nystagmus") find it too, but below its names. */
+  const card = m.teaching;
+  if (card) {
+    const signs = [...new Set([...card.presentations.flatMap((p) => p.signs), ...card.alsoShows])];
+    for (const l of SUPPORTED_LOCALES) {
+      for (const s of signs) out.push([labelOf(KNOWLEDGE, `sign:${s}`, l), 0.6]);
+      for (const p of card.presentations) {
+        if (p.description[l]) out.push([p.description[l], 0.55]);
+        if (p.meaning[l]) out.push([p.meaning[l], 0.5]);
+      }
+    }
   }
   return out;
 }

@@ -212,7 +212,7 @@ export interface ManoeuvreDef {
   section?: string;
   /** Its place in a clinician's sequence, across all sections (lower comes first). */
   order?: number;
-  /** What the test is, how it is done and what it shows (data/teaching.ts). */
+  /** What the test is, how it is done and what it shows: built from the knowledge tables (knowledge/cards.ts). */
   teaching?: TeachingCard;
 }
 
@@ -240,20 +240,24 @@ export interface ExamSystemDef {
 }
 
 /* ---- Teaching: what a test is and what it shows ------------------------------
-   One card per manoeuvre, in every language the app offers. The abnormal
-   findings link to the model's properties and to diagnoses, so that a card can
-   be turned into a review question ("which test shows this?") or a matching
-   challenge ("which test tells these two apart?") without writing anything new.
-   A learner's progress through cards is stored per learner, keyed by the
-   manoeuvre id, and never here. */
+   Built from the knowledge tables (source/knowledge/, ADR-016): the texts of a
+   test, its presentations (how signs show on it and what they mean) and the
+   signs it can elicit, derived from their definitions. Nothing here is written
+   by hand any more; data/catalog.ts attaches a card to every test that has one.
+   A learner's progress is stored per learner, keyed by ids, and never here. */
 
-export interface TeachingFinding {
-  sign: LocalizedText;            // 'Overshoots the knee, the heel wobbles down the shin'
-  means: LocalizedText;           // 'A lesion of the cerebellar hemisphere on the same side'
-  /** Model properties that report this sign (they must exist in the catalog). */
-  properties?: string[];
-  /** Diagnoses in which it occurs (they must exist in the catalog). */
-  conditions?: string[];
+/** How one or more signs (or a syndrome) present on a test, and what that means. */
+export interface CardPresentation {
+  id: string;
+  tests: string[];
+  signs: string[];
+  /** Signs the description mentions that other tests elicit. */
+  accompanying: string[];
+  syndrome?: string;
+  description: LocalizedText;
+  meaning: LocalizedText;
+  /** The conditions the knowledge links to this presentation. Shown only once a case is committed. */
+  conditions: string[];
 }
 
 export interface TeachingCard {
@@ -264,7 +268,11 @@ export interface TeachingCard {
   /** How to do it, step by step. */
   how: LocalizedList;
   normal: LocalizedText;
-  abnormal: TeachingFinding[];
+  presentations: CardPresentation[];
+  /** Further signs the test can elicit (from their definitions) that no presentation names. */
+  alsoShows: string[];
+  /** Normal findings worth naming on this test (end-point nystagmus). */
+  normalVariants: string[];
   pitfalls?: LocalizedList;
   /** Reference ids from evidence/references.ts. */
   refs?: string[];

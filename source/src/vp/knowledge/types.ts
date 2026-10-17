@@ -59,9 +59,32 @@ export interface SyndromeRow { id: string; note?: string; status: RowStatus; ref
 
 export type RelationType = 'variant-of' | 'part-of' | 'suggests' | 'localises-to' | 'is-a';
 
-/** `sign:ptosis`, `syndrome:horner-syndrome`, `condition:myasthenia-gravis`, `structure:eye`. */
+/** `sign:ptosis`, `syndrome:horner-syndrome`, `condition:myasthenia-gravis`, `structure:eye`, `test:inspect.eyes`, `presentation:inspect-eyes-1`. */
 export type EntityRef = string;
-export type EntityKind = 'sign' | 'syndrome' | 'condition' | 'structure';
+export type EntityKind = 'sign' | 'syndrome' | 'condition' | 'structure' | 'test' | 'presentation';
+
+/** The teaching side of a test (manoeuvre). Its mechanics (what it reveals, what it needs) stay in the catalog; its
+    texts (assesses, how.N, normal, pitfall.N, alias.N) are in the text table. */
+export interface TestRow { id: string; refs?: string[]; animation?: string; status: RowStatus; reviewedBy?: string }
+
+/**
+ * How signs present on particular tests: what the examiner finds there (`description`) and what it means
+ * (`meaning`), in the text table. "Dull", "bronchial breathing" and "increased vocal resonance" are three
+ * presentations of consolidation. The tests that elicit a sign are derived from its definition; a presentation
+ * gives the words, and for a sign without a definition it is what says which test would show it.
+ */
+export interface PresentationRow {
+  id: string;
+  tests: string[];
+  signs: string[];
+  /** Signs its words mention that other tests elicit ("the eye is down and out, with ptosis"): shown, not claimed. */
+  accompanying?: string[];
+  syndrome?: string;
+  /** For a presentation that names no sign (a symptom, a pertinent negative). */
+  note?: string;
+  status: RowStatus;
+  reviewedBy?: string;
+}
 
 export interface RelationRow {
   from: EntityRef;
@@ -69,8 +92,10 @@ export interface RelationRow {
   to: EntityRef;
   /** part-of: required, supporting, or absent (a pertinent negative). */
   role?: 'required' | 'supporting' | 'absent';
-  /** Where the link came from (e.g. the teaching card it was migrated from). */
+  /** Where the link came from, in words. */
   source?: string;
+  /** suggests: the presentations that assert it (their cards show the condition with that finding). */
+  via?: string[];
   /** suggests: cases with this condition that do not show the sign, and why. */
   exceptions?: Array<{ case: string; kind: 'model' | 'case'; why: string }>;
   status: RowStatus;
@@ -78,14 +103,18 @@ export interface RelationRow {
   reviewedBy?: string;
 }
 
-/** One learner-facing text, in one language. */
-export interface TextRow { entity: EntityRef; field: string; locale: string; text: string; status?: RowStatus }
+/** The learner-facing texts of one entity in one language: `label`, `description`, `how.1` … A new language is new rows. */
+export interface TextRow { entity: EntityRef; locale: string; fields: Record<string, string>; status?: RowStatus; reviewedBy?: string }
 
 export interface Knowledge {
   signs: Record<string, SignRow>;
   syndromes: Record<string, SyndromeRow>;
+  tests: Record<string, TestRow>;
+  presentations: Record<string, PresentationRow>;
   relations: RelationRow[];
   texts: TextRow[];
 }
 
-export interface KnowledgeTables { signs: SignRow[]; syndromes: SyndromeRow[]; relations: RelationRow[]; texts: TextRow[] }
+export interface KnowledgeTables {
+  signs: SignRow[]; syndromes: SyndromeRow[]; tests: TestRow[]; presentations: PresentationRow[]; relations: RelationRow[]; texts: TextRow[];
+}

@@ -29,15 +29,13 @@ Search matches names in all languages at once, so an English learner who types "
 - **A section's `kind`** is `measure`, `examine` or `intervene`.
   - Interventions (positioning, exposing, oxygen) are kept out of the examination menu and shown as a separate control.
   - `layout: 'chips' | 'select'` sets how they are displayed: chips for positions, a dropdown for oxygen devices.
-- **`data/teaching/`** holds one `TeachingCard` per manoeuvre, keyed by manoeuvre id, one file per system (vitals, general, cardio, resp, abdomen, neuro-cranial, neuro-limbs, neuro-coordination, care). A card has:
-  - `aliases`: eponyms and the names used in other languages; these are also searched.
-  - `assesses`: the function and pathway the test examines.
-  - `how`: the steps.
-  - `normal`: the normal finding.
-  - `abnormal[]`: each entry has a `sign` and what it `means`. It also links to the model `properties` that report the sign and the `conditions` (diagnosis ids) it occurs in.
-  - `pitfalls`, `refs` (ids in `evidence/references.ts`), and `animation` (an empty slot for a renderer).
+- **Teaching cards are built from the knowledge tables** in `source/knowledge/` (ADR-016; see its README). A card is not written by hand any more.
+  - A test's texts (`assesses`, `how.N`, `normal`, `pitfall.N`, `alias.N`) are in the text table, in every language.
+  - Its findings are **presentations**: how signs show on that test (`description`) and what it means (`meaning`), with the signs and syndrome they belong to. The conditions shown with a finding are the `suggests` links that name it.
+  - Below them, the card lists the further signs the test can elicit, derived from the signs' definitions, and the normal variants worth naming.
+  - Every sign has its own card: the tests that find it, how it presents on each, its syndromes, variants and conditions.
 
-  The validator checks that every property, diagnosis and reference a card names exists.
+  The validator checks every link and text; a presentation's signs must be ones its tests can elicit.
 - **`engine/suggest.ts`** produces the suggestions for the command field.
   - It searches manoeuvres (labels, parser phrases, aliases, and the signs and meanings on their cards), investigations and history questions.
   - Results are ranked by match quality, then by clinical order.

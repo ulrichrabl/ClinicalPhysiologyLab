@@ -9,7 +9,8 @@ import { DIAGNOSES } from './diagnoses.ts';
 import { INVESTIGATIONS } from './investigations.ts';
 import { MEASUREMENTS } from './measurements.ts';
 import { EXAM_SYSTEMS } from './exam-structure.ts';
-import { TEACHING } from './teaching/index.ts';
+import { KNOWLEDGE } from '../knowledge/index.ts';
+import { teachingCard } from '../knowledge/cards.ts';
 
 /* ---------------------------------------------------------------------------
    The catalog: every shared vocabulary item, indexed by id. Cases refer into
@@ -82,14 +83,22 @@ export const CATALOG_PARTS: CatalogParts = {
   structures: STRUCTURES, scales: SCALES, valueSets: VALUE_SETS, instruments: INSTRUMENTS,
   /* What each finding and test measures in the models, and the physics of how. */
   properties: PROPERTIES.map((p) => (MEASUREMENTS[p.id] ? { ...p, measurement: MEASUREMENTS[p.id] } : p)),
-  /* Each with its teaching card, where one is written. */
-  manoeuvres: MANOEUVRES.map((m) => (TEACHING[m.id] ? { ...m, teaching: TEACHING[m.id] } : m)),
+  manoeuvres: MANOEUVRES,
   investigations: INVESTIGATIONS.map((x) => (MEASUREMENTS[x.id] ? { ...x, measurement: MEASUREMENTS[x.id] } : x)),
   topics: HISTORY_TOPICS, diagnoses: DIAGNOSES,
   examSystems: EXAM_SYSTEMS,
 };
 
-export const CATALOG: Catalog = buildCatalog(CATALOG_PARTS);
+/** Attach every test's teaching card, built from the knowledge tables (ADR-016). */
+export function withTeaching(cat: Catalog): Catalog {
+  const manoeuvres = Object.fromEntries(Object.entries(cat.manoeuvres).map(([id, m]) => {
+    const card = teachingCard(KNOWLEDGE, cat, id);
+    return [id, card ? { ...m, teaching: card } : m];
+  }));
+  return { ...cat, manoeuvres };
+}
+
+export const CATALOG: Catalog = withTeaching(buildCatalog(CATALOG_PARTS));
 
 /** The catalog as JSON, for an authoring platform or a content repository. */
 export function exportCatalog(c: CatalogParts = CATALOG_PARTS): string {
