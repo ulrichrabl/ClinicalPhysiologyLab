@@ -66,6 +66,7 @@ The test suite (`scripts/vp-model.test.mjs`) does three things:
 6. **Addisonian crisis:** the patient lies at a systolic of 113 (half of real crises are at 110 or below).
 7. **Diarrhoea (prerenal):** urine sodium is 32 (Miller: below 20). FENa and osmolality are correct.
 8. **Triple-whammy potassium:** 5.8 against the 6.2 or more such patients present with. How far RAAS blockade impairs the kaliuretic adaptation is not grounded.
+9. **Healthy gaze holding:** at 30° of lateral gaze a healthy integrator drifts 1.2 °/s, against 0.62 ± 0.53 °/s measured (Ritter 2020). The nystagmus it produces is labelled physiological end-point nystagmus, as it is in most healthy people at 30°, but it is about twice as brisk as average. The integrator time constant (25 s) and the 1 °/s visibility threshold are inline literals, not yet in the registry.
 
 ## Not grounded yet, and why
 

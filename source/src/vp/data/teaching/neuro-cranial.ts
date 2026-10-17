@@ -199,8 +199,11 @@ export const NEURO_CRANIAL: Record<string, TeachingCard> = {
       'Es langsam in Form eines H bewegen und an jedem Ende verweilen; nach Doppelbildern fragen.',
       'Auf eingeschränkte Bewegungen, sakkadierte Blickfolge und Nystagmus in jeder Blickrichtung achten.',
     ]),
-    normal: t('Full, smooth, conjugate movements without double vision; a few beats of nystagmus at the extreme of gaze are normal.',
-      'Volle, glatte, konjugierte Bewegungen ohne Doppelbilder; einige Schläge Endstellnystagmus sind normal.'),
+    normal: t('Full, smooth, conjugate movements without double vision. A fine nystagmus beating towards the direction of gaze at 30° or more (end-point nystagmus) is normal: most healthy people have it, and it may last as long as the gaze is held.',
+      'Volle, glatte, konjugierte Bewegungen ohne Doppelbilder. Ein feiner Nystagmus in Blickrichtung ab etwa 30° (Endstellnystagmus) ist normal: die meisten Gesunden haben ihn, und er kann anhalten, solange der Blick gehalten wird.'),
+    pitfalls: l(['End-point nystagmus is not a sign: look for gaze-evoked nystagmus within 30° of the centre, where healthy eyes hold still, and compare both sides.'],
+      ['Endstellnystagmus ist kein Befund: einen Blickrichtungsnystagmus innerhalb von 30° um die Mitte suchen, wo gesunde Augen ruhig stehen, und beide Seiten vergleichen.']),
+    refs: ['ritter2020', 'shallohoffmann1990'],
     abnormal: [
       f(t('One eye fails to abduct, with horizontal double vision.', 'Ein Auge abduziert nicht, horizontale Doppelbilder.'), t('Sixth nerve palsy.', 'Abduzensparese.'), ['eye.motility'], ['sixth-nerve-palsy']),
       f(t('The eye is down and out, with ptosis.', 'Das Auge steht unten außen, mit Ptosis.'), t('Third nerve palsy.', 'Okulomotoriusparese.'), ['eye.motility'], ['third-nerve-palsy']),

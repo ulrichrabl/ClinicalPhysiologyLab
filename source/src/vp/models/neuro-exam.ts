@@ -21,10 +21,14 @@ import { limbState } from './neuro-limb.ts';
      compensation reduces it over days.
 
    * Gaze holding. The neural integrator keeps the eyes eccentric; it leaks
-     with a time constant tau. Normal tau (~25 s) gives drift below the
-     visible threshold. Cerebellar or brainstem lesions shorten tau, so the
-     eyes drift back to centre and beat toward the direction of gaze:
-     gaze-evoked, direction-changing nystagmus, unaffected by fixation.
+     with a time constant tau. With a normal tau (25 s) the drift at 30° of
+     lateral gaze reaches the visible threshold, so a fine nystagmus beats
+     toward the direction of gaze. That is physiological end-point nystagmus:
+     most healthy people have it at 30°, often sustained (Ritter 2020), and
+     the model labels it as normal. Cerebellar or brainstem lesions shorten
+     tau, so the eyes drift back to centre faster and beat toward the
+     direction of gaze: gaze-evoked, direction-changing nystagmus, unaffected
+     by fixation.
 
    * VOR gain. A head impulse toward a side tests that side's horizontal
      canal and nerve. Gain below ~0.6 produces an overt catch-up saccade.
@@ -38,6 +42,10 @@ import { limbState } from './neuro-limb.ts';
 =========================================================================== */
 
 const SIDES: Side[] = ['L', 'R'];
+
+/** Neural integrator time constant with healthy gaze holding (s). Not yet in the evidence registry; at 30° it drifts
+    about twice as fast as Ritter 2020 measured (a known gap in the test suite). */
+export const NORMAL_INTEGRATOR_TAU_S = 25;
 const other = (s: Side): Side => (s === 'L' ? 'R' : 'L');
 
 const ECC_H: Record<string, number> = { primary: 0, left: -30, right: 30, up: 0, down: 0, 'up-left': -25, 'up-right': 25, 'down-left': -25, 'down-right': 25 };
@@ -110,7 +118,7 @@ function derive(view: RuntimeView): NeuroExamState {
   const cerebellar = SIDES.filter((S) => has(`${S}_cerebellum`) || has(`${S}_dentate`) || has(`${S}_icp`) || has(`${S}_mcp`));
   for (const S of lateralMedulla) { nucleus[S] = Math.min(nucleus[S], 1 - 0.2 * loss); basis.push(`${S} lateral medulla (vestibular nuclei, otolith pathway)`); }
 
-  let tauSeconds = 25;
+  let tauSeconds = NORMAL_INTEGRATOR_TAU_S;
   if (lateralMedulla.length) tauSeconds = 6;
   if (cerebellar.length) tauSeconds = Math.min(tauSeconds, partial ? 6 : 3);
   const fixationResidual = cerebellar.length ? 1 : lateralMedulla.length ? 0.8 : 0.3;
@@ -202,6 +210,8 @@ export interface NystagmusValue {
   spvDegPerS?: number;
   amplitudeDeg?: number;
   frequencyHz?: number;
+  /** End-point nystagmus from a healthy integrator alone, with no spontaneous (vestibular) component: normal. */
+  physiological?: boolean;
 }
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
@@ -230,12 +240,15 @@ export function nystagmus(s: NeuroExamState, ctx: ExamContext): NystagmusValue {
   const peripheralShare = Math.abs(spont) / (Math.abs(spont) + Math.hypot(driftH, driftV) + 1e-9);
   const torsion = peripheralShare > 0.5 && horizontal ? (fastPhase === 'right' ? 'toward-right-ear' : 'toward-left-ear') : 'none';
   const frequencyHz = peripheralShare > 0.5 ? 2.5 : 2;
+  /* Physiological when a healthy integrator alone makes it visible: the spontaneous component would not be seen on
+     its own and gaze holding is normal. Any shortening of tau (cerebellum, brainstem) makes it pathological. */
+  const physiological = Math.abs(spont) < threshold && s.tauSeconds >= NORMAL_INTEGRATOR_TAU_S && (eH !== 0 || eV !== 0);
   return {
     present: true, type: 'jerk', fastPhase, torsion,
     slowPhase: peripheralShare > 0.5 ? 'constant' : 'decreasing',
     spvDegPerS: round1(mag),
     // Amplitude is what the slow phase covers before the ~30 ms quick phase resets it.
-    amplitudeDeg: round1(mag * (1 / frequencyHz - 0.03)), frequencyHz,
+    amplitudeDeg: round1(mag * (1 / frequencyHz - 0.03)), frequencyHz, physiological,
   };
 }
 
@@ -248,7 +261,7 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
     const s = neuroExamState(view);
     if (ref.property === 'eyes.nystagmus') {
       const v = nystagmus(s, ctx);
-      return { value: v, normal: !v.present, basis: s.basis.join('; ') || undefined };
+      return { value: v, normal: !v.present || !!v.physiological, basis: s.basis.join('; ') || undefined };
     }
     if (ref.property === 'eye.head-impulse') {
       const S = ref.side ?? ctx.headImpulseTo ?? 'L';

@@ -250,6 +250,10 @@ export const FORMATTERS: Record<string, Formatter> = {
     const dir = DIR[v.fastPhase][de(l) ? 1 : 0];
     const amp = v.amplitudeDeg < 2 ? (de(l) ? 'kleine' : 'small') : v.amplitudeDeg < 5 ? (de(l) ? 'mittelgroße' : 'moderate') : (de(l) ? 'große' : 'large');
     const tors = torsional ? (de(l) ? `, oberer Pol schlägt ${lab(cat, 'torsion', v.torsion, l)}` : `, upper poles beating ${lab(cat, 'torsion', v.torsion, l)}`) : '';
+    /* A healthy integrator's drift: say that it is normal, so the learner does not take it for a sign. */
+    if (v.physiological) return de(l)
+      ? `${g}${fix}: feiner Endstellnystagmus ${dir}, ${amp} Amplitude (ca. ${num(v.amplitudeDeg, l, 1)}°) – physiologisch, bei diesem Blickwinkel häufig.`
+      : `${g}${fix}: fine end-point nystagmus, fast phase ${dir}, ${amp} amplitude (about ${num(v.amplitudeDeg, l, 1)}°): physiological, common at this angle of gaze.`;
     return de(l)
       ? `${g}${fix}: ${plane} Rucknystagmus ${dir}${tors}, ${amp} Amplitude (ca. ${num(v.amplitudeDeg, l, 1)}°), ca. ${num(v.frequencyHz, l, 1)} Hz.`
       : `${g}${fix}: ${plane} jerk nystagmus, fast phase ${dir}${tors}, ${amp} amplitude (about ${num(v.amplitudeDeg, l, 1)}°), about ${num(v.frequencyHz, l, 1)} Hz.`;

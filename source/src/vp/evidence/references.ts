@@ -304,4 +304,10 @@ export const REFERENCES: Record<string, Reference> = Object.fromEntries([
   R({ id: 'cattau1982', authors: 'Cattau EL, Benjamin SB, Knuff TE, Castell DO', title: 'The accuracy of the physical examination in the diagnosis of suspected ascites',
     journal: 'JAMA', year: 1982, volume: '247', pages: '1164–6', pmid: '7057606', verified: 'abstract',
     note: 'Abstract, 21 patients against ultrasound: manoeuvres 50–94 % sensitive, 29–82 % specific; only absent flank dullness rules ascites out with over 90 % accuracy.' }),
+  R({ id: 'ritter2020', authors: 'Ritter MS, Bertolini G, Straumann D, Bögli SY', title: 'Prevalence and characteristics of physiological gaze-evoked and rebound nystagmus: implications for testing their pathological counterparts',
+    journal: 'Front Neurol', year: 2020, volume: '11', pages: '547015', doi: '10.3389/fneur.2020.547015', verified: 'full-text',
+    note: 'Full text, 14 healthy subjects, video-oculography: physiological gaze-evoked nystagmus in 71 % at 30° and 100 % at 45°; initial drift 0.62 ± 0.53 °/s at 30°, 1.22 ± 0.83 at 40°, 1.78 ± 0.69 at 45°; sustained over 30 s in 64 % at 30°. Recommends testing below 30°.' }),
+  R({ id: 'shallohoffmann1990', authors: 'Shallo-Hoffmann J, Schwarze H, Simonsz HJ, Mühlendyck H', title: 'A reexamination of end-point and rebound nystagmus in normals',
+    journal: 'Invest Ophthalmol Vis Sci', year: 1990, volume: '31', pages: '388–92', pmid: '2303336', verified: 'abstract',
+    note: 'Abstract: jerk end-point nystagmus in 9 of 20 normal subjects at 40° and 50° of lateral gaze, almost always immediate and sustained for 15–25 s.' }),
 ].map((r) => [r.id, r]));
