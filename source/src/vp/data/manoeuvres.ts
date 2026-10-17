@@ -48,15 +48,15 @@ function lungManoeuvres([site, key, en, de, enPh, dePh, face, listed]: LungSite)
   return [
     { ...base, id: key === 'base' ? 'auscultate.lung-base' : `auscultate.lung-${key}`, verb: 'auscultate',
       label: { en: `Breath sounds: ${en}`, de: `Atemgeräusch: ${de}` },
-      phrases: { en: [...enPh.map((p) => `listen ${p}`), ...(key === 'base' ? ['listen to the lungs', 'breath sounds', 'chest auscultation', 'auscultate lungs'] : [])],
-        de: [...dePh.map((p) => `abhören ${p}`), ...(key === 'base' ? ['lunge abhören', 'atemgeräusch', 'lunge auskultieren'] : [])] },
+      phrases: { en: [...enPh.map((p) => `listen ${p}`), ...(key === 'base' ? ['listen to the lungs', 'listen to the chest', 'lungs', 'chest', 'breath sounds', 'chest auscultation', 'auscultate lungs'] : [])],
+        de: [...dePh.map((p) => `abhören ${p}`), ...(key === 'base' ? ['lunge abhören', 'lunge', 'lungen', 'thorax abhören', 'atemgeräusch', 'lunge auskultieren'] : [])] },
       reveals: [{ property: 'lung.sounds', context: { site } }],
       context: { site, instrument: 'stethoscope-diaphragm', respiration: 'quiet' },
       requires: { instrument: ['stethoscope-diaphragm'], ...reach }, durationSeconds: 20 },
     { ...base, id: `percuss.lung-${key}`, verb: 'percuss',
       label: { en: `Percussion: ${en}`, de: `Perkussion: ${de}` },
-      phrases: { en: [...enPh.map((p) => `percuss ${p}`), ...(key === 'base' ? ['percuss the chest', 'percussion', 'percuss the lungs'] : [])],
-        de: [...dePh.map((p) => `perkutieren ${p}`), ...(key === 'base' ? ['thorax perkutieren', 'perkussion', 'lunge perkutieren', 'klopfschall'] : [])] },
+      phrases: { en: [...enPh.map((p) => `percuss ${p}`), ...(key === 'base' ? ['percuss the chest', 'percussion', 'percuss the lungs', 'chest', 'lungs'] : [])],
+        de: [...dePh.map((p) => `perkutieren ${p}`), ...(key === 'base' ? ['thorax perkutieren', 'perkussion', 'lunge perkutieren', 'lunge', 'lungen', 'thorax', 'klopfschall'] : [])] },
       reveals: [{ property: 'chest.percussion', context: { site } }], context: { site },
       requires: { instrument: ['hands'], ...reach } },
     { ...base, id: `resonance.lung-${key}`, verb: 'auscultate', hidden: key !== 'base',
@@ -122,7 +122,7 @@ export const MANOEUVRES: ManoeuvreDef[] = [
   {
     id: 'palpate.pulse.radial', verb: 'palpate', target: 'wrist.radial', paired: true,
     label: { en: 'Radial pulse', de: 'Radialispuls' },
-    phrases: { en: ['radial pulse', 'feel the pulse', 'take the pulse', 'pulse at the wrist'], de: ['radialispuls', 'puls tasten', 'puls fühlen'] },
+    phrases: { en: ['radial pulse', 'feel the pulse', 'take the pulse', 'pulse at the wrist', 'pulse'], de: ['radialispuls', 'puls tasten', 'puls fühlen', 'puls'] },
     reveals: [{ property: 'pulse.radial' }], requires: { instrument: ['hands'] }, durationSeconds: 20,
   },
   {
@@ -144,7 +144,8 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     reveals: [{ property: 'apex' }], requires: { instrument: ['hands'], exposure: ['chest'] }, durationSeconds: 15,
   },
   auscultate('chest.aortic-area', 'aortic area (2nd right ICS)', 'Aortenareal (2. ICR rechts)',
-    ['aortic area', 'listen aortic', '2nd right intercostal space'], ['aortenareal', 'aorta abhören', '2. icr rechts']),
+    /* "Listen to the heart" starts here, the first area in the menu; the view then offers the others. */
+    ['aortic area', 'listen aortic', '2nd right intercostal space', 'heart', 'heart sounds'], ['aortenareal', 'aorta abhören', '2. icr rechts', 'herz', 'herztöne']),
   auscultate('chest.pulmonary-area', 'pulmonary area (2nd left ICS)', 'Pulmonalareal (2. ICR links)',
     ['pulmonary area', 'listen pulmonary', '2nd left intercostal space'], ['pulmonalareal', '2. icr links']),
   auscultate('chest.erb', "Erb's point (3rd left ICS)", 'Erb-Punkt (3. ICR links)', ["erb's point", 'erb', '3rd left intercostal space'], ['erb', 'erb-punkt', '3. icr links']),
@@ -231,7 +232,7 @@ export const MANOEUVRES: ManoeuvreDef[] = [
   {
     id: 'test.arms-outstretched', verb: 'test', target: 'hands',
     label: { en: 'Arms outstretched, fingers spread, then wrists bent back', de: 'Arme vorhalten, Finger spreizen, dann Handgelenke dorsalflektieren' },
-    phrases: { en: ['tremor', 'fine tremor', 'shaky hands', 'fingers spread', 'paper on the hands', 'asterixis', 'flap', 'liver flap', 'hold your hands out', 'cock your wrists', 'arms outstretched'],
+    phrases: { en: ['tremor', 'fine tremor', 'shaky hands', 'fingers spread', 'paper on the hands', 'asterixis', 'flap', 'liver flap', 'hold your hands out', 'cock your wrists', 'arms outstretched', 'hold your arms out', 'arms out in front'],
       de: ['tremor', 'zittern', 'feinschlägiger tremor', 'finger spreizen', 'blatt auf die hände', 'flapping tremor', 'asterixis', 'hände vorhalten', 'flattern', 'arme vorhalten'] },
     reveals: [{ property: 'hands.tremor' }, { property: 'hands.asterixis' }], durationSeconds: 45,
   },
@@ -250,7 +251,8 @@ export const MANOEUVRES: ManoeuvreDef[] = [
   {
     id: 'inspect.skin', verb: 'inspect', target: 'skin',
     label: { en: 'Inspection of skin, hands and chest wall', de: 'Inspektion von Haut, Händen und Thoraxwand' },
-    phrases: { en: ['spider naevi', 'palmar erythema', 'liver stigmata', 'stigmata of chronic liver disease', 'caput medusae', 'skin'], de: ['spider naevi', 'palmarerythem', 'leberhautzeichen', 'caput medusae', 'haut'] },
+    phrases: { en: ['spider naevi', 'palmar erythema', 'liver stigmata', 'stigmata of chronic liver disease', 'caput medusae', 'skin', 'look at the hands', 'inspect the hands', 'hands'],
+      de: ['spider naevi', 'palmarerythem', 'leberhautzeichen', 'caput medusae', 'haut', 'hände ansehen', 'hände inspizieren', 'hände'] },
     reveals: [{ property: 'skin.liver-stigmata' }], requires: { exposure: ['chest', 'abdomen'] }, durationSeconds: 30,
   },
   {
@@ -436,7 +438,7 @@ export const MANOEUVRES: ManoeuvreDef[] = [
   {
     id: 'test.face-movement', verb: 'test', target: 'face',
     label: { en: 'Facial nerve (VII)', de: 'N. facialis (VII)' },
-    phrases: { en: ['facial movement', 'raise your eyebrows', 'show your teeth', 'facial nerve', 'smile', 'close your eyes tightly'], de: ['mimik', 'stirn runzeln', 'zähne zeigen', 'fazialis', 'augen zukneifen', 'lächeln'] },
+    phrases: { en: ['facial movement', 'raise your eyebrows', 'show your teeth', 'facial nerve', 'smile', 'close your eyes tightly', 'face'], de: ['mimik', 'stirn runzeln', 'zähne zeigen', 'fazialis', 'augen zukneifen', 'lächeln', 'gesicht'] },
     reveals: [{ property: 'face.movement', side: 'both' }], requires: { ability: ['follows-commands'] }, durationSeconds: 20,
   },
   {

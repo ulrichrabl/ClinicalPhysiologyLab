@@ -11,7 +11,7 @@ export const STRUCTURES: StructureDef[] = [
   { id: 'eye', parent: 'head', paired: true, label: { en: 'Eye', de: 'Auge' },
     synonyms: { en: ['eye', 'eyes', 'pupil', 'pupils'], de: ['auge', 'augen', 'pupille', 'pupillen'] } },
   { id: 'eyes', parent: 'head', label: { en: 'Eyes (both)', de: 'Augen (beidseits)' },
-    synonyms: { en: ['eye movements', 'gaze'], de: ['augenbewegungen', 'okulomotorik', 'blickfolge'] } },
+    synonyms: { en: ['eyes', 'both eyes', 'eye movements', 'gaze'], de: ['augen', 'beide augen', 'augenbewegungen', 'okulomotorik', 'blickfolge'] } },
   { id: 'ear', parent: 'head', paired: true, label: { en: 'Ear', de: 'Ohr' },
     synonyms: { en: ['ear', 'hearing'], de: ['ohr', 'gehör', 'hören'] } },
   { id: 'neck', parent: 'body', label: { en: 'Neck', de: 'Hals' } },

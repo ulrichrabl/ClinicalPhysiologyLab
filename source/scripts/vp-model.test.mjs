@@ -1,6 +1,6 @@
 /* Virtual patient data model: catalog, cases, validation, models, text, encounter. */
 import * as esbuild from '../node_modules/esbuild/lib/main.js';
-import { unlinkSync } from 'node:fs';
+import { readFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
@@ -502,6 +502,20 @@ console.log('\nTyped input routing and debrief');
   ok('a German examination step with a side', J(I('Radialispuls rechts tasten', 'de')) === J({ kind: 'act', manoeuvre: 'palpate.pulse.radial', side: 'R' }));
   ok('an order', I('order an echo').kind === 'order' && I('EKG schreiben', 'de').kind === 'order');
   ok('nonsense is not guessed', I('banana trampoline').kind === 'unknown');
+  /* What learners actually type (scripts/data/typed-commands.json): every line must do what it says. Add a line whenever a
+     report shows a phrasing that was not understood. */
+  {
+    const corpus = JSON.parse(readFileSync('scripts/data/typed-commands.json', 'utf8'));
+    const wrong = [];
+    let n = 0;
+    for (const lang of ['en', 'de']) for (const [text, kind, ids, side] of corpus[lang]) {
+      n++;
+      const r = interpret(CATALOG, text, lang);
+      const good = r.kind === kind && (kind === 'ask' || (kind === 'act' ? ids.includes(r.manoeuvre) && (!side || r.side === side) : ids.includes(r.investigation)));
+      if (!good) wrong.push(`${lang} "${text}" → ${r.kind} ${r.manoeuvre ?? r.investigation ?? ''}${r.side ?? ''}`);
+    }
+    ok(`typed commands: all ${n} everyday phrasings (EN and DE) do what they say`, !wrong.length, wrong.join('; '));
+  }
 
   const s = startEncounter(CATALOG, REGISTRY, VN, buildView(VN));
   ask(s, 'Has your hearing changed?'); ask(s, 'Any headache?'); ask(s, 'Is it there all the time, how long does it last?');
