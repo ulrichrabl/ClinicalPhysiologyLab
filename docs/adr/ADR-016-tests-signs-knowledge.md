@@ -33,6 +33,15 @@ The examination mixes two different things: what the examiner *does* (a test) an
 
 It is a graph, not a tree. Ptosis leads to Horner's syndrome, third nerve palsy and myasthenia gravis. Horner's syndrome is reached from ptosis and anisocoria. The interface shows it as a tree that unfolds from whichever node the learner starts at, in either direction.
 
+### 1a. Presentations (added while building step 2)
+
+A sign looks different on different tests: consolidation is "dull" to percussion, "bronchial" to auscultation and "increased" to vocal resonance. The card texts describe exactly that. So a **presentation** links one or more tests to the signs (and the syndrome) it shows, and carries the words: a `description` and a `meaning`.
+
+- **Its signs must be ones its tests can elicit**, by the signs' definitions. Signs its words merely mention ("the eye is down and out, *with ptosis*") are `accompanying`.
+- **Condition links name the presentations that assert them** (`via`), so a card shows each finding with its own conditions.
+- **A test card** is its presentations, then the further signs it can elicit (derived), then the normal variants.
+- **A sign card** gathers the sign's presentations across tests.
+
 ### 2. The line between code and knowledge
 
 - **Code (hard-coded):** the physiology models, resolvers, formatters, renderers, and the list of observables with their value types and normal ranges.
@@ -192,13 +201,13 @@ Moving them changes what a learner commits to at the end of a case, so it needs 
 
 ## Migration (one PR per step)
 
-1. **Knowledge tables:**
+1. **Knowledge tables** (done in #37):
    - add `source/knowledge/`, the schema, the validator, the compile step, and the observables export;
    - load the draft signs, syndromes and links;
    - add the coverage report;
    - replace `CARD_EXCEPTIONS` with `modelGap`.
    - No interface change.
-2. **Cards:** split teaching cards into test cards and sign cards. A test card's abnormal list is derived; its texts move into the text table.
+2. **Cards:** build test cards and sign cards from the tables. Card findings become presentations (§1a), and all card texts move into the text table. Done in #39.
 3. **Interface:** test renames; sign naming after a test, with pertinent negatives and normal variants; General inspection naming what the figure shows; findings list; the Explore "Signs present" panel.
 4. **Cases and debrief** in signs, then the "observe only" level with documentation scoring.
 5. **Model gaps,** in later runs, worked from the coverage report.
