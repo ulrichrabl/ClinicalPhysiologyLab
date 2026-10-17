@@ -367,8 +367,13 @@ export interface DiagnosisDef {
 
 export interface EvidenceItem {
   id: string;
-  kind: 'property' | 'fact' | 'investigation';
-  ref: string;                    // property ref ('eye.head-impulse.L'), fact id, or test id
+  /** A sign (ADR-016 §10) where one names the finding; a property where a number or a context is the point (SpO₂ on air). */
+  kind: 'sign' | 'property' | 'fact' | 'investigation';
+  ref: string;                    // sign id ('ptosis'), property ref ('eye.head-impulse.L'), fact id, or test id
+  /** sign: the side it must be found on, when it matters. */
+  side?: Side;
+  /** sign: false for a pertinent negative, credited when a test that looks for it was done and did not find it. */
+  present?: boolean;
   context?: ExamContext;          // the context in which it must be elicited, if any
   weight: 'essential' | 'discriminating' | 'supporting';
   discriminates?: string[];       // diagnosis ids it separates from the primary

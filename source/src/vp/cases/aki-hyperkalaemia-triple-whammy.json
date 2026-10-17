@@ -368,11 +368,8 @@
       },
       {
         "id": "e-postural",
-        "kind": "property",
-        "ref": "vitals.bp.R",
-        "context": {
-          "position": "standing"
-        },
+        "kind": "sign",
+        "ref": "orthostatic-hypotension",
         "weight": "supporting",
         "why": {
           "en": "A postural drop with a rising rate on standing: the blood volume is contracted.",
@@ -381,8 +378,8 @@
       },
       {
         "id": "e-mucosa",
-        "kind": "property",
-        "ref": "mouth.mucosa",
+        "kind": "sign",
+        "ref": "dry-mucosa",
         "weight": "supporting",
         "why": {
           "en": "Dry mucous membranes: interstitial fluid lost (his skin turgor tells you little at 78).",

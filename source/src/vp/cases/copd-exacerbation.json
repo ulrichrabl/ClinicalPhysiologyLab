@@ -280,8 +280,8 @@
     "evidence": [
       {
         "id": "e-pattern",
-        "kind": "property",
-        "ref": "breathing.pattern",
+        "kind": "sign",
+        "ref": "accessory-muscle-use",
         "weight": "essential",
         "why": {
           "en": "Words, not sentences; accessory muscles; pursed lips; a barrel chest. The work of breathing against narrowed airways and a hyperinflated chest.",
@@ -290,11 +290,8 @@
       },
       {
         "id": "e-wheeze",
-        "kind": "property",
-        "ref": "lung.sounds",
-        "context": {
-          "site": "chest.upper-zone.R"
-        },
+        "kind": "sign",
+        "ref": "wheeze",
         "weight": "essential",
         "discriminates": [
           "community-acquired-pneumonia",
@@ -307,11 +304,8 @@
       },
       {
         "id": "e-hyper",
-        "kind": "property",
-        "ref": "chest.percussion",
-        "context": {
-          "site": "chest.upper-zone.L"
-        },
+        "kind": "sign",
+        "ref": "hyper-resonant-percussion",
         "weight": "supporting",
         "discriminates": [
           "pneumothorax"
@@ -353,8 +347,8 @@
       },
       {
         "id": "e-spo2",
-        "kind": "property",
-        "ref": "vitals.spo2",
+        "kind": "sign",
+        "ref": "hypoxaemia",
         "weight": "supporting",
         "why": {
           "en": "Target 88–92 % with a Venturi mask: enough O₂ to be safe, not so much that CO₂ climbs.",

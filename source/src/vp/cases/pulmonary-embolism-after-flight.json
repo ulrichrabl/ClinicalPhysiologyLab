@@ -321,8 +321,8 @@
       },
       {
         "id": "e-hr",
-        "kind": "property",
-        "ref": "vitals.hr",
+        "kind": "sign",
+        "ref": "tachycardia",
         "weight": "supporting",
         "why": {
           "en": "Tachycardia: a Wells criterion, and a sign of the right ventricle under load.",

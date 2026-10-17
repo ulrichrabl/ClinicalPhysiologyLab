@@ -167,7 +167,18 @@ Agreed with the owner: tests and signs are separate, each sign is defined on the
   - step 2, cards built from the tables, with presentations and a card for every sign (#39);
   - step 3, the interface: tests named as tests, signs named after each test, signs in Notes (#40).
 - **Coverage:** `npm run knowledge:report` writes `docs/knowledge-coverage.md`. It lists every sign with its definition, the tests that elicit it, where the app shows it, which cases show it, and its gap.
-- **Next, step 4:** the expert reference and the debrief in signs, then an "observe only" level in which the learner names the signs and is scored for misses and over-calls.
+- **Step 4a, done:** the expert references speak in signs, with a side and pertinent negatives (`present: false`).
+  - 56 of the 65 property items became sign items. The rest stay property items where a number or context is the point (SpO₂ on air, the murmur's radiation, the leg's relative sparing, a clear chest), or where the case text and the model disagree (below).
+  - The debrief reads each test's own recorded findings (`signsShown` in `engine/debrief.ts`). A sign is credited when a test showed it, on its side; a pertinent negative when a test looked for it and did not find it.
+  - A sign that needs two tests (unidirectional nystagmus: eye movements, then Frenzel) is credited from everything the learner saw.
+  - The debrief names the sign, the test that showed it, or the tests that would have.
+  - Two tests check the references: every reference sign is true of its case, and an examiner who does the right tests is credited with every one.
+- **Case texts the model contradicts** (kept as property items until decided):
+  - pneumonia "hypoxaemia": SpO₂ 94 % on air;
+  - GI bleed "tachycardia from the volume lost": pulse 79 (known gap 1);
+  - iron-deficiency anaemia "a resting tachycardia": pulse 75;
+  - thiazide hyponatraemia "a slightly dry mouth": mucosa moist.
+- **Next, step 4b:** an "observe only" level in which the learner names the signs and is scored for misses and over-calls.
 - **Then, step 5:** the model gaps the coverage lists. These include:
   - jaundice, pallor and cyanosis missing from the eye close-up;
   - limb ataxia with the eyes closed, which no test elicits;

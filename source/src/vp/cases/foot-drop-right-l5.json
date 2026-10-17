@@ -283,8 +283,9 @@
     "evidence": [
       {
         "id": "e-power",
-        "kind": "property",
-        "ref": "leg.power.R",
+        "kind": "sign",
+        "ref": "myotomal-weakness",
+        "side": "R",
         "weight": "essential",
         "discriminates": [
           "common-peroneal-palsy",
@@ -297,8 +298,10 @@
       },
       {
         "id": "e-reflexes",
-        "kind": "property",
-        "ref": "leg.reflexes.R",
+        "kind": "sign",
+        "ref": "absent-ankle-reflex",
+        "side": "R",
+        "present": false,
         "weight": "discriminating",
         "discriminates": [
           "s1-radiculopathy",
@@ -312,8 +315,9 @@
       },
       {
         "id": "e-sensory",
-        "kind": "property",
-        "ref": "leg.pinprick.R",
+        "kind": "sign",
+        "ref": "dermatomal-sensory-loss",
+        "side": "R",
         "weight": "discriminating",
         "discriminates": [
           "common-peroneal-palsy"
@@ -348,8 +352,9 @@
       },
       {
         "id": "e-slr",
-        "kind": "property",
-        "ref": "leg.slr.R",
+        "kind": "sign",
+        "ref": "positive-slr",
+        "side": "R",
         "weight": "supporting",
         "why": {
           "en": "A positive straight leg raise supports nerve root tension from a disc.",
@@ -358,8 +363,8 @@
       },
       {
         "id": "e-gait",
-        "kind": "property",
-        "ref": "gait.pattern",
+        "kind": "sign",
+        "ref": "steppage-gait",
         "weight": "supporting",
         "why": {
           "en": "A high-stepping gait: the foot is lifted high so the toes clear the ground.",
