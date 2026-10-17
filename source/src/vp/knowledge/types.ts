@@ -90,8 +90,9 @@ export interface RelationRow {
   from: EntityRef;
   rel: RelationType;
   to: EntityRef;
-  /** part-of: required, supporting, or absent (a pertinent negative). */
-  role?: 'required' | 'supporting' | 'absent';
+  /** part-of: required, supporting, absent (a pertinent negative), or associated (often seen with it, but not counted
+      towards it: fever with sepsis). */
+  role?: 'required' | 'supporting' | 'absent' | 'associated';
   /** Where the link came from, in words. */
   source?: string;
   /** suggests: the presentations that assert it (their cards show the condition with that finding). */

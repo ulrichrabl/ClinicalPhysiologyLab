@@ -354,7 +354,7 @@ console.log('\nEncounter: preconditions, hazards, history, notes');
     /* Every finding is filed under the system of the test that produced it; none is dropped. */
     const c = caseById('decompensated-cirrhosis'), sx = startEncounter(CATALOG, REGISTRY, c, buildView(c), { locale: 'en' });
     sx.state.exposure = ['chest', 'abdomen', 'arm', 'legs', 'neck'];
-    for (const id of ['test.asterixis', 'inspect.mouth', 'smell.breath', 'inspect.breathing', 'palpate.trachea', 'palpate.thyroid', 'inspect.skin', 'measure.crt']) perform(sx, id);
+    for (const id of ['test.arms-outstretched', 'inspect.mouth', 'smell.breath', 'inspect.breathing', 'palpate.trachea', 'palpate.thyroid', 'inspect.skin', 'measure.crt']) perform(sx, id);
     const n = autoNote(sx, 'en');
     const under = (heading, re) => { const block = n.split('## ').find((b) => b.startsWith(heading)) ?? ''; return re.test(block); };
     ok('notes: asterixis and capillary refill under General examination · Hands, not Cardiovascular',
@@ -510,6 +510,11 @@ console.log('\nTyped input routing and debrief');
   const got = Object.fromEntries(d.evidence.map((e) => [e.item.id, e.elicited]));
   ok('debrief: diagnosis correct at rank 1', d.diagnosis.correct && d.diagnosis.rank === 1);
   ok('debrief: head impulse, nystagmus on gaze and skew counted as elicited', got['e-hit'] && got['e-nys-unidirectional'] && got['e-nys-left-gaze'] && got['e-skew']);
+  /* A syndrome, state or laboratory finding is the right level, not the cause (owner decision, ADR-016 open point 2). */
+  const level = (caseId, dx) => { const C = caseById(caseId); return commit(startEncounter(CATALOG, REGISTRY, C, buildView(C)), [{ diagnosis: dx, confidence: 'likely' }]).diagnosis; };
+  const lv = { sepsis: level('urosepsis-septic-shock', 'sepsis'), uro: level('urosepsis-septic-shock', 'urosepsis'), thyro: level('graves-thyrotoxicosis', 'thyrotoxicosis'), k: level('aki-hyperkalaemia-triple-whammy', 'hyperkalaemia') };
+  ok('debrief: sepsis for urosepsis, thyrotoxicosis for Graves’ disease, hyperkalaemia for the kidney injury are the right level, not the cause',
+    !lv.sepsis.correct && lv.sepsis.level === 'syndrome' && !lv.thyro.correct && lv.thyro.level === 'state' && !lv.k.correct && lv.k.level === 'lab-finding' && lv.uro.correct && !lv.uro.level, J(lv));
   ok('debrief: Frenzel, Weber and Romberg not done, so not elicited', !got['e-frenzel'] && !got['e-weber'] && !got['e-romberg']);
   ok('debrief: facts count when the patient said them', got['e-hearing'] && got['e-course'] && !got['e-infection']);
   ok('debrief: red flags asked about are covered', d.redFlags.find((r) => r.ref === 'f-headache').covered && !d.redFlags.find((r) => r.ref === 'f-diplopia').covered);
@@ -1236,6 +1241,7 @@ console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)')
   ok('validator: an unknown field of an observable', /has no field ptosisCm/.test(broken((t) => { t.signs.find((s) => s.id === 'ptosis').definition.path = 'ptosisCm'; })));
   ok('validator: a code that is not in the value set', /"orange" is not a valid coded value/.test(broken((t) => { t.signs.find((s) => s.id === 'jaundice').definition.any[1].value = 'orange'; })));
   ok('validator: a link to a condition that does not exist', /condition:no-such-disease does not exist/.test(broken((t) => { t.relations.push({ from: 'sign:ptosis', rel: 'suggests', to: 'condition:no-such-disease', status: 'draft' }); })));
+  ok('validator: a link to a syndrome as if it were a condition', /condition:sepsis is a syndrome, not a condition/.test(broken((t) => { t.relations.push({ from: 'sign:fever', rel: 'suggests', to: 'condition:sepsis', status: 'draft' }); })));
   ok('validator: a relation between the wrong kinds of thing', /part-of links sign to syndrome/.test(broken((t) => { t.relations.push({ from: 'sign:ptosis', rel: 'part-of', to: 'sign:anisocoria', role: 'supporting', status: 'draft' }); })));
   ok('validator: a sign without its German label', /sign:ptosis has no label in de/.test(broken((t) => { t.texts = t.texts.filter((x) => !(x.entity === 'sign:ptosis' && x.locale === 'de')); })));
   ok('validator: a card step missing in German', /how: 2 in en, 1 in de/.test(broken((t) => { delete t.texts.find((x) => x.entity === 'test:inspect.eyes' && x.locale === 'de').fields['how.2']; })));
@@ -1249,6 +1255,12 @@ console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)')
     && e.conditions.some((c) => c.ref === 'condition:myasthenia-gravis' && c.via.includes('sign:fatigable-ptosis'))
     && e.conditions.some((c) => c.ref === 'condition:lung-cancer'), J(e.conditions.map((c) => c.ref)));
   ok('fatigable ptosis is a variant of ptosis', explore(KNOWLEDGE, 'fatigable-ptosis').parents[0] === 'ptosis');
+  ok("Horner's syndrome is a syndrome with causes: ptosis reaches carotid dissection, Pancoast tumour and lateral medullary infarction through it",
+    ['carotid-dissection', 'pancoast-tumour', 'lateral-medullary-infarction'].every((x) => e.conditions.some((c) => c.ref === `condition:${x}` && c.via.includes('syndrome:horner-syndrome')))
+    && !e.conditions.some((c) => c.ref === 'condition:horner-syndrome'), J(e.conditions.map((c) => c.ref)));
+  ok('every syndrome or state a learner can commit to is the syndrome of the same id, and no condition link points at one',
+    Object.values(CATALOG.diagnoses).filter((d) => d.kind === 'syndrome' || d.kind === 'state').every((d) => KNOWLEDGE.syndromes[d.id])
+    && !KNOWLEDGE.relations.some((r) => r.to.startsWith('condition:') && (CATALOG.diagnoses[r.to.slice(10)]?.kind ?? 'condition') !== 'condition'));
   ok('myasthenia gravis ← fatigable ptosis, fatigable dysarthria, fatigable weakness',
     ['fatigable-ptosis', 'fatigable-dysarthria', 'fatigable-weakness'].every((x) => signsForCondition(KNOWLEDGE, 'myasthenia-gravis').some((r) => r.ref === `sign:${x}`)));
   ok('a peptic ulcer bleed is an upper GI bleed, so signs of an upper GI bleed reach it',
@@ -1277,6 +1289,9 @@ console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)')
     has('iron-deficiency-anaemia-caecal', 'endpoint-nystagmus', 'conjunctival-pallor') && lacks('iron-deficiency-anaemia-caecal', 'gaze-evoked-nystagmus'));
   ok('L5 radiculopathy: foot drop, a myotomal and a dermatomal pattern, positive straight leg raise', has('foot-drop-right-l5', 'foot-drop', 'myotomal-weakness', 'dermatomal-sensory-loss', 'positive-slr'));
   ok('resting vital signs are read lying, not from the standing half of the lying-and-standing test', lacks('upper-gi-bleed-peptic-ulcer', 'hypotension') && has('upper-gi-bleed-peptic-ulcer', 'orthostatic-hypotension'));
+  ok('sepsis is flagged at the bedside by qSOFA (two of rate, pressure, mentation): the septic-shock case has it, the pneumonia does not; fever alone counts for nothing',
+    syndromePresent(KNOWLEDGE, 'sepsis', per['urosepsis-septic-shock']) && !syndromePresent(KNOWLEDGE, 'sepsis', per['pneumonia-right-lower-lobe'])
+    && has('pneumonia-right-lower-lobe', 'fever', 'tachycardia', 'tachypnoea'));
 
   /* Cards are built from the tables: a test card shows its presentations; a sign card gathers a sign across tests. */
   const { signCard, teachingCard } = vp;
@@ -1326,8 +1341,11 @@ console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)')
   ok('the pulse names no postural rise: that needs standing, which only the lying-and-standing test does',
     !has1(found(bleed, 'measure.hr'), 'postural-tachycardia') && has1(found(bleed, 'measure.bp.lying-standing'), 'orthostatic-hypotension'));
   ok('positioning, exposing and oxygen name no signs themselves', found(bleed, 'position.standing').found.length === 0 && found(bleed, 'expose.chest').absent.length === 0);
-  ok('tests are named as tests, the old sign names still find them', CATALOG.manoeuvres['test.asterixis'].label.en === 'Arms outstretched, wrists bent back'
-    && suggest(CATALOG, 'asterixis', 'en').some((x) => x.id === 'test.asterixis') && suggest(CATALOG, 'Sklerenikterus', 'de').some((x) => x.id === 'inspect.sclera'));
+  ok('tests are named as tests, the old sign names still find them', CATALOG.manoeuvres['test.arms-outstretched'].label.en === 'Arms outstretched, fingers spread, then wrists bent back'
+    && suggest(CATALOG, 'asterixis', 'en').some((x) => x.id === 'test.arms-outstretched') && suggest(CATALOG, 'Sklerenikterus', 'de').some((x) => x.id === 'inspect.sclera'));
+  ok('one posture shows both signs: the arms held out show tremor and asterixis (owner decision)',
+    !CATALOG.manoeuvres['test.tremor'] && !CATALOG.manoeuvres['test.asterixis']
+    && ['fine-postural-tremor', 'asterixis'].every((x) => testsForSign(KNOWLEDGE, CATALOG, x).includes('test.arms-outstretched')));
 
   const rows = coverage(KNOWLEDGE, CATALOG, per);
   for (const l of coverageSummary(rows)) console.log(`  · ${l}`);

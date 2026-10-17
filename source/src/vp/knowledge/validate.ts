@@ -185,12 +185,15 @@ export function validateKnowledge(t: KnowledgeTables, ctx: KnowledgeContext): Is
   const tests = new Set(t.tests.map((s) => s.id)), presentations = new Set(t.presentations.map((s) => s.id));
   const exists = (ref: string): boolean => {
     const [kind, id] = [ref.slice(0, ref.indexOf(':')), ref.slice(ref.indexOf(':') + 1)];
-    return kind === 'sign' ? signs.has(id) : kind === 'syndrome' ? syndromes.has(id) : kind === 'condition' ? !!cat.diagnoses[id] : kind === 'structure' ? !!cat.structures[id]
+    return kind === 'sign' ? signs.has(id) : kind === 'syndrome' ? syndromes.has(id) : kind === 'condition' ? !!cat.diagnoses[id] && (cat.diagnoses[id].kind ?? 'condition') === 'condition' : kind === 'structure' ? !!cat.structures[id]
       : kind === 'test' ? tests.has(id) : kind === 'presentation' ? presentations.has(id) : false;
   };
   const checkRefs = (refs: string[] | undefined, path: string) => {
     for (const r of refs ?? []) if (!references[r]) out.push({ level: 'error', path, message: `unknown reference ${r}` });
   };
+
+  for (const d of Object.values(cat.diagnoses)) if ((d.kind === 'syndrome' || d.kind === 'state') && !syndromes.has(d.id))
+    out.push({ level: 'error', path: `diagnoses.${d.id}`, message: `a diagnosis of kind ${d.kind} needs the syndrome of the same id` });
 
   for (const s of t.signs) {
     const p = `signs.${s.id}`;
@@ -234,7 +237,10 @@ export function validateKnowledge(t: KnowledgeTables, ctx: KnowledgeContext): Is
     relKeys.add(k);
     const fk = r.from.slice(0, r.from.indexOf(':')) as EntityKind, tk = r.to.slice(0, r.to.indexOf(':')) as EntityKind;
     if (!ALLOWED[r.rel].from.includes(fk) || !ALLOWED[r.rel].to.includes(tk)) out.push({ level: 'error', path: p, message: `${r.rel} links ${ALLOWED[r.rel].from.join('/')} to ${ALLOWED[r.rel].to.join('/')}` });
-    for (const e of [r.from, r.to]) if (!exists(e)) out.push({ level: 'error', path: p, message: `${e} does not exist` });
+    for (const e of [r.from, r.to]) if (!exists(e)) {
+      const dk = e.startsWith('condition:') ? cat.diagnoses[e.slice(10)]?.kind : undefined;
+      out.push({ level: 'error', path: p, message: dk ? `${e} is a ${dk}, not a condition: link syndrome:${e.slice(10)} or its causes` : `${e} does not exist` });
+    }
     if (r.rel === 'part-of' && !r.role) out.push({ level: 'error', path: p, message: 'part-of needs a role' });
     if (r.rel !== 'part-of' && r.role) out.push({ level: 'error', path: p, message: 'only part-of takes a role' });
     if (r.rel !== 'suggests' && r.exceptions) out.push({ level: 'error', path: p, message: 'only suggests takes case exceptions' });

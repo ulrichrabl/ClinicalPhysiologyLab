@@ -15,7 +15,7 @@ export const INF = defineConstants('inflammation', {
   sepsisOnset: { value: 0.8, unit: 'IL', status: 'assumed', refs: ['singer2016'], means: 'Inflammatory signal at which organ dysfunction (sepsis) begins.',
     derivation: 'A definition of the model’s scale: a local infection (infection 0.3, IL 0.36) and a systemic one without organ failure (0.6, IL 1.0) stay below or just above it, as Sepsis-3 separates infection from sepsis by organ dysfunction.' },
   sepsisSpan: { value: 1.2, unit: 'IL', status: 'assumed', refs: ['singer2016'], means: 'Rise in the signal over which sepsis goes from its onset to full severity (septic shock).',
-    derivation: 'A definition of the scale: full severity (IL 2.0) is reached at infection 0.9, the setting the septic shock case uses.' },
+    derivation: 'A definition of the scale: full severity (IL 2.0) is reached at infection 0.94. The septic shock case uses 0.92 (severity 0.95), where an untreated patient meets Sepsis-3: a lactate above 2 with hypotension.' },
   /* --- fever -------------------------------------------------------------- */
   tempBase: { value: 36.9, unit: '°C', status: 'derived', refs: ['mackowiak1992'], means: 'Normal body temperature.',
     derivation: 'Mackowiak measured a mean oral temperature of 36.8 °C in healthy adults; core runs a few tenths higher: 36.9.' },
