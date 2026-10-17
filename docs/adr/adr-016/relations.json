@@ -1,0 +1,2993 @@
+[
+ {
+  "from": "sign:rif-tenderness",
+  "rel": "variant-of",
+  "to": "sign:abdominal-tenderness"
+ },
+ {
+  "from": "sign:epigastric-tenderness",
+  "rel": "variant-of",
+  "to": "sign:abdominal-tenderness"
+ },
+ {
+  "from": "sign:renal-angle-tenderness",
+  "rel": "variant-of",
+  "to": "sign:abdominal-tenderness"
+ },
+ {
+  "from": "sign:carvallo-sign",
+  "rel": "variant-of",
+  "to": "sign:pansystolic-murmur"
+ },
+ {
+  "from": "sign:dynamic-outflow-murmur",
+  "rel": "variant-of",
+  "to": "sign:ejection-systolic-murmur"
+ },
+ {
+  "from": "sign:fatigable-ptosis",
+  "rel": "variant-of",
+  "to": "sign:ptosis"
+ },
+ {
+  "from": "sign:dilation-lag",
+  "rel": "variant-of",
+  "to": "sign:anisocoria"
+ },
+ {
+  "from": "sign:ptosis",
+  "rel": "part-of",
+  "to": "syndrome:horner-syndrome",
+  "role": "required"
+ },
+ {
+  "from": "sign:anisocoria",
+  "rel": "part-of",
+  "to": "syndrome:horner-syndrome",
+  "role": "required"
+ },
+ {
+  "from": "sign:dilation-lag",
+  "rel": "part-of",
+  "to": "syndrome:horner-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:ptosis",
+  "rel": "part-of",
+  "to": "syndrome:third-nerve-palsy",
+  "role": "required"
+ },
+ {
+  "from": "sign:eye-down-and-out",
+  "rel": "part-of",
+  "to": "syndrome:third-nerve-palsy",
+  "role": "required"
+ },
+ {
+  "from": "sign:fixed-dilated-pupil",
+  "rel": "part-of",
+  "to": "syndrome:third-nerve-palsy",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:abduction-deficit",
+  "rel": "part-of",
+  "to": "syndrome:sixth-nerve-palsy",
+  "role": "required"
+ },
+ {
+  "from": "sign:horizontal-tropia",
+  "rel": "part-of",
+  "to": "syndrome:sixth-nerve-palsy",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:limb-dysmetria",
+  "rel": "part-of",
+  "to": "syndrome:cerebellar-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:intention-tremor",
+  "rel": "part-of",
+  "to": "syndrome:cerebellar-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:dysdiadochokinesis",
+  "rel": "part-of",
+  "to": "syndrome:cerebellar-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:ataxic-gait",
+  "rel": "part-of",
+  "to": "syndrome:cerebellar-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:truncal-ataxia",
+  "rel": "part-of",
+  "to": "syndrome:cerebellar-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:gaze-evoked-nystagmus",
+  "rel": "part-of",
+  "to": "syndrome:cerebellar-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:saccadic-pursuit",
+  "rel": "part-of",
+  "to": "syndrome:cerebellar-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:dysarthria",
+  "rel": "part-of",
+  "to": "syndrome:cerebellar-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:hypotonia",
+  "rel": "part-of",
+  "to": "syndrome:cerebellar-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:unidirectional-nystagmus",
+  "rel": "part-of",
+  "to": "syndrome:peripheral-vestibular-pattern",
+  "role": "required"
+ },
+ {
+  "from": "sign:head-impulse-positive",
+  "rel": "part-of",
+  "to": "syndrome:peripheral-vestibular-pattern",
+  "role": "required"
+ },
+ {
+  "from": "sign:skew-deviation",
+  "rel": "part-of",
+  "to": "syndrome:peripheral-vestibular-pattern",
+  "role": "absent"
+ },
+ {
+  "from": "sign:lateral-fall-eyes-closed",
+  "rel": "part-of",
+  "to": "syndrome:peripheral-vestibular-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:veering-gait",
+  "rel": "part-of",
+  "to": "syndrome:peripheral-vestibular-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:head-impulse-positive",
+  "rel": "part-of",
+  "to": "syndrome:central-vestibular-pattern",
+  "role": "absent"
+ },
+ {
+  "from": "sign:gaze-evoked-nystagmus",
+  "rel": "part-of",
+  "to": "syndrome:central-vestibular-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:central-nystagmus",
+  "rel": "part-of",
+  "to": "syndrome:central-vestibular-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:skew-deviation",
+  "rel": "part-of",
+  "to": "syndrome:central-vestibular-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:truncal-ataxia",
+  "rel": "part-of",
+  "to": "syndrome:central-vestibular-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:pyramidal-weakness",
+  "rel": "part-of",
+  "to": "syndrome:umn-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:spasticity",
+  "rel": "part-of",
+  "to": "syndrome:umn-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:hyperreflexia",
+  "rel": "part-of",
+  "to": "syndrome:umn-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:extensor-plantar",
+  "rel": "part-of",
+  "to": "syndrome:umn-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:pronator-drift",
+  "rel": "part-of",
+  "to": "syndrome:umn-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:umn-facial-weakness",
+  "rel": "part-of",
+  "to": "syndrome:umn-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:sustained-clonus",
+  "rel": "part-of",
+  "to": "syndrome:umn-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:muscle-wasting",
+  "rel": "part-of",
+  "to": "syndrome:lmn-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:fasciculation",
+  "rel": "part-of",
+  "to": "syndrome:lmn-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:hypotonia",
+  "rel": "part-of",
+  "to": "syndrome:lmn-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:areflexia",
+  "rel": "part-of",
+  "to": "syndrome:lmn-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:absent-ankle-reflex",
+  "rel": "part-of",
+  "to": "syndrome:lmn-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:crossed-sensory-loss",
+  "rel": "part-of",
+  "to": "syndrome:lateral-medullary-syndrome",
+  "role": "required"
+ },
+ {
+  "from": "sign:ptosis",
+  "rel": "part-of",
+  "to": "syndrome:lateral-medullary-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:anisocoria",
+  "rel": "part-of",
+  "to": "syndrome:lateral-medullary-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:limb-dysmetria",
+  "rel": "part-of",
+  "to": "syndrome:lateral-medullary-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:uvula-deviation",
+  "rel": "part-of",
+  "to": "syndrome:lateral-medullary-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:skew-deviation",
+  "rel": "part-of",
+  "to": "syndrome:lateral-medullary-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:central-nystagmus",
+  "rel": "part-of",
+  "to": "syndrome:lateral-medullary-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:romberg-sign",
+  "rel": "part-of",
+  "to": "syndrome:dorsal-column-syndrome",
+  "role": "required"
+ },
+ {
+  "from": "sign:distal-vibration-loss",
+  "rel": "part-of",
+  "to": "syndrome:dorsal-column-syndrome",
+  "role": "required"
+ },
+ {
+  "from": "sign:sensory-ataxic-gait",
+  "rel": "part-of",
+  "to": "syndrome:dorsal-column-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:limb-ataxia-eyes-closed",
+  "rel": "part-of",
+  "to": "syndrome:dorsal-column-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:pseudoathetosis",
+  "rel": "part-of",
+  "to": "syndrome:dorsal-column-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:saddle-anaesthesia",
+  "rel": "part-of",
+  "to": "syndrome:cauda-equina-syndrome",
+  "role": "required"
+ },
+ {
+  "from": "sign:lax-anal-tone",
+  "rel": "part-of",
+  "to": "syndrome:cauda-equina-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:palpable-bladder",
+  "rel": "part-of",
+  "to": "syndrome:cauda-equina-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:absent-ankle-reflex",
+  "rel": "part-of",
+  "to": "syndrome:cauda-equina-syndrome",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:whisper-not-heard",
+  "rel": "part-of",
+  "to": "syndrome:conductive-hearing-loss",
+  "role": "required"
+ },
+ {
+  "from": "sign:rinne-negative",
+  "rel": "part-of",
+  "to": "syndrome:conductive-hearing-loss",
+  "role": "required"
+ },
+ {
+  "from": "sign:weber-lateralised",
+  "rel": "part-of",
+  "to": "syndrome:conductive-hearing-loss",
+  "role": "required"
+ },
+ {
+  "from": "sign:whisper-not-heard",
+  "rel": "part-of",
+  "to": "syndrome:sensorineural-hearing-loss",
+  "role": "required"
+ },
+ {
+  "from": "sign:rinne-negative",
+  "rel": "part-of",
+  "to": "syndrome:sensorineural-hearing-loss",
+  "role": "absent"
+ },
+ {
+  "from": "sign:weber-lateralised",
+  "rel": "part-of",
+  "to": "syndrome:sensorineural-hearing-loss",
+  "role": "required"
+ },
+ {
+  "from": "sign:bronchial-breathing",
+  "rel": "part-of",
+  "to": "syndrome:consolidation",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:dull-percussion",
+  "rel": "part-of",
+  "to": "syndrome:consolidation",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:increased-vocal-resonance",
+  "rel": "part-of",
+  "to": "syndrome:consolidation",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:coarse-crackles",
+  "rel": "part-of",
+  "to": "syndrome:consolidation",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:reduced-chest-expansion",
+  "rel": "part-of",
+  "to": "syndrome:consolidation",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:stony-dull-percussion",
+  "rel": "part-of",
+  "to": "syndrome:pleural-effusion-pattern",
+  "role": "required"
+ },
+ {
+  "from": "sign:reduced-breath-sounds",
+  "rel": "part-of",
+  "to": "syndrome:pleural-effusion-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:reduced-vocal-resonance",
+  "rel": "part-of",
+  "to": "syndrome:pleural-effusion-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:reduced-chest-expansion",
+  "rel": "part-of",
+  "to": "syndrome:pleural-effusion-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:tracheal-deviation",
+  "rel": "part-of",
+  "to": "syndrome:pleural-effusion-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:hyper-resonant-percussion",
+  "rel": "part-of",
+  "to": "syndrome:pneumothorax-pattern",
+  "role": "required"
+ },
+ {
+  "from": "sign:reduced-breath-sounds",
+  "rel": "part-of",
+  "to": "syndrome:pneumothorax-pattern",
+  "role": "required"
+ },
+ {
+  "from": "sign:reduced-vocal-resonance",
+  "rel": "part-of",
+  "to": "syndrome:pneumothorax-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:tracheal-deviation",
+  "rel": "part-of",
+  "to": "syndrome:pneumothorax-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:barrel-chest",
+  "rel": "part-of",
+  "to": "syndrome:hyperinflation-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:hyper-resonant-percussion",
+  "rel": "part-of",
+  "to": "syndrome:hyperinflation-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:wheeze",
+  "rel": "part-of",
+  "to": "syndrome:hyperinflation-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:pursed-lip-breathing",
+  "rel": "part-of",
+  "to": "syndrome:hyperinflation-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:accessory-muscle-use",
+  "rel": "part-of",
+  "to": "syndrome:hyperinflation-pattern",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:hypotension",
+  "rel": "part-of",
+  "to": "syndrome:shock",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:tachycardia",
+  "rel": "part-of",
+  "to": "syndrome:shock",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:capillary-refill-prolonged",
+  "rel": "part-of",
+  "to": "syndrome:shock",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:diaphoresis",
+  "rel": "part-of",
+  "to": "syndrome:shock",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:ashen-complexion",
+  "rel": "part-of",
+  "to": "syndrome:shock",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:thready-pulse",
+  "rel": "part-of",
+  "to": "syndrome:shock",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:skin-mottling",
+  "rel": "part-of",
+  "to": "syndrome:shock",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:reduced-consciousness",
+  "rel": "part-of",
+  "to": "syndrome:shock",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:dry-mucosa",
+  "rel": "part-of",
+  "to": "syndrome:hypovolaemia",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:reduced-skin-turgor",
+  "rel": "part-of",
+  "to": "syndrome:hypovolaemia",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:postural-tachycardia",
+  "rel": "part-of",
+  "to": "syndrome:hypovolaemia",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:orthostatic-hypotension",
+  "rel": "part-of",
+  "to": "syndrome:hypovolaemia",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:jvp-not-visible",
+  "rel": "part-of",
+  "to": "syndrome:hypovolaemia",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:tachycardia",
+  "rel": "part-of",
+  "to": "syndrome:hypovolaemia",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:raised-jvp",
+  "rel": "part-of",
+  "to": "syndrome:fluid-overload",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:pitting-oedema",
+  "rel": "part-of",
+  "to": "syndrome:fluid-overload",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:fine-crackles",
+  "rel": "part-of",
+  "to": "syndrome:fluid-overload",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:third-heart-sound",
+  "rel": "part-of",
+  "to": "syndrome:fluid-overload",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:displaced-apex",
+  "rel": "part-of",
+  "to": "syndrome:fluid-overload",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:spider-naevi",
+  "rel": "part-of",
+  "to": "syndrome:chronic-liver-disease",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:palmar-erythema",
+  "rel": "part-of",
+  "to": "syndrome:chronic-liver-disease",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:gynaecomastia",
+  "rel": "part-of",
+  "to": "syndrome:chronic-liver-disease",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:leukonychia",
+  "rel": "part-of",
+  "to": "syndrome:chronic-liver-disease",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:jaundice",
+  "rel": "part-of",
+  "to": "syndrome:chronic-liver-disease",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:asterixis",
+  "rel": "part-of",
+  "to": "syndrome:chronic-liver-disease",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:abdominal-distension",
+  "rel": "part-of",
+  "to": "syndrome:portal-hypertension",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:shifting-dullness",
+  "rel": "part-of",
+  "to": "syndrome:portal-hypertension",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:caput-medusae",
+  "rel": "part-of",
+  "to": "syndrome:portal-hypertension",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:splenomegaly",
+  "rel": "part-of",
+  "to": "syndrome:portal-hypertension",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:tachycardia",
+  "rel": "part-of",
+  "to": "syndrome:thyrotoxicosis-signs",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:fine-postural-tremor",
+  "rel": "part-of",
+  "to": "syndrome:thyrotoxicosis-signs",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:lid-retraction",
+  "rel": "part-of",
+  "to": "syndrome:thyrotoxicosis-signs",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:lid-lag",
+  "rel": "part-of",
+  "to": "syndrome:thyrotoxicosis-signs",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:diaphoresis",
+  "rel": "part-of",
+  "to": "syndrome:thyrotoxicosis-signs",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:wide-pulse-pressure",
+  "rel": "part-of",
+  "to": "syndrome:thyrotoxicosis-signs",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:peritonism",
+  "rel": "part-of",
+  "to": "syndrome:peritonitis-signs",
+  "role": "required"
+ },
+ {
+  "from": "sign:lies-still-peritonism",
+  "rel": "part-of",
+  "to": "syndrome:peritonitis-signs",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:abdomen-still-on-breathing",
+  "rel": "part-of",
+  "to": "syndrome:peritonitis-signs",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:abdominal-tenderness",
+  "rel": "part-of",
+  "to": "syndrome:peritonitis-signs",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:fatigable-ptosis",
+  "rel": "part-of",
+  "to": "syndrome:neuromuscular-fatigability",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:fatigable-dysarthria",
+  "rel": "part-of",
+  "to": "syndrome:neuromuscular-fatigability",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:fatigable-weakness",
+  "rel": "part-of",
+  "to": "syndrome:neuromuscular-fatigability",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:variable-diplopia",
+  "rel": "part-of",
+  "to": "syndrome:neuromuscular-fatigability",
+  "role": "supporting"
+ },
+ {
+  "from": "sign:nasal-speech",
+  "rel": "part-of",
+  "to": "syndrome:neuromuscular-fatigability",
+  "role": "supporting"
+ },
+ {
+  "from": "syndrome:shock",
+  "rel": "suggests",
+  "to": "condition:sepsis",
+  "source": "card inspect.general/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:shock",
+  "rel": "suggests",
+  "to": "condition:urosepsis",
+  "source": "card inspect.general/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:shock",
+  "rel": "suggests",
+  "to": "condition:upper-gi-bleed",
+  "source": "card inspect.general/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:shock",
+  "rel": "suggests",
+  "to": "condition:acute-coronary-syndrome",
+  "source": "card inspect.general/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:central-cyanosis",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card inspect.general/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:central-cyanosis",
+  "rel": "suggests",
+  "to": "condition:community-acquired-pneumonia",
+  "source": "card inspect.general/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:central-cyanosis",
+  "rel": "suggests",
+  "to": "condition:pulmonary-embolism",
+  "source": "card inspect.general/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:lies-still-peritonism",
+  "rel": "suggests",
+  "to": "condition:acute-appendicitis",
+  "source": "card inspect.general/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:lies-still-peritonism",
+  "rel": "suggests",
+  "to": "condition:acute-pancreatitis",
+  "source": "card inspect.general/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:lies-still-peritonism",
+  "rel": "suggests",
+  "to": "condition:spontaneous-bacterial-peritonitis",
+  "source": "card inspect.general/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:restless-writhing",
+  "rel": "suggests",
+  "to": "condition:acute-appendicitis",
+  "source": "card inspect.general/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:restless-writhing",
+  "rel": "suggests",
+  "to": "condition:acute-pancreatitis",
+  "source": "card inspect.general/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:restless-writhing",
+  "rel": "suggests",
+  "to": "condition:spontaneous-bacterial-peritonitis",
+  "source": "card inspect.general/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tachycardia",
+  "rel": "suggests",
+  "to": "condition:sepsis",
+  "source": "card measure.hr/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tachycardia",
+  "rel": "suggests",
+  "to": "condition:upper-gi-bleed",
+  "source": "card measure.hr/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tachycardia",
+  "rel": "suggests",
+  "to": "condition:pulmonary-embolism",
+  "source": "card measure.hr/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tachycardia",
+  "rel": "suggests",
+  "to": "condition:thyrotoxicosis",
+  "source": "card measure.hr/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tachycardia",
+  "rel": "suggests",
+  "to": "condition:diabetic-ketoacidosis",
+  "source": "card measure.hr/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:bradycardia",
+  "rel": "suggests",
+  "to": "condition:complete-heart-block",
+  "source": "card measure.hr/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:bradycardia",
+  "rel": "suggests",
+  "to": "condition:hypothyroidism",
+  "source": "card measure.hr/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:irregularly-irregular-pulse",
+  "rel": "suggests",
+  "to": "condition:atrial-fibrillation",
+  "source": "card measure.hr/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hypotension",
+  "rel": "suggests",
+  "to": "condition:sepsis",
+  "source": "card measure.bp/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hypotension",
+  "rel": "suggests",
+  "to": "condition:urosepsis",
+  "source": "card measure.bp/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hypotension",
+  "rel": "suggests",
+  "to": "condition:upper-gi-bleed",
+  "source": "card measure.bp/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hypotension",
+  "rel": "suggests",
+  "to": "condition:addisonian-crisis",
+  "source": "card measure.bp/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:wide-pulse-pressure",
+  "rel": "suggests",
+  "to": "condition:aortic-regurgitation",
+  "source": "card measure.bp/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:wide-pulse-pressure",
+  "rel": "suggests",
+  "to": "condition:thyrotoxicosis",
+  "source": "card measure.bp/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:narrow-pulse-pressure",
+  "rel": "suggests",
+  "to": "condition:aortic-stenosis",
+  "source": "card measure.bp/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:narrow-pulse-pressure",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card measure.bp/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tachypnoea",
+  "rel": "suggests",
+  "to": "condition:community-acquired-pneumonia",
+  "source": "card measure.rr/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tachypnoea",
+  "rel": "suggests",
+  "to": "condition:pulmonary-embolism",
+  "source": "card measure.rr/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tachypnoea",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card measure.rr/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tachypnoea",
+  "rel": "suggests",
+  "to": "condition:diabetic-ketoacidosis",
+  "source": "card measure.rr/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tachypnoea",
+  "rel": "suggests",
+  "to": "condition:sepsis",
+  "source": "card measure.rr/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:bradypnoea",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card measure.rr/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:bradypnoea",
+  "rel": "suggests",
+  "to": "condition:intracerebral-haemorrhage",
+  "source": "card measure.rr/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hypoxaemia",
+  "rel": "suggests",
+  "to": "condition:community-acquired-pneumonia",
+  "source": "card measure.spo2/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hypoxaemia",
+  "rel": "suggests",
+  "to": "condition:pulmonary-embolism",
+  "source": "card measure.spo2/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hypoxaemia",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card measure.spo2/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hypoxaemia",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card measure.spo2/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hypoxaemia",
+  "rel": "suggests",
+  "to": "condition:pneumothorax",
+  "source": "card measure.spo2/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fever",
+  "rel": "suggests",
+  "to": "condition:community-acquired-pneumonia",
+  "source": "card measure.temp/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fever",
+  "rel": "suggests",
+  "to": "condition:urosepsis",
+  "source": "card measure.temp/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fever",
+  "rel": "suggests",
+  "to": "condition:acute-pyelonephritis",
+  "source": "card measure.temp/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fever",
+  "rel": "suggests",
+  "to": "condition:sepsis",
+  "source": "card measure.temp/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fever",
+  "rel": "suggests",
+  "to": "condition:thyroid-storm",
+  "source": "card measure.temp/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hypothermia",
+  "rel": "suggests",
+  "to": "condition:sepsis",
+  "source": "card measure.temp/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hypothermia",
+  "rel": "suggests",
+  "to": "condition:hypothyroidism",
+  "source": "card measure.temp/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:collapsing-pulse",
+  "rel": "suggests",
+  "to": "condition:aortic-regurgitation",
+  "source": "card palpate.pulse.radial/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:collapsing-pulse",
+  "rel": "suggests",
+  "to": "condition:thyrotoxicosis",
+  "source": "card palpate.pulse.radial/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:thready-pulse",
+  "rel": "suggests",
+  "to": "condition:upper-gi-bleed",
+  "source": "card palpate.pulse.radial/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:thready-pulse",
+  "rel": "suggests",
+  "to": "condition:sepsis",
+  "source": "card palpate.pulse.radial/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:slow-rising-pulse",
+  "rel": "suggests",
+  "to": "condition:aortic-stenosis",
+  "source": "card palpate.pulse.carotid/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:bounding-pulse",
+  "rel": "suggests",
+  "to": "condition:aortic-regurgitation",
+  "source": "card palpate.pulse.carotid/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:bounding-pulse",
+  "rel": "suggests",
+  "to": "condition:hcm",
+  "source": "card palpate.pulse.carotid/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:collapsing-pulse",
+  "rel": "suggests",
+  "to": "condition:hcm",
+  "source": "card palpate.pulse.carotid/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:bisferiens-pulse",
+  "rel": "suggests",
+  "to": "condition:aortic-regurgitation",
+  "source": "card palpate.pulse.carotid/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:bisferiens-pulse",
+  "rel": "suggests",
+  "to": "condition:hcm",
+  "source": "card palpate.pulse.carotid/1",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:fluid-overload",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card inspect.jvp/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:fluid-overload",
+  "rel": "suggests",
+  "to": "condition:pulmonary-embolism",
+  "source": "card inspect.jvp/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:fluid-overload",
+  "rel": "suggests",
+  "to": "condition:pneumothorax",
+  "source": "card inspect.jvp/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:fluid-overload",
+  "rel": "suggests",
+  "to": "condition:chronic-kidney-disease",
+  "source": "card inspect.jvp/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:hypovolaemia",
+  "rel": "suggests",
+  "to": "condition:upper-gi-bleed",
+  "source": "card inspect.jvp/1",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:hypovolaemia",
+  "rel": "suggests",
+  "to": "condition:gastroenteritis",
+  "source": "card inspect.jvp/1",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:hypovolaemia",
+  "rel": "suggests",
+  "to": "condition:diabetic-ketoacidosis",
+  "source": "card inspect.jvp/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:cannon-a-waves",
+  "rel": "suggests",
+  "to": "condition:complete-heart-block",
+  "source": "card inspect.jvp/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:cannon-a-waves",
+  "rel": "suggests",
+  "to": "condition:ventricular-tachycardia",
+  "source": "card inspect.jvp/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:displaced-apex",
+  "rel": "suggests",
+  "to": "condition:mitral-regurgitation",
+  "source": "card palpate.apex/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:displaced-apex",
+  "rel": "suggests",
+  "to": "condition:aortic-regurgitation",
+  "source": "card palpate.apex/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:displaced-apex",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card palpate.apex/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:heaving-apex",
+  "rel": "suggests",
+  "to": "condition:aortic-stenosis",
+  "source": "card palpate.apex/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:heaving-apex",
+  "rel": "suggests",
+  "to": "condition:hcm",
+  "source": "card palpate.apex/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:ejection-systolic-murmur",
+  "rel": "suggests",
+  "to": "condition:aortic-stenosis",
+  "source": "card auscultate.heart.aortic/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:soft-a2",
+  "rel": "suggests",
+  "to": "condition:aortic-stenosis",
+  "source": "card auscultate.heart.aortic/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:loud-p2",
+  "rel": "suggests",
+  "to": "condition:pulmonary-embolism",
+  "source": "card auscultate.heart.pulmonary/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:loud-p2",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card auscultate.heart.pulmonary/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:loud-p2",
+  "rel": "suggests",
+  "to": "condition:pulmonary-fibrosis",
+  "source": "card auscultate.heart.pulmonary/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:early-diastolic-murmur",
+  "rel": "suggests",
+  "to": "condition:aortic-regurgitation",
+  "source": "card auscultate.heart.erb/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:dynamic-outflow-murmur",
+  "rel": "suggests",
+  "to": "condition:hcm",
+  "source": "card auscultate.heart.erb/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:carvallo-sign",
+  "rel": "suggests",
+  "to": "condition:pulmonary-embolism",
+  "source": "card auscultate.heart.tricuspid/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:pericardial-rub",
+  "rel": "suggests",
+  "to": "condition:pericarditis",
+  "source": "card auscultate.heart.tricuspid/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:pansystolic-murmur",
+  "rel": "suggests",
+  "to": "condition:mitral-regurgitation",
+  "source": "card auscultate.heart.mitral/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fourth-heart-sound",
+  "rel": "suggests",
+  "to": "condition:aortic-stenosis",
+  "source": "card auscultate.heart.mitral/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fourth-heart-sound",
+  "rel": "suggests",
+  "to": "condition:hcm",
+  "source": "card auscultate.heart.mitral/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:mid-diastolic-murmur",
+  "rel": "suggests",
+  "to": "condition:aortic-regurgitation",
+  "source": "card auscultate.heart.apex-bell-left-lateral/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:opening-snap",
+  "rel": "suggests",
+  "to": "condition:aortic-regurgitation",
+  "source": "card auscultate.heart.apex-bell-left-lateral/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:third-heart-sound",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card auscultate.heart.apex-bell-left-lateral/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:third-heart-sound",
+  "rel": "suggests",
+  "to": "condition:aortic-stenosis",
+  "source": "card auscultate.heart.apex-bell-left-lateral/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fourth-heart-sound",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card auscultate.heart.apex-bell-left-lateral/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:carotid-bruit",
+  "rel": "suggests",
+  "to": "condition:tia",
+  "source": "card auscultate.carotid/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:carotid-bruit",
+  "rel": "suggests",
+  "to": "condition:ischaemic-stroke-left-mca",
+  "source": "card auscultate.carotid/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:consolidation",
+  "rel": "suggests",
+  "to": "condition:community-acquired-pneumonia",
+  "source": "card auscultate.lung-upper-zone/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:reduced-breath-sounds",
+  "rel": "suggests",
+  "to": "condition:pneumothorax",
+  "source": "card auscultate.lung-upper-zone/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:reduced-breath-sounds",
+  "rel": "suggests",
+  "to": "condition:pleural-effusion",
+  "source": "card auscultate.lung-upper-zone/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:reduced-breath-sounds",
+  "rel": "suggests",
+  "to": "condition:lung-cancer",
+  "source": "card auscultate.lung-upper-zone/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:wheeze",
+  "rel": "suggests",
+  "to": "condition:asthma-exacerbation",
+  "source": "card auscultate.lung-upper-zone/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:wheeze",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card auscultate.lung-upper-zone/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:wheeze",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card auscultate.lung-upper-zone/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fine-crackles",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card auscultate.lung-upper-zone/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fine-crackles",
+  "rel": "suggests",
+  "to": "condition:pulmonary-fibrosis",
+  "source": "card auscultate.lung-upper-zone/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:coarse-crackles",
+  "rel": "suggests",
+  "to": "condition:community-acquired-pneumonia",
+  "source": "card auscultate.lung-upper-zone/4",
+  "status": "draft"
+ },
+ {
+  "from": "sign:coarse-crackles",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card auscultate.lung-upper-zone/4",
+  "status": "draft"
+ },
+ {
+  "from": "sign:pleural-rub",
+  "rel": "suggests",
+  "to": "condition:community-acquired-pneumonia",
+  "source": "card auscultate.lung-upper-zone/5",
+  "status": "draft"
+ },
+ {
+  "from": "sign:pleural-rub",
+  "rel": "suggests",
+  "to": "condition:pulmonary-embolism",
+  "source": "card auscultate.lung-upper-zone/5",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:pleural-effusion-pattern",
+  "rel": "suggests",
+  "to": "condition:pleural-effusion",
+  "source": "card percuss.lung-upper-zone/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:pleural-effusion-pattern",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card percuss.lung-upper-zone/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:consolidation",
+  "rel": "suggests",
+  "to": "condition:lung-cancer",
+  "source": "card percuss.lung-upper-zone/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hyper-resonant-percussion",
+  "rel": "suggests",
+  "to": "condition:pneumothorax",
+  "source": "card percuss.lung-upper-zone/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hyper-resonant-percussion",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card percuss.lung-upper-zone/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:reduced-vocal-resonance",
+  "rel": "suggests",
+  "to": "condition:pleural-effusion",
+  "source": "card resonance.lung-upper-zone/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:reduced-vocal-resonance",
+  "rel": "suggests",
+  "to": "condition:pneumothorax",
+  "source": "card resonance.lung-upper-zone/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:accessory-muscle-use",
+  "rel": "suggests",
+  "to": "condition:asthma-exacerbation",
+  "source": "card inspect.breathing/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:accessory-muscle-use",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card inspect.breathing/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:accessory-muscle-use",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card inspect.breathing/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:accessory-muscle-use",
+  "rel": "suggests",
+  "to": "condition:community-acquired-pneumonia",
+  "source": "card inspect.breathing/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:speech-limited",
+  "rel": "suggests",
+  "to": "condition:asthma-exacerbation",
+  "source": "card inspect.breathing/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:speech-limited",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card inspect.breathing/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:speech-limited",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card inspect.breathing/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:speech-limited",
+  "rel": "suggests",
+  "to": "condition:community-acquired-pneumonia",
+  "source": "card inspect.breathing/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:hyperinflation-pattern",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card inspect.breathing/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:deep-breathing",
+  "rel": "suggests",
+  "to": "condition:diabetic-ketoacidosis",
+  "source": "card inspect.breathing/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:deep-breathing",
+  "rel": "suggests",
+  "to": "condition:lactic-acidosis",
+  "source": "card inspect.breathing/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:deep-breathing",
+  "rel": "suggests",
+  "to": "condition:alcoholic-ketoacidosis",
+  "source": "card inspect.breathing/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:cheyne-stokes",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card inspect.breathing/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tracheal-deviation",
+  "rel": "suggests",
+  "to": "condition:pneumothorax",
+  "source": "card palpate.trachea/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tracheal-deviation",
+  "rel": "suggests",
+  "to": "condition:pleural-effusion",
+  "source": "card palpate.trachea/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tracheal-deviation",
+  "rel": "suggests",
+  "to": "condition:lung-cancer",
+  "source": "card palpate.trachea/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tracheal-deviation",
+  "rel": "suggests",
+  "to": "condition:pulmonary-fibrosis",
+  "source": "card palpate.trachea/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:reduced-chest-expansion",
+  "rel": "suggests",
+  "to": "condition:community-acquired-pneumonia",
+  "source": "card palpate.chest-expansion/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:reduced-chest-expansion",
+  "rel": "suggests",
+  "to": "condition:pleural-effusion",
+  "source": "card palpate.chest-expansion/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:reduced-chest-expansion",
+  "rel": "suggests",
+  "to": "condition:pneumothorax",
+  "source": "card palpate.chest-expansion/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:reduced-chest-expansion",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card palpate.chest-expansion/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:reduced-chest-expansion",
+  "rel": "suggests",
+  "to": "condition:pulmonary-fibrosis",
+  "source": "card palpate.chest-expansion/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:refractory-hypoxaemia",
+  "rel": "suggests",
+  "to": "condition:community-acquired-pneumonia",
+  "source": "card give.oxygen.nasal-2/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:refractory-hypoxaemia",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card give.oxygen.nasal-2/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:reduced-consciousness",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card give.oxygen.nasal-2/2",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:shock",
+  "rel": "suggests",
+  "to": "condition:gastroenteritis",
+  "source": "card measure.crt/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:fluid-overload",
+  "rel": "suggests",
+  "to": "condition:decompensated-cirrhosis",
+  "source": "card inspect.legs/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:fluid-overload",
+  "rel": "suggests",
+  "to": "condition:acute-kidney-injury",
+  "source": "card inspect.legs/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:unilateral-calf-swelling",
+  "rel": "suggests",
+  "to": "condition:pulmonary-embolism",
+  "source": "card inspect.legs/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:non-pitting-oedema",
+  "rel": "suggests",
+  "to": "condition:hypothyroidism",
+  "source": "card inspect.legs/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:jaundice",
+  "rel": "suggests",
+  "to": "condition:haemolytic-anaemia",
+  "source": "card inspect.sclera/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:jaundice",
+  "rel": "suggests",
+  "to": "condition:decompensated-cirrhosis",
+  "source": "card inspect.sclera/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:jaundice",
+  "rel": "suggests",
+  "to": "condition:alcoholic-hepatitis",
+  "source": "card inspect.sclera/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:jaundice",
+  "rel": "suggests",
+  "to": "condition:obstructive-jaundice",
+  "source": "card inspect.sclera/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:conjunctival-pallor",
+  "rel": "suggests",
+  "to": "condition:iron-deficiency-anaemia",
+  "source": "card inspect.conjunctiva/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:conjunctival-pallor",
+  "rel": "suggests",
+  "to": "condition:upper-gi-bleed",
+  "source": "card inspect.conjunctiva/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:conjunctival-pallor",
+  "rel": "suggests",
+  "to": "condition:b12-deficiency",
+  "source": "card inspect.conjunctiva/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:conjunctival-pallor",
+  "rel": "suggests",
+  "to": "condition:haemolytic-anaemia",
+  "source": "card inspect.conjunctiva/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:asterixis",
+  "rel": "suggests",
+  "to": "condition:hepatic-encephalopathy",
+  "source": "card test.asterixis/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:asterixis",
+  "rel": "suggests",
+  "to": "condition:decompensated-cirrhosis",
+  "source": "card test.asterixis/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:asterixis",
+  "rel": "suggests",
+  "to": "condition:acute-kidney-injury",
+  "source": "card test.asterixis/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:asterixis",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card test.asterixis/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:portal-hypertension",
+  "rel": "suggests",
+  "to": "condition:decompensated-cirrhosis",
+  "source": "card test.shifting-dullness/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:portal-hypertension",
+  "rel": "suggests",
+  "to": "condition:spontaneous-bacterial-peritonitis",
+  "source": "card test.shifting-dullness/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:melaena",
+  "rel": "suggests",
+  "to": "condition:peptic-ulcer-bleed",
+  "source": "card examine.rectal/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:melaena",
+  "rel": "suggests",
+  "to": "condition:variceal-bleed",
+  "source": "card examine.rectal/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:melaena",
+  "rel": "suggests",
+  "to": "condition:upper-gi-bleed",
+  "source": "card examine.rectal/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:rectal-mass",
+  "rel": "suggests",
+  "to": "condition:colorectal-cancer",
+  "source": "card examine.rectal/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fresh-blood-pr",
+  "rel": "suggests",
+  "to": "condition:colorectal-cancer",
+  "source": "card examine.rectal/1",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:cauda-equina-syndrome",
+  "rel": "suggests",
+  "to": "condition:cauda-equina-syndrome",
+  "source": "card examine.rectal/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:enlarged-prostate",
+  "rel": "suggests",
+  "to": "condition:urinary-retention",
+  "source": "card examine.rectal/3",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:chronic-liver-disease",
+  "rel": "suggests",
+  "to": "condition:decompensated-cirrhosis",
+  "source": "card inspect.skin/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:chronic-liver-disease",
+  "rel": "suggests",
+  "to": "condition:alcoholic-hepatitis",
+  "source": "card inspect.skin/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:portal-hypertension",
+  "rel": "suggests",
+  "to": "condition:variceal-bleed",
+  "source": "card inspect.skin/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fine-postural-tremor",
+  "rel": "suggests",
+  "to": "condition:thyrotoxicosis",
+  "source": "card test.tremor/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fine-postural-tremor",
+  "rel": "suggests",
+  "to": "condition:graves-disease",
+  "source": "card test.tremor/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fine-postural-tremor",
+  "rel": "suggests",
+  "to": "condition:anxiety-disorder",
+  "source": "card test.tremor/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fine-postural-tremor",
+  "rel": "suggests",
+  "to": "condition:phaeochromocytoma",
+  "source": "card test.tremor/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fine-postural-tremor",
+  "rel": "suggests",
+  "to": "condition:hypoglycaemia",
+  "source": "card test.tremor/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hyperpigmentation",
+  "rel": "suggests",
+  "to": "condition:addisonian-crisis",
+  "source": "card inspect.pigmentation/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hyperpigmentation",
+  "rel": "suggests",
+  "to": "condition:adrenal-insufficiency",
+  "source": "card inspect.pigmentation/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:diffuse-goitre",
+  "rel": "suggests",
+  "to": "condition:graves-disease",
+  "source": "card palpate.thyroid/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:thyroid-bruit",
+  "rel": "suggests",
+  "to": "condition:graves-disease",
+  "source": "card palpate.thyroid/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:nodular-goitre",
+  "rel": "suggests",
+  "to": "condition:toxic-multinodular-goitre",
+  "source": "card palpate.thyroid/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:thyroid-tenderness",
+  "rel": "suggests",
+  "to": "condition:thyroiditis",
+  "source": "card palpate.thyroid/2",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:thyrotoxicosis-signs",
+  "rel": "suggests",
+  "to": "condition:thyrotoxicosis",
+  "source": "card inspect.thyroid-eyes/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:thyrotoxicosis-signs",
+  "rel": "suggests",
+  "to": "condition:toxic-multinodular-goitre",
+  "source": "card inspect.thyroid-eyes/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:thyrotoxicosis-signs",
+  "rel": "suggests",
+  "to": "condition:thyroiditis",
+  "source": "card inspect.thyroid-eyes/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:thyrotoxicosis-signs",
+  "rel": "suggests",
+  "to": "condition:graves-disease",
+  "source": "card inspect.thyroid-eyes/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:exophthalmos",
+  "rel": "suggests",
+  "to": "condition:graves-disease",
+  "source": "card inspect.thyroid-eyes/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:chemosis",
+  "rel": "suggests",
+  "to": "condition:graves-disease",
+  "source": "card inspect.thyroid-eyes/1",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:hypovolaemia",
+  "rel": "suggests",
+  "to": "condition:hyperosmolar-hyperglycaemic-state",
+  "source": "card inspect.mouth/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:hypovolaemia",
+  "rel": "suggests",
+  "to": "condition:hypercalcaemia-malignancy",
+  "source": "card inspect.mouth/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:glossitis",
+  "rel": "suggests",
+  "to": "condition:b12-deficiency",
+  "source": "card inspect.mouth/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:glossitis",
+  "rel": "suggests",
+  "to": "condition:iron-deficiency-anaemia",
+  "source": "card inspect.mouth/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:angular-cheilitis",
+  "rel": "suggests",
+  "to": "condition:b12-deficiency",
+  "source": "card inspect.mouth/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:angular-cheilitis",
+  "rel": "suggests",
+  "to": "condition:iron-deficiency-anaemia",
+  "source": "card inspect.mouth/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:ketotic-breath",
+  "rel": "suggests",
+  "to": "condition:diabetic-ketoacidosis",
+  "source": "card smell.breath/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:ketotic-breath",
+  "rel": "suggests",
+  "to": "condition:alcoholic-ketoacidosis",
+  "source": "card smell.breath/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:ketotic-breath",
+  "rel": "suggests",
+  "to": "condition:starvation-ketosis",
+  "source": "card smell.breath/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fetor-hepaticus",
+  "rel": "suggests",
+  "to": "condition:hepatic-encephalopathy",
+  "source": "card smell.breath/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fetor-hepaticus",
+  "rel": "suggests",
+  "to": "condition:decompensated-cirrhosis",
+  "source": "card smell.breath/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:uraemic-fetor",
+  "rel": "suggests",
+  "to": "condition:chronic-kidney-disease",
+  "source": "card smell.breath/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:uraemic-fetor",
+  "rel": "suggests",
+  "to": "condition:acute-kidney-injury",
+  "source": "card smell.breath/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:orthostatic-hypotension",
+  "rel": "suggests",
+  "to": "condition:orthostatic-hypotension",
+  "source": "card measure.bp.lying-standing/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:orthostatic-hypotension",
+  "rel": "suggests",
+  "to": "condition:adrenal-insufficiency",
+  "source": "card measure.bp.lying-standing/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:orthostatic-hypotension",
+  "rel": "suggests",
+  "to": "condition:addisonian-crisis",
+  "source": "card measure.bp.lying-standing/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:orthostatic-hypotension",
+  "rel": "suggests",
+  "to": "condition:hyponatraemia-thiazide",
+  "source": "card measure.bp.lying-standing/1",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:peritonitis-signs",
+  "rel": "suggests",
+  "to": "condition:acute-appendicitis",
+  "source": "card palpate.abdomen/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:peritonitis-signs",
+  "rel": "suggests",
+  "to": "condition:spontaneous-bacterial-peritonitis",
+  "source": "card palpate.abdomen/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:peritonitis-signs",
+  "rel": "suggests",
+  "to": "condition:acute-pancreatitis",
+  "source": "card palpate.abdomen/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:rif-tenderness",
+  "rel": "suggests",
+  "to": "condition:acute-appendicitis",
+  "source": "card palpate.abdomen/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:epigastric-tenderness",
+  "rel": "suggests",
+  "to": "condition:peptic-ulcer-bleed",
+  "source": "card palpate.abdomen/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:epigastric-tenderness",
+  "rel": "suggests",
+  "to": "condition:acute-pancreatitis",
+  "source": "card palpate.abdomen/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:splenomegaly",
+  "rel": "suggests",
+  "to": "condition:decompensated-cirrhosis",
+  "source": "card palpate.abdomen/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:splenomegaly",
+  "rel": "suggests",
+  "to": "condition:haemolytic-anaemia",
+  "source": "card palpate.abdomen/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hepatomegaly",
+  "rel": "suggests",
+  "to": "condition:decompensated-cirrhosis",
+  "source": "card palpate.abdomen/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hepatomegaly",
+  "rel": "suggests",
+  "to": "condition:haemolytic-anaemia",
+  "source": "card palpate.abdomen/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:palpable-bladder",
+  "rel": "suggests",
+  "to": "condition:urinary-retention",
+  "source": "card palpate.abdomen/4",
+  "status": "draft"
+ },
+ {
+  "from": "sign:renal-angle-tenderness",
+  "rel": "suggests",
+  "to": "condition:acute-pyelonephritis",
+  "source": "card palpate.abdomen/5",
+  "status": "draft"
+ },
+ {
+  "from": "sign:renal-angle-tenderness",
+  "rel": "suggests",
+  "to": "condition:urosepsis",
+  "source": "card palpate.abdomen/5",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:horner-syndrome",
+  "rel": "suggests",
+  "to": "condition:horner-syndrome",
+  "source": "card inspect.eyes/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:horner-syndrome",
+  "rel": "suggests",
+  "to": "condition:lateral-medullary-syndrome",
+  "source": "card inspect.eyes/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:horner-syndrome",
+  "rel": "suggests",
+  "to": "condition:lung-cancer",
+  "source": "card inspect.eyes/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:third-nerve-palsy",
+  "rel": "suggests",
+  "to": "condition:third-nerve-palsy",
+  "source": "card inspect.eyes/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:spontaneous-nystagmus",
+  "rel": "suggests",
+  "to": "condition:vestibular-neuritis",
+  "source": "card inspect.eyes/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:spontaneous-nystagmus",
+  "rel": "suggests",
+  "to": "condition:cerebellar-stroke",
+  "source": "card inspect.eyes/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:anisocoria",
+  "rel": "suggests",
+  "to": "condition:third-nerve-palsy",
+  "source": "card inspect.eyes.dim/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fixed-dilated-pupil",
+  "rel": "suggests",
+  "to": "condition:third-nerve-palsy",
+  "source": "card test.pupils.light/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fixed-dilated-pupil",
+  "rel": "suggests",
+  "to": "condition:subdural-haematoma",
+  "source": "card test.pupils.light/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fixed-dilated-pupil",
+  "rel": "suggests",
+  "to": "condition:intracerebral-haemorrhage",
+  "source": "card test.pupils.light/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:afferent-pupillary-defect",
+  "rel": "suggests",
+  "to": "condition:multiple-sclerosis",
+  "source": "card test.pupils.light/1",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:sixth-nerve-palsy",
+  "rel": "suggests",
+  "to": "condition:sixth-nerve-palsy",
+  "source": "card test.eye-movements/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:peripheral-vestibular-pattern",
+  "rel": "suggests",
+  "to": "condition:vestibular-neuritis",
+  "source": "card test.eye-movements/2",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:peripheral-vestibular-pattern",
+  "rel": "suggests",
+  "to": "condition:labyrinthitis",
+  "source": "card test.eye-movements/2",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:cerebellar-syndrome",
+  "rel": "suggests",
+  "to": "condition:cerebellar-stroke",
+  "source": "card test.eye-movements/3",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:cerebellar-syndrome",
+  "rel": "suggests",
+  "to": "condition:multiple-sclerosis",
+  "source": "card test.eye-movements/3",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:neuromuscular-fatigability",
+  "rel": "suggests",
+  "to": "condition:myasthenia-gravis",
+  "source": "card test.eye-movements/4",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:central-vestibular-pattern",
+  "rel": "suggests",
+  "to": "condition:cerebellar-stroke",
+  "source": "card test.frenzel/1",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:central-vestibular-pattern",
+  "rel": "suggests",
+  "to": "condition:lateral-medullary-syndrome",
+  "source": "card test.frenzel/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:horizontal-tropia",
+  "rel": "suggests",
+  "to": "condition:sixth-nerve-palsy",
+  "source": "card test.cover/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:homonymous-hemianopia",
+  "rel": "suggests",
+  "to": "condition:ischaemic-stroke-left-mca",
+  "source": "card test.visual-fields/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:homonymous-hemianopia",
+  "rel": "suggests",
+  "to": "condition:intracerebral-haemorrhage",
+  "source": "card test.visual-fields/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:central-scotoma",
+  "rel": "suggests",
+  "to": "condition:multiple-sclerosis",
+  "source": "card test.visual-fields/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:papilloedema",
+  "rel": "suggests",
+  "to": "condition:intracerebral-haemorrhage",
+  "source": "card test.fundoscopy/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:papilloedema",
+  "rel": "suggests",
+  "to": "condition:subdural-haematoma",
+  "source": "card test.fundoscopy/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:optic-atrophy",
+  "rel": "suggests",
+  "to": "condition:multiple-sclerosis",
+  "source": "card test.fundoscopy/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:whisper-not-heard",
+  "rel": "suggests",
+  "to": "condition:labyrinthitis",
+  "source": "card test.whisper/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:whisper-not-heard",
+  "rel": "suggests",
+  "to": "condition:menieres",
+  "source": "card test.whisper/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:whisper-not-heard",
+  "rel": "suggests",
+  "to": "condition:vestibular-schwannoma",
+  "source": "card test.whisper/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:sensorineural-hearing-loss",
+  "rel": "suggests",
+  "to": "condition:vestibular-schwannoma",
+  "source": "card test.weber/1",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:sensorineural-hearing-loss",
+  "rel": "suggests",
+  "to": "condition:labyrinthitis",
+  "source": "card test.weber/1",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:sensorineural-hearing-loss",
+  "rel": "suggests",
+  "to": "condition:menieres",
+  "source": "card test.weber/1",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:dorsal-column-syndrome",
+  "rel": "suggests",
+  "to": "condition:b12-deficiency",
+  "source": "card test.romberg/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:cerebellar-syndrome",
+  "rel": "suggests",
+  "to": "condition:lateral-medullary-syndrome",
+  "source": "card test.gait/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:umn-syndrome",
+  "rel": "suggests",
+  "to": "condition:ischaemic-stroke-left-mca",
+  "source": "card test.gait/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:steppage-gait",
+  "rel": "suggests",
+  "to": "condition:l5-radiculopathy",
+  "source": "card test.gait/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:steppage-gait",
+  "rel": "suggests",
+  "to": "condition:common-peroneal-palsy",
+  "source": "card test.gait/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:foot-drop",
+  "rel": "suggests",
+  "to": "condition:l5-radiculopathy",
+  "source": "card test.gait/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:foot-drop",
+  "rel": "suggests",
+  "to": "condition:common-peroneal-palsy",
+  "source": "card test.gait/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:lmn-facial-weakness",
+  "rel": "suggests",
+  "to": "condition:bells-palsy",
+  "source": "card test.face-movement/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:incomplete-eye-closure",
+  "rel": "suggests",
+  "to": "condition:bells-palsy",
+  "source": "card test.face-movement/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:umn-syndrome",
+  "rel": "suggests",
+  "to": "condition:intracerebral-haemorrhage",
+  "source": "card test.face-movement/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:bilateral-facial-weakness",
+  "rel": "suggests",
+  "to": "condition:guillain-barre",
+  "source": "card test.face-movement/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:bilateral-facial-weakness",
+  "rel": "suggests",
+  "to": "condition:myasthenia-gravis",
+  "source": "card test.face-movement/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:bilateral-facial-weakness",
+  "rel": "suggests",
+  "to": "condition:sarcoidosis",
+  "source": "card test.face-movement/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:facial-sensory-loss",
+  "rel": "suggests",
+  "to": "condition:ischaemic-stroke-left-mca",
+  "source": "card test.face-sensation/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hemisensory-loss",
+  "rel": "suggests",
+  "to": "condition:ischaemic-stroke-left-mca",
+  "source": "card test.face-sensation/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:lateral-medullary-syndrome",
+  "rel": "suggests",
+  "to": "condition:lateral-medullary-syndrome",
+  "source": "card test.face-sensation/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:absent-corneal-reflex",
+  "rel": "suggests",
+  "to": "condition:vestibular-schwannoma",
+  "source": "card test.face-sensation/2",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:umn-syndrome",
+  "rel": "suggests",
+  "to": "condition:motor-neurone-disease",
+  "source": "card test.jaw/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:uvula-deviation",
+  "rel": "suggests",
+  "to": "condition:lateral-medullary-syndrome",
+  "source": "card test.palate/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:nasal-speech",
+  "rel": "suggests",
+  "to": "condition:motor-neurone-disease",
+  "source": "card test.palate/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:nasal-speech",
+  "rel": "suggests",
+  "to": "condition:myasthenia-gravis",
+  "source": "card test.palate/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:nasal-speech",
+  "rel": "suggests",
+  "to": "condition:guillain-barre",
+  "source": "card test.palate/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:absent-gag",
+  "rel": "suggests",
+  "to": "condition:motor-neurone-disease",
+  "source": "card test.palate/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:absent-gag",
+  "rel": "suggests",
+  "to": "condition:myasthenia-gravis",
+  "source": "card test.palate/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:absent-gag",
+  "rel": "suggests",
+  "to": "condition:guillain-barre",
+  "source": "card test.palate/1",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:lmn-syndrome",
+  "rel": "suggests",
+  "to": "condition:motor-neurone-disease",
+  "source": "card test.tongue/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:weak-shrug",
+  "rel": "suggests",
+  "to": "condition:motor-neurone-disease",
+  "source": "card test.shrug/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:weak-shrug",
+  "rel": "suggests",
+  "to": "condition:myasthenia-gravis",
+  "source": "card test.shrug/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:expressive-aphasia",
+  "rel": "suggests",
+  "to": "condition:ischaemic-stroke-left-mca",
+  "source": "card test.speech/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:expressive-aphasia",
+  "rel": "suggests",
+  "to": "condition:intracerebral-haemorrhage",
+  "source": "card test.speech/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:expressive-aphasia",
+  "rel": "suggests",
+  "to": "condition:tia",
+  "source": "card test.speech/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:receptive-aphasia",
+  "rel": "suggests",
+  "to": "condition:ischaemic-stroke-left-mca",
+  "source": "card test.speech/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:dysarthria",
+  "rel": "suggests",
+  "to": "condition:cerebellar-stroke",
+  "source": "card test.speech/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:dysarthria",
+  "rel": "suggests",
+  "to": "condition:motor-neurone-disease",
+  "source": "card test.speech/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:dysarthria",
+  "rel": "suggests",
+  "to": "condition:myasthenia-gravis",
+  "source": "card test.speech/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:reduced-single-breath-count",
+  "rel": "suggests",
+  "to": "condition:guillain-barre",
+  "source": "card test.count-to-50/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:reduced-single-breath-count",
+  "rel": "suggests",
+  "to": "condition:myasthenia-gravis",
+  "source": "card test.count-to-50/1",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:umn-syndrome",
+  "rel": "suggests",
+  "to": "condition:multiple-sclerosis",
+  "source": "card test.arm.tone/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:lmn-syndrome",
+  "rel": "suggests",
+  "to": "condition:guillain-barre",
+  "source": "card test.arm.tone/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:proximal-symmetrical-weakness",
+  "rel": "suggests",
+  "to": "condition:guillain-barre",
+  "source": "card test.arm.power/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:proximal-symmetrical-weakness",
+  "rel": "suggests",
+  "to": "condition:myasthenia-gravis",
+  "source": "card test.arm.power/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:ascending-weakness",
+  "rel": "suggests",
+  "to": "condition:guillain-barre",
+  "source": "card test.arm.power/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:ascending-weakness",
+  "rel": "suggests",
+  "to": "condition:myasthenia-gravis",
+  "source": "card test.arm.power/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:muscle-wasting",
+  "rel": "suggests",
+  "to": "condition:motor-neurone-disease",
+  "source": "card test.arm.power/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:fasciculation",
+  "rel": "suggests",
+  "to": "condition:motor-neurone-disease",
+  "source": "card test.arm.power/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:hyperreflexia",
+  "rel": "suggests",
+  "to": "condition:motor-neurone-disease",
+  "source": "card test.arm.power/3",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:dorsal-column-syndrome",
+  "rel": "suggests",
+  "to": "condition:multiple-sclerosis",
+  "source": "card test.arm.vibration/0",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:umn-syndrome",
+  "rel": "suggests",
+  "to": "condition:b12-deficiency",
+  "source": "card test.leg.tone/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:myotomal-weakness",
+  "rel": "suggests",
+  "to": "condition:l5-radiculopathy",
+  "source": "card test.leg.power/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:myotomal-weakness",
+  "rel": "suggests",
+  "to": "condition:s1-radiculopathy",
+  "source": "card test.leg.power/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:absent-ankle-reflex",
+  "rel": "suggests",
+  "to": "condition:s1-radiculopathy",
+  "source": "card test.leg.reflexes/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:absent-ankle-reflex",
+  "rel": "suggests",
+  "to": "condition:b12-deficiency",
+  "source": "card test.leg.reflexes/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:absent-ankle-reflex",
+  "rel": "suggests",
+  "to": "condition:motor-neurone-disease",
+  "source": "card test.leg.reflexes/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:extensor-plantar",
+  "rel": "suggests",
+  "to": "condition:b12-deficiency",
+  "source": "card test.leg.reflexes/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:extensor-plantar",
+  "rel": "suggests",
+  "to": "condition:motor-neurone-disease",
+  "source": "card test.leg.reflexes/3",
+  "status": "draft"
+ },
+ {
+  "from": "sign:dermatomal-sensory-loss",
+  "rel": "suggests",
+  "to": "condition:l5-radiculopathy",
+  "source": "card test.leg.pinprick/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:dermatomal-sensory-loss",
+  "rel": "suggests",
+  "to": "condition:common-peroneal-palsy",
+  "source": "card test.leg.pinprick/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:dermatomal-sensory-loss",
+  "rel": "suggests",
+  "to": "condition:s1-radiculopathy",
+  "source": "card test.leg.pinprick/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:stocking-sensory-loss",
+  "rel": "suggests",
+  "to": "condition:b12-deficiency",
+  "source": "card test.leg.pinprick/2",
+  "status": "draft"
+ },
+ {
+  "from": "syndrome:umn-syndrome",
+  "rel": "suggests",
+  "to": "condition:subdural-haematoma",
+  "source": "card test.pronator-drift/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:pseudoathetosis",
+  "rel": "suggests",
+  "to": "condition:cerebellar-stroke",
+  "source": "card test.pronator-drift/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:pseudoathetosis",
+  "rel": "suggests",
+  "to": "condition:b12-deficiency",
+  "source": "card test.pronator-drift/1",
+  "status": "draft"
+ },
+ {
+  "from": "sign:positive-slr",
+  "rel": "suggests",
+  "to": "condition:l5-radiculopathy",
+  "source": "card test.slr/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:positive-slr",
+  "rel": "suggests",
+  "to": "condition:s1-radiculopathy",
+  "source": "card test.slr/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:pyramidal-weakness",
+  "rel": "suggests",
+  "to": "condition:ischaemic-stroke-left-mca",
+  "source": "card test.heel-shin/2",
+  "status": "draft"
+ },
+ {
+  "from": "sign:sensory-level",
+  "rel": "suggests",
+  "to": "condition:multiple-sclerosis",
+  "source": "card test.trunk.pinprick/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:sensory-level",
+  "rel": "suggests",
+  "to": "condition:bone-metastases",
+  "source": "card test.trunk.pinprick/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:orthopnoea",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card position.supine/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tripod-position",
+  "rel": "suggests",
+  "to": "condition:copd-exacerbation",
+  "source": "card position.sitting/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tripod-position",
+  "rel": "suggests",
+  "to": "condition:asthma-exacerbation",
+  "source": "card position.sitting/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:tripod-position",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card position.sitting/0",
+  "status": "draft"
+ },
+ {
+  "from": "sign:mid-diastolic-murmur",
+  "rel": "suggests",
+  "to": "condition:acute-heart-failure",
+  "source": "card position.left-lateral/0",
+  "status": "draft"
+ }
+]

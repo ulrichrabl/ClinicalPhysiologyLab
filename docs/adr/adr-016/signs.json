@@ -1,0 +1,3679 @@
+[
+ {
+  "id": "tachycardia",
+  "site": "vitals",
+  "definition": {
+   "obs": "vitals.hr",
+   "path": "",
+   "op": "gt",
+   "value": 100
+  },
+  "threshold": {
+   "text": "> 100 /min",
+   "status": "standard"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "bradycardia",
+  "site": "vitals",
+  "definition": {
+   "obs": "vitals.hr",
+   "path": "",
+   "op": "lt",
+   "value": 60
+  },
+  "threshold": {
+   "text": "< 60 /min",
+   "status": "standard"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "hypotension",
+  "site": "vitals",
+  "definition": {
+   "any": [
+    {
+     "obs": "vitals.bp",
+     "path": "systolic",
+     "op": "lt",
+     "value": 90
+    },
+    {
+     "fn": "meanPressureBelow",
+     "value": 65
+    }
+   ]
+  },
+  "threshold": {
+   "text": "systolic < 90 or mean < 65 mmHg",
+   "status": "standard"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "wide-pulse-pressure",
+  "site": "vitals",
+  "definition": {
+   "fn": "pulsePressureAtLeast",
+   "value": 60
+  },
+  "threshold": {
+   "text": "pulse pressure ≥ 60 mmHg",
+   "status": "assumed"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "narrow-pulse-pressure",
+  "site": "vitals",
+  "definition": {
+   "fn": "pulsePressureBelowFraction",
+   "value": 0.25
+  },
+  "threshold": {
+   "text": "pulse pressure < 25 % of systolic",
+   "status": "standard"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "orthostatic-hypotension",
+  "site": "vitals",
+  "definition": {
+   "any": [
+    {
+     "fn": "ctxDelta",
+     "obs": "vitals.bp",
+     "path": "systolic",
+     "frm": {
+      "position": "supine"
+     },
+     "to": {
+      "position": "standing"
+     },
+     "op": "le",
+     "value": -20
+    },
+    {
+     "fn": "ctxDelta",
+     "obs": "vitals.bp",
+     "path": "diastolic",
+     "frm": {
+      "position": "supine"
+     },
+     "to": {
+      "position": "standing"
+     },
+     "op": "le",
+     "value": -10
+    }
+   ]
+  },
+  "threshold": {
+   "text": "fall ≥ 20 systolic or ≥ 10 diastolic within 3 min",
+   "status": "standard"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "postural-tachycardia",
+  "site": "vitals",
+  "definition": {
+   "fn": "ctxDelta",
+   "obs": "vitals.hr",
+   "path": "",
+   "frm": {
+    "position": "supine"
+   },
+   "to": {
+    "position": "standing"
+   },
+   "op": "ge",
+   "value": 30
+  },
+  "threshold": {
+   "text": "rise ≥ 30 /min (McGee)",
+   "status": "standard"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "tachypnoea",
+  "site": "vitals",
+  "definition": {
+   "obs": "vitals.rr",
+   "path": "",
+   "op": "gt",
+   "value": 20
+  },
+  "threshold": {
+   "text": "> 20 /min",
+   "status": "standard"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "bradypnoea",
+  "site": "vitals",
+  "definition": {
+   "obs": "vitals.rr",
+   "path": "",
+   "op": "lt",
+   "value": 10
+  },
+  "threshold": {
+   "text": "< 10 /min",
+   "status": "standard"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "hypoxaemia",
+  "site": "vitals",
+  "definition": {
+   "all": [
+    {
+     "obs": "vitals.spo2",
+     "path": "spo2",
+     "op": "lt",
+     "value": 94
+    },
+    {
+     "obs": "vitals.spo2",
+     "path": "fio2",
+     "op": "le",
+     "value": 0.21
+    }
+   ]
+  },
+  "threshold": {
+   "text": "SpO₂ < 94 % on air",
+   "status": "standard"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "refractory-hypoxaemia",
+  "site": "vitals",
+  "definition": {
+   "fn": "spo2OnOxygenBelow",
+   "value": 94,
+   "fio2": 0.4
+  },
+  "threshold": {
+   "text": "SpO₂ < 94 % at FiO₂ ≥ 0.4",
+   "status": "assumed"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "Elicited by an intervention (oxygen), not by a test: the sign of shunt.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "fever",
+  "site": "vitals",
+  "definition": {
+   "obs": "vitals.temp",
+   "path": "",
+   "op": "ge",
+   "value": 38.0
+  },
+  "threshold": {
+   "text": "≥ 38.0 °C",
+   "status": "standard"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "hypothermia",
+  "site": "vitals",
+  "definition": {
+   "obs": "vitals.temp",
+   "path": "",
+   "op": "lt",
+   "value": 35.0
+  },
+  "threshold": {
+   "text": "< 35.0 °C",
+   "status": "standard"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "The card also counts < 36 °C in an unwell patient; that is a sepsis criterion, not hypothermia. Decide.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "diaphoresis",
+  "site": "general",
+  "definition": {
+   "obs": "general.appearance",
+   "path": "sweating",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "ashen-complexion",
+  "site": "general",
+  "definition": {
+   "obs": "general.appearance",
+   "path": "colour",
+   "op": "eq",
+   "value": "grey"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "pallor",
+  "site": "general",
+  "definition": {
+   "obs": "general.appearance",
+   "path": "colour",
+   "op": "eq",
+   "value": "pale"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "central-cyanosis",
+  "site": "general",
+  "definition": {
+   "obs": "general.appearance",
+   "path": "colour",
+   "op": "eq",
+   "value": "cyanosed"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "skin-mottling",
+  "site": "general",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "reduced-consciousness",
+  "site": "general",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "AVPU exists as patient state, not as an observable; it cannot be examined or named yet.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "agitation",
+  "site": "general",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "lies-still-peritonism",
+  "site": "abdomen",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "restless-writhing",
+  "site": "abdomen",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "visible-distress",
+  "site": "general",
+  "definition": {
+   "obs": "general.appearance",
+   "path": "distress",
+   "op": "in",
+   "value": [
+    "moderate",
+    "severe"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "jaundice",
+  "site": "eye",
+  "definition": {
+   "any": [
+    {
+     "obs": "eyes.sclera",
+     "path": "icterus",
+     "op": "in",
+     "value": [
+      "mild",
+      "marked"
+     ]
+    },
+    {
+     "obs": "general.appearance",
+     "path": "colour",
+     "op": "eq",
+     "value": "jaundiced"
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "The eye close-up and the face view are drawn from the fixed appearance: a jaundiced patient has white sclerae there, while the bedside figure is yellow.",
+  "status": "draft"
+ },
+ {
+  "id": "conjunctival-pallor",
+  "site": "eye",
+  "definition": {
+   "obs": "eyes.conjunctiva",
+   "path": "pallor",
+   "op": "in",
+   "value": [
+    "mild",
+    "marked"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Not drawn in the eye close-up or face view (fixed appearance); the bedside figure pales.",
+  "status": "draft"
+ },
+ {
+  "id": "capillary-refill-prolonged",
+  "site": "hands",
+  "definition": {
+   "obs": "hands.crt",
+   "path": "",
+   "op": "abnormal"
+  },
+  "threshold": {
+   "text": "above the normal for age and sex (Schriger & Baraff)",
+   "status": "measured"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "pitting-oedema",
+  "site": "limb.lower",
+  "definition": {
+   "obs": "legs.oedema",
+   "path": "extent",
+   "op": "in",
+   "value": [
+    "ankle",
+    "shin",
+    "knee"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "legs.oedema is not paired: bilateral by construction.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "unilateral-calf-swelling",
+  "site": "limb.lower",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "Deep vein thrombosis: card exception today.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "non-pitting-oedema",
+  "site": "limb.lower",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "asterixis",
+  "site": "hands",
+  "definition": {
+   "obs": "hands.asterixis",
+   "path": "flap",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only; a movement, so a candidate for the animation topic.",
+  "status": "draft"
+ },
+ {
+  "id": "fine-postural-tremor",
+  "site": "hands",
+  "definition": {
+   "obs": "hands.tremor",
+   "path": "tremor",
+   "op": "eq",
+   "value": "fine"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only; animation candidate.",
+  "status": "draft"
+ },
+ {
+  "id": "hyperpigmentation",
+  "site": "skin",
+  "definition": {
+   "obs": "skin.pigmentation",
+   "path": "pigmentation",
+   "op": "eq",
+   "value": "increased"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only; the figure does not darken creases or mucosa.",
+  "status": "draft"
+ },
+ {
+  "id": "spider-naevi",
+  "site": "skin",
+  "definition": {
+   "obs": "skin.liver-stigmata",
+   "path": "spiderNaevi",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only.",
+  "status": "draft"
+ },
+ {
+  "id": "palmar-erythema",
+  "site": "hands",
+  "definition": {
+   "obs": "skin.liver-stigmata",
+   "path": "palmarErythema",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only.",
+  "status": "draft"
+ },
+ {
+  "id": "caput-medusae",
+  "site": "abdomen",
+  "definition": {
+   "obs": "skin.liver-stigmata",
+   "path": "caputMedusae",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only.",
+  "status": "draft"
+ },
+ {
+  "id": "gynaecomastia",
+  "site": "chest",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "leukonychia",
+  "site": "hands",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "diffuse-goitre",
+  "site": "neck",
+  "definition": {
+   "obs": "neck.thyroid",
+   "path": "goitre",
+   "op": "eq",
+   "value": "diffuse"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only; the neck in the figure does not swell.",
+  "status": "draft"
+ },
+ {
+  "id": "nodular-goitre",
+  "site": "neck",
+  "definition": {
+   "obs": "neck.thyroid",
+   "path": "goitre",
+   "op": "eq",
+   "value": "nodular"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "thyroid-bruit",
+  "site": "neck",
+  "definition": {
+   "obs": "neck.thyroid",
+   "path": "bruit",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "thyroid-tenderness",
+  "site": "neck",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "lid-retraction",
+  "site": "eye",
+  "definition": {
+   "obs": "eyes.thyroid",
+   "path": "lidRetraction",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only: the eye close-up draws the lids from ptosis alone, so retraction is not visible.",
+  "status": "draft"
+ },
+ {
+  "id": "lid-lag",
+  "site": "eye",
+  "definition": {
+   "obs": "eyes.thyroid",
+   "path": "lidLag",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only; would need the eye close-up to follow a downward gaze.",
+  "status": "draft"
+ },
+ {
+  "id": "exophthalmos",
+  "site": "eye",
+  "definition": {
+   "obs": "eyes.thyroid",
+   "path": "exophthalmos",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only; not drawn in the eye close-up or face view.",
+  "status": "draft"
+ },
+ {
+  "id": "chemosis",
+  "site": "eye",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "dry-mucosa",
+  "site": "mouth",
+  "definition": {
+   "obs": "mouth.mucosa",
+   "path": "moisture",
+   "op": "in",
+   "value": [
+    "dry",
+    "parched"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "glossitis",
+  "site": "mouth",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "angular-cheilitis",
+  "site": "mouth",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "reduced-skin-turgor",
+  "site": "skin",
+  "definition": {
+   "obs": "skin.turgor",
+   "path": "turgor",
+   "op": "eq",
+   "value": "reduced"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "ketotic-breath",
+  "site": "breath",
+  "definition": {
+   "obs": "breath.odour",
+   "path": "odour",
+   "op": "eq",
+   "value": "ketones"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "fetor-hepaticus",
+  "site": "breath",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "No code in the odour value set.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "uraemic-fetor",
+  "site": "breath",
+  "definition": {
+   "obs": "breath.odour",
+   "path": "odour",
+   "op": "eq",
+   "value": "uraemic"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "The value exists; no model produces it yet.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "peritonism",
+  "site": "abdomen",
+  "definition": {
+   "obs": "abdomen.palpation",
+   "path": "guarding",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "abdominal-tenderness",
+  "site": "abdomen",
+  "definition": {
+   "obs": "abdomen.palpation",
+   "path": "tenderness",
+   "op": "in",
+   "value": [
+    "mild",
+    "marked"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "Site is not modelled: right iliac fossa, epigastric and loin tenderness collapse into this one sign.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "rif-tenderness",
+  "site": "abdomen",
+  "definition": null,
+  "threshold": null,
+  "variantOf": "abdominal-tenderness",
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "Needs a site in abdomen.palpation.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "epigastric-tenderness",
+  "site": "abdomen",
+  "definition": null,
+  "threshold": null,
+  "variantOf": "abdominal-tenderness",
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "renal-angle-tenderness",
+  "site": "abdomen",
+  "definition": null,
+  "threshold": null,
+  "variantOf": "abdominal-tenderness",
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "abdomen-still-on-breathing",
+  "site": "abdomen",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "splenomegaly",
+  "site": "abdomen",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "hepatomegaly",
+  "site": "abdomen",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "palpable-bladder",
+  "site": "abdomen",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "abdominal-distension",
+  "site": "abdomen",
+  "definition": {
+   "obs": "abdomen.ascites",
+   "path": "ascites",
+   "op": "in",
+   "value": [
+    "flank",
+    "shifting",
+    "tense"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "shifting-dullness",
+  "site": "abdomen",
+  "definition": {
+   "obs": "abdomen.ascites",
+   "path": "ascites",
+   "op": "in",
+   "value": [
+    "shifting",
+    "tense"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "melaena",
+  "site": "rectum",
+  "definition": {
+   "obs": "rectal.exam",
+   "path": "stool",
+   "op": "eq",
+   "value": "melaena"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "fresh-blood-pr",
+  "site": "rectum",
+  "definition": {
+   "obs": "rectal.exam",
+   "path": "stool",
+   "op": "eq",
+   "value": "fresh-blood"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "rectal-mass",
+  "site": "rectum",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "lax-anal-tone",
+  "site": "rectum",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "enlarged-prostate",
+  "site": "rectum",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "irregularly-irregular-pulse",
+  "site": "pulse",
+  "definition": {
+   "obs": "pulse.radial",
+   "path": "rhythm",
+   "op": "eq",
+   "value": "irregularly-irregular"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "collapsing-pulse",
+  "site": "pulse",
+  "definition": {
+   "any": [
+    {
+     "obs": "pulse.radial",
+     "path": "character",
+     "op": "eq",
+     "value": "collapsing"
+    },
+    {
+     "obs": "pulse.carotid",
+     "path": "character",
+     "op": "eq",
+     "value": "collapsing"
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "bounding-pulse",
+  "site": "pulse",
+  "definition": {
+   "any": [
+    {
+     "obs": "pulse.radial",
+     "path": "character",
+     "op": "eq",
+     "value": "bounding"
+    },
+    {
+     "obs": "pulse.carotid",
+     "path": "character",
+     "op": "eq",
+     "value": "bounding"
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "thready-pulse",
+  "site": "pulse",
+  "definition": {
+   "any": [
+    {
+     "obs": "pulse.radial",
+     "path": "character",
+     "op": "eq",
+     "value": "thready"
+    },
+    {
+     "obs": "pulse.carotid",
+     "path": "character",
+     "op": "eq",
+     "value": "thready"
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "slow-rising-pulse",
+  "site": "pulse",
+  "definition": {
+   "any": [
+    {
+     "obs": "pulse.radial",
+     "path": "character",
+     "op": "eq",
+     "value": "slow-rising"
+    },
+    {
+     "obs": "pulse.carotid",
+     "path": "character",
+     "op": "eq",
+     "value": "slow-rising"
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "bisferiens-pulse",
+  "site": "pulse",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "raised-jvp",
+  "site": "neck",
+  "definition": {
+   "obs": "jvp",
+   "path": "heightCm",
+   "op": "gt",
+   "value": 4
+  },
+  "threshold": {
+   "text": "> 4 cm above the sternal angle at 45°",
+   "status": "assumed"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only: the svg.neck renderer is declared but no visual is wired to it.",
+  "status": "draft"
+ },
+ {
+  "id": "jvp-not-visible",
+  "site": "neck",
+  "definition": {
+   "obs": "jvp",
+   "path": "heightCm",
+   "op": "le",
+   "value": -2,
+   "ctx": {
+    "position": "supine"
+   }
+  },
+  "threshold": {
+   "text": "column top ≥ 2 cm below the sternal angle, so below the clavicle when flat",
+   "status": "assumed"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "The model keeps the height constant across positions, as the sternal-angle convention says it should. Today the text calls these heights normal (card exception for ketoacidosis); the sign resolves it.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "cannon-a-waves",
+  "site": "neck",
+  "definition": {
+   "obs": "jvp",
+   "path": "waveform",
+   "op": "eq",
+   "value": "cannon-a"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "displaced-apex",
+  "site": "chest",
+  "definition": {
+   "obs": "apex",
+   "path": "position",
+   "op": "in",
+   "value": [
+    "lateral",
+    "inferolateral"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "heaving-apex",
+  "site": "chest",
+  "definition": {
+   "obs": "apex",
+   "path": "character",
+   "op": "eq",
+   "value": "heaving"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "ejection-systolic-murmur",
+  "site": "heart",
+  "definition": {
+   "obs": "heart.sounds",
+   "path": "murmurs",
+   "op": "hasWhere",
+   "value": {
+    "timing": "ejection-systolic"
+   }
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "pansystolic-murmur",
+  "site": "heart",
+  "definition": {
+   "obs": "heart.sounds",
+   "path": "murmurs",
+   "op": "hasWhere",
+   "value": {
+    "timing": "pansystolic"
+   }
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "Radiation (to the axilla, to the carotids) is not modelled.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "carvallo-sign",
+  "site": "heart",
+  "definition": null,
+  "threshold": null,
+  "variantOf": "pansystolic-murmur",
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "No inspiration context is observed at the tricuspid area.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "dynamic-outflow-murmur",
+  "site": "heart",
+  "definition": null,
+  "threshold": null,
+  "variantOf": "ejection-systolic-murmur",
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "early-diastolic-murmur",
+  "site": "heart",
+  "definition": {
+   "obs": "heart.sounds",
+   "path": "murmurs",
+   "op": "hasWhere",
+   "value": {
+    "timing": "early-diastolic"
+   }
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "mid-diastolic-murmur",
+  "site": "heart",
+  "definition": {
+   "obs": "heart.sounds",
+   "path": "murmurs",
+   "op": "hasWhere",
+   "value": {
+    "timing": "mid-diastolic"
+   }
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "opening-snap",
+  "site": "heart",
+  "definition": {
+   "obs": "heart.sounds",
+   "path": "added",
+   "op": "has",
+   "value": "opening-snap"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "third-heart-sound",
+  "site": "heart",
+  "definition": {
+   "obs": "heart.sounds",
+   "path": "added",
+   "op": "has",
+   "value": "s3"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "fourth-heart-sound",
+  "site": "heart",
+  "definition": {
+   "obs": "heart.sounds",
+   "path": "added",
+   "op": "has",
+   "value": "s4"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "soft-a2",
+  "site": "heart",
+  "definition": {
+   "obs": "heart.sounds",
+   "path": "a2",
+   "op": "in",
+   "value": [
+    "soft",
+    "absent"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "loud-p2",
+  "site": "heart",
+  "definition": {
+   "obs": "heart.sounds",
+   "path": "p2",
+   "op": "eq",
+   "value": "loud"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "fixed-split-s2",
+  "site": "heart",
+  "definition": {
+   "obs": "heart.sounds",
+   "path": "s2Split",
+   "op": "eq",
+   "value": "fixed"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "pericardial-rub",
+  "site": "heart",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "No rub in the heart-sounds value set.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "carotid-bruit",
+  "site": "neck",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "The carotid site returns heart sounds, so an aortic murmur is heard there (transmitted), but a bruit from carotid stenosis is not modelled.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "accessory-muscle-use",
+  "site": "chest",
+  "definition": {
+   "obs": "breathing.pattern",
+   "path": "accessory",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "speech-limited",
+  "site": "chest",
+  "definition": {
+   "obs": "breathing.pattern",
+   "path": "speech",
+   "op": "in",
+   "value": [
+    "phrases",
+    "words",
+    "unable"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "pursed-lip-breathing",
+  "site": "mouth",
+  "definition": {
+   "obs": "breathing.pattern",
+   "path": "pursedLips",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "deep-breathing",
+  "site": "chest",
+  "definition": {
+   "obs": "breathing.pattern",
+   "path": "depth",
+   "op": "eq",
+   "value": "deep"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "Called Kussmaul breathing when the cause is a metabolic acidosis: that is interpretation, not observation, so it lives on the link to ketoacidosis rather than in the definition.",
+  "modelGap": "Text only: the figure does not show the depth of breathing.",
+  "status": "draft"
+ },
+ {
+  "id": "cheyne-stokes",
+  "site": "chest",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "paradoxical-breathing",
+  "site": "chest",
+  "definition": {
+   "obs": "breathing.pattern",
+   "path": "paradoxical",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "barrel-chest",
+  "site": "chest",
+  "definition": {
+   "obs": "breathing.pattern",
+   "path": "hyperinflated",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "orthopnoea",
+  "site": "chest",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "Breathing pattern does not depend on position in the model; the card hangs it on a positioning intervention.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "tripod-position",
+  "site": "general",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "chest-scars",
+  "site": "chest",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "tracheal-deviation",
+  "site": "neck",
+  "definition": {
+   "obs": "trachea.position",
+   "path": "position",
+   "op": "in",
+   "value": [
+    "L",
+    "R"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "Toward or away from the abnormal side is a qualifier derived with the lung signs.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "reduced-chest-expansion",
+  "site": "chest",
+  "definition": {
+   "obs": "chest.expansion",
+   "path": "expansion",
+   "op": "eq",
+   "value": "reduced"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": "one side / both sides",
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "bronchial-breathing",
+  "site": "chest",
+  "definition": {
+   "obs": "lung.sounds",
+   "path": "breath",
+   "op": "eq",
+   "value": "bronchial"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "reduced-breath-sounds",
+  "site": "chest",
+  "definition": {
+   "obs": "lung.sounds",
+   "path": "breath",
+   "op": "in",
+   "value": [
+    "reduced",
+    "absent"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "wheeze",
+  "site": "chest",
+  "definition": {
+   "obs": "lung.sounds",
+   "path": "added",
+   "op": "has",
+   "value": "wheeze"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "fine-crackles",
+  "site": "chest",
+  "definition": {
+   "obs": "lung.sounds",
+   "path": "added",
+   "op": "has",
+   "value": "fine-crackles"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "coarse-crackles",
+  "site": "chest",
+  "definition": {
+   "obs": "lung.sounds",
+   "path": "added",
+   "op": "has",
+   "value": "coarse-crackles"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "pleural-rub",
+  "site": "chest",
+  "definition": {
+   "obs": "lung.sounds",
+   "path": "added",
+   "op": "has",
+   "value": "rub"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "The value exists; no model produces it yet.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "stony-dull-percussion",
+  "site": "chest",
+  "definition": {
+   "obs": "chest.percussion",
+   "path": "note",
+   "op": "eq",
+   "value": "stony-dull"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "dull-percussion",
+  "site": "chest",
+  "definition": {
+   "obs": "chest.percussion",
+   "path": "note",
+   "op": "eq",
+   "value": "dull"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "hyper-resonant-percussion",
+  "site": "chest",
+  "definition": {
+   "obs": "chest.percussion",
+   "path": "note",
+   "op": "eq",
+   "value": "hyper-resonant"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "increased-vocal-resonance",
+  "site": "chest",
+  "definition": {
+   "obs": "chest.resonance",
+   "path": "resonance",
+   "op": "eq",
+   "value": "increased"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "reduced-vocal-resonance",
+  "site": "chest",
+  "definition": {
+   "obs": "chest.resonance",
+   "path": "resonance",
+   "op": "in",
+   "value": [
+    "reduced",
+    "absent"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "ptosis",
+  "site": "eye",
+  "definition": {
+   "obs": "eye.lid",
+   "path": "ptosisMm",
+   "op": "ge",
+   "value": 2,
+   "ctx": {
+    "gaze": "primary"
+   }
+  },
+  "threshold": {
+   "text": "lid ≥ 2 mm lower than normal",
+   "status": "assumed"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": "side; partial / complete; fatigable",
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "fatigable-ptosis",
+  "site": "eye",
+  "definition": {
+   "fn": "ctxDelta",
+   "obs": "eye.lid",
+   "path": "ptosisMm",
+   "frm": {
+    "gaze": "primary"
+   },
+   "to": {
+    "sustainedSeconds": 60
+   },
+   "op": "ge",
+   "value": 2,
+   "side": true
+  },
+  "threshold": {
+   "text": "lid sinks ≥ 2 mm during 60 s of upgaze",
+   "status": "assumed"
+  },
+  "variantOf": "ptosis",
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "anisocoria",
+  "site": "eye",
+  "definition": {
+   "fn": "sideDiff",
+   "obs": "eye.pupil",
+   "path": "sizeMm",
+   "ctx": {
+    "lightOn": "none",
+    "ambient": "room"
+   },
+   "value": 1.0
+  },
+  "threshold": {
+   "text": "difference ≥ 1 mm (up to 0.5 mm is common)",
+   "status": "assumed"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "dilation-lag",
+  "site": "eye",
+  "definition": {
+   "fn": "anisocoriaGrowsInDim"
+  },
+  "threshold": null,
+  "variantOf": "anisocoria",
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "fixed-dilated-pupil",
+  "site": "eye",
+  "definition": {
+   "obs": "eye.pupil",
+   "path": "reaction",
+   "op": "eq",
+   "value": "absent"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "afferent-pupillary-defect",
+  "site": "eye",
+  "definition": {
+   "obs": "eyes.swinging-light",
+   "path": "rapd",
+   "op": "in",
+   "value": [
+    "L",
+    "R"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "eye-down-and-out",
+  "site": "eye",
+  "definition": {
+   "fn": "eyeDownAndOut"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "abduction-deficit",
+  "site": "eye",
+  "definition": {
+   "obs": "eye.motility",
+   "path": "abduction",
+   "op": "lt",
+   "value": 90
+  },
+  "threshold": {
+   "text": "abduction < 90 % of normal",
+   "status": "assumed"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "variable-diplopia",
+  "site": "eye",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "Eye motility has no fatigue context.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "spontaneous-nystagmus",
+  "site": "eye",
+  "definition": {
+   "obs": "eyes.nystagmus",
+   "path": "present",
+   "op": "eq",
+   "value": true,
+   "ctx": {
+    "gaze": "primary"
+   }
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "unidirectional-nystagmus",
+  "site": "eye",
+  "definition": {
+   "fn": "nystagmusPeripheral"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "gaze-evoked-nystagmus",
+  "site": "eye",
+  "definition": {
+   "fn": "nystagmusDirectionChanging",
+   "minAmplitude": 1.0
+  },
+  "threshold": {
+   "text": "amplitude ≥ 1° in lateral gaze",
+   "status": "assumed"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "endpoint-nystagmus",
+  "site": "eye",
+  "definition": {
+   "fn": "nystagmusEndPoint",
+   "maxAmplitude": 1.0
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": true,
+  "qualifiers": null,
+  "note": "Today every patient is told \"on looking left: horizontal jerk nystagmus…\" in all four directions. Naming it as a normal variant fixes a teaching error.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "central-nystagmus",
+  "site": "eye",
+  "definition": {
+   "fn": "nystagmusCentral"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "saccadic-pursuit",
+  "site": "eye",
+  "definition": {
+   "obs": "eyes.pursuit",
+   "path": "quality",
+   "op": "eq",
+   "value": "saccadic"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Not drawn: the eye close-up does not read eyes.pursuit.",
+  "status": "draft"
+ },
+ {
+  "id": "head-impulse-positive",
+  "site": "eye",
+  "definition": {
+   "obs": "eye.head-impulse",
+   "path": "saccade",
+   "op": "in",
+   "value": [
+    "covert",
+    "overt"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "skew-deviation",
+  "site": "eye",
+  "definition": {
+   "obs": "eyes.alignment",
+   "path": "verticalPD",
+   "op": "gt",
+   "value": 0
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "horizontal-tropia",
+  "site": "eye",
+  "definition": {
+   "obs": "eyes.alignment",
+   "path": "horizontal",
+   "op": "in",
+   "value": [
+    "eso",
+    "exo"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "homonymous-hemianopia",
+  "site": "eye",
+  "definition": {
+   "fn": "fieldHomonymous"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only: svg.field is declared but not wired to a visual.",
+  "status": "draft"
+ },
+ {
+  "id": "bitemporal-hemianopia",
+  "site": "eye",
+  "definition": {
+   "fn": "fieldBitemporal"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "central-scotoma",
+  "site": "eye",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "The field model has temporal and nasal halves only.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "papilloedema",
+  "site": "eye",
+  "definition": {
+   "obs": "eye.fundus",
+   "path": "disc",
+   "op": "eq",
+   "value": "swollen"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Case layer only; svg.fundus is declared but not wired.",
+  "status": "draft"
+ },
+ {
+  "id": "optic-atrophy",
+  "site": "eye",
+  "definition": {
+   "obs": "eye.fundus",
+   "path": "disc",
+   "op": "eq",
+   "value": "pale"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "whisper-not-heard",
+  "site": "ear",
+  "definition": {
+   "obs": "ear.whisper",
+   "path": "",
+   "op": "eq",
+   "value": "not-heard",
+   "side": "one"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "rinne-negative",
+  "site": "ear",
+  "definition": {
+   "obs": "ear.rinne",
+   "path": "",
+   "op": "eq",
+   "value": "negative"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "weber-lateralised",
+  "site": "head",
+  "definition": {
+   "obs": "head.weber",
+   "path": "",
+   "op": "in",
+   "value": [
+    "L",
+    "R"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": "to the deaf ear (conductive) / to the better ear (sensorineural): derived with the whisper and Rinne",
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "romberg-sign",
+  "site": "posture",
+  "definition": {
+   "fn": "rombergSign"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only: svg.patient is declared for Romberg but no visual exists (animation topic).",
+  "status": "draft"
+ },
+ {
+  "id": "lateral-fall-eyes-closed",
+  "site": "posture",
+  "definition": {
+   "obs": "posture.romberg",
+   "path": "toward",
+   "op": "in",
+   "value": [
+    "L",
+    "R"
+   ],
+   "ctx": {
+    "eyesClosed": true
+   }
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "truncal-ataxia",
+  "site": "posture",
+  "definition": {
+   "obs": "posture.romberg",
+   "path": "stance",
+   "op": "in",
+   "value": [
+    "sways",
+    "falls"
+   ],
+   "ctx": {
+    "eyesClosed": false
+   }
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "ataxic-gait",
+  "site": "gait",
+  "definition": {
+   "obs": "gait.pattern",
+   "path": "pattern",
+   "op": "eq",
+   "value": "ataxic"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only (animation topic).",
+  "status": "draft"
+ },
+ {
+  "id": "veering-gait",
+  "site": "gait",
+  "definition": {
+   "obs": "gait.pattern",
+   "path": "pattern",
+   "op": "eq",
+   "value": "veers"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "hemiplegic-gait",
+  "site": "gait",
+  "definition": {
+   "obs": "gait.pattern",
+   "path": "pattern",
+   "op": "eq",
+   "value": "hemiplegic"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "steppage-gait",
+  "site": "gait",
+  "definition": {
+   "obs": "gait.pattern",
+   "path": "pattern",
+   "op": "eq",
+   "value": "high-stepping"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "sensory-ataxic-gait",
+  "site": "gait",
+  "definition": {
+   "obs": "gait.pattern",
+   "path": "pattern",
+   "op": "eq",
+   "value": "sensory-ataxic"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "waddling-gait",
+  "site": "gait",
+  "definition": {
+   "obs": "gait.pattern",
+   "path": "pattern",
+   "op": "eq",
+   "value": "waddling"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "limb-dysmetria",
+  "site": "limb",
+  "definition": {
+   "any": [
+    {
+     "obs": "arm.finger-nose",
+     "path": "dysmetria",
+     "op": "in",
+     "value": [
+      "mild",
+      "marked"
+     ]
+    },
+    {
+     "obs": "leg.heel-shin",
+     "path": "dysmetria",
+     "op": "in",
+     "value": [
+      "mild",
+      "marked"
+     ]
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": "arm / leg; side",
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "intention-tremor",
+  "site": "limb",
+  "definition": {
+   "any": [
+    {
+     "obs": "arm.finger-nose",
+     "path": "intentionTremor",
+     "op": "eq",
+     "value": true
+    },
+    {
+     "obs": "leg.heel-shin",
+     "path": "intentionTremor",
+     "op": "eq",
+     "value": true
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "limb-ataxia-eyes-closed",
+  "site": "limb",
+  "definition": {
+   "fn": "ataxiaOnlyEyesClosed"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "Not elicitable: finger–nose and heel–shin are only observed with the eyes open, although the property supports eyesClosed.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "dysdiadochokinesis",
+  "site": "limb.upper",
+  "definition": {
+   "obs": "arm.rapid-alternating",
+   "path": "dysdiadochokinesia",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "slowed-alternating-movements",
+  "site": "limb.upper",
+  "definition": {
+   "all": [
+    {
+     "obs": "arm.rapid-alternating",
+     "path": "slowed",
+     "op": "eq",
+     "value": true
+    },
+    {
+     "obs": "arm.rapid-alternating",
+     "path": "dysdiadochokinesia",
+     "op": "eq",
+     "value": false
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "lmn-facial-weakness",
+  "site": "face",
+  "definition": {
+   "fn": "facialWeakness",
+   "forehead": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "umn-facial-weakness",
+  "site": "face",
+  "definition": {
+   "fn": "facialWeakness",
+   "forehead": false
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "bilateral-facial-weakness",
+  "site": "face",
+  "definition": {
+   "fn": "facialWeakness",
+   "both": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "incomplete-eye-closure",
+  "site": "face",
+  "definition": {
+   "obs": "face.movement",
+   "path": "eyeClosure",
+   "op": "in",
+   "value": [
+    "weak",
+    "absent"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "facial-sensory-loss",
+  "site": "face",
+  "definition": {
+   "any": [
+    {
+     "obs": "face.sensation",
+     "path": "V1",
+     "op": "in",
+     "value": [
+      "reduced",
+      "absent"
+     ]
+    },
+    {
+     "obs": "face.sensation",
+     "path": "V2",
+     "op": "in",
+     "value": [
+      "reduced",
+      "absent"
+     ]
+    },
+    {
+     "obs": "face.sensation",
+     "path": "V3",
+     "op": "in",
+     "value": [
+      "reduced",
+      "absent"
+     ]
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "absent-corneal-reflex",
+  "site": "face",
+  "definition": {
+   "obs": "face.sensation",
+   "path": "corneal",
+   "op": "eq",
+   "value": false
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "jaw-deviation",
+  "site": "face",
+  "definition": {
+   "obs": "jaw.opening",
+   "path": "deviatesTo",
+   "op": "in",
+   "value": [
+    "L",
+    "R"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "brisk-jaw-jerk",
+  "site": "face",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "uvula-deviation",
+  "site": "mouth",
+  "definition": {
+   "obs": "mouth.palate",
+   "path": "uvulaDeviatesTo",
+   "op": "in",
+   "value": [
+    "L",
+    "R"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "absent-gag",
+  "site": "mouth",
+  "definition": {
+   "any": [
+    {
+     "obs": "mouth.palate",
+     "path": "gagLeft",
+     "op": "eq",
+     "value": false
+    },
+    {
+     "obs": "mouth.palate",
+     "path": "gagRight",
+     "op": "eq",
+     "value": false
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "nasal-speech",
+  "site": "mouth",
+  "definition": {
+   "obs": "mouth.palate",
+   "path": "voice",
+   "op": "eq",
+   "value": "fading-nasal"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "tongue-deviation",
+  "site": "mouth",
+  "definition": {
+   "obs": "mouth.tongue",
+   "path": "deviatesTo",
+   "op": "in",
+   "value": [
+    "L",
+    "R"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "tongue-wasting",
+  "site": "mouth",
+  "definition": {
+   "obs": "mouth.tongue",
+   "path": "wasting",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "tongue-fasciculation",
+  "site": "mouth",
+  "definition": {
+   "obs": "mouth.tongue",
+   "path": "fasciculation",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "weak-shrug",
+  "site": "neck",
+  "definition": {
+   "obs": "shoulder.shrug",
+   "path": "power",
+   "op": "lt",
+   "value": 5
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "expressive-aphasia",
+  "site": "speech",
+  "definition": {
+   "all": [
+    {
+     "obs": "speech.language",
+     "path": "fluency",
+     "op": "eq",
+     "value": "impaired"
+    },
+    {
+     "obs": "speech.language",
+     "path": "comprehension",
+     "op": "eq",
+     "value": "normal"
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "receptive-aphasia",
+  "site": "speech",
+  "definition": {
+   "all": [
+    {
+     "obs": "speech.language",
+     "path": "fluency",
+     "op": "eq",
+     "value": "normal"
+    },
+    {
+     "obs": "speech.language",
+     "path": "comprehension",
+     "op": "eq",
+     "value": "impaired"
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "dysarthria",
+  "site": "speech",
+  "definition": {
+   "obs": "speech.language",
+   "path": "articulation",
+   "op": "eq",
+   "value": "dysarthric"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": "slurred / scanning / explosive (not modelled)",
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "fatigable-dysarthria",
+  "site": "speech",
+  "definition": {
+   "obs": "speech.fatigue",
+   "path": "voice",
+   "op": "in",
+   "value": [
+    "fading-nasal",
+    "hoarse"
+   ],
+   "ctx": {
+    "repetition": 50
+   }
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "reduced-single-breath-count",
+  "site": "speech",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "spasticity",
+  "site": "limb",
+  "definition": {
+   "any": [
+    {
+     "obs": "arm.tone",
+     "path": "tone",
+     "op": "eq",
+     "value": "spastic"
+    },
+    {
+     "obs": "leg.tone",
+     "path": "tone",
+     "op": "eq",
+     "value": "spastic"
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "sustained-clonus",
+  "site": "limb.lower",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "rigidity",
+  "site": "limb",
+  "definition": {
+   "any": [
+    {
+     "obs": "arm.tone",
+     "path": "tone",
+     "op": "eq",
+     "value": "rigid"
+    },
+    {
+     "obs": "leg.tone",
+     "path": "tone",
+     "op": "eq",
+     "value": "rigid"
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "The value exists; there are no basal ganglia, so nothing produces it.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "hypotonia",
+  "site": "limb",
+  "definition": {
+   "any": [
+    {
+     "obs": "arm.tone",
+     "path": "tone",
+     "op": "eq",
+     "value": "reduced"
+    },
+    {
+     "obs": "leg.tone",
+     "path": "tone",
+     "op": "eq",
+     "value": "reduced"
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "muscle-wasting",
+  "site": "limb",
+  "definition": {
+   "any": [
+    {
+     "obs": "arm.tone",
+     "path": "wasting",
+     "op": "eq",
+     "value": true
+    },
+    {
+     "obs": "leg.tone",
+     "path": "wasting",
+     "op": "eq",
+     "value": true
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "fasciculation",
+  "site": "limb",
+  "definition": {
+   "any": [
+    {
+     "obs": "arm.tone",
+     "path": "fasciculation",
+     "op": "eq",
+     "value": true
+    },
+    {
+     "obs": "leg.tone",
+     "path": "fasciculation",
+     "op": "eq",
+     "value": true
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "pyramidal-weakness",
+  "site": "limb",
+  "definition": {
+   "fn": "pyramidalPattern"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "myotomal-weakness",
+  "site": "limb",
+  "definition": {
+   "fn": "localiser",
+   "pattern": "root-motor"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "A pattern over several muscles: computed by the neuro localiser, not a simple threshold.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "foot-drop",
+  "site": "limb.lower",
+  "definition": {
+   "obs": "leg.power",
+   "path": "ankleDorsiflexion",
+   "op": "le",
+   "value": 3
+  },
+  "threshold": {
+   "text": "MRC ≤ 3",
+   "status": "assumed"
+  },
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": "inversion weak (L5) / spared (peroneal)",
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "proximal-symmetrical-weakness",
+  "site": "limb",
+  "definition": {
+   "fn": "symmetricalWeakness",
+   "distribution": "proximal"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "ascending-weakness",
+  "site": "limb",
+  "definition": {
+   "fn": "symmetricalWeakness",
+   "distribution": "distal"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "fatigable-weakness",
+  "site": "limb.upper",
+  "definition": {
+   "fn": "ctxDelta",
+   "obs": "arm.power",
+   "path": "shoulderAbduction",
+   "frm": {},
+   "to": {
+    "repetition": 20
+   },
+   "op": "le",
+   "value": -1,
+   "side": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "hyperreflexia",
+  "site": "limb",
+  "definition": {
+   "any": [
+    {
+     "obs": "arm.reflexes",
+     "path": "biceps",
+     "op": "ge",
+     "value": 3
+    },
+    {
+     "obs": "arm.reflexes",
+     "path": "triceps",
+     "op": "ge",
+     "value": 3
+    },
+    {
+     "obs": "arm.reflexes",
+     "path": "supinator",
+     "op": "ge",
+     "value": 3
+    },
+    {
+     "obs": "leg.reflexes",
+     "path": "knee",
+     "op": "ge",
+     "value": 3
+    },
+    {
+     "obs": "leg.reflexes",
+     "path": "ankle",
+     "op": "ge",
+     "value": 3
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "areflexia",
+  "site": "limb",
+  "definition": {
+   "fn": "allReflexesAbsent"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "absent-ankle-reflex",
+  "site": "limb.lower",
+  "definition": {
+   "obs": "leg.reflexes",
+   "path": "ankle",
+   "op": "eq",
+   "value": 0
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "extensor-plantar",
+  "site": "limb.lower",
+  "definition": {
+   "obs": "leg.reflexes",
+   "path": "plantar",
+   "op": "eq",
+   "value": "extensor"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "pronator-drift",
+  "site": "limb.upper",
+  "definition": {
+   "obs": "arm.drift",
+   "path": "drift",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "pseudoathetosis",
+  "site": "limb.upper",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "positive-slr",
+  "site": "limb.lower",
+  "definition": {
+   "obs": "leg.slr",
+   "path": "positive",
+   "op": "eq",
+   "value": true
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "Case layer only.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "dermatomal-sensory-loss",
+  "site": "limb",
+  "definition": {
+   "fn": "localiser",
+   "pattern": "root-sensory"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": "Text only: svg.dermatomes is declared but not wired.",
+  "status": "draft"
+ },
+ {
+  "id": "hemisensory-loss",
+  "site": "limb",
+  "definition": {
+   "fn": "localiser",
+   "pattern": "hemisensory"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "crossed-sensory-loss",
+  "site": "face",
+  "definition": {
+   "fn": "localiser",
+   "pattern": "crossed-sensory"
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "distal-vibration-loss",
+  "site": "limb",
+  "definition": {
+   "any": [
+    {
+     "obs": "arm.vibration",
+     "path": "vibration",
+     "op": "in",
+     "value": [
+      "reduced",
+      "absent"
+     ]
+    },
+    {
+     "obs": "leg.vibration",
+     "path": "vibration",
+     "op": "in",
+     "value": [
+      "reduced",
+      "absent"
+     ]
+    },
+    {
+     "obs": "leg.vibration",
+     "path": "proprioception",
+     "op": "in",
+     "value": [
+      "reduced",
+      "absent"
+     ]
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "stocking-sensory-loss",
+  "site": "limb.lower",
+  "definition": null,
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": "No length-dependent gradient in the sensory model.",
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "sensory-level",
+  "site": "trunk",
+  "definition": {
+   "any": [
+    {
+     "obs": "trunk.pinprick",
+     "path": "T6",
+     "op": "in",
+     "value": [
+      "reduced",
+      "absent"
+     ]
+    },
+    {
+     "obs": "trunk.pinprick",
+     "path": "T10",
+     "op": "in",
+     "value": [
+      "reduced",
+      "absent"
+     ]
+    }
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ },
+ {
+  "id": "saddle-anaesthesia",
+  "site": "perineum",
+  "definition": {
+   "obs": "saddle.sensation",
+   "path": "pinprick",
+   "op": "in",
+   "value": [
+    "reduced",
+    "absent"
+   ]
+  },
+  "threshold": null,
+  "variantOf": null,
+  "normalVariant": false,
+  "qualifiers": null,
+  "note": null,
+  "modelGap": null,
+  "status": "draft"
+ }
+]
