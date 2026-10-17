@@ -38,6 +38,7 @@ export const DIAGNOSES: DiagnosisDef[] = [
   d('musculoskeletal-chest-pain', 'Musculoskeletal chest pain', 'Muskuloskelettaler Thoraxschmerz', ['costochondritis', 'chest wall pain'], ['brustwandschmerz', 'tietze']),
   d('mitral-regurgitation', 'Mitral regurgitation', 'Mitralklappeninsuffizienz', ['mr'], ['mi']),
   d('aortic-regurgitation', 'Aortic regurgitation', 'Aortenklappeninsuffizienz', ['ar', 'aortic incompetence'], ['ai']),
+  d('mitral-stenosis', 'Mitral stenosis', 'Mitralklappenstenose', ['mitral valve stenosis', 'rheumatic mitral stenosis'], ['mitralstenose']),
   // kidney, water, salt and acid–base
   d('acute-kidney-injury', 'Acute kidney injury', 'Akute Nierenschädigung', ['aki', 'acute renal failure', 'arf', 'prerenal failure', 'prerenal aki'], ['ani', 'akutes nierenversagen', 'prärenales nierenversagen']),
   d('hyperkalaemia', 'Hyperkalaemia', 'Hyperkaliämie', ['high potassium', 'hyperkalemia'], ['hohes kalium', 'hyperkalämie']),

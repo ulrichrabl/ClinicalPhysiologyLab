@@ -35,6 +35,7 @@
 {"id": "auscultate-heart-mitral-3", "tests": ["auscultate.heart.mitral"], "signs": ["fourth-heart-sound"], "status": "draft"},
 {"id": "auscultate-heart-apex-bell-left-lateral-1", "tests": ["auscultate.heart.apex-bell-left-lateral"], "signs": ["mid-diastolic-murmur", "opening-snap"], "status": "draft"},
 {"id": "auscultate-heart-apex-bell-left-lateral-2", "tests": ["auscultate.heart.apex-bell-left-lateral"], "signs": ["third-heart-sound", "fourth-heart-sound"], "status": "draft"},
+{"id": "auscultate-heart-apex-bell-left-lateral-3", "tests": ["auscultate.heart.apex-bell-left-lateral"], "signs": ["mid-diastolic-murmur"], "accompanying": ["early-diastolic-murmur"], "status": "draft"},
 {"id": "auscultate-heart-lse-sitting-forward-1", "tests": ["auscultate.heart.lse-sitting-forward"], "signs": ["early-diastolic-murmur"], "status": "draft"},
 {"id": "auscultate-heart-lse-sitting-forward-2", "tests": ["auscultate.heart.lse-sitting-forward"], "signs": ["pericardial-rub"], "status": "draft"},
 {"id": "auscultate-carotid-1", "tests": ["auscultate.carotid"], "signs": ["carotid-bruit"], "status": "draft"},
