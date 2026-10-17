@@ -1201,7 +1201,7 @@ export function mount(root: HTMLElement) {
       layer, tab, chapter: layer === 'physiology' ? chapter : undefined, region, visual: visual?.kind ?? null, card: $('#card').hidden ? null : cardNow,
       simMinutes: minutes(), liveSeconds: live ? Math.round(live.t) : null,
       state: s?.state ?? null, events: s?.encounter.events ?? [], differential: ddx,
-      debrief: debrief ? { correct: debrief.diagnosis.correct, rank: debrief.diagnosis.rank } : null,
+      debrief: debrief ? { correct: debrief.diagnosis.correct, level: debrief.diagnosis.level, rank: debrief.diagnosis.rank } : null,
       model: live?.model ?? null, snapshot: snap, chemistry: live?.chemistry ?? null,
     };
   } });
