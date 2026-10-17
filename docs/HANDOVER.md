@@ -178,7 +178,12 @@ Agreed with the owner: tests and signs are separate, each sign is defined on the
   - GI bleed "tachycardia from the volume lost": pulse 79 (known gap 1);
   - iron-deficiency anaemia "a resting tachycardia": pulse 75;
   - thiazide hyponatraemia "a slightly dry mouth": mucosa moist.
-- **Next, step 4b:** an "observe only" level in which the learner names the signs and is scored for misses and over-calls.
+- **Step 4b, done:** the "observe only" level. On the ward the learner chooses who names the signs: *The app names them* (as before) or *You name them*.
+  - Observe only: after each test the feed offers the signs that test can show, as chips, without saying which are there. The learner picks what they saw; the Notes tab lists what they named and searches every sign.
+  - Each name is a `sign-named` event in the encounter.
+  - The debrief adds *Your documentation*: what was named and there; what was there and not named, with the test that showed it; and what was named but shown by no test the learner did (an over-call). An over-call names the normal finding it was, when there was one: gaze-evoked nystagmus that was end-point nystagmus.
+  - `documentation()` in `engine/debrief.ts`.
+  - **Limitation:** the observation texts still name some signs ("Pale conjunctivae", "end-point nystagmus … physiological"). Observe only is strongest where a view shows the finding: the eyes, face, heart and lung sounds, pulse. Writing the texts as observations rather than diagnoses is a later step.
 - **Then, step 5:** the model gaps the coverage lists. These include:
   - jaundice, pallor and cyanosis missing from the eye close-up;
   - limb ataxia with the eyes closed, which no test elicits;

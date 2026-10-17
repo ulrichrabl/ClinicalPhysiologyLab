@@ -22,6 +22,8 @@ import { observe, type RuntimeView } from './observe.ts';
 --------------------------------------------------------------------------- */
 
 export interface Session {
+  /** The "observe only" level: the app names no signs; the learner does, and the debrief scores it. */
+  observeOnly?: boolean;
   catalog: Catalog;
   registry: Registry;
   caseDef: CaseDef;

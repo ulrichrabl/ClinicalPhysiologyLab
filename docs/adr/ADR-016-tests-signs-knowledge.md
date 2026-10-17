@@ -1,6 +1,6 @@
 # ADR-016 — Tests, signs and a queryable clinical knowledge graph
 
-Status: Accepted; steps 1–3 done (#37, #39, #40); open points decided (#44); step 4a, references and debrief in signs (#47)  
+Status: Accepted; steps 1–3 done (#37, #39, #40); open points decided (#44); step 4a, references and debrief in signs (#47); step 4b, the observe-only level (#48)  
 Date: 2026-10-17  
 Repository: ClinicalPhysiologyLab
 
