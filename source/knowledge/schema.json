@@ -309,7 +309,8 @@
           "enum": [
             "required",
             "supporting",
-            "absent"
+            "absent",
+            "associated"
           ]
         },
         "source": {

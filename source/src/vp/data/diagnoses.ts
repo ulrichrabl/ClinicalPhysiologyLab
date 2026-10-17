@@ -1,10 +1,18 @@
-import type { DiagnosisDef } from '../model/types.ts';
+import type { DiagnosisDef, DiagnosisKind } from '../model/types.ts';
 
 /* Diagnoses a learner can commit to. Synonyms feed the searchable
    differential. Terminology codes (ICD, SNOMED) are mapped by clinicians and
    deliberately left empty here. */
 const d = (id: string, en: string, de: string, enSyn: string[] = [], deSyn: string[] = []): DiagnosisDef =>
   ({ id, label: { en, de }, synonyms: { en: enSyn, de: deSyn } });
+
+/* The committable entries that are not causes (owner decision, ADR-016 open point 2). Committing one counts as the right
+   level, and the debrief asks for the cause. A syndrome or state is the syndrome of the same id in the knowledge tables. */
+const KINDS: Record<string, DiagnosisKind> = {
+  'horner-syndrome': 'syndrome', 'third-nerve-palsy': 'syndrome', 'sixth-nerve-palsy': 'syndrome', 'lateral-medullary-syndrome': 'syndrome',
+  'cauda-equina-syndrome': 'syndrome', sepsis: 'syndrome', thyrotoxicosis: 'state',
+  hyperkalaemia: 'lab-finding', hyponatraemia: 'lab-finding', hypercalcaemia: 'lab-finding',
+};
 
 export const DIAGNOSES: DiagnosisDef[] = [
   // syncope and the heart
@@ -30,6 +38,7 @@ export const DIAGNOSES: DiagnosisDef[] = [
   d('musculoskeletal-chest-pain', 'Musculoskeletal chest pain', 'Muskuloskelettaler Thoraxschmerz', ['costochondritis', 'chest wall pain'], ['brustwandschmerz', 'tietze']),
   d('mitral-regurgitation', 'Mitral regurgitation', 'Mitralklappeninsuffizienz', ['mr'], ['mi']),
   d('aortic-regurgitation', 'Aortic regurgitation', 'Aortenklappeninsuffizienz', ['ar', 'aortic incompetence'], ['ai']),
+  d('mitral-stenosis', 'Mitral stenosis', 'Mitralklappenstenose', ['mitral valve stenosis', 'rheumatic mitral stenosis'], ['mitralstenose']),
   // kidney, water, salt and acid–base
   d('acute-kidney-injury', 'Acute kidney injury', 'Akute Nierenschädigung', ['aki', 'acute renal failure', 'arf', 'prerenal failure', 'prerenal aki'], ['ani', 'akutes nierenversagen', 'prärenales nierenversagen']),
   d('hyperkalaemia', 'Hyperkalaemia', 'Hyperkaliämie', ['high potassium', 'hyperkalemia'], ['hohes kalium', 'hyperkalämie']),
@@ -99,7 +108,7 @@ export const DIAGNOSES: DiagnosisDef[] = [
   d('menieres', "Ménière's disease", 'Morbus Menière', ['menieres', 'meniere'], ['menière', 'meniere']),
   d('vestibular-migraine', 'Vestibular migraine', 'Vestibuläre Migräne', [], []),
   d('cerebellar-stroke', 'Cerebellar stroke', 'Kleinhirninfarkt', ['posterior circulation stroke', 'cerebellar infarct'], ['kleinhirnschlaganfall', 'infarkt hintere strombahn']),
-  d('lateral-medullary-syndrome', 'Lateral medullary syndrome (Wallenberg)', 'Wallenberg-Syndrom', ['wallenberg', 'pica stroke'], ['wallenberg', 'dorsolaterales medulla-oblongata-syndrom']),
+  d('lateral-medullary-syndrome', 'Lateral medullary syndrome (Wallenberg)', 'Wallenberg-Syndrom', ['wallenberg'], ['wallenberg', 'dorsolaterales medulla-oblongata-syndrom']),
   d('vestibular-schwannoma', 'Vestibular schwannoma', 'Vestibularisschwannom', ['acoustic neuroma'], ['akustikusneurinom']),
   d('multiple-sclerosis', 'Multiple sclerosis', 'Multiple Sklerose', ['ms'], ['ms']),
   d('third-nerve-palsy', 'Oculomotor nerve palsy', 'Okulomotoriusparese', ['third nerve palsy', 'cn iii palsy'], ['n.-iii-parese']),
@@ -122,4 +131,14 @@ export const DIAGNOSES: DiagnosisDef[] = [
   d('guillain-barre', 'Guillain–Barré syndrome', 'Guillain-Barré-Syndrom', ['gbs'], ['gbs']),
   d('bells-palsy', "Bell's palsy", 'Idiopathische Fazialisparese', ['facial nerve palsy'], ['fazialisparese', 'bell-parese']),
   d('horner-syndrome', "Horner's syndrome", 'Horner-Syndrom', ['horner'], ['horner']),
-];
+  // causes of those syndromes (ADR-016: a syndrome links to its causes)
+  d('lateral-medullary-infarction', 'Lateral medullary infarction (vertebral or PICA occlusion)', 'Infarkt der dorsolateralen Medulla oblongata (Verschluss der A. vertebralis oder PICA)',
+    ['pica stroke', 'pica infarct', 'vertebral artery occlusion'], ['pica-infarkt', 'vertebralisverschluss']),
+  d('carotid-dissection', 'Carotid artery dissection', 'Dissektion der A. carotis interna', ['carotid dissection', 'ica dissection'], ['karotisdissektion']),
+  d('pancoast-tumour', 'Pancoast tumour (apical lung cancer)', 'Pancoast-Tumor (Lungenspitzenkarzinom)', ['pancoast', 'superior sulcus tumour'], ['pancoast', 'sulcus-superior-tumor']),
+  d('pcom-aneurysm', 'Posterior communicating artery aneurysm', 'Aneurysma der A. communicans posterior', ['pcom aneurysm', 'p-comm aneurysm'], ['pcom-aneurysma']),
+  d('microvascular-cranial-nerve-palsy', 'Microvascular (diabetic) cranial nerve palsy', 'Mikrovaskuläre (diabetische) Hirnnervenparese', ['diabetic third nerve palsy', 'ischaemic cranial neuropathy'], ['diabetische okulomotoriusparese', 'ischämische hirnnervenparese']),
+  d('idiopathic-intracranial-hypertension', 'Idiopathic intracranial hypertension', 'Idiopathische intrakranielle Hypertension', ['iih', 'pseudotumour cerebri', 'benign intracranial hypertension'], ['pseudotumor cerebri', 'iih']),
+  d('central-disc-prolapse', 'Central lumbar disc prolapse', 'Medianer lumbaler Bandscheibenvorfall', ['central disc herniation', 'massive disc prolapse'], ['medianer bandscheibenvorfall']),
+  d('metastatic-spinal-compression', 'Metastatic spinal compression', 'Metastatische spinale Kompression', ['mscc', 'metastatic cord compression'], ['spinale metastasen', 'metastatische rückenmarkkompression']),
+].map((x) => (KINDS[x.id] ? { ...x, kind: KINDS[x.id] } : x));

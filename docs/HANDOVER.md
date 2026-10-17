@@ -172,12 +172,10 @@ Agreed with the owner: tests and signs are separate, each sign is defined on the
   - jaundice, pallor and cyanosis missing from the eye close-up;
   - limb ataxia with the eyes closed, which no test elicits;
   - the resting deviation drawn in the eye close-up but absent from the text;
-  - the septic-shock case at 92/67 lying;
+  - warm septic shock with a narrow pulse pressure (70/45); the case no longer claims a wide one;
   - the visual fields, fundus, dermatomes and gait, which have renderers declared but none drawn.
-- **Waiting for the owner** (ADR-016, "Open points"):
-  - the nine assumed thresholds;
-  - the diagnoses that are really syndromes, states or laboratory findings;
-  - two card texts.
+- **Decided by the owner** (ADR-016, "Open points", #44): the thresholds, the reclassification of syndromes, states and laboratory findings (with a `kind` on each diagnosis and a "right level, name the cause" debrief), the two card texts, and one test for tremor and asterixis.
+- **Deferred until colleagues are involved** (owner, 2026-10-17): the clinical read-through of the card texts (the German especially) and of the ECG measuring wording. Every text row stays `draft` until then. A review page (claude.ai artifact "Card Text Review", private to the owner) lists all 389 items in EN and DE and records marks and notes in its own store; refresh its data before the review starts.
 - **Statistics** (sensitivity, specificity, likelihood ratios) go into a separate Evidence domain, linked from the sign cards. It gets its own ADR.
 - The review drafts in `docs/adr/adr-016/` and `ADR-016-inventory.md` are superseded by `source/knowledge/` and `docs/knowledge-coverage.md`, and are kept as the record of the review.
 

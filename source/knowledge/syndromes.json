@@ -1,15 +1,15 @@
 [
-{"id": "horner-syndrome", "note": "Mild ptosis (Müller’s muscle) with the small pupil on the same side; anhidrosis is not modelled.", "status": "draft"},
-{"id": "third-nerve-palsy", "note": "Complete ptosis; pupil involvement points to compression (aneurysm).", "status": "draft"},
-{"id": "sixth-nerve-palsy", "status": "draft"},
+{"id": "horner-syndrome", "note": "Mild ptosis (Müller’s muscle) with the small pupil on the same side; anhidrosis is not modelled. Causes: carotid dissection, Pancoast tumour, lateral medullary infarction.", "status": "draft"},
+{"id": "third-nerve-palsy", "note": "Complete ptosis; pupil involvement points to compression (aneurysm). Causes: a posterior communicating aneurysm (pupil involved), microvascular (pupil spared).", "status": "draft"},
+{"id": "sixth-nerve-palsy", "status": "draft", "note": "Causes: microvascular, raised intracranial pressure (a false localising sign), multiple sclerosis."},
 {"id": "cerebellar-syndrome", "note": "Signs on the side of the lesion.", "status": "draft"},
 {"id": "peripheral-vestibular-pattern", "status": "draft"},
 {"id": "central-vestibular-pattern", "note": "Any one of a normal head impulse, direction-changing nystagmus or skew in acute continuous vertigo.", "status": "draft"},
 {"id": "umn-syndrome", "note": "Acute lesions may be flaccid for days.", "status": "draft"},
 {"id": "lmn-syndrome", "status": "draft"},
-{"id": "lateral-medullary-syndrome", "note": "Today a diagnosis id; here a syndrome whose cause is vertebral or PICA occlusion.", "status": "draft"},
+{"id": "lateral-medullary-syndrome", "note": "Its cause is a lateral medullary infarction (vertebral or PICA occlusion).", "status": "draft"},
 {"id": "dorsal-column-syndrome", "status": "draft"},
-{"id": "cauda-equina-syndrome", "note": "Today a diagnosis id.", "status": "draft"},
+{"id": "cauda-equina-syndrome", "note": "Causes: a central lumbar disc prolapse, metastatic compression.", "status": "draft"},
 {"id": "conductive-hearing-loss", "note": "Weber to the deaf ear.", "status": "draft"},
 {"id": "sensorineural-hearing-loss", "note": "Weber to the better ear.", "status": "draft"},
 {"id": "consolidation", "status": "draft"},
@@ -21,7 +21,8 @@
 {"id": "fluid-overload", "status": "draft"},
 {"id": "chronic-liver-disease", "status": "draft"},
 {"id": "portal-hypertension", "status": "draft"},
-{"id": "thyrotoxicosis-signs", "note": "Thyrotoxicosis is a state; Graves’ disease adds exophthalmos and a diffuse goitre with a bruit.", "status": "draft"},
+{"id": "thyrotoxicosis", "note": "A state, not a diagnosis: Graves’ disease, toxic multinodular goitre and thyroiditis are its causes, thyroid storm its extreme. Graves’ disease adds exophthalmos and a diffuse goitre with a bruit.", "status": "draft"},
 {"id": "peritonitis-signs", "status": "draft"},
-{"id": "neuromuscular-fatigability", "note": "The hallmark of junction disease.", "status": "draft"}
+{"id": "neuromuscular-fatigability", "note": "The hallmark of junction disease.", "status": "draft"},
+{"id": "sepsis", "note": "Sepsis-3: organ dysfunction from a dysregulated response to infection. At the bedside, qSOFA counts rate ≥ 22, altered mentation and systolic ≤ 100; two or more flag it. Fever, a low temperature and a fast pulse are associated but do not make it.", "status": "draft", "refs": ["singer2016"]}
 ]

@@ -83,7 +83,7 @@ const UI: Record<string, Record<Lang, string>> = {
   signsSoFar: { en: 'Signs found so far', de: 'Bisher erhobene Befunde' }, noSignsYet: { en: 'No signs named yet.', de: 'Noch keine Befunde benannt.' },
   signsInModel: { en: 'Signs this patient shows (from the model)', de: 'Befunde dieses Patienten (aus dem Modell)' },
   signsInModelHint: { en: 'Everything the simulation produces, whether or not it has been examined.', de: 'Alles, was die Simulation erzeugt, ob untersucht oder nicht.' },
-  roleRequired: { en: 'required', de: 'obligat' }, roleAbsent: { en: 'absent', de: 'fehlt' },
+  roleRequired: { en: 'required', de: 'obligat' }, roleAbsent: { en: 'absent', de: 'fehlt' }, roleAssociated: { en: 'associated, not counted', de: 'begleitend, nicht gezählt' },
   doIt: { en: 'Do it now', de: 'Jetzt durchführen' }, close: { en: 'Close', de: 'Schließen' },
   spoilerHidden: { en: 'The conditions it points to are shown after you commit to a diagnosis.', de: 'Die Krankheitsbilder dazu werden gezeigt, sobald Sie sich auf eine Diagnose festgelegt haben.' },
   left: { en: 'Left', de: 'Links' }, right: { en: 'Right', de: 'Rechts' }, which: { en: 'Which side?', de: 'Welche Seite?' },
@@ -97,7 +97,11 @@ const UI: Record<string, Record<Lang, string>> = {
   submit: { en: 'Commit', de: 'Festlegen' }, cancel: { en: 'Back to the patient', de: 'Zurück zum Patienten' },
   certain: { en: 'certain', de: 'sicher' }, likely: { en: 'likely', de: 'wahrscheinlich' }, possible: { en: 'possible', de: 'möglich' },
   debrief: { en: 'Debrief', de: 'Nachbesprechung' }, correct: { en: 'Working diagnosis correct', de: 'Arbeitsdiagnose richtig' },
-  incorrect: { en: 'Working diagnosis not correct', de: 'Arbeitsdiagnose nicht richtig' }, diagnosisWas: { en: 'Diagnosis', de: 'Diagnose' },
+  incorrect: { en: 'Working diagnosis not correct', de: 'Arbeitsdiagnose nicht richtig' },
+  partly: { en: 'Right level, but not yet the cause', de: 'Richtige Ebene, aber noch nicht die Ursache' },
+  levelSyndrome: { en: 'You named the syndrome. What is causing it?', de: 'Sie haben das Syndrom benannt. Was ist die Ursache?' },
+  levelState: { en: 'You named the state. What is causing it?', de: 'Sie haben den Zustand benannt. Was ist die Ursache?' },
+  levelLab: { en: 'You named the laboratory finding. What is causing it?', de: 'Sie haben den Laborbefund benannt. Was ist die Ursache?' }, diagnosisWas: { en: 'Diagnosis', de: 'Diagnose' },
   expert: { en: 'Expert assessment', de: 'Einschätzung der Expertin' }, evidence: { en: 'The evidence that decides this case', de: 'Die entscheidenden Befunde' },
   elicited: { en: 'found', de: 'erhoben' }, missed: { en: 'not elicited', de: 'nicht erhoben' }, redFlags: { en: 'Red flags', de: 'Warnzeichen' },
   covered: { en: 'asked', de: 'erfragt' }, uncovered: { en: 'not asked', de: 'nicht erfragt' }, hazards: { en: 'Safety', de: 'Sicherheit' }, noHazards: { en: 'Nothing unsafe was done.', de: 'Nichts Unsicheres getan.' },
@@ -991,7 +995,7 @@ export function mount(root: HTMLElement) {
     if (!c) return '';
     const spoilers = free || committed;
     const other = (['en', 'de'] as const).filter((l) => l !== lang).map((l) => labelOf(KNOWLEDGE, `sign:${id}`, l)).filter((x) => x !== signLabel(id));
-    const roleWord = (r: string) => (r === 'required' ? ` (${t('roleRequired')})` : r === 'absent' ? ` (${t('roleAbsent')})` : '');
+    const roleWord = (r: string) => (r === 'required' ? ` (${t('roleRequired')})` : r === 'absent' ? ` (${t('roleAbsent')})` : r === 'associated' ? ` (${t('roleAssociated')})` : '');
     return `${cardHead(t('aboutSign'), signLabel(id), other.length ? `<p class="muted">${esc(t('alsoCalled'))}: ${other.map(esc).join(' · ')}</p>` : '')}
       <section><p class="muted">${esc(t(c.normalVariant ? 'normalVariantNote' : c.represented ? 'simulated' : 'notSimulated'))}</p></section>
       ${c.parents.length ? `<section><h3>${esc(t('variantOf'))}</h3>${signChips(c.parents)}</section>` : ''}
@@ -1145,8 +1149,10 @@ export function mount(root: HTMLElement) {
     $('#debrief').innerHTML = `
       <header class="db-head"><div><div class="eyebrow">${t('debrief')} · ${esc(c.patient.name)}</div><h1>${esc(tr(c.title, lang))}</h1></div>
         <div class="focus-tools"><button type="button" class="primary" id="db-explore">${t('explore')}</button><button type="button" class="ghost" id="db-back">${t('again')}</button></div></header>
-      <section class="verdict ${d.diagnosis.correct ? 'ok' : 'no'}">
-        <b>${d.diagnosis.correct ? t('correct') : t('incorrect')}.</b> ${t('diagnosisWas')}: ${dxName(d.diagnosis.primary)}.
+      <section class="verdict ${d.diagnosis.correct ? 'ok' : d.diagnosis.level ? 'partly' : 'no'}">
+        <b>${d.diagnosis.correct ? t('correct') : d.diagnosis.level ? t('partly') : t('incorrect')}.</b>
+        ${d.diagnosis.level ? esc(t(d.diagnosis.level === 'syndrome' ? 'levelSyndrome' : d.diagnosis.level === 'state' ? 'levelState' : 'levelLab')) : ''}
+        ${t('diagnosisWas')}: ${dxName(d.diagnosis.primary)}.
         ${d.diagnosis.rank && d.diagnosis.rank > 1 ? (lang === 'de' ? `Bei Ihnen auf Platz ${d.diagnosis.rank}.` : `You ranked it ${d.diagnosis.rank}.`) : ''}
         <div class="db-time">${t('time')}: ${d.minutes} ${t('min')} · ${t('budget')} ${d.budgetMinutes} ${t('min')}</div>
       </section>

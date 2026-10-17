@@ -145,7 +145,7 @@ export function signsForCondition(k: Knowledge, conditionId: string): Reached[] 
 }
 
 /** The members of a syndrome, by role. */
-export function syndromeSigns(k: Knowledge, syndromeId: string): Array<{ sign: string; role: 'required' | 'supporting' | 'absent' }> {
+export function syndromeSigns(k: Knowledge, syndromeId: string): Array<{ sign: string; role: 'required' | 'supporting' | 'absent' | 'associated' }> {
   return into(k, `syndrome:${syndromeId}`, 'part-of').map((r) => ({ sign: idOf(r.from), role: r.role ?? 'supporting' }));
 }
 

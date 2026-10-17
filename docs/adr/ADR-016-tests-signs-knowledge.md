@@ -1,6 +1,6 @@
 # ADR-016 — Tests, signs and a queryable clinical knowledge graph
 
-Status: Accepted; steps 1–3 done (#37, #39, #40)  
+Status: Accepted; steps 1–3 done (#37, #39, #40); open points decided (#44)  
 Date: 2026-10-17  
 Repository: ClinicalPhysiologyLab
 
@@ -213,15 +213,15 @@ Moving them changes what a learner commits to at the end of a case, so it needs 
 5. **Model gaps,** in later runs, worked from the coverage report.
 6. **Backend and editing interface,** when the tables have settled.
 
-## Open points for the owner
+## Open points for the owner (decided 2026-10-17)
 
-1. **Assumed thresholds:** the nine `assumed` thresholds, for grounding or confirmation.
-2. **Reclassification:** the diagnoses that are syndromes, states or laboratory findings (appendix).
-3. **Renames:** the fourteen proposed test names in EN and DE.
-4. **Card fixes:**
-   - The apex-with-the-bell card links a mid-diastolic rumble with an opening snap to aortic regurgitation. An opening snap belongs to mitral stenosis, which has no diagnosis id.
-   - The hypothermia card uses < 36 °C "in an unwell patient", which is a sepsis criterion rather than hypothermia.
-5. **Grouping:** whether the merged chest-wall, hand and skin inspection tests should stay separate. Asterixis and postural tremor share the same manoeuvre.
+1. **Assumed thresholds:** raised JVP > 3 cm (standard); ptosis ≥ 1 mm, graded (standard); anisocoria grounded in Lam 1987 and fatigable ptosis in the ice-test criterion (Golnik 1999) (derived); wide pulse pressure and foot drop standard; "refractory hypoxaemia" renamed *hypoxaemia despite oxygen*, anchored to the BTS target; abduction deficit described as the examiner sees it (still assumed).
+2. **Reclassification:** accepted. Diagnoses carry a `kind`: Horner's, third and sixth nerve palsy, lateral medullary and cauda equina syndrome, and sepsis are syndromes; thyrotoxicosis is a state; hyperkalaemia, hyponatraemia and hypercalcaemia are laboratory findings. Each syndrome or state is the knowledge syndrome of the same id and suggests its causes; sepsis is flagged by qSOFA, with fever and the rest as `associated` members. Committing one is scored as the right level, with a prompt for the cause.
+3. **Renames:** accepted as proposed.
+4. **Card fixes:** the opening snap now points to mitral stenosis (new condition) and the Austin Flint rumble, without a snap, to aortic regurgitation; hypothermia is below 35 °C, with below 36 °C named as the SIRS criterion.
+5. **Grouping:** asterixis and postural tremor are one test, *Arms outstretched, fingers spread, then wrists bent back*; the merged skin, hand and chest-wall inspection stays merged.
+
+Also decided: the septic-shock case is set at infection 0.92, where the untreated patient meets Sepsis-3 (lying 70/45, lactate 2.6); the GI-bleed case stays as it is (about 600 mL lost: normal lying vitals, pulse 79 → 108 and 115/80 → 84/70 on standing, consistent with McGee 1999 for a moderate loss).
 
 ## Consequences
 

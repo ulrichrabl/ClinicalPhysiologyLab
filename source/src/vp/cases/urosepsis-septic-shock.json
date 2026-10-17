@@ -24,7 +24,7 @@
       "Clinical Physiology Lab"
     ],
     "reviewers": [],
-    "updated": "2026-10-12",
+    "updated": "2026-10-17",
     "sources": [
       "Singer M et al. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3). JAMA 2016;315:801–10.",
       "Evans L et al. Surviving Sepsis Campaign: international guidelines for management of sepsis and septic shock 2021. Crit Care Med 2021;49:e1063–143.",
@@ -73,7 +73,7 @@
       }
     },
     "body": {
-      "infection": 0.88,
+      "infection": 0.92,
       "urinarySource": 1,
       "foodIntake": 0.3,
       "fluidIntake": 0.8,
@@ -422,8 +422,8 @@
     ],
     "timeBudgetMinutes": 15,
     "summary": {
-      "en": "A 74-year-old with type 2 diabetes on metformin and ramipril, three days of dysuria and frequency, then rigors, right loin pain and acute confusion. Febrile, tachycardic, tachypnoeic, hypotensive with a wide pulse pressure and flushed warm skin. Urine: leukocytes and nitrite. Lactate raised with a metabolic acidosis, neutrophilia, falling platelets, high CRP, acute kidney injury. Urosepsis with septic shock: cultures, early antibiotics, fluid, vasopressor for a mean pressure below 65, stop metformin and ramipril, image the renal tract for obstruction.",
-      "de": "Eine 74-Jährige mit Typ-2-Diabetes unter Metformin und Ramipril, drei Tage Dysurie und Pollakisurie, dann Schüttelfrost, Flankenschmerz rechts und akute Verwirrtheit. Fieber, tachykard, tachypnoeisch, hypoton mit großer Amplitude und warmer, geröteter Haut. Urin: Leukozyten und Nitrit. Laktat erhöht mit metabolischer Azidose, Neutrophilie, fallende Thrombozyten, hohes CRP, akute Nierenschädigung. Urosepsis mit septischem Schock: Kulturen, frühe Antibiose, Volumen, Vasopressor bei Mitteldruck unter 65, Metformin und Ramipril absetzen, Harntrakt auf Abflussbehinderung untersuchen."
+      "en": "A 74-year-old with type 2 diabetes on metformin and ramipril, three days of dysuria and frequency, then rigors, right loin pain and acute confusion. Febrile, tachycardic, tachypnoeic, hypotensive with flushed warm skin. Urine: leukocytes and nitrite. Lactate raised with a metabolic acidosis, neutrophilia, falling platelets, high CRP, acute kidney injury. Urosepsis with septic shock: cultures, early antibiotics, fluid, vasopressor for a mean pressure below 65, stop metformin and ramipril, image the renal tract for obstruction.",
+      "de": "Eine 74-Jährige mit Typ-2-Diabetes unter Metformin und Ramipril, drei Tage Dysurie und Pollakisurie, dann Schüttelfrost, Flankenschmerz rechts und akute Verwirrtheit. Fieber, tachykard, tachypnoeisch, hypoton mit warmer, geröteter Haut. Urin: Leukozyten und Nitrit. Laktat erhöht mit metabolischer Azidose, Neutrophilie, fallende Thrombozyten, hohes CRP, akute Nierenschädigung. Urosepsis mit septischem Schock: Kulturen, frühe Antibiose, Volumen, Vasopressor bei Mitteldruck unter 65, Metformin und Ramipril absetzen, Harntrakt auf Abflussbehinderung untersuchen."
     }
   },
   "diagnosis": {

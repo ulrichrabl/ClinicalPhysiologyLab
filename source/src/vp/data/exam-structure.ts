@@ -32,7 +32,7 @@ export const EXAM_SYSTEMS: ExamSystemDef[] = [
       { id: 'general.inspection', label: { en: 'Inspection', de: 'Inspektion' }, kind: 'examine',
         manoeuvres: ['inspect.general', 'inspect.skin', 'inspect.pigmentation', 'inspect.mouth', 'smell.breath', 'test.turgor'] },
       { id: 'general.hands', label: { en: 'Hands', de: 'Hände' }, kind: 'examine',
-        manoeuvres: ['measure.crt', 'test.tremor', 'test.asterixis'] },
+        manoeuvres: ['measure.crt', 'test.arms-outstretched'] },
       { id: 'general.eyes-neck', label: { en: 'Eyes and neck', de: 'Augen und Hals' }, kind: 'examine',
         manoeuvres: ['inspect.sclera', 'inspect.conjunctiva', 'inspect.thyroid-eyes', 'palpate.thyroid'] },
     ],
