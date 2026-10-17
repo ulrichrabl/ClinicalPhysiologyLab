@@ -19,7 +19,9 @@
     "verify": "npm run typecheck && npm test && node scripts/smoke.mjs && npm run build",
     "build": "node scripts/build.mjs",
     "build:vp-pages": "node scripts/build-vp-demo.mjs",
-    "figure": "sh studio/figure/run.sh"
+    "figure": "sh studio/figure/run.sh",
+    "knowledge:observables": "node scripts/export-observables.mjs",
+    "knowledge:report": "node scripts/knowledge-report.mjs"
   },
   "keywords": [],
   "author": "",

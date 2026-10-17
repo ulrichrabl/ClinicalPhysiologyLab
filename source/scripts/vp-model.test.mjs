@@ -1250,5 +1250,88 @@ console.log('\nTeaching cards against the cases');
   ok('no listed exception shows its sign now (remove it from the list)', nowShown.length === 0, J(nowShown));
 }
 
+console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)');
+{
+  const { KNOWLEDGE, KNOWLEDGE_TABLES, validateKnowledge, explore, signsForCondition, testsForSign, syndromeSigns, labelOf, conditionAncestors,
+    signsOf, syndromePresent, coverage, coverageSummary, exportObservables } = vp;
+  const { readFileSync } = await import('node:fs');
+  const kctx = { catalog: CATALOG, references: REFERENCES, cases: CASES.map((c) => c.id) };
+  const issues = validateKnowledge(KNOWLEDGE_TABLES, kctx);
+  ok('the knowledge tables fit the schema and every link, definition and text checks out', issues.length === 0, J(issues.slice(0, 5)));
+  ok('observables.json is current (run node scripts/export-observables.mjs)', readFileSync('knowledge/observables.json', 'utf8') === exportObservables(CATALOG));
+
+  /* The validator catches what an editor might get wrong. */
+  const broken = (mutate) => { const t = clone(KNOWLEDGE_TABLES); mutate(t); return validateKnowledge(t, kctx).map((i) => i.message).join(' | '); };
+  ok('validator: an unknown field of an observable', /has no field ptosisCm/.test(broken((t) => { t.signs.find((s) => s.id === 'ptosis').definition.path = 'ptosisCm'; })));
+  ok('validator: a code that is not in the value set', /"orange" is not a valid coded value/.test(broken((t) => { t.signs.find((s) => s.id === 'jaundice').definition.any[1].value = 'orange'; })));
+  ok('validator: a link to a condition that does not exist', /condition:no-such-disease does not exist/.test(broken((t) => { t.relations.push({ from: 'sign:ptosis', rel: 'suggests', to: 'condition:no-such-disease', status: 'draft' }); })));
+  ok('validator: a relation between the wrong kinds of thing', /part-of links sign to syndrome/.test(broken((t) => { t.relations.push({ from: 'sign:ptosis', rel: 'part-of', to: 'sign:anisocoria', role: 'supporting', status: 'draft' }); })));
+  ok('validator: a sign without its German label', /sign:ptosis has no label in de/.test(broken((t) => { t.texts = t.texts.filter((x) => !(x.entity === 'sign:ptosis' && x.locale === 'de')); })));
+  ok('validator: a field the schema does not know', /unknown field colour/.test(broken((t) => { t.signs[0].colour = 'red'; })));
+  ok('validator: a context the observable does not vary with', /context eyesClosed does not change this observable/.test(broken((t) => { t.signs.find((s) => s.id === 'ptosis').definition.ctx = { eyesClosed: true }; })));
+
+  /* Queries: from a sign to what it means, from a condition back to its signs. */
+  const e = explore(KNOWLEDGE, 'ptosis');
+  ok("ptosis → Horner's syndrome, third nerve palsy and (through fatigable ptosis) myasthenia gravis",
+    ['horner-syndrome', 'third-nerve-palsy', 'neuromuscular-fatigability'].every((x) => e.syndromes.some((s) => s.id === x))
+    && e.conditions.some((c) => c.ref === 'condition:myasthenia-gravis' && c.via.includes('sign:fatigable-ptosis'))
+    && e.conditions.some((c) => c.ref === 'condition:lung-cancer'), J(e.conditions.map((c) => c.ref)));
+  ok('fatigable ptosis is a variant of ptosis', explore(KNOWLEDGE, 'fatigable-ptosis').parents[0] === 'ptosis');
+  ok('myasthenia gravis ← fatigable ptosis, fatigable dysarthria, fatigable weakness',
+    ['fatigable-ptosis', 'fatigable-dysarthria', 'fatigable-weakness'].every((x) => signsForCondition(KNOWLEDGE, 'myasthenia-gravis').some((r) => r.ref === `sign:${x}`)));
+  ok('a peptic ulcer bleed is an upper GI bleed, so signs of an upper GI bleed reach it',
+    conditionAncestors(KNOWLEDGE, 'peptic-ulcer-bleed').includes('upper-gi-bleed') && signsForCondition(KNOWLEDGE, 'upper-gi-bleed').some((r) => r.ref === 'sign:melaena'));
+  ok('the tests that elicit a sign are derived: fatigable ptosis by sustained upgaze, tachycardia by the pulse',
+    testsForSign(KNOWLEDGE, CATALOG, 'fatigable-ptosis').includes('test.sustained-upgaze') && testsForSign(KNOWLEDGE, CATALOG, 'tachycardia').includes('measure.hr'));
+  ok("the central vestibular pattern lists a normal head impulse as a pertinent negative", syndromeSigns(KNOWLEDGE, 'central-vestibular-pattern').some((m) => m.sign === 'head-impulse-positive' && m.role === 'absent'));
+  ok('labels in English and German', labelOf(KNOWLEDGE, 'sign:extensor-plantar', 'de') === 'Positives Babinski-Zeichen' && labelOf(KNOWLEDGE, 'syndrome:horner-syndrome', 'en') === "Horner's syndrome");
+
+  /* Every case, read for every sign. */
+  const per = {};
+  for (const c of CASES) {
+    const m = modelFromCase(c); const snap = settleModel(m, 16).snapshot;
+    const v = buildView(c, { circulation: snap, chemistry: chemistryState(snap, m.chemistry), state: { ...c.initialState, exposure: ['chest', 'arm', 'neck', 'abdomen', 'legs'] } });
+    per[c.id] = signsOf(KNOWLEDGE, CATALOG, (ref, ctx) => obs(c, v, ref, ctx));
+  }
+  const has = (cid, ...ids) => ids.every((x) => per[cid][x] === true);
+  const lacks = (cid, ...ids) => ids.every((x) => per[cid][x] === false);
+  ok('cirrhosis: jaundice, shifting dullness, asterixis, spider naevi', has('decompensated-cirrhosis', 'jaundice', 'shifting-dullness', 'asterixis', 'spider-naevi'));
+  ok('left MCA stroke: upper motor neuron signs, forehead-sparing facial weakness, expressive aphasia',
+    has('acute-stroke-left-mca', 'extensor-plantar', 'hyperreflexia', 'pyramidal-weakness', 'pronator-drift', 'umn-facial-weakness', 'expressive-aphasia') && lacks('acute-stroke-left-mca', 'lmn-facial-weakness'));
+  ok('vestibular neuritis: peripheral pattern; no direction-changing nystagmus, no skew',
+    has('vestibular-neuritis-left', 'unidirectional-nystagmus', 'head-impulse-positive') && lacks('vestibular-neuritis-left', 'gaze-evoked-nystagmus', 'skew-deviation')
+    && syndromePresent(KNOWLEDGE, 'peripheral-vestibular-pattern', per['vestibular-neuritis-left']) && !syndromePresent(KNOWLEDGE, 'central-vestibular-pattern', per['vestibular-neuritis-left']));
+  ok('healthy eyes: end-point nystagmus is named as the normal variant, not as gaze-evoked nystagmus',
+    has('iron-deficiency-anaemia-caecal', 'endpoint-nystagmus', 'conjunctival-pallor') && lacks('iron-deficiency-anaemia-caecal', 'gaze-evoked-nystagmus'));
+  ok('L5 radiculopathy: foot drop, a myotomal and a dermatomal pattern, positive straight leg raise', has('foot-drop-right-l5', 'foot-drop', 'myotomal-weakness', 'dermatomal-sensory-loss', 'positive-slr'));
+  ok('resting vital signs are read lying, not from the standing half of the lying-and-standing test', lacks('upper-gi-bleed-peptic-ulcer', 'hypotension') && has('upper-gi-bleed-peptic-ulcer', 'orthostatic-hypotension'));
+
+  const rows = coverage(KNOWLEDGE, CATALOG, per);
+  for (const l of coverageSummary(rows)) console.log(`  · ${l}`);
+  const untested = rows.filter((r) => r.representation !== 'not represented' && !r.tests.length);
+  ok('every defined sign is elicited by a test, or its model gap says why not', untested.every((r) => r.modelGap), J(untested.filter((r) => !r.modelGap).map((r) => r.id)));
+
+  /* Signs against the cases: every link from a sign or syndrome to a condition that has a case (or a narrower one
+     that does) must show in that case, or carry an exception with its reason. Replaces the card check in step 2. */
+  let shown = 0, undecided = 0, notRepresented = 0;
+  const missing = [], stale = [], listed = [];
+  for (const r of KNOWLEDGE.relations.filter((x) => x.rel === 'suggests')) {
+    const cond = r.to.slice('condition:'.length), [kind, id] = r.from.split(':');
+    for (const c of CASES.filter((x) => conditionAncestors(KNOWLEDGE, x.diagnosis.primary).includes(cond))) {
+      if (kind === 'sign' && !KNOWLEDGE.signs[id].definition) { notRepresented++; continue; }
+      const present = kind === 'sign' ? per[c.id][id] : syndromePresent(KNOWLEDGE, id, per[c.id]);
+      const ex = (r.exceptions ?? []).find((x) => x.case === c.id);
+      if (present === undefined) undecided++;
+      else if (present) { shown++; if (ex) stale.push(`${r.from} → ${cond} in ${c.id}`); }
+      else if (ex) listed.push(`${r.from} → ${cond} in ${c.id} (${ex.kind}): ${ex.why}`);
+      else missing.push(`${r.from} → ${cond} in ${c.id}`);
+    }
+  }
+  console.log(`  · ${shown} sign links shown by their case, ${listed.length} listed exceptions, ${notRepresented} to signs not represented yet, ${undecided} not decidable by observation`);
+  for (const l of listed) console.log(`    – ${l}`);
+  ok('every sign link to a condition with a case shows in that case, or is a listed exception', missing.length === 0, J(missing));
+  ok('no listed exception shows its sign now (remove the exception)', stale.length === 0, J(stale));
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps\n`);
 process.exit(fail ? 1 : 0);
