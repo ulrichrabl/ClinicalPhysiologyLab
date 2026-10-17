@@ -933,6 +933,29 @@ console.log('\nThe internal milieu: water, salt, potassium, acid–base, the kid
   ok('validator: body parameters must exist and be in range; plasma values the body produces cannot be clamped', /chemistry\.potassium/.test(bi) && /chemistry\.crp/.test(bi) && !/chemistry\.troponin/.test(bi) && /unknown body parameter flux/.test(bi) && /nephronMass: expected/.test(bi), bi);
 }
 
+console.log('\nProblem reports');
+{
+  const { buildReport, issueUrl, stepsOf, reportFileName, REPORT_SCHEMA } = vp;
+  const C = caseById('upper-gi-bleed-peptic-ulcer');
+  const s = startEncounter(CATALOG, REGISTRY, C, buildView(C));
+  ask(s, 'When did the black stool start?');
+  perform(s, 'measure.hr'); perform(s, 'palpate.pulse.radial', 'R');
+  const app = { screen: 'encounter', caseId: C.id, caseVersion: C.version, free: false, lang: 'en', layer: 'bedside', simMinutes: Math.round(s.t / 60000), events: s.encounter.events };
+  const env = { build: { commit: 'abcdef1234567', builtAt: '2026-10-17T00:00:00Z' }, url: 'file://lab.html', userAgent: 'test', viewport: { width: 1280, height: 860, dpr: 1 }, theme: 'light' };
+  const r = buildReport({ comment: 'The pulse is too slow for this bleed.\nShould be above 100.', category: 'physiology', target: null, app, env, errors: [], now: new Date('2026-10-17T12:00:00Z') });
+  ok('a report carries its schema, the comment, the case and the steps; its file name says which case',
+    r.schema === REPORT_SCHEMA && r.comment.startsWith('The pulse') && reportFileName(r).startsWith('report-20261017-120000-upper-gi-bleed-peptic-ulcer-'), reportFileName(r));
+  const steps = stepsOf(app);
+  ok('the steps read as the learner took them: the question, then the tests', steps.length === 3 && /ask: When did/.test(steps[0]) && /test: palpate\.pulse\.radial \(R\)/.test(steps[2]), J(steps));
+  const u = new URL(issueUrl(r)), body = u.searchParams.get('body');
+  ok('the GitHub issue is pre-filled: title from the first line, case, build, the file to attach, the steps',
+    u.pathname.endsWith('/issues/new') && /^\[report\] Physiology model behaves wrongly: The pulse is too slow/.test(u.searchParams.get('title'))
+    && body.includes('upper-gi-bleed-peptic-ulcer') && body.includes('abcdef1') && body.includes(reportFileName(r)) && body.includes('test: measure.hr'), body);
+  const long = { ...app, events: Array.from({ length: 600 }, (_, i) => ({ t: i * 1000, kind: 'action', manoeuvre: 'measure.bp', outcome: 'performed' })) };
+  const L = issueUrl(buildReport({ comment: 'x', category: 'bug', target: null, app: long, env, errors: [] }));
+  ok('a long encounter is shortened so the issue link stays within what GitHub accepts (the full steps are in the file)', L.length < 9000, `${L.length} characters`);
+}
+
 console.log('\nInfection, inflammation and sepsis');
 {
   const B = (mut) => { const m = healthyModel(); mut?.(m); const snap = settleModel(m, 16).snapshot; return { snap, b: snap.body, ch: chemistryState(snap, m.chemistry) }; };

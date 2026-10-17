@@ -183,6 +183,25 @@ Agreed with the owner: tests and signs are separate, each sign is defined on the
 
 Animations (below) should hang on signs: the card of a test and the sign it shows.
 
+## Problem reports
+
+Anyone using the app can press **Report** (bottom right), point at what is wrong, say what it should be, and get one JSON file (`src/vp/app/report.ts`).
+
+- **The file holds:**
+  - the comment and its kind;
+  - what was pointed at: CSS path, text, trimmed HTML, the data attributes it sits in, the nearest heading or caption;
+  - PNGs of the canvases in that panel, and the figure SVG when the figure was pointed at;
+  - the app state: case and version, screen, layer, tab, visual, the encounter's events, the differential, the model and its current values (without the last beat's waveform);
+  - recent script errors;
+  - the build: the commit is stamped by `scripts/build-vp-demo.mjs` from `GITHUB_SHA`.
+  - It leaves out the learner's own notes.
+- **Where reports go today:** the file is downloaded. **Open GitHub issue** also opens a pre-filled issue, labelled `report`, with the comment, the place, the case, the build and the steps; the reporter attaches the file. That needs a GitHub account.
+- **Working on a report:** `node scripts/replay-report.mjs report-….json` (from `source/`). It prints the report, rebuilds the patient from its model, replays the steps and compares every finding with what the reporter saw. Vital signs may differ by a beat, because the app runs the circulation live.
+- **Not done yet:**
+  - **Sending without a GitHub account.** This needs a relay holding a key that may only create issues: for example a Cloudflare Worker, plus an access code for testers. The owner has to create the account and the key.
+  - A queue for reports made offline.
+- **Seen while testing it:** "check the pulse" and "arms outstretched" are not understood by the command line.
+
 ## Next topic: animations
 
 ### What animates today

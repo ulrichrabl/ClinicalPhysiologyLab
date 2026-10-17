@@ -8,6 +8,7 @@
    model advance in real time in the browser, so nothing is precomputed. */
 import * as esbuild from '../node_modules/esbuild/lib/main.js';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 
 mkdirSync('dist', { recursive: true });
 
@@ -19,7 +20,11 @@ async function bundle(entry) {
   return out.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 }
 
-const js = await bundle('src/vp/app/app.ts');
+/* Which build a problem report came from (report.ts): the commit, and when it was built. */
+let commit = process.env.GITHUB_SHA ?? null;
+if (!commit) try { commit = execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { commit = null; }
+const build = { commit, builtAt: new Date().toISOString() };
+const js = `globalThis.__VP_BUILD__=${JSON.stringify(build)};` + await bundle('src/vp/app/app.ts');
 const html = readFileSync('src/vp/app/app.html', 'utf8').replace('/*BUNDLE*/', () => js);
 writeFileSync('dist/encounter.html', html);
 /* The same page as a standalone document (GitHub Pages, or opened from disk): standards mode, UTF-8, mobile viewport. */
