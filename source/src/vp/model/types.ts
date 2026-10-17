@@ -352,9 +352,15 @@ export interface InvestigationDef {
 
 /* ---- 4. Case --------------------------------------------------------------- */
 
+/** What a committable diagnosis is (ADR-016): a condition (a cause), or a syndrome, state or laboratory finding whose cause
+    is still to be named. A syndrome or state is the syndrome of the same id in the knowledge tables. */
+export type DiagnosisKind = 'condition' | 'syndrome' | 'state' | 'lab-finding';
+
 export interface DiagnosisDef {
   id: string;
   label: LocalizedText;
+  /** Default: condition. */
+  kind?: DiagnosisKind;
   synonyms?: LocalizedList;
   codes?: Codes;
 }

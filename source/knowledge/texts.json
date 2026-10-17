@@ -1077,10 +1077,12 @@
 {"entity": "syndrome:chronic-liver-disease", "locale": "de", "fields": {"label": "Leberhautzeichen"}},
 {"entity": "syndrome:portal-hypertension", "locale": "en", "fields": {"label": "Portal hypertension"}},
 {"entity": "syndrome:portal-hypertension", "locale": "de", "fields": {"label": "Portale Hypertension"}},
-{"entity": "syndrome:thyrotoxicosis-signs", "locale": "en", "fields": {"label": "Signs of thyrotoxicosis"}},
-{"entity": "syndrome:thyrotoxicosis-signs", "locale": "de", "fields": {"label": "Zeichen der Hyperthyreose"}},
+{"entity": "syndrome:thyrotoxicosis", "locale": "en", "fields": {"label": "Thyrotoxicosis"}},
+{"entity": "syndrome:thyrotoxicosis", "locale": "de", "fields": {"label": "Thyreotoxikose"}},
 {"entity": "syndrome:peritonitis-signs", "locale": "en", "fields": {"label": "Peritonism"}},
 {"entity": "syndrome:peritonitis-signs", "locale": "de", "fields": {"label": "Peritonismus"}},
 {"entity": "syndrome:neuromuscular-fatigability", "locale": "en", "fields": {"label": "Fatigable weakness"}},
-{"entity": "syndrome:neuromuscular-fatigability", "locale": "de", "fields": {"label": "Belastungsabhängige Schwäche"}}
+{"entity": "syndrome:neuromuscular-fatigability", "locale": "de", "fields": {"label": "Belastungsabhängige Schwäche"}},
+{"entity": "syndrome:sepsis", "locale": "en", "fields": {"label": "Sepsis"}},
+{"entity": "syndrome:sepsis", "locale": "de", "fields": {"label": "Sepsis"}}
 ]

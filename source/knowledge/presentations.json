@@ -80,7 +80,7 @@
 {"id": "palpate-thyroid-1", "tests": ["palpate.thyroid"], "signs": ["diffuse-goitre", "thyroid-bruit"], "status": "draft"},
 {"id": "palpate-thyroid-2", "tests": ["palpate.thyroid"], "signs": ["nodular-goitre"], "status": "draft"},
 {"id": "palpate-thyroid-3", "tests": ["palpate.thyroid"], "signs": ["thyroid-tenderness"], "status": "draft"},
-{"id": "inspect-thyroid-eyes-1", "tests": ["inspect.thyroid-eyes"], "signs": ["lid-retraction", "lid-lag"], "syndrome": "thyrotoxicosis-signs", "status": "draft"},
+{"id": "inspect-thyroid-eyes-1", "tests": ["inspect.thyroid-eyes"], "signs": ["lid-retraction", "lid-lag"], "syndrome": "thyrotoxicosis", "status": "draft"},
 {"id": "inspect-thyroid-eyes-2", "tests": ["inspect.thyroid-eyes"], "signs": ["exophthalmos", "chemosis"], "status": "draft"},
 {"id": "inspect-mouth-1", "tests": ["inspect.mouth"], "signs": ["dry-mucosa"], "syndrome": "hypovolaemia", "status": "draft"},
 {"id": "inspect-mouth-2", "tests": ["inspect.mouth"], "signs": ["glossitis", "angular-cheilitis"], "status": "draft"},

@@ -287,7 +287,7 @@ A syndrome is present when every required sign is present, every pertinent negat
 | Syndrome | Signs | Cases |
 |---|---|---|
 | **Horner's syndrome**<br>Horner-Syndrom | `ptosis` (required), `anisocoria` (required), `dilation-lag` | — |
-| **Third nerve palsy**<br>Okulomotoriusparese | `ptosis` (required), `eye-down-and-out` (required), `fixed-dilated-pupil` | — |
+| **Third nerve palsy**<br>Okulomotoriusparese | `ptosis` (required), `eye-down-and-out` (required), `fixed-dilated-pupil`, `anisocoria` | — |
 | **Sixth nerve palsy**<br>Abduzensparese | `abduction-deficit` (required), `horizontal-tropia` | — |
 | **Cerebellar syndrome**<br>Zerebelläres Syndrom | `limb-dysmetria`, `intention-tremor`, `dysdiadochokinesis`, `ataxic-gait`, `truncal-ataxia`, `gaze-evoked-nystagmus`, `saccadic-pursuit`, `dysarthria`, `hypotonia` | — |
 | **Acute vestibular syndrome, peripheral pattern (HINTS)**<br>Akutes vestibuläres Syndrom, peripheres Muster (HINTS) | `unidirectional-nystagmus` (required), `head-impulse-positive` (required), `skew-deviation` (absent), `lateral-fall-eyes-closed`, `veering-gait` | vestibular-neuritis-left |
@@ -308,9 +308,10 @@ A syndrome is present when every required sign is present, every pertinent negat
 | **Congestion and fluid overload**<br>Stauung und Volumenüberladung | `raised-jvp`, `pitting-oedema`, `fine-crackles`, `third-heart-sound`, `displaced-apex` | decompensated-cirrhosis |
 | **Stigmata of chronic liver disease**<br>Leberhautzeichen | `spider-naevi`, `palmar-erythema`, `gynaecomastia`, `leukonychia`, `jaundice`, `asterixis` | decompensated-cirrhosis |
 | **Portal hypertension**<br>Portale Hypertension | `abdominal-distension`, `shifting-dullness`, `caput-medusae`, `splenomegaly` | decompensated-cirrhosis |
-| **Signs of thyrotoxicosis**<br>Zeichen der Hyperthyreose | `tachycardia`, `fine-postural-tremor`, `lid-retraction`, `lid-lag`, `diaphoresis`, `wide-pulse-pressure` | acute-stroke-left-mca, pneumonia-right-lower-lobe, copd-exacerbation, urosepsis-septic-shock, graves-thyrotoxicosis |
+| **Thyrotoxicosis**<br>Thyreotoxikose | `tachycardia`, `fine-postural-tremor`, `lid-retraction`, `lid-lag`, `diaphoresis`, `wide-pulse-pressure`, `collapsing-pulse` | acute-stroke-left-mca, pneumonia-right-lower-lobe, copd-exacerbation, urosepsis-septic-shock, graves-thyrotoxicosis |
 | **Peritonism**<br>Peritonismus | `peritonism` (required), `lies-still-peritonism`, `abdomen-still-on-breathing`, `abdominal-tenderness` | — |
 | **Fatigable weakness**<br>Belastungsabhängige Schwäche | `fatigable-ptosis`, `fatigable-dysarthria`, `fatigable-weakness`, `variable-diplopia`, `nasal-speech` | — |
+| **Sepsis**<br>Sepsis | `tachycardia` (associated), `hypotension`, `tachypnoea`, `fever` (associated), `hypothermia` (associated), `thready-pulse` (associated), `reduced-consciousness` | urosepsis-septic-shock |
 
 ## Where a case does not show a linked sign
 
@@ -329,7 +330,6 @@ Each `suggests` link to a condition with a case must show in that case, or carry
 | `sign:tachypnoea` → `diabetic-ketoacidosis` | diabetic-ketoacidosis | model | Ketoacidosis deepens breathing but the rate stays at 18. |
 | `sign:bradypnoea` → `copd-exacerbation` | copd-exacerbation | case | Rate 30: tiring into CO₂ narcosis is not part of this case. |
 | `sign:hypoxaemia` → `community-acquired-pneumonia` | pneumonia-right-lower-lobe | case | Saturation 94 % on air, at the threshold. |
-| `sign:hypothermia` → `sepsis` | urosepsis-septic-shock | case | This patient is febrile (38.4 °C). |
 | `sign:thready-pulse` → `upper-gi-bleed` | upper-gi-bleed-peptic-ulcer | model | Pulse 79, normal volume: the heart rate hardly rises with blood loss (known gap 1). |
 | `syndrome:fluid-overload` → `pulmonary-embolism` | pulmonary-embolism-after-flight | case | A submassive embolism: JVP 1 cm, no oedema. |
 | `syndrome:hypovolaemia` → `upper-gi-bleed` | upper-gi-bleed-peptic-ulcer | case | An acute bleed: mucosa moist and turgor normal; only the orthostatic fall shows. |
@@ -349,3 +349,4 @@ Each `suggests` link to a condition with a case must show in that case, or carry
 | `sign:facial-sensory-loss` → `ischaemic-stroke-left-mca` | acute-stroke-left-mca | case | No hemisensory loss. |
 | `sign:hemisensory-loss` → `ischaemic-stroke-left-mca` | acute-stroke-left-mca | case | No hemisensory loss. |
 | `sign:receptive-aphasia` → `ischaemic-stroke-left-mca` | acute-stroke-left-mca | case | An expressive, not a receptive, aphasia. |
+| `syndrome:sepsis` → `community-acquired-pneumonia` | pneumonia-right-lower-lobe | case | qSOFA 1: rate 27, but systolic 128 and alert. A pneumonia without the bedside flags of sepsis. |

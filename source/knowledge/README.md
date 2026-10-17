@@ -60,7 +60,8 @@ A test card shows its presentations, then the further signs the test can elicit,
 {"from": "syndrome:horner-syndrome", "rel": "suggests", "to": "condition:lung-cancer", "via": ["inspect-eyes-1"], "status": "draft"}
 ```
 
-- **`part-of`** takes a `role`: `required`, `supporting`, or `absent` (a pertinent negative).
+- **`part-of`** takes a `role`: `required`, `supporting`, `absent` (a pertinent negative), or `associated` (often seen with the syndrome but not counted towards it: fever with sepsis). A syndrome is present when every required sign is, no absent sign is, and, without a required sign, at least two supporting signs are.
+- **A condition is a cause.** A syndrome, a state (thyrotoxicosis) or a laboratory finding (hyperkalaemia) is not a `condition:`, even when a learner can commit to it: the diagnosis list (`src/vp/data/diagnoses.ts`) gives such entries a `kind`, a syndrome or state is the syndrome of the same id here, and it `suggests` its causes. The validator refuses a `condition:` link to one.
 - **`suggests`** names in `via` the presentations that assert it. It may list `exceptions`: cases with that condition that do not show the sign, each with `kind` (`model` when the model cannot produce it yet, `case` when this patient rightly lacks it) and `why`.
 - **`is-a`** relates conditions (`peptic-ulcer-bleed` is an `upper-gi-bleed`). A sign that suggests the broader condition also reaches the narrower one.
 - **Conditions and structures** are the diagnosis and structure ids of the catalog (`src/vp/data/`).

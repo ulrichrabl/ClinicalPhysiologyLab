@@ -1,4 +1,4 @@
-import type { EvidenceItem, ExamContext, Finding } from '../model/types.ts';
+import type { DiagnosisKind, EvidenceItem, ExamContext, Finding } from '../model/types.ts';
 import type { Session } from './encounter.ts';
 
 /* ---------------------------------------------------------------------------
@@ -14,7 +14,14 @@ import type { Session } from './encounter.ts';
 export interface Commit { diagnosis: string; confidence: 'certain' | 'likely' | 'possible' }
 
 export interface DebriefResult {
-  diagnosis: { primary: string; accepted: string[]; committed: Commit[]; correct: boolean; rank: number | null; differentialConsidered: string[]; differentialMissed: string[] };
+  diagnosis: {
+    primary: string; accepted: string[]; committed: Commit[];
+    /** The working diagnosis is the case's cause, or an accepted condition. */
+    correct: boolean;
+    /** The working diagnosis is accepted but names a syndrome, state or laboratory finding: the right level, the cause still to name. */
+    level?: Exclude<DiagnosisKind, 'condition'>;
+    rank: number | null; differentialConsidered: string[]; differentialMissed: string[];
+  };
   evidence: Array<{ item: EvidenceItem; elicited: boolean; finding?: Finding }>;
   redFlags: Array<{ ref: string; kind: 'property' | 'fact'; why: EvidenceItem['why']; covered: boolean }>;
   hazards: Array<{ code: string; manoeuvre: string }>;
@@ -43,10 +50,11 @@ export function commit(s: Session, differential: Commit[]): DebriefResult {
   const accepted = [c.diagnosis.primary, ...c.diagnosis.accepted];
   const rankIdx = differential.findIndex((d) => accepted.includes(d.diagnosis));
   const named = new Set(differential.map((d) => d.diagnosis));
+  const topKind = rankIdx === 0 ? (s.catalog.diagnoses[differential[0].diagnosis]?.kind ?? 'condition') : 'condition';
   return {
     diagnosis: {
       primary: c.diagnosis.primary, accepted, committed: differential,
-      correct: rankIdx === 0, rank: rankIdx >= 0 ? rankIdx + 1 : null,
+      correct: rankIdx === 0 && topKind === 'condition', ...(topKind !== 'condition' ? { level: topKind } : {}), rank: rankIdx >= 0 ? rankIdx + 1 : null,
       differentialConsidered: c.diagnosis.differential.filter((d) => named.has(d)),
       differentialMissed: c.diagnosis.differential.filter((d) => !named.has(d)),
     },
