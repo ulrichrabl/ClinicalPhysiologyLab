@@ -192,6 +192,21 @@ const withLesion = (nodes, complete = true) => {
   const fn = obs(c, view, 'arm.finger-nose.L');
   ok('cerebellar: ipsilateral dysmetria with intention tremor (from the graph)', fn.value.dysmetria === 'marked' && fn.value.intentionTremor && fn.provenance === 'model', J(fn));
   ok('cerebellar: ataxic gait', obs(c, view, 'gait.pattern').value.pattern === 'ataxic');
+  const gl = obs(c, view, 'eyes.nystagmus', { gaze: 'left', fixation: true });
+  ok('cerebellar: gaze-evoked nystagmus is pathological, not end-point nystagmus', gl.value.present && !gl.value.physiological && !gl.normal, J(gl.value));
+}
+{
+  /* Healthy gaze holding: the fine nystagmus at 30° is named as physiological end-point nystagmus (Ritter 2020). */
+  const c = caseById('iron-deficiency-anaemia-caecal'), view = buildView(c);
+  const at = (gaze) => obs(c, view, 'eyes.nystagmus', { gaze, fixation: true });
+  ok('healthy eyes: no nystagmus in primary gaze', !at('primary').value.present);
+  ok('healthy eyes: end-point nystagmus on lateral and vertical gaze, flagged physiological and normal',
+    ['left', 'right', 'up', 'down'].every((g) => { const o = at(g); return !o.value.present || (o.value.physiological && o.normal); }), J(['left', 'up'].map((g) => at(g).value)));
+  ok('healthy eyes: the text calls it physiological, in English and German',
+    /end-point nystagmus.*physiological/.test(text({ property: 'eyes.nystagmus', value: at('left').value, context: { gaze: 'left', fixation: true } }, 'en'))
+    && /Endstellnystagmus.*physiologisch/.test(text({ property: 'eyes.nystagmus', value: at('left').value, context: { gaze: 'left', fixation: true } }, 'de')));
+  const vn = obs(VN, buildView(VN), 'eyes.nystagmus', { gaze: 'right', fixation: true });
+  ok('vestibular neuritis: the nystagmus on gaze is not end-point nystagmus', vn.value.present && !vn.value.physiological && !vn.normal, J(vn.value));
 }
 
 /* ---- cranial nerves, pupils, hearing ---------------------------------------------- */
@@ -1067,6 +1082,10 @@ console.log('\nThe examination against human data');
   const view = buildView(c, { circulation: settleModel(modelFromCase(c), 12).snapshot, state: { ...c.initialState } });
   const crt = obs(c, view, 'hands.crt').value;
   ok('capillary refill of a well adult at Schriger & Baraff’s median for age and sex (1.0–1.8 s)', crt >= 1.0 && crt <= 1.8, `${crt} s (patient ${c.patient.age} ${c.patient.sex})`);
+  /* Healthy gaze holding at 30° (the model's lateral gaze): Ritter 2020 measured an initial drift of 0.62 ± 0.53 °/s. */
+  const drift = obs(c, buildView(c), 'eyes.nystagmus', { gaze: 'left', fixation: true }).value.spvDegPerS ?? 0;
+  gap('healthy drift at 30° of lateral gaze within one SD of Ritter 2020 (0.62 ± 0.53 °/s; the integrator time constant is not grounded)',
+    drift >= 0.09 && drift <= 1.15, `model ${drift} °/s`);
 }
 
 console.log('\nThe ECG against human data');

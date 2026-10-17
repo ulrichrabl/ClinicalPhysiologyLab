@@ -260,8 +260,8 @@ export const PROPERTIES: PropertyDef[] = [
     id: 'eyes.nystagmus', structure: 'eyes', label: { en: 'Nystagmus', de: 'Nystagmus' },
     value: rec({
       present: bool, type: c('nystagmus-type'), fastPhase: c('direction'), torsion: c('torsion'), slowPhase: c('slow-phase'),
-      spvDegPerS: q('deg/s', 0, 100), amplitudeDeg: q('deg', 0, 30), frequencyHz: q('Hz', 0, 10),
-    }, ['type', 'fastPhase', 'torsion', 'slowPhase', 'spvDegPerS', 'amplitudeDeg', 'frequencyHz']),
+      spvDegPerS: q('deg/s', 0, 100), amplitudeDeg: q('deg', 0, 30), frequencyHz: q('Hz', 0, 10), physiological: bool,
+    }, ['type', 'fastPhase', 'torsion', 'slowPhase', 'spvDegPerS', 'amplitudeDeg', 'frequencyHz', 'physiological']),
     normal: { value: { present: false } },
     contextDims: ['gaze', 'fixation', 'position'],
     source: 'model', resolver: 'neuro.vestibular', formatter: 'eyes.nystagmus', renderer: 'svg.eyes',
