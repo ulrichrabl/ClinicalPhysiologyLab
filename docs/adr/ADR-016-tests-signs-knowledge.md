@@ -60,8 +60,8 @@ A sign is defined by a predicate over observables, written as data:
   - the field patterns;
   - the Romberg sign;
   - the facial weakness patterns;
-  - `localiser`: root, hemisensory and crossed patterns, computed by the existing neuro localiser.
-- **Thresholds carry evidence statuses** as constants do in the registry (`measured`, `derived`, `assumed`, `standard`), with references. Ten thresholds in the draft are `assumed` and listed for grounding: ptosis, anisocoria, raised and empty JVP, wide pulse pressure, refractory hypoxaemia, abduction deficit, gaze-evoked nystagmus, foot drop, fatigable ptosis.
+  - the root and sensory patterns: myotomal, dermatomal, hemisensory, crossed.
+- **Thresholds carry evidence statuses** as constants do in the registry (`measured`, `derived`, `assumed`, `standard`), with references. Nine thresholds in the draft are `assumed` and listed for grounding: ptosis, anisocoria, raised and empty JVP, wide pulse pressure, refractory hypoxaemia, abduction deficit, foot drop, fatigable ptosis. (Gaze-evoked nystagmus needs none since #36: the model flags the physiological drift itself.)
 - **A sign may have no definition yet.** It is then "not represented": it is taught and linked but not simulated. The draft has 40 such signs, among them pleural rub, glossitis and stocking sensory loss.
 - **Normal variants are signs too**, flagged `normalVariant` (end-point nystagmus). Naming them is how the app tells a learner that a finding is normal.
 
@@ -177,7 +177,7 @@ The `modelGap` column on the sign table records what to add in a later run. The 
 - **Renderers declared but never wired to a visual:** `svg.field`, `svg.fundus`, `svg.dermatomes`, `svg.neck`, and `svg.patient` for Romberg, gait and finger–nose. Those findings are text only. The movement signs among them belong to the animation topic.
 - **Signs that cannot be elicited.** Finger–nose and heel–shin are only observed with the eyes open, although the property supports `eyesClosed`. So limb ataxia that appears only with the eyes closed (dorsal columns) cannot be found.
 - **Values that exist but that no model produces:** pleural rub, uraemic fetor, rigidity. Values with no observable at all: pericardial rub, carotid bruit, glossitis, fetor hepaticus, a site for abdominal tenderness, consciousness as an examinable finding.
-- **The end-point nystagmus defect** described under Context.
+- **The end-point nystagmus defect** described under Context (fixed in #36).
 - **79 of 202 signs** are produced by at least one of the 17 cases. Most of the rest wait for a case: Horner's syndrome, a third nerve palsy, myasthenia, cerebellar stroke.
 
 ### 13. Diagnoses that belong in another layer
@@ -206,7 +206,7 @@ Moving them changes what a learner commits to at the end of a case, so it needs 
 
 ## Open points for the owner
 
-1. **Assumed thresholds:** the ten `assumed` thresholds, for grounding or confirmation.
+1. **Assumed thresholds:** the nine `assumed` thresholds, for grounding or confirmation.
 2. **Reclassification:** the diagnoses that are syndromes, states or laboratory findings (appendix).
 3. **Renames:** the fourteen proposed test names in EN and DE.
 4. **Card fixes:**

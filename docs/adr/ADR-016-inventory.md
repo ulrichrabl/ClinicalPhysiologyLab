@@ -2,6 +2,15 @@
 
 Generated from the catalog, the 17 cases and the draft tables in `adr-016/`. Draft for review; nothing here is wired into the app yet.
 
+> **Superseded for the case columns by `docs/knowledge-coverage.md`** (step 1, #37), which is generated from the real tables and models. Building step 1 corrected this draft in six places:
+>
+> 1. **Resting vital signs:** this draft read the standing half of the lying-and-standing test, so it overstated hypotension and tachycardia in the septic, bleeding and Addisonian cases. The signs are now defined "not standing". Lying, the septic-shock case is 92/67 and the bleed is 115/80 with a pulse of 79; both are recorded as exceptions with their numbers.
+> 2. **Thready pulse** also counts a low-volume pulse above 100/min, so the septic case shows it.
+> 3. **A third heart sound** is no longer linked to aortic stenosis. The card says "third or fourth"; this patient rightly has an S4.
+> 4. **End-point nystagmus** is read from the model's `physiological` flag (#36). Gaze-evoked nystagmus excludes it, so it needs no amplitude threshold: nine assumed thresholds, not ten.
+> 5. **The localiser patterns** are named predicates (myotomal, dermatomal, hemisensory, crossed).
+> 6. **`variant-of`** lives only in the relation table, not also on the sign row.
+
 ## Summary
 
 - **202 signs**, deduplicated from 265 card findings (205 distinct texts). 25 syndromes. 447 relations.
