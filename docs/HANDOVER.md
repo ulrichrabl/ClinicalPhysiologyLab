@@ -1,6 +1,6 @@
 # Handover: start here
 
-Last updated: 17 October 2026, after PR #34 (ADR-016 proposed).
+Last updated: 17 October 2026, after PR #40 (ADR-016 steps 1–3 merged).
 
 This page is the entry point for anyone (or any agent) picking up the work. It covers:
 
@@ -8,7 +8,7 @@ This page is the entry point for anyone (or any agent) picking up the work. It c
 - the rules agreed so far;
 - what is done;
 - the open lists;
-- the proposed data model for tests, signs and the knowledge graph, which comes first;
+- the data model for tests, signs and the knowledge graph (ADR-016), and its next steps;
 - where the topic after it, animations, starts.
 
 If you will change the patient figure, also read `source/studio/figure/BRIEF.md`.
@@ -157,16 +157,31 @@ Once any electrode is on, a small lead II strip runs next to the patient (`#bed-
 - The measuring tool works on the rhythm strip and the 12 leads at fixed paper speed and gain. 50 mm/s and 20 mm/mV are not offered.
 - The owner has not yet reviewed the measuring steps' wording clinically.
 
-## First: tests, signs and the knowledge graph (ADR-016, proposed)
+## Tests, signs and the knowledge graph (ADR-016)
 
-Agreed with the owner before more content is added: separate tests from signs, define each sign on the model's observables, and put the clinical knowledge into tables that colleagues can later edit through a backend. The physiology stays in code.
+Agreed with the owner: tests and signs are separate, each sign is defined on the model's observables, and the clinical knowledge lives in tables (`source/knowledge/`) that colleagues can later edit through a backend. The physiology stays in code.
 
-- Decision and migration plan: `docs/adr/ADR-016-tests-signs-knowledge.md`.
-- Inventory for review (202 signs, 25 syndromes, every card finding mapped, where the model shows each sign): `docs/adr/ADR-016-inventory.md`.
-- Draft tables in the target shape: `docs/adr/adr-016/`.
-- Statistics (sensitivity, specificity, likelihood ratios) go into a separate Evidence domain, linked from the sign cards; it gets its own ADR.
+- **Read first:** `docs/adr/ADR-016-tests-signs-knowledge.md` (decision, migration) and `source/knowledge/README.md` (how to edit the tables).
+- **Done:**
+  - step 1, the tables, validator and coverage (#37);
+  - step 2, cards built from the tables, with presentations and a card for every sign (#39);
+  - step 3, the interface: tests named as tests, signs named after each test, signs in Notes (#40).
+- **Coverage:** `npm run knowledge:report` writes `docs/knowledge-coverage.md`. It lists every sign with its definition, the tests that elicit it, where the app shows it, which cases show it, and its gap.
+- **Next, step 4:** the expert reference and the debrief in signs, then an "observe only" level in which the learner names the signs and is scored for misses and over-calls.
+- **Then, step 5:** the model gaps the coverage lists. These include:
+  - jaundice, pallor and cyanosis missing from the eye close-up;
+  - limb ataxia with the eyes closed, which no test elicits;
+  - the resting deviation drawn in the eye close-up but absent from the text;
+  - the septic-shock case at 92/67 lying;
+  - the visual fields, fundus, dermatomes and gait, which have renderers declared but none drawn.
+- **Waiting for the owner** (ADR-016, "Open points"):
+  - the nine assumed thresholds;
+  - the diagnoses that are really syndromes, states or laboratory findings;
+  - two card texts.
+- **Statistics** (sensitivity, specificity, likelihood ratios) go into a separate Evidence domain, linked from the sign cards. It gets its own ADR.
+- The review drafts in `docs/adr/adr-016/` and `ADR-016-inventory.md` are superseded by `source/knowledge/` and `docs/knowledge-coverage.md`, and are kept as the record of the review.
 
-Animations (below) should hang on signs once step 1 of the migration is in.
+Animations (below) should hang on signs: the card of a test and the sign it shows.
 
 ## Next topic: animations
 

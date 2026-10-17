@@ -1,6 +1,6 @@
 # ADR-016 — Tests, signs and a queryable clinical knowledge graph
 
-Status: Proposed  
+Status: Accepted; steps 1–3 done (#37, #39, #40)  
 Date: 2026-10-17  
 Repository: ClinicalPhysiologyLab
 
@@ -208,7 +208,7 @@ Moving them changes what a learner commits to at the end of a case, so it needs 
    - replace `CARD_EXCEPTIONS` with `modelGap`.
    - No interface change.
 2. **Cards:** build test cards and sign cards from the tables. Card findings become presentations (§1a), and all card texts move into the text table. Done in #39.
-3. **Interface:** test renames; sign naming after a test, with pertinent negatives and normal variants; General inspection naming what the figure shows; findings list; the Explore "Signs present" panel.
+3. **Interface:** test renames; sign naming after a test, with pertinent negatives and normal variants; General inspection naming what the figure shows; findings list; the "Signs present" list (in Notes, with the free patient or after commit). Done in #40.
 4. **Cases and debrief** in signs, then the "observe only" level with documentation scoring.
 5. **Model gaps,** in later runs, worked from the coverage report.
 6. **Backend and editing interface,** when the tables have settled.
