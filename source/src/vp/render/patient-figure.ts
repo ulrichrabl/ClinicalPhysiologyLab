@@ -40,7 +40,7 @@ import { LEN, bodyShape, footOutline, limb3, limbOutline, skeleton, stationAt, t
 import { ear, face, hairBehind, hairFront, hairOver, headFrame, headOutline, oxygenSvg, type Palette, type Support } from './figure-head.ts';
 import { BED_TOP, FLOOR, bra, cloth, dressDefs, gown, sleeveSvg, trolley } from './figure-dress.ts';
 import { Projector, frontness, onTube, VIEW_RIGHT, type FigureView } from './figure-view.ts';
-import { braFront, chestFront, earsFront, faceFront, gownLinesFront, hairBehindFront, hairFront3, headEgg, oxygenFront, trunkFront, type FrontCtx } from './figure-front.ts';
+import { braFront, breastFront, chestFront, earsFront, faceFront, gownLinesFront, hairBehindFront, hairFront3, headEgg, oxygenFront, trunkFront, type FrontCtx } from './figure-front.ts';
 
 export { VIEW_RIGHT, VIEW_LEFT, VIEW_FRONT, VIEW_BACK, type FigureView } from './figure-view.ts';
 
@@ -341,7 +341,15 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
   };
   const armZ = (i: 0 | 1) => {
     const sh0 = sh.shoulderZ;
-    const el = sideZ(k.elbow[i], sh0 + 0.6, (stationAt(sh.upper, 32.7).w ?? 3.3) + 0.5, sh0 * 0.85);
+    let el = sideZ(k.elbow[i], sh0 + 0.6, (stationAt(sh.upper, 32.7).w ?? 3.3) + 0.5, sh0 * 0.85);
+    /* The arm hangs beside the chest, not through it: a third of the way down (the level of the armpit and the bust)
+       its inner edge lies at the side of the chest wall, or of the breast, overlapping it only a little. The humerus is
+       straight, so the elbow swings out as far as that needs. */
+    const a12 = add(k.shoulder, k.upperA[i], 12 * u), lvl = nearSpine(a12) - 14;
+    const wT = stationAt(sh.trunk, lvl).w ?? 14;
+    const bf = breastFront(sh), bOut = sh.breast ? (bf.bz + bf.R) * clamp(1 - Math.abs(lvl - bf.bs) / (bf.R * 1.4), 0, 1) : 0;
+    const z12 = sideZ(a12, 0, Math.max(0, bOut - wT - 0.8) + (stationAt(sh.upper, 12).w ?? 4.5) - (sh.breast ? 0.8 : 1.6), sh0 * 0.85);
+    if (z12 > sh0) el = Math.max(el, sh0 + Math.min(((z12 - sh0) * LEN.upper) / 12, 4.0));   // a relaxed arm rests against a full chest rather than standing off it
     const wr = sideZ(k.wrist[i], el + 0.6, (stationAt(sh.fore, 25.7).w ?? 2.6) + 0.4, sh.hipZ + 1.5);
     return { sh: sg(i) * sh0, el: sg(i) * el, wr: sg(i) * wr };
   };

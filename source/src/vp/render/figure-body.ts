@@ -91,7 +91,7 @@ export function bodyShape(look: FigureLook, upright: number): Shape {
      then the line runs out nearly level (10–15°) over the clavicle to the acromion, about 40 cm across in a man and 36
      in a woman, where the deltoid rounds over. The deltoid is not part of the trunk: it is the top of the arm (see
      upper), so it moves with the arm. */
-  const shoulderZ = (female ? 15.4 : 17.0) + Math.max(0, fat) * 0.08;
+  const shoulderZ = (female ? 16.3 : 17.0) + Math.max(0, fat) * 0.08;
   const acro = shoulderZ + 2.0;                         // half the width across the acromions
   const slope: Array<[number, number]> = [[46.5, acro + 0.2], [48.5, acro + 0.1], [50.0, acro - 0.2], [50.9, acro - 0.9],
     [51.5, acro - 2.6], [52.1, lerp(acro - 2.6, 12.6, 0.5)], [52.8, 12.6], [53.6, 10.6], [54.4, 9.0], [55.2, 7.6], [56, 6.8]];
@@ -106,7 +106,7 @@ export function bodyShape(look: FigureLook, upright: number): Shape {
     if (female) {
       a += -0.9 * bump(s, 20, 8) + 0.5 * bump(s, 4, 6);          // narrower waist, rounder lower belly
       p += 1.7 * bump(s, -2, 8) - 0.5 * bump(s, 40, 10);         // fuller buttock, smaller back
-      w += 1.4 * bump(s, -3, 9) - 1.7 * bump(s, 16, 7) - 1.1 * bump(s, 44, 9);   // wider hips, narrower waist and shoulders
+      w += 1.4 * bump(s, -3, 9) - 1.7 * bump(s, 16, 7) - 1.1 * bump(s, 44, 9) - 1.0 * bump(s, 35, 9);   // narrower ribcage too   // wider hips, narrower waist and shoulders
     }
     /* across: some fat everywhere, the rest where this patient stores it; ascites fills the flanks, most when lying */
     w += fat * 0.18 + fat * cw * 0.42 * bump(s, 14, 12) + fat * pw * 0.5 * bump(s, -3, 10);

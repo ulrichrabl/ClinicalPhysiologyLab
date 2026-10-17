@@ -351,26 +351,29 @@ export function chestFront(c: FrontCtx): string {
   const litSide = (sg: number) => (sg < 0 ? 1 : 0.7);
 
   /* ---- clavicles: from the sternal head beside the notch, an S out to the acromion, rising a little ---- */
-  const clav = (sg: number, dz = 0, ds = 0) => [[1.9, 52.5], [4.2, 52.75], [7, 52.55], [9.8, 52.0], [12.6, 51.65], [15.2, 51.55], [acro - 1.6, 51.65]]
+  const clav = (sg: number, dz = 0, ds = 0) => [[1.9, 50.5], [4.2, 50.75], [7, 50.6], [9.8, 50.2], [12.6, 49.95], [15.2, 49.95], [acro - 1.6, 50.25]]
     .map(([z, sv]) => Z(sv + ds, sg * (z + dz)));
   both((sg) => {
-    soft.push(`<path d="${openPath(clav(sg, 0, 0.35))}" fill="none" stroke="${lit}" stroke-width="${f(0.9 * u)}" stroke-linecap="round" opacity="${f(0.5 * litSide(sg))}"/>`);
+    const clear = clamp(0.5 + (sh.female ? 0.25 : 0) + 0.35 * bon - 0.4 * fatC, 0.2, 1);
+    soft.push(`<path d="${openPath(clav(sg, 0, 0.3))}" fill="none" stroke="${lit}" stroke-width="${f(1.0 * u)}" stroke-linecap="round" opacity="${f((0.45 + 0.35 * clear) * litSide(sg))}"/>`);
     /* the hollow above (between the neck muscles and the trapezius) and below its outer third (by the deltoid) */
-    soft.push(`<ellipse cx="${f(Z(53.0, sg * 7.5).x)}" cy="${f(Z(53.0, sg * 7.5).y)}" rx="${f(2.6 * u)}" ry="${f(0.8 * u)}" fill="${shade}" opacity="${f(0.16 + 0.3 * bon + (b.breathing.accessory ? 0.15 : 0))}"/>`);
-    const fossa = Z(50.2, sg * (acro - 5.5));
+    soft.push(`<ellipse cx="${f(Z(51.6, sg * 7.0).x)}" cy="${f(Z(51.6, sg * 7.0).y)}" rx="${f(2.8 * u)}" ry="${f(0.75 * u)}" fill="${shade}" opacity="${f(0.12 + 0.2 * clear + 0.25 * bon + (b.breathing.accessory ? 0.15 : 0))}"/>`);
+    const fossa = Z(48.7, sg * (acro - 5.5));
     soft.push(`<ellipse cx="${f(fossa.x)}" cy="${f(fossa.y)}" rx="${f(1.6 * u)}" ry="${f(1.1 * u)}" fill="${shade}" opacity="${f(0.14 + 0.2 * bon)}"/>`);
-    line(out, clav(sg), pal.line, 0.55 + 0.4 * bon, 0.3 + 0.35 * bon);
+    /* the bone's lower edge casts a little shade; it shows more in women and the lean (less fat over it) */
+    soft.push(`<path d="${openPath(clav(sg, 0, -0.6).slice(1))}" fill="none" stroke="${shade}" stroke-width="${f(0.9 * u)}" stroke-linecap="round" opacity="${f(0.5 * clear)}"/>`);
+    line(out, clav(sg), pal.line, 0.7 + 0.4 * bon, 0.3 + 0.45 * clear);
     /* the sternal head, a small knob beside the notch */
-    dot(out, Z(52.35, sg * 2.4), 1.0 * u, 0.7 * u, lit, 0.35);
+    dot(out, Z(50.4, sg * 2.4), 1.0 * u, 0.7 * u, lit, 0.4);
   });
-  dot(out, Z(52.85, 0), 0.9 * u, 0.55 * u, shade, 0.4);                 // the jugular notch
-  if (b.breathing.accessory || bon > 0.4) both((sg) => dot(out, Z(52.6, sg * 6.5), 1.8 * u, 0.7 * u, shade, 0.3));
+  dot(out, Z(50.9, 0), 1.0 * u, 0.6 * u, shade, 0.45);                 // the jugular notch
+  if (b.breathing.accessory || bon > 0.4) both((sg) => dot(out, Z(51.3, sg * 6.5), 1.8 * u, 0.7 * u, shade, 0.3));
 
   /* ---- deltoids: round, lit on top, the groove between deltoid and pectoral running down from the outer clavicle ---- */
   both((sg) => {
     const top = Z(48.6, sg * (acro + 1.4));
     soft.push(`<ellipse cx="${f(top.x)}" cy="${f(top.y)}" rx="${f(2.6 * u)}" ry="${f(3.4 * u)}" fill="${lit}" opacity="${f(0.4 * litSide(sg))}"/>`);
-    soft.push(`<path d="${openPath([Z(50.6, sg * (acro - 4.6)), Z(47.5, sg * (acro - 3.6)), Z(44.5, sg * (acro - 2.6))])}" fill="none" stroke="${shade}" stroke-width="${f(0.7 * u)}" opacity="${f(0.22 + 0.1 * (1 - fatC))}" stroke-linecap="round"/>`);
+    soft.push(`<path d="${openPath([Z(49.6, sg * (acro - 4.6)), Z(47.0, sg * (acro - 3.6)), Z(44.5, sg * (acro - 2.6))])}" fill="none" stroke="${shade}" stroke-width="${f(0.7 * u)}" opacity="${f(0.22 + 0.1 * (1 - fatC))}" stroke-linecap="round"/>`);
   });
 
   if (!sh.female) {
@@ -385,7 +388,7 @@ export function chestFront(c: FrontCtx): string {
       line(out, border(sg), pal.line, 0.6, 0.25 + 0.25 * pecK + 0.25 * fatC);
       dot(out, Z(38.6, sg * 9.6), 0.85 * u, 0.8 * u, tint(pal.lip, pal.dark, 0.4), 0.8);
     });
-    soft.push(`<path d="${openPath([Z(51.8, 0), Z(46, 0), Z(39.5, 0)])}" fill="none" stroke="${shade}" stroke-width="${f(0.6 * u)}" opacity="${f(0.18 + 0.15 * pecK)}"/>`);
+    soft.push(`<path d="${openPath([Z(50.2, 0), Z(45, 0), Z(39.5, 0)])}" fill="none" stroke="${shade}" stroke-width="${f(0.6 * u)}" opacity="${f(0.18 + 0.15 * pecK)}"/>`);
   } else if (sh.breast) {
     /* ---- breasts (in the bra): the upper slope above the cups, the cleavage, and their outer curve, which rounds out
        beyond the cup toward the armpit ---- */
@@ -418,7 +421,7 @@ const ring = (c: Pt, r: number): Pt[] => Array.from({ length: 10 }, (_, i) => ({
 
 /** Where the breasts sit, seen from the front: centre z (cm from the midline), level s, and radius (cm). */
 export function breastFront(sh: Shape): { bz: number; bs: number; R: number } {
-  return { bz: 9.4 + sh.breast * 0.12, bs: 36.6 - 0.8 * sh.old, R: 5.0 + sh.breast * 0.55 };
+  return { bz: 8.8 + sh.breast * 0.1, bs: 36.6 - 0.8 * sh.old, R: 4.6 + sh.breast * 0.5 };
 }
 
 /** A plain bra seen from the front or the back: two rounded cups over the breasts (shaded, for their volume), a
