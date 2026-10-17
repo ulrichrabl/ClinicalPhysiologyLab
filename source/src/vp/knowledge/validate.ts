@@ -4,6 +4,7 @@ import type { ValueType } from '../model/types.ts';
 import type { Issue } from '../engine/validate.ts';
 import schema from '../../../knowledge/schema.json';
 import { NAMED } from './predicates.ts';
+import { buildKnowledge, testsForSign } from './index.ts';
 import type { Clause, EntityKind, KnowledgeTables, RelationRow, SignDefinition } from './types.ts';
 
 /* ===========================================================================
@@ -153,6 +154,9 @@ const ALLOWED: Record<RelationRow['rel'], { from: EntityKind[]; to: EntityKind[]
   'is-a': { from: ['condition'], to: ['condition'] },
 };
 
+/** Manoeuvres that act on the patient rather than examine; they reveal through the tests done afterwards. */
+const INTERVENTION_VERBS = new Set(['position', 'give', 'expose']);
+
 export interface KnowledgeContext {
   catalog: Catalog;
   references: Record<string, unknown>;
@@ -175,10 +179,14 @@ export function validateKnowledge(t: KnowledgeTables, ctx: KnowledgeContext): Is
   };
   dup('signs', t.signs.map((s) => s.id));
   dup('syndromes', t.syndromes.map((s) => s.id));
+  dup('tests', t.tests.map((s) => s.id));
+  dup('presentations', t.presentations.map((s) => s.id));
   const signs = new Set(t.signs.map((s) => s.id)), syndromes = new Set(t.syndromes.map((s) => s.id));
+  const tests = new Set(t.tests.map((s) => s.id)), presentations = new Set(t.presentations.map((s) => s.id));
   const exists = (ref: string): boolean => {
     const [kind, id] = [ref.slice(0, ref.indexOf(':')), ref.slice(ref.indexOf(':') + 1)];
-    return kind === 'sign' ? signs.has(id) : kind === 'syndrome' ? syndromes.has(id) : kind === 'condition' ? !!cat.diagnoses[id] : kind === 'structure' ? !!cat.structures[id] : false;
+    return kind === 'sign' ? signs.has(id) : kind === 'syndrome' ? syndromes.has(id) : kind === 'condition' ? !!cat.diagnoses[id] : kind === 'structure' ? !!cat.structures[id]
+      : kind === 'test' ? tests.has(id) : kind === 'presentation' ? presentations.has(id) : false;
   };
   const checkRefs = (refs: string[] | undefined, path: string) => {
     for (const r of refs ?? []) if (!references[r]) out.push({ level: 'error', path, message: `unknown reference ${r}` });
@@ -195,6 +203,29 @@ export function validateKnowledge(t: KnowledgeTables, ctx: KnowledgeContext): Is
     if (!t.relations.some((r) => r.rel === 'part-of' && r.to === `syndrome:${s.id}`)) out.push({ level: 'error', path: `syndromes.${s.id}`, message: 'has no member signs' });
   }
 
+  for (const x of t.tests) {
+    if (!cat.manoeuvres[x.id]) out.push({ level: 'error', path: `tests.${x.id}`, message: 'no such test in the catalog' });
+    checkRefs(x.refs, `tests.${x.id}`);
+  }
+  const k = buildKnowledge(t);
+  for (const p of t.presentations) {
+    const path = `presentations.${p.id}`;
+    for (const x of p.tests) if (!tests.has(x)) out.push({ level: 'error', path, message: `test ${x} has no row in tests` });
+    for (const x of [...p.signs, ...(p.accompanying ?? [])]) if (!signs.has(x)) out.push({ level: 'error', path, message: `unknown sign ${x}` });
+    if (p.syndrome && !syndromes.has(p.syndrome)) out.push({ level: 'error', path, message: `unknown syndrome ${p.syndrome}` });
+    if (!p.signs.length && !p.accompanying?.length && !p.syndrome && !p.note) out.push({ level: 'error', path, message: 'names no sign and no syndrome: say why in a note' });
+    /* A presentation of a defined sign must be on a test that, by the sign's definition, can elicit it. */
+    for (const x of p.signs) {
+      if (!k.signs[x]?.definition) continue;
+      const by = testsForSign(k, cat, x);
+      if (!by.length && k.signs[x].modelGap) continue;   // no test can elicit it yet; the model gap says why
+      for (const test of p.tests) {
+        const m = cat.manoeuvres[test];
+        if (m && !INTERVENTION_VERBS.has(m.verb) && !by.includes(test)) out.push({ level: 'error', path, message: `${test} cannot elicit ${x} by its definition (it is elicited by ${by.join(', ') || 'no test'})` });
+      }
+    }
+  }
+
   const relKeys = new Set<string>();
   t.relations.forEach((r, i) => {
     const p = `relations[${i}] ${r.from} ${r.rel} ${r.to}`;
@@ -207,6 +238,8 @@ export function validateKnowledge(t: KnowledgeTables, ctx: KnowledgeContext): Is
     if (r.rel === 'part-of' && !r.role) out.push({ level: 'error', path: p, message: 'part-of needs a role' });
     if (r.rel !== 'part-of' && r.role) out.push({ level: 'error', path: p, message: 'only part-of takes a role' });
     if (r.rel !== 'suggests' && r.exceptions) out.push({ level: 'error', path: p, message: 'only suggests takes case exceptions' });
+    if (r.rel !== 'suggests' && r.via) out.push({ level: 'error', path: p, message: 'only suggests takes via' });
+    for (const v of r.via ?? []) if (!presentations.has(v)) out.push({ level: 'error', path: p, message: `via unknown presentation ${v}` });
     for (const x of r.exceptions ?? []) if (ctx.cases && !ctx.cases.includes(x.case)) out.push({ level: 'error', path: p, message: `exception for unknown case ${x.case}` });
     checkRefs(r.refs, p);
   });
@@ -222,15 +255,36 @@ export function validateKnowledge(t: KnowledgeTables, ctx: KnowledgeContext): Is
     }
   }
 
-  const textKeys = new Set<string>();
+  const textKeys = new Set<string>(), textRows = new Set<string>();
   t.texts.forEach((x, i) => {
-    const k = `${x.entity}|${x.field}|${x.locale}`;
-    if (textKeys.has(k)) out.push({ level: 'error', path: `texts[${i}]`, message: `duplicate text ${k}` });
-    textKeys.add(k);
+    const rk = `${x.entity}|${x.locale}`;
+    if (textRows.has(rk)) out.push({ level: 'error', path: `texts[${i}]`, message: `two rows for ${x.entity} in ${x.locale}` });
+    textRows.add(rk);
     if (!exists(x.entity)) out.push({ level: 'error', path: `texts[${i}]`, message: `${x.entity} does not exist` });
+    for (const [f, text] of Object.entries(x.fields)) {
+      if (typeof text !== 'string' || !text.trim()) out.push({ level: 'error', path: `texts[${i}]`, message: `${x.entity} ${f} in ${x.locale} is empty` });
+      textKeys.add(`${x.entity}|${f}|${x.locale}`);
+    }
   });
   for (const ref of [...t.signs.map((s) => `sign:${s.id}`), ...t.syndromes.map((s) => `syndrome:${s.id}`)]) {
     for (const l of SUPPORTED_LOCALES) if (!textKeys.has(`${ref}|label|${l}`)) out.push({ level: 'error', path: 'texts', message: `${ref} has no label in ${l}` });
+  }
+  const needs = (ref: string, field: string) => { for (const l of SUPPORTED_LOCALES) if (!textKeys.has(`${ref}|${field}|${l}`)) out.push({ level: 'error', path: 'texts', message: `${ref} has no ${field} in ${l}` }); };
+  for (const x of t.tests) { needs(`test:${x.id}`, 'assesses'); needs(`test:${x.id}`, 'normal'); needs(`test:${x.id}`, 'how.1'); }
+  for (const x of t.presentations) { needs(`presentation:${x.id}`, 'description'); needs(`presentation:${x.id}`, 'meaning'); }
+  /* Numbered lists must have the same number of items in every language. */
+  const counts = new Map<string, Map<string, number>>();
+  for (const x of t.texts) for (const f of Object.keys(x.fields)) {
+    const m = /^(.*)\.(\d+)$/.exec(f);
+    if (!m) continue;
+    const key = `${x.entity}|${m[1]}`;
+    const per = counts.get(key) ?? new Map<string, number>();
+    per.set(x.locale, Math.max(per.get(x.locale) ?? 0, Number(m[2])));
+    counts.set(key, per);
+  }
+  for (const [key, per] of counts) {
+    const ns = SUPPORTED_LOCALES.map((l) => per.get(l) ?? 0);
+    if (!key.endsWith('|alias') && new Set(ns).size > 1) out.push({ level: 'error', path: 'texts', message: `${key.replace('|', ' ')}: ${SUPPORTED_LOCALES.map((l, i) => `${ns[i]} in ${l}`).join(', ')}` });
   }
   return out;
 }

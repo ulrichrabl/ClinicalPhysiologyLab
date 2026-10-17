@@ -11,7 +11,9 @@ import { ask, opening, interpret, normalise } from '../engine/language.ts';
 import { autoNote, describe } from '../engine/notes.ts';
 import { commit, type Commit, type DebriefResult } from '../engine/debrief.ts';
 import { tr, list, type LocalizedText } from '../model/i18n.ts';
-import type { CaseDef, Finding, ManoeuvreDef, Side, InvestigationDef, TeachingCard } from '../model/types.ts';
+import type { CardPresentation, CaseDef, Finding, ManoeuvreDef, Side, InvestigationDef, TeachingCard } from '../model/types.ts';
+import { KNOWLEDGE, labelOf } from '../knowledge/index.ts';
+import { signCard } from '../knowledge/cards.ts';
 import { suggest, type Suggestion } from '../engine/suggest.ts';
 import { SHORT_LABELS } from '../data/exam-structure.ts';
 import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
@@ -66,6 +68,15 @@ const UI: Record<string, Record<Lang, string>> = {
   aboutTest: { en: 'About this test', de: 'Über diese Untersuchung' }, assesses: { en: 'What it tests', de: 'Was sie prüft' }, howTo: { en: 'How to do it', de: 'Durchführung' },
   normalFinding: { en: 'Normal', de: 'Normalbefund' }, abnormalFinding: { en: 'Abnormal findings and what they mean', de: 'Pathologische Befunde und ihre Bedeutung' },
   seenIn: { en: 'Seen in', de: 'Vorkommen' }, pitfalls: { en: 'Pitfalls', de: 'Fallstricke' }, alsoCalled: { en: 'Also called', de: 'Auch' },
+  signsWord: { en: 'Signs', de: 'Befunde' }, alsoShows: { en: 'This test can also show', de: 'Diese Untersuchung kann außerdem zeigen' },
+  normalVariants: { en: 'Normal variants', de: 'Normvarianten' }, aboutSign: { en: 'About this sign', de: 'Zu diesem Befund' },
+  normalVariantNote: { en: 'A normal finding: worth recognising so it is not taken for a sign of disease.', de: 'Ein Normalbefund: man sollte ihn kennen, damit man ihn nicht für ein Krankheitszeichen hält.' },
+  simulated: { en: 'The simulated patients can show this sign.', de: 'Die simulierten Patienten können diesen Befund zeigen.' },
+  notSimulated: { en: 'Taught here, but the simulation cannot show it yet.', de: 'Wird hier gelehrt, die Simulation kann ihn aber noch nicht zeigen.' },
+  foundBy: { en: 'Found by', de: 'Erhoben durch' }, presentsAs: { en: 'How it presents', de: 'Wie er sich zeigt' },
+  partOf: { en: 'Part of', de: 'Teil von' }, variantsWord: { en: 'Variants', de: 'Varianten' }, variantOf: { en: 'A variant of', de: 'Eine Variante von' },
+  backWord: { en: 'Back', de: 'Zurück' },
+  roleRequired: { en: 'required', de: 'obligat' }, roleAbsent: { en: 'absent', de: 'fehlt' },
   doIt: { en: 'Do it now', de: 'Jetzt durchführen' }, close: { en: 'Close', de: 'Schließen' },
   spoilerHidden: { en: 'The conditions it points to are shown after you commit to a diagnosis.', de: 'Die Krankheitsbilder dazu werden gezeigt, sobald Sie sich auf eine Diagnose festgelegt haben.' },
   left: { en: 'Left', de: 'Links' }, right: { en: 'Right', de: 'Rechts' }, which: { en: 'Which side?', de: 'Welche Seite?' },
@@ -759,7 +770,7 @@ export function mount(root: HTMLElement) {
     renderBedMonitor();
     renderRegion();
     renderCare();
-    if (cardFor) showCard(cardFor);
+    if (cardNow) renderCard();
     if (layer === 'tests') renderTests($('#layer-tests'));
   };
 
@@ -901,35 +912,71 @@ export function mount(root: HTMLElement) {
     box.querySelectorAll<HTMLSelectElement>('[data-care-select]').forEach((sel) => sel.onchange = () => doAction(sel.value));
   };
 
-  /* ---- the teaching card of a test ---------------------------------------------------- */
+  /* ---- the teaching cards: of a test, and of a sign ----------------------------------- */
+  const signLabel = (id: string) => labelOf(KNOWLEDGE, `sign:${id}`, lang);
+  const signChips = (ids: string[]) => ids.length ? `<p class="chips">${ids.map((id) => `<button type="button" class="chip" data-sign="${id}">${esc(signLabel(id))}</button>`).join('')}</p>` : '';
+  const condText = (ids: string[]) => ids.map((d) => esc(tr(CATALOG.diagnoses[d]?.label, lang))).join(', ');
+  const cardHead = (eyebrow: string, title: string, sub = '') => `<header class="card-head"><div><div class="eyebrow">${esc(eyebrow)}</div><h2>${esc(title)}</h2>${sub}</div>
+        <div>${cardBack.length ? `<button type="button" class="ghost small" id="card-back">‹ ${esc(t('backWord'))}</button>` : ''}<button type="button" class="ghost small" id="card-close" aria-label="${esc(t('close'))}">×</button></div></header>`;
+  const presentationsHtml = (ps: CardPresentation[], spoilers: boolean, withTests = false) => `<ul class="abn">${ps.map((p) => `<li>
+        ${withTests ? `<p class="eyebrow">${p.tests.map((x) => esc(tr(CATALOG.manoeuvres[x]?.label, lang))).join(' · ')}</p>` : ''}
+        <p><b>${esc(tr(p.description, lang))}</b></p><p>${esc(tr(p.meaning, lang))}</p>
+        ${signChips([...p.signs, ...p.accompanying])}
+        ${spoilers && p.conditions.length ? `<p class="muted">${esc(t('seenIn'))}: ${condText(p.conditions)}</p>` : ''}</li>`).join('')}</ul>`;
   const cardHtml = (m: ManoeuvreDef, card: TeachingCard) => {
     const spoilers = free || committed;
     const aliases = list(card.aliases, lang).concat(...Object.keys(card.aliases ?? {}).filter((l) => l !== lang).map((l) => card.aliases![l]))
       .concat(Object.keys(m.label).filter((l) => l !== lang).map((l) => m.label[l]))
       .filter((x, i, a) => x && a.indexOf(x) === i && x !== tr(m.label, lang));
-    return `<header class="card-head"><div><div class="eyebrow">${esc(t('aboutTest'))}</div><h2>${esc(tr(m.label, lang))}</h2>
-        ${aliases.length ? `<p class="muted">${esc(t('alsoCalled'))}: ${aliases.map(esc).join(' · ')}</p>` : ''}</div>
-        <button type="button" class="ghost small" id="card-close" aria-label="${esc(t('close'))}">×</button></header>
+    return `${cardHead(t('aboutTest'), tr(m.label, lang), aliases.length ? `<p class="muted">${esc(t('alsoCalled'))}: ${aliases.map(esc).join(' · ')}</p>` : '')}
       <section><h3>${esc(t('assesses'))}</h3><p>${esc(tr(card.assesses, lang))}</p></section>
       <section><h3>${esc(t('howTo'))}</h3><ol>${list(card.how, lang).map((x) => `<li>${esc(x)}</li>`).join('')}</ol></section>
-      <section><h3>${esc(t('normalFinding'))}</h3><p>${esc(tr(card.normal, lang))}</p></section>
-      <section><h3>${esc(t('abnormalFinding'))}</h3><ul class="abn">${card.abnormal.map((f) => `<li><p><b>${esc(tr(f.sign, lang))}</b></p><p>${esc(tr(f.means, lang))}</p>
-        ${spoilers && f.conditions?.length ? `<p class="muted">${esc(t('seenIn'))}: ${f.conditions.map((d) => esc(tr(CATALOG.diagnoses[d]?.label, lang))).join(', ')}</p>` : ''}</li>`).join('')}</ul>
-        ${!spoilers && card.abnormal.some((f) => f.conditions?.length) ? `<p class="muted small">${esc(t('spoilerHidden'))}</p>` : ''}</section>
+      <section><h3>${esc(t('normalFinding'))}</h3><p>${esc(tr(card.normal, lang))}</p>
+        ${card.normalVariants.length ? `<p class="muted small">${esc(t('normalVariants'))}:</p>${signChips(card.normalVariants)}` : ''}</section>
+      ${card.presentations.length ? `<section><h3>${esc(t('abnormalFinding'))}</h3>${presentationsHtml(card.presentations, spoilers)}
+        ${!spoilers && card.presentations.some((f) => f.conditions.length) ? `<p class="muted small">${esc(t('spoilerHidden'))}</p>` : ''}</section>` : ''}
+      ${card.alsoShows.length ? `<section><h3>${esc(t('alsoShows'))}</h3>${signChips(card.alsoShows)}</section>` : ''}
       ${card.pitfalls ? `<section><h3>${esc(t('pitfalls'))}</h3><ul>${list(card.pitfalls, lang).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
       ${s && !committed ? `<div class="card-actions">${m.paired ? `<button type="button" class="primary" data-card-act="${m.id}" data-side="R">${esc(t('doIt'))}: ${esc(t('right'))}</button><button type="button" class="primary" data-card-act="${m.id}" data-side="L">${esc(t('doIt'))}: ${esc(t('left'))}</button>` : `<button type="button" class="primary" data-card-act="${m.id}">${esc(t('doIt'))}</button>`}</div>` : ''}`;
   };
-  let cardFor: string | null = null;
-  const showCard = (id: string | null) => {
-    cardFor = id;
+  const signCardHtml = (id: string) => {
+    const c = signCard(KNOWLEDGE, CATALOG, id);
+    if (!c) return '';
+    const spoilers = free || committed;
+    const other = (['en', 'de'] as const).filter((l) => l !== lang).map((l) => labelOf(KNOWLEDGE, `sign:${id}`, l)).filter((x) => x !== signLabel(id));
+    const roleWord = (r: string) => (r === 'required' ? ` (${t('roleRequired')})` : r === 'absent' ? ` (${t('roleAbsent')})` : '');
+    return `${cardHead(t('aboutSign'), signLabel(id), other.length ? `<p class="muted">${esc(t('alsoCalled'))}: ${other.map(esc).join(' · ')}</p>` : '')}
+      <section><p class="muted">${esc(t(c.normalVariant ? 'normalVariantNote' : c.represented ? 'simulated' : 'notSimulated'))}</p></section>
+      ${c.parents.length ? `<section><h3>${esc(t('variantOf'))}</h3>${signChips(c.parents)}</section>` : ''}
+      ${c.tests.length ? `<section><h3>${esc(t('foundBy'))}</h3><p class="chips">${c.tests.filter((x) => CATALOG.manoeuvres[x]).map((x) => `<button type="button" class="chip" data-test="${x}">${esc(tr(CATALOG.manoeuvres[x].label, lang))}</button>`).join('')}</p></section>` : ''}
+      ${c.presentations.length ? `<section><h3>${esc(t('presentsAs'))}</h3>${presentationsHtml(c.presentations, spoilers, true)}</section>` : ''}
+      ${c.variants.length ? `<section><h3>${esc(t('variantsWord'))}</h3>${signChips(c.variants)}</section>` : ''}
+      ${c.syndromes.length ? `<section><h3>${esc(t('partOf'))}</h3><p>${c.syndromes.map((x) => esc(labelOf(KNOWLEDGE, `syndrome:${x.id}`, lang)) + esc(roleWord(x.role))).join(' · ')}</p></section>` : ''}
+      ${c.conditions.length ? `<section><h3>${esc(t('seenIn'))}</h3>${spoilers ? `<p>${condText(c.conditions)}</p>` : `<p class="muted small">${esc(t('spoilerHidden'))}</p>`}</section>` : ''}`;
+  };
+  /* The card shows a test or a sign; following a sign or a test from a card keeps a trail back. */
+  type CardRef = { kind: 'test' | 'sign'; id: string };
+  let cardNow: CardRef | null = null;
+  let cardBack: CardRef[] = [];
+  const renderCard = () => {
     const box = $('#card');
-    const m = id ? CATALOG.manoeuvres[id] : undefined;
-    if (!m?.teaching) { box.hidden = true; return; }
+    const m = cardNow?.kind === 'test' ? CATALOG.manoeuvres[cardNow.id] : undefined;
+    const html = cardNow?.kind === 'test' ? (m?.teaching ? cardHtml(m, m.teaching) : '') : cardNow ? signCardHtml(cardNow.id) : '';
+    if (!html) { box.hidden = true; return; }
     box.hidden = false;
-    $('#card-body').innerHTML = cardHtml(m, m.teaching);
+    $('#card-body').innerHTML = html;
     $('#card-close').onclick = () => showCard(null);
+    const back = document.getElementById('card-back');
+    if (back) back.onclick = () => { cardNow = cardBack.pop() ?? null; renderCard(); };
     box.querySelectorAll<HTMLButtonElement>('[data-card-act]').forEach((b) => b.onclick = () => { showCard(null); doAction(b.dataset.cardAct!, (b.dataset.side as Side) || undefined); });
+    box.querySelectorAll<HTMLButtonElement>('[data-sign]').forEach((b) => b.onclick = () => { if (cardNow) cardBack.push(cardNow); cardNow = { kind: 'sign', id: b.dataset.sign! }; renderCard(); });
+    box.querySelectorAll<HTMLButtonElement>('[data-test]').forEach((b) => b.onclick = () => { if (cardNow) cardBack.push(cardNow); cardNow = { kind: 'test', id: b.dataset.test! }; renderCard(); });
     ($('#card-close') as HTMLButtonElement).focus();
+  };
+  const showCard = (id: string | null) => {
+    cardBack = [];
+    cardNow = id ? { kind: 'test', id } : null;
+    renderCard();
   };
   $('#card').addEventListener('click', (e) => { if (e.target === $('#card')) showCard(null); });
   $('#card').addEventListener('keydown', (e) => { if (e.key === 'Escape') showCard(null); });

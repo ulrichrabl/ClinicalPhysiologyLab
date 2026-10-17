@@ -15,7 +15,7 @@ unlinkSync(bundle);
 const { CATALOG, REGISTRY, CASES, buildView, observe, startEncounter, perform, order, ask, opening, parseAction, autoNote, describe,
   validateCatalog, validateCase, evaluate, interpret, commit, figureSvg, figureLookFor, lerpPose, POSES, eyeAngles, measuredSlowPhaseVelocity, exportCatalog,
   settleCirculation, settleModel, createCirculation, healthyModel, modelFromCase, pathologyOf, caseWithModel, applyPreset, MODELS, VARIABLE_BY_ID,
-  recordLeads, leadVectors, leadVectorsOn, delineate, measuredAxis, misplaced, standardPlacement, chemistryState, parseRef, Respiratory, pulseOximeter, perform: performM, CONSTANTS, REFERENCES, constantIssues, groundingSummary, suggest } = vp;
+  recordLeads, leadVectors, leadVectorsOn, delineate, measuredAxis, misplaced, standardPlacement, chemistryState, parseRef, Respiratory, pulseOximeter, perform: performM, CONSTANTS, REFERENCES, constantIssues, groundingSummary, suggest, KNOWLEDGE } = vp;
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => {
@@ -58,9 +58,11 @@ console.log('\nCatalog and case validation');
   const cards = Object.values(CATALOG.manoeuvres).filter((m) => m.teaching);
   ok('every manoeuvre has a teaching card', cards.length === Object.keys(CATALOG.manoeuvres).length,
     J(Object.values(CATALOG.manoeuvres).filter((m) => !m.teaching).map((m) => m.id)));
-  ok('every teaching card says what it tests, how, what is normal and at least one abnormal finding',
-    cards.every((m) => m.teaching.assesses.en && m.teaching.how.en.length && m.teaching.normal.en && m.teaching.abnormal.length));
-  ok('every teaching card links its abnormal findings to properties or diagnoses', cards.every((m) => m.teaching.abnormal.length && m.teaching.abnormal.every((f) => (f.properties?.length ?? 0) + (f.conditions?.length ?? 0) > 0)));
+  ok('every teaching card says what it tests, how, what is normal and at least one finding',
+    cards.every((m) => m.teaching.assesses.en && m.teaching.how.en.length && m.teaching.normal.en && (m.teaching.presentations.length + m.teaching.alsoShows.length) > 0),
+    J(cards.filter((m) => !(m.teaching.presentations.length + m.teaching.alsoShows.length)).map((m) => m.id)));
+  ok('every card finding names signs, a syndrome, or why not', cards.every((m) => m.teaching.presentations.every((p) => p.signs.length + p.accompanying.length > 0 || p.syndrome
+    || KNOWLEDGE.presentations[p.id].note)));
   /* Suggestions: names are found in every language, by eponym, and by the sign a test looks for. */
   const top = (q, l) => suggest(CATALOG, q, l, 5)[0];
   ok('suggest: "knie" finds the heel–shin test for an English learner', top('knie', 'en')?.id === 'test.heel-shin');
@@ -1183,76 +1185,9 @@ console.log('\nEvidence: every constant has a status, every grounded one a refer
 }
 
 
-/* ---- teaching cards against the model ---------------------------------------------------------------------------
-   A card says a sign occurs in a condition. Where the case library has a patient with that condition, the model must
-   show the sign in that patient, at any site where the card's technique looks. A link that is not shown is listed
-   below with its reason: either this patient does not have the sign (the card is still right), or the model cannot
-   produce it yet (a model gap to work on). A new mismatch fails; a listed one that starts to show is reported, so the
-   list stays honest. */
-console.log('\nTeaching cards against the cases');
-{
-  const CARD_EXCEPTIONS = {
-    /* the model cannot produce the sign yet */
-    'auscultate.heart.pulmonary/0/pulmonary-embolism': 'model: no loud P2 in pulmonary hypertension',
-    'auscultate.heart.pulmonary/0/copd-exacerbation': 'model: no loud P2 in pulmonary hypertension',
-    'auscultate.heart.tricuspid/0/pulmonary-embolism': 'model: no tricuspid regurgitation murmur',
-    ...Object.fromEntries(['upper-zone', 'mid-zone', 'axilla', 'upper-back', 'base'].map((k) => [`${k === 'base' ? 'auscultate.lung-base' : `auscultate.lung-${k}`}/5/pulmonary-embolism`, 'model: no pleural rub'])),
-    'inspect.legs/1/pulmonary-embolism': 'model: no deep vein thrombosis',
-    'inspect.mouth/1/iron-deficiency-anaemia': 'model: no glossitis or angular cheilitis',
-    'smell.breath/1/decompensated-cirrhosis': 'model: no fetor hepaticus',
-    'smell.breath/2/acute-kidney-injury': 'model: no uraemic fetor',
-    'measure.bp/2/aortic-stenosis': 'model: aortic stenosis does not narrow the resting pulse pressure (112/76)',
-    'measure.rr/0/diabetic-ketoacidosis': 'model: ketoacidosis deepens breathing but the rate stays at 18',
-    'inspect.jvp/1/diabetic-ketoacidosis': 'model: right atrial pressure 2 mmHg reads as a normal JVP, not an empty one',
-    /* this patient does not have the sign; the card is right */
-    'measure.spo2/0/community-acquired-pneumonia': 'case: saturation 94 % on air, at the threshold',
-    ...Object.fromEntries(['nasal-2', 'venturi-28', 'venturi-35', 'mask-6', 'nrb-15', 'off'].map((d) => [`give.oxygen.${d}/0/community-acquired-pneumonia`, 'case: saturation 94 % on air, little shunt to show'])),
-    'measure.crt/0/urosepsis': 'case: warm septic shock, skin vessels dilated, refill normal',
-    'inspect.jvp/0/pulmonary-embolism': 'case: submassive embolism, right atrial pressure normal',
-    'inspect.legs/0/acute-kidney-injury': 'case: the triple-whammy patient is dry, not overloaded',
-    'test.asterixis/0/acute-kidney-injury': 'case: no uraemic encephalopathy',
-    'test.asterixis/0/copd-exacerbation': 'case: no CO₂ narcosis',
-    'measure.bp.lying-standing/1/hyponatraemia-thiazide': 'case: small volume deficit, systolic falls only 10 mmHg',
-    'test.visual-fields/0/ischaemic-stroke-left-mca': 'case: motor and language deficit without hemianopia',
-    'test.face-sensation/0/ischaemic-stroke-left-mca': 'case: no hemisensory loss',
-    'test.arm.pinprick/1/ischaemic-stroke-left-mca': 'case: no hemisensory loss',
-    'test.leg.tone/0/ischaemic-stroke-left-mca': 'case: an hour after onset tone is not yet spastic (the card says so)',
-  };
-  const caseFor = Object.fromEntries(CASES.map((c) => [c.diagnosis.primary, c]));
-  const views = {};
-  const viewOf = (c) => views[c.id] ??= (() => {
-    const m = modelFromCase(c); const snap = settleModel(m, 16).snapshot;
-    return buildView(c, { circulation: snap, chemistry: chemistryState(snap, m.chemistry), state: { ...c.initialState, exposure: ['chest', 'arm', 'neck', 'abdomen', 'legs'] } });
-  })();
-  let shown = 0, noCase = 0;
-  const missing = [], nowShown = [], reasons = [];
-  for (const m of Object.values(CATALOG.manoeuvres)) for (const [i, f] of (m.teaching?.abnormal ?? []).entries()) for (const d of f.conditions ?? []) {
-    const c = caseFor[d];
-    if (!c) { noCase++; continue; }
-    const v = viewOf(c);
-    const sibs = Object.values(CATALOG.manoeuvres).filter((x) => x.section === m.section);
-    let hit = false;
-    for (const p of f.properties ?? []) {
-      const pd = CATALOG.properties[p];
-      const ctxs = sibs.flatMap((x) => x.reveals.filter((r) => r.property === p).map((r) => ({ ...(x.context ?? {}), ...(r.context ?? {}) })));
-      if (!ctxs.length) ctxs.push({});
-      for (const ctx of ctxs) for (const side of (pd.paired || m.paired) ? ['L', 'R'] : [undefined]) {
-        const [ref, cx] = pd.paired ? [`${p}.${side}`, ctx] : [p, side && ctx.site ? { ...ctx, site: `${ctx.site}.${side}` } : ctx];
-        if (!obs(c, v, ref, cx).normal) hit = true;
-      }
-    }
-    const key = `${m.id}/${i}/${d}`;
-    if (hit) { shown++; if (CARD_EXCEPTIONS[key]) nowShown.push(key); } else if (CARD_EXCEPTIONS[key]) reasons.push(`${key}: ${CARD_EXCEPTIONS[key]}`); else missing.push(key);
-  }
-  console.log(`  · ${shown} card links shown by their case, ${reasons.length} listed exceptions, ${noCase} links to conditions without a case yet`);
-  for (const r of reasons) console.log(`    – ${r}`);
-  ok('every card link to a condition with a case shows in that case, or is a listed exception', missing.length === 0, J(missing));
-  ok('no listed exception shows its sign now (remove it from the list)', nowShown.length === 0, J(nowShown));
-}
-
 console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)');
 {
-  const { KNOWLEDGE, KNOWLEDGE_TABLES, validateKnowledge, explore, signsForCondition, testsForSign, syndromeSigns, labelOf, conditionAncestors,
+  const { KNOWLEDGE_TABLES, validateKnowledge, explore, signsForCondition, testsForSign, syndromeSigns, labelOf, conditionAncestors,
     signsOf, syndromePresent, coverage, coverageSummary, exportObservables } = vp;
   const { readFileSync } = await import('node:fs');
   const kctx = { catalog: CATALOG, references: REFERENCES, cases: CASES.map((c) => c.id) };
@@ -1267,6 +1202,7 @@ console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)')
   ok('validator: a link to a condition that does not exist', /condition:no-such-disease does not exist/.test(broken((t) => { t.relations.push({ from: 'sign:ptosis', rel: 'suggests', to: 'condition:no-such-disease', status: 'draft' }); })));
   ok('validator: a relation between the wrong kinds of thing', /part-of links sign to syndrome/.test(broken((t) => { t.relations.push({ from: 'sign:ptosis', rel: 'part-of', to: 'sign:anisocoria', role: 'supporting', status: 'draft' }); })));
   ok('validator: a sign without its German label', /sign:ptosis has no label in de/.test(broken((t) => { t.texts = t.texts.filter((x) => !(x.entity === 'sign:ptosis' && x.locale === 'de')); })));
+  ok('validator: a card step missing in German', /how: 2 in en, 1 in de/.test(broken((t) => { delete t.texts.find((x) => x.entity === 'test:inspect.eyes' && x.locale === 'de').fields['how.2']; })));
   ok('validator: a field the schema does not know', /unknown field colour/.test(broken((t) => { t.signs[0].colour = 'red'; })));
   ok('validator: a context the observable does not vary with', /context eyesClosed does not change this observable/.test(broken((t) => { t.signs.find((s) => s.id === 'ptosis').definition.ctx = { eyesClosed: true }; })));
 
@@ -1306,13 +1242,37 @@ console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)')
   ok('L5 radiculopathy: foot drop, a myotomal and a dermatomal pattern, positive straight leg raise', has('foot-drop-right-l5', 'foot-drop', 'myotomal-weakness', 'dermatomal-sensory-loss', 'positive-slr'));
   ok('resting vital signs are read lying, not from the standing half of the lying-and-standing test', lacks('upper-gi-bleed-peptic-ulcer', 'hypotension') && has('upper-gi-bleed-peptic-ulcer', 'orthostatic-hypotension'));
 
+  /* Cards are built from the tables: a test card shows its presentations; a sign card gathers a sign across tests. */
+  const { signCard, teachingCard } = vp;
+  const eyes = CATALOG.manoeuvres['inspect.eyes'].teaching;
+  ok("the eye inspection card presents Horner's syndrome and a third nerve palsy, with their signs",
+    eyes.presentations.some((p) => p.syndrome === 'horner-syndrome' && p.signs.includes('ptosis') && p.signs.includes('anisocoria'))
+    && eyes.presentations.some((p) => p.syndrome === 'third-nerve-palsy' && p.accompanying.includes('eye-down-and-out')));
+  ok("a presentation's conditions come from the links that name it", eyes.presentations.find((p) => p.syndrome === 'horner-syndrome').conditions.includes('lung-cancer'));
+  const em = CATALOG.manoeuvres['test.eye-movements'].teaching;
+  ok('the eye-movement card names end-point nystagmus as a normal variant; inspection in primary gaze does not',
+    em.normalVariants.includes('endpoint-nystagmus') && !eyes.normalVariants.includes('endpoint-nystagmus') && !eyes.alsoShows.includes('endpoint-nystagmus'));
+  ok('a test card also lists the signs it can show that no finding names (blood pressure: wide pulse pressure …)',
+    CATALOG.manoeuvres['measure.bp'].teaching.alsoShows.length > 0 && !CATALOG.manoeuvres['measure.bp'].teaching.alsoShows.some((x) => KNOWLEDGE.signs[x].normalVariant));
+  ok('the five lung sites share one presentation each, not five copies',
+    CATALOG.manoeuvres['auscultate.lung-base'].teaching.presentations.every((p) => p.tests.length === 5));
+  const pc = signCard(KNOWLEDGE, CATALOG, 'ptosis');
+  ok('the ptosis card: found by inspection (not by the H test that only mentions it), part of Horner’s syndrome, reaches myasthenia through its variant',
+    pc.tests.includes('inspect.eyes') && !pc.tests.includes('test.eye-movements') && pc.presentations.length >= 3 && pc.syndromes.some((x) => x.id === 'horner-syndrome')
+    && !pc.syndromes.some((x) => x.id === 'neuromuscular-fatigability')
+    && pc.variants.includes('fatigable-ptosis') && pc.conditions.includes('myasthenia-gravis'), J({ tests: pc.tests, n: pc.presentations.length }));
+  ok('a sign without a definition is taught but marked as not simulated', signCard(KNOWLEDGE, CATALOG, 'glossitis').represented === false && signCard(KNOWLEDGE, CATALOG, 'glossitis').tests.includes('inspect.mouth'));
+  ok('card texts come in English and German', Object.values(CATALOG.manoeuvres).every((m) => !m.teaching || (m.teaching.assesses.de && m.teaching.normal.de && m.teaching.how.de?.length
+    && m.teaching.presentations.every((p) => p.description.de && p.meaning.de))));
+  ok('teachingCard reads the tables (no hand-written card left)', JSON.stringify(teachingCard(KNOWLEDGE, CATALOG, 'test.romberg')) === JSON.stringify(CATALOG.manoeuvres['test.romberg'].teaching));
+
   const rows = coverage(KNOWLEDGE, CATALOG, per);
   for (const l of coverageSummary(rows)) console.log(`  · ${l}`);
   const untested = rows.filter((r) => r.representation !== 'not represented' && !r.tests.length);
   ok('every defined sign is elicited by a test, or its model gap says why not', untested.every((r) => r.modelGap), J(untested.filter((r) => !r.modelGap).map((r) => r.id)));
 
   /* Signs against the cases: every link from a sign or syndrome to a condition that has a case (or a narrower one
-     that does) must show in that case, or carry an exception with its reason. Replaces the card check in step 2. */
+     that does) must show in that case, or carry an exception with its reason. (It replaced the card check.) */
   let shown = 0, undecided = 0, notRepresented = 0;
   const missing = [], stale = [], listed = [];
   for (const r of KNOWLEDGE.relations.filter((x) => x.rel === 'suggests')) {

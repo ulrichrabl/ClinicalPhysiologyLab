@@ -26,12 +26,14 @@ export { chemistryState } from './physiology/chemistry.ts';
 export { CONSTANTS, constantIssues, groundingSummary, type ConstantEntry, type ConstantStatus } from './evidence/constants.ts';
 export { REFERENCES, type Reference } from './evidence/references.ts';
 export {
-  KNOWLEDGE, KNOWLEDGE_TABLES, buildKnowledge, labelOf, textOf, kindOf, idOf, explore, signsForCondition, syndromeSigns, testsForSign,
+  KNOWLEDGE, KNOWLEDGE_TABLES, buildKnowledge, labelOf, textOf, textIn, listOf, localized, localizedList, kindOf, idOf, explore, signsForCondition, syndromeSigns, testsForSign,
   conditionAncestors, conditionDescendants, SignEvaluator, NAMED, contextsFor, observablesOf,
 } from './knowledge/index.ts';
 export { validateKnowledge, shapeErrors } from './knowledge/validate.ts';
 export { coverage, coverageSummary, signsOf, syndromePresent, representation, channelsOf } from './knowledge/coverage.ts';
 export { exportObservables } from './knowledge/observables.ts';
+export { teachingCard, signCard, signsElicitedBy, presentationConditions, type SignCard } from './knowledge/cards.ts';
+export { withTeaching } from './data/catalog.ts';
 import './evidence/endocrine.ts';
 import './evidence/renal.ts';
 export { Body, BODY_DEFAULTS, type BodyParams, type BodySnapshot } from './physiology/body/body.ts';

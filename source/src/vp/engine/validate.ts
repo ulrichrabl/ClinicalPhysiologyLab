@@ -91,18 +91,17 @@ function checkText(text: LocalizedText | LocalizedList | undefined, locales: rea
   if (miss.length) out.push({ level, path, message: `missing ${miss.join(', ')}` });
 }
 
-/** A teaching card: every language present, and every property, diagnosis and reference it names exists. */
+/** A teaching card (built from the knowledge tables): every language present, and every diagnosis and reference it names exists. */
 function checkTeaching(card: TeachingCard, cat: Catalog, path: string, out: Issue[]) {
   const L = SUPPORTED_LOCALES;
   checkText(card.assesses, L, `${path}.assesses`, out, 'warning');
   checkText(card.normal, L, `${path}.normal`, out, 'warning');
   for (const [k, l] of [['how', card.how], ['aliases', card.aliases], ['pitfalls', card.pitfalls]] as const) if (l) checkText(l, L, `${path}.${k}`, out, 'warning');
   if (card.how.en.length && L.some((l) => card.how[l] && card.how[l].length !== card.how.en.length)) out.push({ level: 'warning', path: `${path}.how`, message: 'languages have different numbers of steps' });
-  for (const [i, f] of card.abnormal.entries()) {
-    checkText(f.sign, L, `${path}.abnormal[${i}].sign`, out, 'warning');
-    checkText(f.means, L, `${path}.abnormal[${i}].means`, out, 'warning');
-    for (const p of f.properties ?? []) if (!cat.properties[p]) out.push({ level: 'error', path: `${path}.abnormal[${i}]`, message: `unknown property ${p}` });
-    for (const d of f.conditions ?? []) if (!cat.diagnoses[d]) out.push({ level: 'error', path: `${path}.abnormal[${i}]`, message: `unknown diagnosis ${d}` });
+  for (const [i, f] of card.presentations.entries()) {
+    checkText(f.description, L, `${path}.presentations[${i}].description`, out, 'warning');
+    checkText(f.meaning, L, `${path}.presentations[${i}].meaning`, out, 'warning');
+    for (const d of f.conditions) if (!cat.diagnoses[d]) out.push({ level: 'error', path: `${path}.presentations[${i}]`, message: `unknown diagnosis ${d}` });
   }
   for (const r of card.refs ?? []) if (!REFERENCES[r]) out.push({ level: 'error', path: `${path}.refs`, message: `unknown reference ${r}` });
 }

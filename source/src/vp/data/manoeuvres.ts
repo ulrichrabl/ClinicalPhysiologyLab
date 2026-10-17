@@ -10,7 +10,7 @@ import type { ExamContext, ManoeuvreDef } from '../model/types.ts';
 
    Labels are the names a medical student learns the examination by (Romberg
    test, Armvorhalteversuch); how to do it is on the teaching card
-   (data/teaching/). Phrases are what a learner might type, per language;
+   (source/knowledge/, built into teaching cards). Phrases are what a learner might type, per language;
    the action parser matches them loosely and the suggestions show the one
    that matched.
 --------------------------------------------------------------------------- */

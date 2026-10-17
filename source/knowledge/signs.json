@@ -127,7 +127,7 @@
 {"id": "spontaneous-nystagmus", "site": "eye", "definition": {"obs": "eyes.nystagmus", "path": "present", "op": "eq", "value": true, "ctx": {"gaze": "primary"}}, "status": "draft"},
 {"id": "unidirectional-nystagmus", "site": "eye", "definition": {"fn": "nystagmusPeripheral"}, "status": "draft"},
 {"id": "gaze-evoked-nystagmus", "site": "eye", "definition": {"fn": "nystagmusDirectionChanging"}, "note": "Pathological only: the physiological end-point nystagmus of a healthy integrator does not count.", "status": "draft"},
-{"id": "endpoint-nystagmus", "site": "eye", "definition": {"obs": "eyes.nystagmus", "path": "physiological", "op": "eq", "value": true}, "normalVariant": true, "note": "The model flags drift from a healthy integrator alone as physiological (Ritter 2020).", "status": "draft"},
+{"id": "endpoint-nystagmus", "site": "eye", "definition": {"obs": "eyes.nystagmus", "path": "physiological", "op": "eq", "value": true, "ctx": {"gaze": ["left", "right", "up", "down"]}}, "normalVariant": true, "note": "The model flags drift from a healthy integrator alone as physiological (Ritter 2020).", "status": "draft"},
 {"id": "central-nystagmus", "site": "eye", "definition": {"fn": "nystagmusCentral"}, "status": "draft"},
 {"id": "saccadic-pursuit", "site": "eye", "definition": {"obs": "eyes.pursuit", "path": "quality", "op": "eq", "value": "saccadic"}, "modelGap": "Not drawn: the eye close-up does not read eyes.pursuit.", "status": "draft"},
 {"id": "head-impulse-positive", "site": "eye", "definition": {"obs": "eye.head-impulse", "path": "saccade", "op": "in", "value": ["covert", "overt"]}, "status": "draft"},

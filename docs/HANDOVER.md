@@ -62,7 +62,7 @@ Notes:
 |---|---|
 | Evidence registry; circulation, baroreflex, sepsis, kidney, lungs, ECG and examination thresholds on measured data (PRs #13–#20) | `docs/evidence-grounding-status.md` |
 | Examination organised by system and section in clinical order; search as you type; interventions separated (#22) | `docs/examination-and-teaching.md` |
-| Teaching cards for all 109 examinations in EN/DE; standard names (#23) | `docs/examination-and-teaching.md`, `src/vp/data/teaching/` |
+| Teaching cards for all 109 examinations in EN/DE; standard names (#23). Since ADR-016 step 2 they are built from the knowledge tables, and every sign has its own card | `docs/examination-and-teaching.md`, `source/knowledge/` |
 | Cards checked against the cases (#24) | test section "Teaching cards against the cases" |
 | Patient figure redrawn as an anatomical body: skeleton + outlines, body shape from the patient and the model, gown, hair, trolley (#26–#30) | `source/studio/figure/BRIEF.md` |
 | Figure seen from the right, the front (foot of the bed) and the left, with Right / Front / Left buttons in the app; the chest examination views are drawn from the same body (#31) | BRIEF, "How the figure is built" |

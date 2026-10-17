@@ -5,8 +5,10 @@ import signRows from '../../../knowledge/signs.json';
 import syndromeRows from '../../../knowledge/syndromes.json';
 import relationRows from '../../../knowledge/relations.json';
 import textRows from '../../../knowledge/texts.json';
+import testRows from '../../../knowledge/tests.json';
+import presentationRows from '../../../knowledge/presentations.json';
 import { NAMED, contextFits, partsOf, type WantedContext } from './predicates.ts';
-import type { EntityKind, EntityRef, Knowledge, KnowledgeTables, RelationRow, SignRow, SyndromeRow, TextRow } from './types.ts';
+import type { EntityKind, EntityRef, Knowledge, KnowledgeTables, PresentationRow, RelationRow, SignRow, SyndromeRow, TestRow, TextRow } from './types.ts';
 
 /* ===========================================================================
    The clinical knowledge tables (ADR-016), loaded and queryable.
@@ -17,16 +19,24 @@ import type { EntityKind, EntityRef, Knowledge, KnowledgeTables, RelationRow, Si
 =========================================================================== */
 
 export const KNOWLEDGE_TABLES: KnowledgeTables = {
-  signs: signRows as SignRow[], syndromes: syndromeRows as SyndromeRow[],
-  relations: relationRows as RelationRow[], texts: textRows as TextRow[],
+  signs: signRows as SignRow[], syndromes: syndromeRows as SyndromeRow[], tests: testRows as TestRow[],
+  presentations: presentationRows as PresentationRow[], relations: relationRows as RelationRow[], texts: textRows as TextRow[],
 };
 
+const textKey = (entity: string, field: string, locale: string) => `${entity}|${field}|${locale}`;
+const textIndexes = new WeakMap<Knowledge, Map<string, string>>();
+const indexTexts = (rows: TextRow[]) => new Map(rows.flatMap((x) => Object.entries(x.fields).map(([f, text]) => [textKey(x.entity, f, x.locale), text] as [string, string])));
+
 export function buildKnowledge(t: KnowledgeTables): Knowledge {
-  return {
+  const k: Knowledge = {
     signs: Object.fromEntries(t.signs.map((s) => [s.id, s])),
     syndromes: Object.fromEntries(t.syndromes.map((s) => [s.id, s])),
+    tests: Object.fromEntries(t.tests.map((s) => [s.id, s])),
+    presentations: Object.fromEntries(t.presentations.map((s) => [s.id, s])),
     relations: t.relations, texts: t.texts,
   };
+  textIndexes.set(k, indexTexts(t.texts));
+  return k;
 }
 
 export const KNOWLEDGE: Knowledge = buildKnowledge(KNOWLEDGE_TABLES);
@@ -34,12 +44,41 @@ export const KNOWLEDGE: Knowledge = buildKnowledge(KNOWLEDGE_TABLES);
 export const kindOf = (ref: EntityRef): EntityKind => ref.slice(0, ref.indexOf(':')) as EntityKind;
 export const idOf = (ref: EntityRef): string => ref.slice(ref.indexOf(':') + 1);
 
+const indexOf = (k: Knowledge) => {
+  let ix = textIndexes.get(k);
+  if (!ix) { ix = indexTexts(k.texts); textIndexes.set(k, ix); }
+  return ix;
+};
+
+/** A text of an entity in a language, or undefined. */
+export function textIn(k: Knowledge, ref: EntityRef, field: string, locale: Locale): string | undefined {
+  return indexOf(k).get(textKey(ref, field, locale));
+}
+
 /** A text of an entity in a language, falling back to English, then to the id. */
 export function textOf(k: Knowledge, ref: EntityRef, field: string, locale: Locale): string {
-  const rows = k.texts.filter((t) => t.entity === ref && t.field === field);
-  return (rows.find((t) => t.locale === locale) ?? rows.find((t) => t.locale === 'en'))?.text ?? idOf(ref);
+  return textIn(k, ref, field, locale) ?? textIn(k, ref, field, 'en') ?? idOf(ref);
 }
 export const labelOf = (k: Knowledge, ref: EntityRef, locale: Locale) => textOf(k, ref, 'label', locale);
+
+/** A numbered list of texts (`how.1`, `how.2`, …) in a language; English when the language has none. */
+export function listOf(k: Knowledge, ref: EntityRef, field: string, locale: Locale): string[] {
+  const read = (l: Locale) => { const out: string[] = []; for (let n = 1; ; n++) { const x = textIn(k, ref, `${field}.${n}`, l); if (x === undefined) return out; out.push(x); } };
+  const mine = read(locale);
+  return mine.length ? mine : read('en');
+}
+
+/** Every language a text exists in, as a localized object (`{ en, de }`). */
+export function localized(k: Knowledge, ref: EntityRef, field: string, locales: readonly Locale[]): { en: string } & Record<string, string> {
+  return Object.fromEntries(locales.map((l) => [l, textIn(k, ref, field, l)]).filter(([, x]) => x !== undefined)) as { en: string } & Record<string, string>;
+}
+export function localizedList(k: Knowledge, ref: EntityRef, field: string, locales: readonly Locale[]): { en: string[] } & Record<string, string[]> {
+  return Object.fromEntries(locales.map((l) => {
+    const out: string[] = [];
+    for (let n = 1; ; n++) { const x = textIn(k, ref, `${field}.${n}`, l); if (x === undefined) break; out.push(x); }
+    return [l, out];
+  }).filter(([, x]) => (x as string[]).length)) as { en: string[] } & Record<string, string[]>;
+}
 
 const out = (k: Knowledge, ref: EntityRef, rel: RelationRow['rel']) => k.relations.filter((r) => r.from === ref && r.rel === rel);
 const into = (k: Knowledge, ref: EntityRef, rel: RelationRow['rel']) => k.relations.filter((r) => r.to === ref && r.rel === rel);
