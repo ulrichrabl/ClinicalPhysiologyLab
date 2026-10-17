@@ -23,6 +23,15 @@ export interface SignsFound {
 /** Manoeuvres that act on the patient rather than examine: they name no signs themselves. */
 const ACTS = new Set(['position', 'give', 'expose']);
 
+/** The signs a test can show: what a learner may name after it, without saying which are there. */
+export function signsTestLooksFor(k: Knowledge, cat: Catalog, testId: string): string[] {
+  const m = cat.manoeuvres[testId];
+  if (!m || ACTS.has(m.verb)) return [];
+  const named = new Set<string>(signsElicitedBy(k, cat).get(testId) ?? []);
+  for (const p of Object.values(k.presentations)) if (p.tests.includes(testId)) for (const x of p.signs) if (k.signs[x]?.definition) named.add(x);
+  return [...named];
+}
+
 export function signsFoundBy(k: Knowledge, cat: Catalog, observe: Observer, testId: string, side?: Side): SignsFound {
   const m = cat.manoeuvres[testId];
   const out: SignsFound = { found: [], normal: [], absent: [] };
@@ -54,7 +63,12 @@ const LOOK = new Set(['inspect', 'expose']);
  */
 export function signsOnTheFigure(k: Knowledge, cat: Catalog, observe: Observer): string[] {
   const h = new SignEvaluator(cat, observe);
+  return signsTheFigureCanShow(k, cat).filter((id) => h.holds(k.signs[id].definition!) === true);
+}
+
+/** Every sign the bedside figure can show and the eye alone can find: what a learner may name at general inspection. */
+export function signsTheFigureCanShow(k: Knowledge, cat: Catalog): string[] {
   const byLook = (id: string) => [...testsForSign(k, cat, id), ...Object.values(k.presentations).filter((p) => p.signs.includes(id)).flatMap((p) => p.tests)]
     .some((t) => LOOK.has(cat.manoeuvres[t]?.verb ?? ''));
-  return Object.values(k.signs).filter((s) => s.definition && figureOnly(s.definition) && byLook(s.id) && h.holds(s.definition) === true).map((s) => s.id);
+  return Object.values(k.signs).filter((s) => s.definition && figureOnly(s.definition) && byLook(s.id)).map((s) => s.id);
 }

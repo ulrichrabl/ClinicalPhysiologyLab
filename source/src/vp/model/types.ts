@@ -481,7 +481,9 @@ export type EncounterEvent =
   | { t: number; kind: 'state'; change: Partial<PatientState> }
   | { t: number; kind: 'hazard'; code: string; byManoeuvre: string }
   | { t: number; kind: 'note'; author: 'auto' | 'learner'; text: string; locale: Locale }
-  | { t: number; kind: 'commit'; differential: Array<{ diagnosis: string; confidence: 'certain' | 'likely' | 'possible' }> };
+  | { t: number; kind: 'commit'; differential: Array<{ diagnosis: string; confidence: 'certain' | 'likely' | 'possible' }> }
+  /** The learner names a sign they saw (the "observe only" level, ADR-016 §11.5), or takes a name back. */
+  | { t: number; kind: 'sign-named'; sign: string; side?: Side; byManoeuvre?: string; removed?: boolean };
 
 export interface Encounter {
   schema: 'vp.encounter/1';

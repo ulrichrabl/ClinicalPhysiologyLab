@@ -210,6 +210,22 @@ canvas.phono { width: 100%; height: 140px; display: block; }
 .evidence li p { margin: 6px 0 0; }
 .evidence .finding { font-size: .93rem; color: var(--muted); border-left: 3px solid var(--accent); padding-left: 8px; }
 .ev-top { display: flex; align-items: center; gap: 8px; }
+/* who names the signs (observe only, ADR-016) */
+.ward-level { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 18px; }
+.ward-level .lv-label { font: 500 11px var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: none; padding: 6px 14px; font-size: .92rem; }
+.seg button[aria-checked="true"] { background: var(--accent); color: var(--accent-fg); }
+.small { font-size: .88rem; }
+.chip.pick { border-style: dashed; }
+.chip.pick[aria-pressed="true"] { border-style: solid; background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.f-name .lbl { margin: 0 0 4px; font-size: .9rem; color: var(--muted); }
+.name-q { width: 100%; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin: 4px 0 8px; }
+.obs-badge { font: 500 11px var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 0 5px; margin-left: 8px; }
+.doc-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.doc-lists h3 { font: 700 .78rem/1.2 var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 6px; }
+.doc-lists ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.doc-lists li .muted { font-size: .88rem; }
 .ev-sign { margin: 8px 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
 .evidence li.miss .ev-sign .chip { opacity: .8; }
 .mark { font-weight: 700; }
@@ -402,6 +418,7 @@ body.report-picking, body.report-picking * { cursor: crosshair !important; }
   <section id="ward">
     <div class="topline"><div><div class="eyebrow">Clinical Physiology Lab</div><h1 id="ward-title">Emergency department</h1></div></div>
     <p class="lede" id="ward-lede"></p>
+    <div class="ward-level" id="ward-level"></div>
     <div id="ward-list"></div>
   </section>
 

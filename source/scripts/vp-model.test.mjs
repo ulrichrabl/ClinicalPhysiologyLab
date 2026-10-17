@@ -1335,6 +1335,35 @@ console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)')
     ok('a sign is credited only when a test showed it; a pertinent negative only when a test looked for it (stroke: no hemisensory loss)',
       before === 0 && sens.elicited && sens.shown?.test === 'test.arm.pinprick' && !d.evidence.find((x) => x.item.id === 'e-arm').elicited, J({ before, sens: sens.shown }));
   }
+  /* The "observe only" level: the learner names the signs; the debrief scores misses and over-calls. */
+  {
+    const C = caseById('iron-deficiency-anaemia-caecal');
+    const m0 = modelFromCase(C), snap0 = settleModel(m0, 16).snapshot;
+    const s = startEncounter(CATALOG, REGISTRY, C, buildView(C, { circulation: snap0, chemistry: chemistryState(snap0, m0.chemistry) }));
+    s.observeOnly = true;
+    const name = (sign, extra = {}) => s.encounter.events.push({ t: s.t, kind: 'sign-named', sign, ...extra });
+    perform(s, 'test.eye-movements'); name('gaze-evoked-nystagmus', { byManoeuvre: 'test.eye-movements' });
+    perform(s, 'inspect.conjunctiva');
+    perform(s, 'measure.hr'); name('tachycardia'); name('tachycardia', { removed: true });
+    name('jaundice');
+    const doc = commit(s, []).documentation;
+    ok('observe only: a pathological name for a normal finding is an over-call, and the debrief says what it was (end-point nystagmus)',
+      doc.overcalls.some((o) => o.sign === 'gaze-evoked-nystagmus' && o.insteadNormal === 'endpoint-nystagmus'), J(doc));
+    ok('observe only: a sign a test showed but the learner did not name is a miss (pale conjunctivae)', doc.misses.some((x) => x.sign === 'conjunctival-pallor' && x.test === 'inspect.conjunctiva'), J(doc.misses));
+    ok('observe only: a name taken back does not count; a sign named without the test that shows it is an over-call',
+      !doc.overcalls.some((o) => o.sign === 'tachycardia') && !doc.hits.some((h) => h.sign === 'tachycardia') && doc.overcalls.some((o) => o.sign === 'jaundice'), J(doc));
+    name('conjunctival-pallor', { byManoeuvre: 'inspect.conjunctiva' });
+    const doc2 = commit(s, []).documentation;
+    ok('observe only: naming it turns the miss into a hit', doc2.hits.some((h) => h.sign === 'conjunctival-pallor') && !doc2.misses.some((x) => x.sign === 'conjunctival-pallor'), J(doc2.hits));
+    const V = caseById('vestibular-neuritis-left'), sv = startEncounter(CATALOG, REGISTRY, V, buildView(V));
+    sv.observeOnly = true;
+    perform(sv, 'test.head-impulse', 'L'); perform(sv, 'test.head-impulse', 'R');
+    sv.encounter.events.push({ t: sv.t, kind: 'sign-named', sign: 'head-impulse-positive', side: 'R' });
+    const d3 = commit(sv, []).documentation;
+    ok('observe only: the right sign on the wrong side is an over-call, and the sign on the right side a miss',
+      d3.overcalls.some((o) => o.sign === 'head-impulse-positive' && o.wrongSide) && d3.misses.some((x) => x.sign === 'head-impulse-positive' && x.sides.includes('L')), J(d3));
+    ok('the guided level has no documentation score', commit(startEncounter(CATALOG, REGISTRY, V, buildView(V)), []).documentation === undefined);
+  }
   ok('sepsis is flagged at the bedside by qSOFA (two of rate, pressure, mentation): the septic-shock case has it, the pneumonia does not; fever alone counts for nothing',
     syndromePresent(KNOWLEDGE, 'sepsis', per['urosepsis-septic-shock']) && !syndromePresent(KNOWLEDGE, 'sepsis', per['pneumonia-right-lower-lobe'])
     && has('pneumonia-right-lower-lobe', 'fever', 'tachycardia', 'tachypnoea'));

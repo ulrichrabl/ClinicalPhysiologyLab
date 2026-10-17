@@ -9,11 +9,11 @@ import { buildView } from '../engine/view.ts';
 import { startEncounter, perform, order, advanceCourse, observeIn, type Session } from '../engine/encounter.ts';
 import { ask, opening, interpret, normalise } from '../engine/language.ts';
 import { autoNote, describe } from '../engine/notes.ts';
-import { commit, type Commit, type DebriefResult } from '../engine/debrief.ts';
+import { commit, namedSigns, type Commit, type DebriefResult } from '../engine/debrief.ts';
 import { tr, list, type LocalizedText } from '../model/i18n.ts';
 import type { CardPresentation, CaseDef, ExamContext, Finding, ManoeuvreDef, Side, InvestigationDef, TeachingCard } from '../model/types.ts';
 import { KNOWLEDGE, labelOf, testsForSign } from '../knowledge/index.ts';
-import { signsFoundBy, signsOnTheFigure } from '../knowledge/elicited.ts';
+import { signsFoundBy, signsOnTheFigure, signsTestLooksFor, signsTheFigureCanShow } from '../knowledge/elicited.ts';
 import { signsOf } from '../knowledge/coverage.ts';
 import { signCard } from '../knowledge/cards.ts';
 import { suggest, type Suggestion } from '../engine/suggest.ts';
@@ -50,6 +50,19 @@ type Layer = 'bedside' | 'tests' | 'physiology' | 'model';
 /* ---- interface text ------------------------------------------------------------ */
 const UI: Record<string, Record<Lang, string>> = {
   ward: { en: 'Clinical Physiology Lab', de: 'Clinical Physiology Lab' },
+  levelLabel: { en: 'Who names the signs', de: 'Wer benennt die Befunde' },
+  levelGuided: { en: 'The app names them', de: 'Die App benennt sie' },
+  levelObserve: { en: 'You name them', de: 'Sie benennen sie' },
+  levelGuidedHint: { en: 'After each test the app names the signs it found.', de: 'Nach jeder Untersuchung benennt die App die gefundenen Zeichen.' },
+  levelObserveHint: { en: 'Observe only: after each test you choose what you saw. The debrief scores what you missed and what you over-called.', de: 'Nur beobachten: Nach jeder Untersuchung wählen Sie, was Sie gesehen haben. Die Nachbesprechung bewertet Übersehenes und Überbewertetes.' },
+  observeBadge: { en: 'Observe only', de: 'Nur beobachten' },
+  whatSeen: { en: 'What did you find? Choose all that apply.', de: 'Was haben Sie gefunden? Alles Zutreffende wählen.' },
+  namedSoFar: { en: 'Signs you named', de: 'Von Ihnen benannte Zeichen' }, noneNamed: { en: 'None yet. Name signs after each test, or search here.', de: 'Noch keine. Benennen Sie Zeichen nach jeder Untersuchung oder suchen Sie hier.' },
+  nameSign: { en: 'Name a sign', de: 'Zeichen benennen' }, removeNamed: { en: 'Remove', de: 'Entfernen' },
+  docTitle: { en: 'Your documentation', de: 'Ihre Dokumentation' },
+  docSummary: { en: 'You named {hit} of the {found} signs your tests showed, with {over} over-call(s).', de: 'Sie haben {hit} der {found} Zeichen benannt, die Ihre Untersuchungen zeigten, mit {over} Überbewertung(en).' },
+  docHits: { en: 'Named and there', de: 'Benannt und vorhanden' }, docMisses: { en: 'There, not named', de: 'Vorhanden, nicht benannt' }, docOver: { en: 'Named, not shown by your tests', de: 'Benannt, von Ihren Untersuchungen nicht gezeigt' },
+  wrongSide: { en: 'wrong side', de: 'falsche Seite' }, wasNormal: { en: 'this was', de: 'das war' }, seenWith: { en: 'shown by', de: 'gezeigt durch' },
   wardLede: { en: 'Each patient runs on the same physiological models. In a case you meet them as a clinician: take a history, examine, test, and commit to a diagnosis; then open the physiology and the model behind what you found. The free patient is a healthy adult whose every parameter you can change.', de: 'Jeder Patient läuft auf denselben physiologischen Modellen. Im Fall begegnen Sie ihnen als Ärztin oder Arzt: Anamnese, Untersuchung, Diagnostik, dann legen Sie sich auf eine Diagnose fest; danach öffnen Sie die Physiologie und das Modell hinter Ihren Befunden. Der freie Patient ist ein gesunder Erwachsener, dessen Parameter Sie alle verändern können.' },
   see: { en: 'See patient', de: 'Patient ansehen' }, freeTitle: { en: 'Free patient', de: 'Freier Patient' },
   freeText: { en: 'A healthy adult on the physiology bench. Examine, record an ECG, open any chapter, change any variable.', de: 'Ein gesunder Erwachsener auf dem Physiologie-Tisch. Untersuchen, EKG schreiben, jedes Kapitel öffnen, jede Variable ändern.' },
@@ -146,6 +159,7 @@ type FeedItem =
   | { k: 'blocked'; reason: string }
   | { k: 'finding'; finding: Finding }
   | { k: 'signs'; found: Array<{ sign: string; sides: Side[] }>; normal: string[]; absent: string[] }
+  | { k: 'name'; test: string; side?: Side; candidates: string[] }
   | { k: 'order'; inv: string }
   | { k: 'result'; inv: string; value: unknown }
   | { k: 'system'; text: LocalizedText }
@@ -219,6 +233,9 @@ export function mount(root: HTMLElement) {
   let feed: FeedItem[] = [];
   /* The signs named so far in this encounter, with the sides they were found on ('' = no side). */
   let signsSeen = new Map<string, Set<string>>();
+  /* Who names the signs: the app (guided) or the learner (observe only, ADR-016 §11.5). Remembered on this device. */
+  let level: 'guided' | 'observe' = (() => { try { return localStorage.getItem('vp.level') === 'observe' ? 'observe' : 'guided'; } catch { return 'guided'; } })();
+  let nameQuery = '';
   let shownResults = new Set<string>();
   let visual: Visual = null;
   let tab: 'feed' | 'notes' | 'mine' = 'feed';
@@ -252,6 +269,11 @@ export function mount(root: HTMLElement) {
   const renderWard = () => {
     $('#ward-title').textContent = t('ward');
     $('#ward-lede').textContent = t('wardLede');
+    const lv = $('#ward-level');
+    lv.innerHTML = `<span class="lv-label">${esc(t('levelLabel'))}</span>
+      <span class="seg" role="radiogroup" aria-label="${esc(t('levelLabel'))}">${(['guided', 'observe'] as const).map((x) => `<button type="button" role="radio" aria-checked="${level === x}" data-level="${x}">${esc(t(x === 'guided' ? 'levelGuided' : 'levelObserve'))}</button>`).join('')}</span>
+      <span class="muted small">${esc(t(level === 'guided' ? 'levelGuidedHint' : 'levelObserveHint'))}</span>`;
+    lv.querySelectorAll<HTMLButtonElement>('[data-level]').forEach((b) => b.onclick = () => { level = b.dataset.level as typeof level; try { localStorage.setItem('vp.level', level); } catch { /* ignore */ } renderWard(); });
     const wl = $('#ward-list');
     wl.innerHTML = '';
     for (const c of CASES) {
@@ -306,7 +328,8 @@ export function mount(root: HTMLElement) {
     $('#preparing')?.remove();
     const caseDef = free ? caseWithModel(FREE_CASE, model) : base;
     s = startEncounter(CATALOG, REGISTRY, caseDef, buildView(caseDef, { circulation: live.snap, chemistry: live.chemistry }), { locale: lang });
-    signsSeen = new Map();
+    signsSeen = new Map(); nameQuery = '';
+    s.observeOnly = level === 'observe' && !free;
     feed = [{ k: 'scene', text: { en: `${tr(base.setting.place, 'en')}. ${tr(base.setting.triage, 'en')}`, de: `${tr(base.setting.place, 'de')}. ${tr(base.setting.triage, 'de')}` } }];
     const open = base.history.filter((f) => f.volunteered);
     if (open.length) feed.push({ k: 'patient', facts: open.map((f) => f.id), topics: [], text: opening(s), locale: lang });
@@ -354,6 +377,14 @@ export function mount(root: HTMLElement) {
       /* Name the signs this test found (only from its own observations), and at general inspection the signs the
          bedside figure shows. */
       const observe = (ref: string, ctx: ExamContext) => observeIn(s!, ref, ctx);
+      if (s!.observeOnly) {
+        const candidates = [...new Set([...signsTestLooksFor(KNOWLEDGE, CATALOG, id), ...(id === 'inspect.general' ? signsTheFigureCanShow(KNOWLEDGE, CATALOG) : [])])];
+        if (candidates.length) feed.push({ k: 'name', test: id, side, candidates });
+        visualFor(m, side, r.findings);
+        afterTime(before);
+        renderEncounter();
+        return;
+      }
       const sf = signsFoundBy(KNOWLEDGE, CATALOG, observe, id, side);
       if (id === 'inspect.general') for (const x of signsOnTheFigure(KNOWLEDGE, CATALOG, observe)) if (!sf.found.some((f) => f.sign === x)) sf.found.push({ sign: x, sides: [] });
       sf.absent = sf.absent.filter((x) => !sf.found.some((f) => f.sign === x));
@@ -755,6 +786,12 @@ export function mount(root: HTMLElement) {
           ${it.normal.length ? `<p class="chips">${it.normal.map((x) => chip(x, ` (${esc(t('normalWord'))})`)).join('')}</p>` : ''}
           ${it.absent.length ? `<details><summary>${esc(t('lookedFor'))} (${it.absent.length})</summary><p class="chips">${it.absent.map((x) => chip(x)).join('')}</p></details>` : ''}</div>`;
       }
+      case 'name': {
+        const named = s ? namedSigns(s) : new Map();
+        const on = (id: string) => { const n = named.get(id); return !!n && (!it.side || !n.sides.size || n.sides.has(it.side)); };
+        return `<div class="f-signs f-name"><p class="lbl">${esc(t('whatSeen'))}</p><p class="chips">${it.candidates
+          .map((id) => `<button type="button" class="chip pick" aria-pressed="${on(id)}" data-name="${id}" data-by="${it.test}"${it.side ? ` data-nside="${it.side}"` : ''}>${esc(signLabel(id))}</button>`).join('')}</p></div>`;
+      }
       case 'order': { const inv = CATALOG.investigations[it.inv]; return `<div class="f-act">${t('ordered')}: ${esc(tr(inv.label, lang))}${it.inv === 'ecg-12' ? '' : ` · ${t('resultIn')} ${inv.turnaroundMinutes} ${t('min')}`}</div>`; }
       case 'result': {
         const inv = CATALOG.investigations[it.inv];
@@ -773,8 +810,21 @@ export function mount(root: HTMLElement) {
 
   /* The Notes tab: the signs named so far; with the free patient (or once a case is committed), every sign the
      model produces, so the learner can see what was there to find. */
+  /* Observe only: the signs the learner named, and a search to name more (no hint which are there). */
+  const namedNotesHtml = () => {
+    if (!s) return '';
+    const named = namedSigns(s);
+    const chip = (id: string, sides: Set<Side>) => `<button type="button" class="chip pick" aria-pressed="true" data-name="${id}" title="${esc(t('removeNamed'))}">${esc(signLabel(id))}${sides.size === 2 ? ` (${esc(t('bothSides'))})` : sides.size ? esc(sideWord([...sides][0])) : ''} ×</button>`;
+    const q = normalise(nameQuery);
+    const hits = q.length < 2 ? [] : Object.values(KNOWLEDGE.signs).filter((x) => x.definition && !named.has(x.id) && normalise(signLabel(x.id)).includes(q)).slice(0, 12);
+    return `<h3>${esc(t('namedSoFar'))}</h3>${named.size ? `<p class="chips">${[...named].map(([id, n]) => chip(id, n.sides)).join('')}</p>` : `<p class="muted">${esc(t('noneNamed'))}</p>`}
+      <label class="lbl" for="name-q">${esc(t('nameSign'))}</label><input id="name-q" class="name-q" value="${esc(nameQuery)}" autocomplete="off">
+      ${hits.length ? `<p class="chips">${hits.map((x) => `<button type="button" class="chip pick" aria-pressed="false" data-name="${x.id}">${esc(signLabel(x.id))}</button>`).join('')}</p>` : ''}`;
+  };
+
   const signsNotesHtml = () => {
     if (!s) return '';
+    if (s.observeOnly && !committed) return namedNotesHtml();
     const chip = (id: string, sides?: Set<string>) => {
       const sd = sides ? [...sides].filter(Boolean) as Side[] : [];
       return `<button type="button" class="chip" data-sign="${id}">${esc(signLabel(id))}${sd.length === 2 ? ` (${esc(t('bothSides'))})` : sd.length ? esc(sideWord(sd[0])) : ''}</button>`;
@@ -792,7 +842,7 @@ export function mount(root: HTMLElement) {
     if (!s) return;
     const c = s.caseDef;
     $('#pt-name').textContent = c.patient.name;
-    $('#pt-meta').textContent = `${c.patient.age} · ${tr(base.setting.place, lang)}`;
+    $('#pt-meta').innerHTML = `${c.patient.age} · ${esc(tr(base.setting.place, lang))}${s.observeOnly ? `<span class="obs-badge">${esc(t('observeBadge'))}</span>` : ''}`;
     $('#clock').textContent = `${minutes()} ${t('min')}`;
     $('#wait').textContent = t('wait'); $('#to-commit').textContent = t('commit'); $('#leave').textContent = t('leave');
     $('#to-commit').hidden = free || committed;
@@ -806,6 +856,18 @@ export function mount(root: HTMLElement) {
     $('#tab-notes').innerHTML = notesHtml(autoNote(s, lang)) + signsNotesHtml();
     ($('#mynotes') as HTMLTextAreaElement).placeholder = t('myNotesHint');
     root.querySelectorAll<HTMLButtonElement>('#tab-feed [data-sign], #tab-notes [data-sign]').forEach((b) => b.onclick = () => { cardBack = []; cardNow = { kind: 'sign', id: b.dataset.sign! }; renderCard(); });
+    /* Observe only: naming a sign, or taking the name back. */
+    root.querySelectorAll<HTMLButtonElement>('#tab-feed [data-name], #tab-notes [data-name]').forEach((b) => b.onclick = () => {
+      if (!s) return;
+      const sign = b.dataset.name!, side = b.dataset.nside as Side | undefined, by = b.dataset.by;
+      const removed = b.getAttribute('aria-pressed') === 'true';
+      s.encounter.events.push({ t: s.t, kind: 'sign-named', sign, ...(side ? { side } : {}), ...(by ? { byManoeuvre: by } : {}), ...(removed ? { removed } : {}) });
+      const keep = root.querySelector('#name-q') === document.activeElement;
+      renderEncounter();
+      if (keep) (root.querySelector('#name-q') as HTMLInputElement | null)?.focus();
+    });
+    const nq = root.querySelector('#name-q') as HTMLInputElement | null;
+    if (nq) nq.oninput = () => { nameQuery = nq.value; renderEncounter(); const n2 = root.querySelector('#name-q') as HTMLInputElement | null; if (n2) { n2.focus(); n2.setSelectionRange(n2.value.length, n2.value.length); } };
     root.querySelectorAll<HTMLButtonElement>('[data-side-act]').forEach((b) => b.onclick = () => { feed.pop(); doAction(b.dataset.sideAct!, b.dataset.side as Side); });
     const fe = $('#tab-feed'); fe.scrollTop = fe.scrollHeight;
     renderFigure();
@@ -1146,6 +1208,21 @@ export function mount(root: HTMLElement) {
     return '';
   };
 
+  /* Observe only: what the learner named, against what their tests showed. */
+  const documentationHtml = (doc: NonNullable<DebriefResult['documentation']>): string => {
+    const sidesTxt = (sides: Side[]) => (sides.length === 2 ? ` (${t('bothSides')})` : sideWord(sides[0]));
+    const chip = (id: string, sides: Side[]) => `<button type="button" class="chip" data-sign="${id}">${esc(signLabel(id))}${esc(sidesTxt(sides))}</button>`;
+    const testName = (id: string) => esc(tr(CATALOG.manoeuvres[id]?.label ?? { en: id, de: id }, lang));
+    const found = doc.hits.length + doc.misses.length;
+    const summary = t('docSummary').replace('{hit}', String(doc.hits.length)).replace('{found}', String(found)).replace('{over}', String(doc.overcalls.length));
+    const list = (items: string[]) => (items.length ? `<ul>${items.map((x) => `<li>${x}</li>`).join('')}</ul>` : '<p class="muted">—</p>');
+    return `<section><h2>${esc(t('docTitle'))}</h2><p>${esc(summary)}</p><div class="doc-lists">
+      <div><h3>✓ ${esc(t('docHits'))}</h3>${list(doc.hits.map((h) => chip(h.sign, h.sides)))}</div>
+      <div><h3>○ ${esc(t('docMisses'))}</h3>${list(doc.misses.map((m) => `${chip(m.sign, m.sides)} <span class="muted">${esc(t('seenWith'))} ${testName(m.test)}</span>`))}</div>
+      <div><h3>! ${esc(t('docOver'))}</h3>${list(doc.overcalls.map((o) => `${chip(o.sign, o.sides)}${o.wrongSide ? ` <span class="muted">${esc(t('wrongSide'))}</span>` : ''}${o.insteadNormal ? ` <span class="muted">${esc(t('wasNormal'))}</span> ${chip(o.insteadNormal, [])}` : ''}`))}</div>
+    </div></section>`;
+  };
+
   const renderDebrief = () => {
     if (!s || !debrief) return;
     const d = debrief, c = s.caseDef;
@@ -1167,6 +1244,7 @@ export function mount(root: HTMLElement) {
       <section><h2>${t('evidence')}</h2><ul class="evidence">${d.evidence.map((e) => `
         <li class="${e.elicited ? 'got' : 'miss'}"><div class="ev-top"><span class="mark">${e.elicited ? '✓' : '○'}</span>${weight(e.item.weight)}<span class="state">${evidenceState(e)}</span></div>
         ${e.item.kind === 'sign' ? evidenceDetail(e) : ''}<p>${esc(tr(e.item.why, lang))}</p>${e.item.kind === 'sign' ? '' : evidenceDetail(e)}</li>`).join('')}</ul></section>
+      ${d.documentation ? documentationHtml(d.documentation) : ''}
       <section class="two"><div><h2>${t('redFlags')}</h2><ul class="plain">${d.redFlags.map((r) => `<li><span class="mark">${r.covered ? '✓' : '○'}</span> ${esc(tr(r.why, lang))} <span class="muted">(${r.covered ? t('covered') : t('uncovered')})</span></li>`).join('')}</ul></div>
         <div><h2>${t('hazards')}</h2>${d.hazards.length ? `<ul class="plain">${d.hazards.map((h) => `<li>${esc(tr(CATALOG.manoeuvres[h.manoeuvre]?.hazards?.find((x) => x.code === h.code)?.why ?? { en: h.code === 'no-consent' ? 'Examined without asking for consent first.' : h.code, de: h.code === 'no-consent' ? 'Ohne vorherige Einwilligung untersucht.' : h.code }, lang))}</li>`).join('')}</ul>` : `<p class="muted">${t('noHazards')}</p>`}</div></section>
       <section class="two"><div><h2>${t('ddxConsidered')}</h2><p>${d.diagnosis.differentialConsidered.map(dxName).join(', ') || '—'}</p></div>
