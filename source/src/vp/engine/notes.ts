@@ -7,33 +7,32 @@ import type { Session } from './encounter.ts';
    Automatic notes.
 
    Written from the encounter's events, in the learner's language, the way a
-   clinician documents: by system, one line per examination, the latest
-   observation of each property in each context. Learners can read these
+   clinician documents: by system and section, in the order of the examination
+   (data/exam-structure.ts, the same headings as the menu), one line per
+   finding, the latest observation of each property in each context. A
+   finding is filed under the test that produced it, so nothing is lost to a
+   property that no heading names. Learners can read these
    first and later write their own and compare; the comparison works on
    the structured findings, not on the wording.
 --------------------------------------------------------------------------- */
 
-const SECTIONS: Array<{ id: string; label: { en: string; de: string }; match: (p: string) => boolean }> = [
-  { id: 'general', label: { en: 'General', de: 'Allgemein' }, match: (p) => p.startsWith('general.') },
-  { id: 'vitals', label: { en: 'Observations', de: 'Vitalparameter' }, match: (p) => p.startsWith('vitals.') },
-  { id: 'cvs', label: { en: 'Cardiovascular', de: 'Herz-Kreislauf' }, match: (p) => /^(pulse|jvp|apex|heart|hands|legs)/.test(p) },
-  { id: 'resp', label: { en: 'Respiratory', de: 'Atmung' }, match: (p) => p.startsWith('lung.') },
-  { id: 'abdomen', label: { en: 'Abdomen', de: 'Abdomen' }, match: (p) => p.startsWith('abdomen.') },
-  { id: 'eyes', label: { en: 'Eyes and eye movements', de: 'Augen und Okulomotorik' }, match: (p) => p.startsWith('eye') },
-  { id: 'ears', label: { en: 'Hearing', de: 'Gehör' }, match: (p) => p.startsWith('ear.') || p === 'head.weber' },
-  { id: 'cranial', label: { en: 'Cranial nerves and speech', de: 'Hirnnerven und Sprache' }, match: (p) => /^(face|jaw|mouth|shoulder|speech)\./.test(p) },
-  { id: 'motor', label: { en: 'Motor', de: 'Motorik' }, match: (p) => /^(arm|leg)\.(tone|power|reflexes|drift)$/.test(p) },
-  { id: 'sensory', label: { en: 'Sensory', de: 'Sensibilität' }, match: (p) => /\.(pinprick|vibration)$/.test(p) || p === 'saddle.sensation' },
-  { id: 'balance', label: { en: 'Coordination, stance and gait', de: 'Koordination, Stand und Gang' }, match: (p) => /^(posture|gait)\./.test(p) || /^(arm|leg)\.(finger-nose|heel-shin|rapid-alternating)$/.test(p) },
-];
-
 const ctxKey = (c: ExamContext) => JSON.stringify(Object.entries(c).filter(([k]) => k !== 'position' && k !== 'instrument').sort());
 
 export function autoNote(s: Session, locale: Locale = s.encounter.locale): string {
-  const latest = new Map<string, Finding>();
-  for (const e of s.encounter.events) if (e.kind === 'finding') latest.set(`${e.finding.property}|${ctxKey(e.finding.context)}`, e.finding);
-  const order = Object.keys(s.catalog.properties);
-  const findings = [...latest.values()].sort((a, b) => order.indexOf(parseRef(a.property).property) - order.indexOf(parseRef(b.property).property));
+  const latest = new Map<string, { finding: Finding; by: string }>();
+  for (const e of s.encounter.events) if (e.kind === 'finding') latest.set(`${e.finding.property}|${ctxKey(e.finding.context)}`, { finding: e.finding, by: e.byManoeuvre });
+  const propOrder = Object.keys(s.catalog.properties);
+  /* Where each test sits: its system and section, in examination order. */
+  const place = new Map<string, { heading: string; rank: number }>();
+  let rank = 0;
+  for (const sys of s.catalog.examSystems) for (const sec of sys.sections) {
+    const several = sys.sections.length > 1 && tr(sec.label, locale) !== tr(sys.label, locale);
+    const heading = several ? `${tr(sys.label, locale)} · ${tr(sec.label, locale)}` : tr(sys.label, locale);
+    for (const id of sec.manoeuvres) place.set(id, { heading, rank: rank++ });
+  }
+  const other = { heading: locale === 'de' ? 'Weitere Befunde' : 'Other findings', rank: Number.MAX_SAFE_INTEGER };
+  const items = [...latest.values()].map((x) => ({ ...x, at: place.get(x.by) ?? other }))
+    .sort((a, b) => a.at.rank - b.at.rank || propOrder.indexOf(parseRef(a.finding.property).property) - propOrder.indexOf(parseRef(b.finding.property).property));
 
   const lines: string[] = [];
   // History: each fact once, in the note's language, in the order it came up.
@@ -47,15 +46,11 @@ export function autoNote(s: Session, locale: Locale = s.encounter.locale): strin
       if (f) lines.push(`- ${open}${tr(f.say, locale)}${close}`);
     }
   }
-  for (const sec of SECTIONS) {
-    const fs = findings.filter((f) => sec.match(parseRef(f.property).property));
-    if (!fs.length) continue;
-    lines.push(`## ${tr(sec.label, locale)}`);
-    for (const f of fs) {
-      const def = s.catalog.properties[parseRef(f.property).property];
-      const text = s.registry.formatters[def.formatter](f.value, f.context, locale, s.catalog, parseRef(f.property));
-      lines.push(`- ${text}`);
-    }
+  let heading = '';
+  for (const { finding: f, at } of items) {
+    if (at.heading !== heading) { heading = at.heading; lines.push(`## ${heading}`); }
+    const def = s.catalog.properties[parseRef(f.property).property];
+    lines.push(`- ${s.registry.formatters[def.formatter](f.value, f.context, locale, s.catalog, parseRef(f.property))}`);
   }
   const results = s.encounter.events.filter((e) => e.kind === 'result' && e.t <= s.t);
   if (results.length) {
