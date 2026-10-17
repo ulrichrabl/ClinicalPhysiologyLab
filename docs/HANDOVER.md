@@ -32,10 +32,10 @@ Notes:
 - **Test output:** the suite ends with "N passed, M failed, K known gaps".
   - A known gap (△) is a comparison with measured data the model does not yet meet. It is reported with its numbers and does not fail the suite.
 - **Built page in git:** `dist/index.html` is tracked although `dist/` is ignored (`git add -f`). A rebuild with no source change differs only in `__BUILD_ID`; do not commit that.
-- **Vendored `node_modules`:** `source/node_modules` is in git and holds macOS binaries.
-  - On Linux the esbuild *CLI* fails with "Exec format error". The JS API works, and the build scripts use it.
+- **Vendored `node_modules`:** `source/node_modules` is in git and holds macOS binaries, and no TypeScript.
+  - On Linux run `npm ci --ignore-scripts` in `source/` first. Without it, esbuild fails ("installed esbuild for another platform"), and `npx tsc` picks up whatever TypeScript is installed globally, whose stricter defaults report false errors. CI does the same.
   - `npm run verify` may touch files under `node_modules` and `dist`. Before committing, run `git checkout -- source/node_modules source/dist` and commit source files only.
-- **Deploy:** every push to `main` runs `.github/workflows/deploy.yml`. It tests, builds `dist/lab.html` and publishes it to the `gh-pages` branch, which GitHub Pages serves. A merge is live a few minutes later.
+- **Deploy:** every push to `main` runs `.github/workflows/deploy.yml`. It runs `npm run verify`, builds `dist/lab.html` and publishes it to the `gh-pages` branch, which GitHub Pages serves. A merge is live a few minutes later.
 - **Pictures for PRs:**
   - `studio/figure/out/` is ignored by git.
   - Before/after images live on the orphan branch `figure-anatomy-images` and are linked from PR bodies as `https://raw.githubusercontent.com/ulrichrabl/ClinicalPhysiologyLab/figure-anatomy-images/<folder>/<file>.png`.
