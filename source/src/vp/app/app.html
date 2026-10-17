@@ -372,6 +372,28 @@ details.grp > summary { cursor: pointer; padding: 8px 14px; font-weight: 700; co
 .lang-footer { text-align: center; padding: 24px 0 8px; margin-top: 32px; border-top: 1px solid var(--line); }
 .lang-footer .langbtn { font: 400 0.82rem/1 var(--font-mono); color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; cursor: pointer; letter-spacing: .02em; }
 .lang-footer .langbtn:hover { color: var(--fg); border-color: var(--fg); }
+/* report a problem (report.ts) */
+.report-btn { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 60;
+  font: 500 13px var(--font-mono); background: var(--surface); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.report-btn:hover { color: var(--fg); border-color: var(--fg); }
+body.report-picking .report-btn { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+body.report-picking, body.report-picking * { cursor: crosshair !important; }
+.report-hint { position: fixed; left: 50%; transform: translateX(-50%); top: calc(12px + env(safe-area-inset-top, 0px)); z-index: 61; background: var(--fg); color: var(--bg); padding: 6px 14px; border-radius: 999px; font-size: 14px; pointer-events: none; }
+.report-outline { position: fixed; z-index: 59; border: 2px solid var(--abn); border-radius: 6px; background: color-mix(in srgb, var(--abn) 8%, transparent); pointer-events: none; }
+.report-box { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(60px + env(safe-area-inset-bottom, 0px)); z-index: 62; width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 100px); overflow: auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.18); padding: 14px 16px; display: grid; gap: 8px; font-size: 14px; }
+.report-head { display: flex; justify-content: space-between; align-items: center; font-family: var(--font-display); font-size: 17px; }
+.report-x { background: none; border: 0; font-size: 22px; line-height: 1; color: var(--muted); }
+.report-where { background: var(--sunk); border-radius: 8px; padding: 8px 10px; overflow-wrap: anywhere; }
+.report-quote { color: var(--muted); font-style: italic; }
+.report-actions { display: flex; gap: 6px; margin-top: 6px; }
+.report-k { font: 500 11px var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.report-box select, .report-box textarea, .report-box input { width: 100%; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.report-note { margin: 0; font-size: 12px; color: var(--muted); }
+.report-err { margin: 0; color: var(--abn); }
+.report-buttons { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.report-done { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(60px + env(safe-area-inset-bottom, 0px)); z-index: 62; max-width: min(420px, calc(100vw - 32px));
+  background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 8px; padding: 10px 12px; font-size: 13px; overflow-wrap: anywhere; }
 </style>
 
 <div id="vp">

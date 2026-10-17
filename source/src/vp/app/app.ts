@@ -130,21 +130,8 @@ const POSITION: Record<string, Record<Lang, string>> = {
 };
 const seedOf = (id: string) => [...id].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7) % 100000 + 1;
 
-/* ---- the free patient: a healthy adult, no story ----------------------------------- */
-const FREE_CASE: CaseDef = {
-  schema: 'vp.case/1', id: 'free-patient', version: '0.1.0', status: 'draft', locales: ['en', 'de'],
-  title: { en: 'Free patient', de: 'Freier Patient' }, tags: ['physiology'], difficulty: 1,
-  authoring: { authors: ['Clinical Physiology Lab'], reviewers: [], updated: '2026-10-11', sources: [] },
-  patient: { name: 'Alex Berger', age: 45, sex: 'M', heightCm: 176, weightKg: 76, appearance: { skinTone: 3, hair: 'brown, short', build: 'average', eyes: 'blue' }, speaks: ['en', 'de'] },
-  setting: { place: { en: 'Physiology lab', de: 'Physiologielabor' }, triage: { en: 'A healthy volunteer. Change anything in the Model layer, then examine what follows.', de: 'Ein gesunder Proband. Ändern Sie etwas in der Modellebene und untersuchen Sie die Folgen.' } },
-  pathology: {},
-  initialState: { position: 'reclined-45', avpu: 'A', orientation: 'oriented', cooperation: 'full', exposure: [] },
-  history: [
-    { id: 'f-pc', topic: 'pc', volunteered: true, say: { en: 'I’m here for the study. I feel fine.', de: 'Ich bin für die Studie hier. Mir geht es gut.' } },
-  ],
-  reference: { evidence: [], redFlags: [], timeBudgetMinutes: 30, summary: { en: '', de: '' } },
-  diagnosis: { primary: '', accepted: [], differential: [] },
-} as unknown as CaseDef;
+import { FREE_CASE } from './free-case.ts';
+import { installReport } from './report.ts';
 
 /* ---- feed ------------------------------------------------------------------------ */
 type FeedItem =
@@ -1203,6 +1190,21 @@ export function mount(root: HTMLElement) {
   };
   root.querySelectorAll<HTMLButtonElement>('.langbtn').forEach((b) => b.onclick = () => { lang = lang === 'en' ? 'de' : 'en'; setLang(); });
   void observeIn;
+
+  /* Report a problem: the state a report carries (report.ts). The learner's own notes stay out. */
+  installReport({ root, lang: () => lang, app: () => {
+    const screen = ['ward', 'encounter', 'debrief'].find((x) => !$(`#${x}`).hidden) ?? 'ward';
+    const snap = live ? Object.fromEntries(Object.entries(live.snap).filter(([k]) => k !== 'beat')) : null;
+    return {
+      screen: !$('#commit').hidden ? `${screen}+commit` : !$('#card').hidden ? `${screen}+card` : screen,
+      caseId: s ? base.id : 'none', caseVersion: s ? base.version : undefined, free, lang, committed,
+      layer, tab, chapter: layer === 'physiology' ? chapter : undefined, region, visual: visual?.kind ?? null, card: $('#card').hidden ? null : cardNow,
+      simMinutes: minutes(), liveSeconds: live ? Math.round(live.t) : null,
+      state: s?.state ?? null, events: s?.encounter.events ?? [], differential: ddx,
+      debrief: debrief ? { correct: debrief.diagnosis.correct, level: debrief.diagnosis.level, rank: debrief.diagnosis.rank } : null,
+      model: live?.model ?? null, snapshot: snap, chemistry: live?.chemistry ?? null,
+    };
+  } });
 
   setLang();
   show('ward');
