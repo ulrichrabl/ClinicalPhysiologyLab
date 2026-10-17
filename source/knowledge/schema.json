@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ulrichrabl/ClinicalPhysiologyLab/source/knowledge/schema.json",
+  "title": "Clinical knowledge tables (ADR-016)",
+  "description": "The shape of every table in source/knowledge/. The build checks the tables against it, then checks what a schema cannot: that links resolve, that definitions name real observables and codes, and that every text exists in English and German.",
+  "type": "object",
+  "properties": {
+    "signs": { "type": "array", "items": { "$ref": "#/$defs/sign" } },
+    "syndromes": { "type": "array", "items": { "$ref": "#/$defs/syndrome" } },
+    "relations": { "type": "array", "items": { "$ref": "#/$defs/relation" } },
+    "texts": { "type": "array", "items": { "$ref": "#/$defs/text" } }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "status": { "enum": ["draft", "reviewed", "deprecated"] },
+    "refs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "entityRef": { "type": "string", "pattern": "^(sign|syndrome|condition|structure):[a-z0-9.]+(-[a-z0-9.]+)*$" },
+    "context": { "type": "object" },
+    "definition": {
+      "anyOf": [
+        { "$ref": "#/$defs/clause" },
+        {
+          "type": "object", "description": "A named predicate, written in code (src/vp/knowledge/predicates.ts).",
+          "properties": { "fn": { "type": "string", "minLength": 1 }, "args": { "type": "object" } },
+          "required": ["fn"], "additionalProperties": false
+        },
+        { "type": "object", "properties": { "all": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/definition" } } }, "required": ["all"], "additionalProperties": false },
+        { "type": "object", "properties": { "any": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/definition" } } }, "required": ["any"], "additionalProperties": false },
+        { "type": "object", "properties": { "not": { "$ref": "#/$defs/definition" } }, "required": ["not"], "additionalProperties": false }
+      ]
+    },
+    "clause": {
+      "type": "object",
+      "properties": {
+        "obs": { "type": "string", "minLength": 1, "description": "An observable id from observables.json." },
+        "path": { "type": "string", "minLength": 1, "description": "A field of a record value, dotted." },
+        "op": { "enum": ["eq", "ne", "in", "gt", "ge", "lt", "le", "has", "hasWhere", "abnormal"] },
+        "value": {},
+        "side": { "enum": ["any", "one", "both"] },
+        "ctx": { "$ref": "#/$defs/context" }
+      },
+      "required": ["obs", "op"], "additionalProperties": false
+    },
+    "sign": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "site": { "type": "string", "minLength": 1 },
+        "definition": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/definition" }] },
+        "threshold": {
+          "type": "object",
+          "properties": { "text": { "type": "string", "minLength": 1 }, "status": { "enum": ["measured", "derived", "assumed", "standard"] }, "refs": { "$ref": "#/$defs/refs" } },
+          "required": ["text", "status"], "additionalProperties": false
+        },
+        "normalVariant": { "type": "boolean" },
+        "qualifiers": { "type": "string" },
+        "note": { "type": "string" },
+        "modelGap": { "type": "string" },
+        "status": { "$ref": "#/$defs/status" },
+        "refs": { "$ref": "#/$defs/refs" },
+        "reviewedBy": { "type": "string" },
+        "replacedBy": { "$ref": "#/$defs/id" }
+      },
+      "required": ["id", "site", "definition", "status"], "additionalProperties": false
+    },
+    "syndrome": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "note": { "type": "string" }, "status": { "$ref": "#/$defs/status" },
+        "refs": { "$ref": "#/$defs/refs" }, "reviewedBy": { "type": "string" }, "replacedBy": { "$ref": "#/$defs/id" }
+      },
+      "required": ["id", "status"], "additionalProperties": false
+    },
+    "relation": {
+      "type": "object",
+      "properties": {
+        "from": { "$ref": "#/$defs/entityRef" },
+        "rel": { "enum": ["variant-of", "part-of", "suggests", "localises-to", "is-a"] },
+        "to": { "$ref": "#/$defs/entityRef" },
+        "role": { "enum": ["required", "supporting", "absent"] },
+        "source": { "type": "string" },
+        "exceptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": { "case": { "type": "string", "minLength": 1 }, "kind": { "enum": ["model", "case"] }, "why": { "type": "string", "minLength": 1 } },
+            "required": ["case", "kind", "why"], "additionalProperties": false
+          }
+        },
+        "status": { "$ref": "#/$defs/status" },
+        "refs": { "$ref": "#/$defs/refs" },
+        "reviewedBy": { "type": "string" }
+      },
+      "required": ["from", "rel", "to", "status"], "additionalProperties": false
+    },
+    "text": {
+      "type": "object",
+      "properties": {
+        "entity": { "$ref": "#/$defs/entityRef" }, "field": { "type": "string", "minLength": 1 },
+        "locale": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Z]{2})?$" }, "text": { "type": "string", "minLength": 1 },
+        "status": { "$ref": "#/$defs/status" }
+      },
+      "required": ["entity", "field", "locale", "text"], "additionalProperties": false
+    }
+  }
+}
