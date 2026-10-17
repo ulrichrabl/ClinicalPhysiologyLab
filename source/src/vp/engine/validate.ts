@@ -1,4 +1,5 @@
 import type { CaseDef, NormalSpec, TeachingCard, ValueType, Valued } from '../model/types.ts';
+import { KNOWLEDGE } from '../knowledge/index.ts';
 import { REFERENCES } from '../evidence/references.ts';
 import type { Catalog } from '../data/catalog.ts';
 import type { Registry } from '../registry.ts';
@@ -302,6 +303,9 @@ export function validateCase(c: CaseDef, cat: Catalog, reg: Registry): Issue[] {
       if (!def) out.push({ level: 'error', path: p, message: `unknown property ${e.ref}` });
       else if (def.paired && !r.side) out.push({ level: 'error', path: p, message: 'paired property needs a side' });
     }
+    if (e.kind === 'sign' && !KNOWLEDGE.signs[e.ref]) out.push({ level: 'error', path: p, message: `unknown sign ${e.ref}` });
+    if (e.kind === 'sign' && !KNOWLEDGE.signs[e.ref]?.definition) out.push({ level: 'error', path: p, message: `sign ${e.ref} has no definition, so no test can show it` });
+    if (e.kind !== 'sign' && (e.side || e.present !== undefined)) out.push({ level: 'error', path: p, message: 'only a sign item takes side or present' });
     if (e.kind === 'fact' && !factIds.has(e.ref)) out.push({ level: 'error', path: p, message: `unknown fact ${e.ref}` });
     if (e.kind === 'investigation' && !cat.investigations[e.ref]) out.push({ level: 'error', path: p, message: `unknown investigation ${e.ref}` });
     for (const d of e.discriminates ?? []) if (!cat.diagnoses[d]) out.push({ level: 'error', path: p, message: `unknown diagnosis ${d}` });

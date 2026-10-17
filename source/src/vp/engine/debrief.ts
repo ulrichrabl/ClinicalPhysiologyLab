@@ -1,5 +1,8 @@
-import type { DiagnosisKind, EvidenceItem, ExamContext, Finding } from '../model/types.ts';
-import type { Session } from './encounter.ts';
+import type { DiagnosisKind, EvidenceItem, ExamContext, Finding, Side } from '../model/types.ts';
+import { observeIn, type Session } from './encounter.ts';
+import { KNOWLEDGE } from '../knowledge/index.ts';
+import { signsFoundBy, type SignsFound } from '../knowledge/elicited.ts';
+import { SignEvaluator } from '../knowledge/predicates.ts';
 
 /* ---------------------------------------------------------------------------
    Debrief: the encounter compared with the expert reference.
@@ -22,7 +25,7 @@ export interface DebriefResult {
     level?: Exclude<DiagnosisKind, 'condition'>;
     rank: number | null; differentialConsidered: string[]; differentialMissed: string[];
   };
-  evidence: Array<{ item: EvidenceItem; elicited: boolean; finding?: Finding }>;
+  evidence: Array<{ item: EvidenceItem; elicited: boolean; finding?: Finding; shown?: SignShown }>;
   redFlags: Array<{ ref: string; kind: 'property' | 'fact'; why: EvidenceItem['why']; covered: boolean }>;
   hazards: Array<{ code: string; manoeuvre: string }>;
   minutes: number;
@@ -33,6 +36,54 @@ export interface DebriefResult {
 function contextMatches(want: ExamContext | undefined, have: ExamContext): boolean {
   if (!want) return true;
   return Object.entries(want).every(([k, v]) => (have as Record<string, unknown>)[k] === v);
+}
+
+/** What one test showed, in signs: read from the findings the learner saw, as the test recorded them. */
+export interface SignShown extends SignsFound { t: number; test: string; side?: Side }
+
+/**
+ * The signs each test the learner did showed (ADR-016 §10). Each test is read from its own recorded findings, so the
+ * debrief judges what the learner saw then, not the patient as they are at the end.
+ */
+export function signsShown(s: Session): SignShown[] {
+  const events = s.encounter.events, out: SignShown[] = [];
+  events.forEach((e, i) => {
+    if (e.kind !== 'action' || e.outcome !== 'performed') return;
+    const own: Finding[] = [];
+    for (let j = i + 1; j < events.length && events[j].kind !== 'action'; j++) {
+      const x = events[j];
+      if (x.kind === 'finding' && x.byManoeuvre === e.manoeuvre) own.push(x.finding);
+    }
+    const fits = (f: Finding, ctx: ExamContext) => Object.entries(ctx).every(([k, v]) => v === undefined || (f.context as Record<string, unknown>)[k] === v);
+    const observe = (ref: string, ctx: ExamContext): Finding =>
+      own.find((f) => f.property === ref && fits(f, ctx)) ?? own.find((f) => f.property === ref) ?? observeIn(s, ref, ctx);
+    const r = signsFoundBy(KNOWLEDGE, s.catalog, observe, e.manoeuvre, e.side);
+    if (r.found.length || r.normal.length || r.absent.length) out.push({ t: e.t, test: e.manoeuvre, side: e.side, ...r });
+  });
+  return out;
+}
+
+/**
+ * Whether a sign that needs more than one test was shown by what the learner saw across the encounter: unidirectional
+ * nystagmus needs the eyes with fixation (the eye movements) and without it (Frenzel). Only recorded findings count;
+ * anything the definition needs that the learner did not see leaves it unshown.
+ */
+export function shownAcrossEncounter(s: Session, sign: string): boolean {
+  const def = KNOWLEDGE.signs[sign]?.definition;
+  if (!def) return false;
+  const seen = s.encounter.events.flatMap((e) => (e.kind === 'finding' ? [e.finding] : []));
+  const NOT_SEEN = new Error('not seen');
+  const fits = (f: Finding, ctx: ExamContext) => Object.entries(ctx).every(([k, v]) => v === undefined || (f.context as Record<string, unknown>)[k] === v);
+  const h = new SignEvaluator(s.catalog, (ref, ctx) => { const f = seen.find((x) => x.property === ref && fits(x, ctx)); if (!f) throw NOT_SEEN; return f; });
+  try { return h.holds(def) === true; } catch (e) { if (e === NOT_SEEN) return false; throw e; }
+}
+
+/** Whether a sign item of the reference was met: found (on its side), or, for a pertinent negative, looked for and not found. */
+export function signElicited(shown: SignShown[], item: EvidenceItem): SignShown | undefined {
+  const present = item.present !== false;
+  return shown.find((x) => present
+    ? x.found.some((f) => f.sign === item.ref && (!item.side || !f.sides.length || f.sides.includes(item.side)))
+    : x.absent.includes(item.ref) && !x.found.some((f) => f.sign === item.ref) && (!item.side || !x.side || x.side === item.side));
 }
 
 export function elicited(s: Session, kind: 'property' | 'fact' | 'investigation', ref: string, context?: ExamContext): { ok: boolean; finding?: Finding } {
@@ -58,10 +109,18 @@ export function commit(s: Session, differential: Commit[]): DebriefResult {
       differentialConsidered: c.diagnosis.differential.filter((d) => named.has(d)),
       differentialMissed: c.diagnosis.differential.filter((d) => !named.has(d)),
     },
-    evidence: c.reference.evidence.map((item) => {
-      const r = elicited(s, item.kind, item.ref, item.context);
-      return { item, elicited: r.ok, finding: r.finding };
-    }),
+    evidence: (() => {
+      const shown = c.reference.evidence.some((x) => x.kind === 'sign') ? signsShown(s) : [];
+      return c.reference.evidence.map((item) => {
+        if (item.kind === 'sign') {
+          const x = signElicited(shown, item);
+          const across = !x && item.present !== false && !item.side && shownAcrossEncounter(s, item.ref);
+          return { item, elicited: !!x || across, shown: x };
+        }
+        const r = elicited(s, item.kind, item.ref, item.context);
+        return { item, elicited: r.ok, finding: r.finding };
+      });
+    })(),
     redFlags: c.reference.redFlags.map((rf) => ({ ...rf, covered: elicited(s, rf.kind, rf.ref).ok })),
     hazards: s.encounter.events.flatMap((e) => (e.kind === 'hazard' ? [{ code: e.code, manoeuvre: e.byManoeuvre }] : [])),
     minutes: Math.round(s.t / 60000),

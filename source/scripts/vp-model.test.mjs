@@ -90,7 +90,7 @@ console.log('\nCatalog and case validation');
   bad.history[0].say = { en: 'Only English' };
   bad.pathology.lesions = [{ nodes: ['L_flux_capacitor'] }];
   bad.pathology.conditions[0].params.severity = 1.5;
-  bad.reference.evidence[0].ref = 'eye.head-impulse';
+  Object.assign(bad.reference.evidence[0], { kind: 'property', ref: 'eye.head-impulse' }); delete bad.reference.evidence[0].side;
   bad.diagnosis.differential.push('not-a-diagnosis');
   const bi = errors(validateCase(bad, CATALOG, REGISTRY)).map((i) => `${i.path}: ${i.message}`).join('\n');
   ok('validator: a case may not author a model-only property', /eyes\.nystagmus.*only a model/.test(bi));
@@ -1289,6 +1289,38 @@ console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)')
     has('iron-deficiency-anaemia-caecal', 'endpoint-nystagmus', 'conjunctival-pallor') && lacks('iron-deficiency-anaemia-caecal', 'gaze-evoked-nystagmus'));
   ok('L5 radiculopathy: foot drop, a myotomal and a dermatomal pattern, positive straight leg raise', has('foot-drop-right-l5', 'foot-drop', 'myotomal-weakness', 'dermatomal-sensory-loss', 'positive-slr'));
   ok('resting vital signs are read lying, not from the standing half of the lying-and-standing test', lacks('upper-gi-bleed-peptic-ulcer', 'hypotension') && has('upper-gi-bleed-peptic-ulcer', 'orthostatic-hypotension'));
+  /* The expert reference in signs (ADR-016 §10): every sign item says something true of its case. */
+  const wrongItems = CASES.flatMap((c) => c.reference.evidence.filter((e) => e.kind === 'sign' && per[c.id][e.ref] !== (e.present !== false))
+    .map((e) => `${c.id} ${e.id}: ${e.ref} is ${per[c.id][e.ref]} in the case, the reference says ${e.present !== false}`));
+  ok('every sign in an expert reference is shown by its case, and every pertinent negative is absent', !wrongItems.length, wrongItems.join('; '));
+  /* An examiner who does every test that can show each reference sign gets every sign item. */
+  const testsShowing = (id) => [...new Set([...testsForSign(KNOWLEDGE, CATALOG, id),
+    ...Object.values(KNOWLEDGE.presentations).filter((p) => p.signs.includes(id)).flatMap((p) => p.tests)])]
+    .filter((t) => !['position', 'give', 'expose'].includes(CATALOG.manoeuvres[t]?.verb));
+  const missedByExpert = [];
+  for (const c of CASES) {
+    const items = c.reference.evidence.filter((e) => e.kind === 'sign');
+    if (!items.length) continue;
+    const m0 = modelFromCase(c), snap0 = settleModel(m0, 16).snapshot;
+    const s = startEncounter(CATALOG, REGISTRY, c, buildView(c, { circulation: snap0, chemistry: chemistryState(snap0, m0.chemistry) }));
+    for (const e of items) for (const t of testsShowing(e.ref)) {
+      const m = CATALOG.manoeuvres[t];
+      Object.assign(s.state, { position: m.requires?.position?.[0] ?? s.state.position, exposure: [...new Set([...(s.state.exposure ?? []), ...(m.requires?.exposure ?? [])])] });
+      for (const side of m.paired ? (e.side ? [e.side] : ['L', 'R']) : [undefined]) perform(s, t, side);
+    }
+    const d = commit(s, [{ diagnosis: c.diagnosis.primary, confidence: 'likely' }]);
+    for (const x of d.evidence) if (x.item.kind === 'sign' && !x.elicited) missedByExpert.push(`${c.id} ${x.item.id} (${x.item.ref})`);
+  }
+  ok('an examiner who does the tests that show each reference sign is credited with every one', !missedByExpert.length, missedByExpert.join('; '));
+  {
+    const C = caseById('acute-stroke-left-mca'), s = startEncounter(CATALOG, REGISTRY, C, buildView(C));
+    const before = commit(startEncounter(CATALOG, REGISTRY, C, buildView(C)), []).evidence.filter((x) => x.item.kind === 'sign' && x.elicited).length;
+    perform(s, 'test.arm.pinprick', 'L');
+    const d = commit(s, []);
+    const sens = d.evidence.find((x) => x.item.id === 'e-sensory');
+    ok('a sign is credited only when a test showed it; a pertinent negative only when a test looked for it (stroke: no hemisensory loss)',
+      before === 0 && sens.elicited && sens.shown?.test === 'test.arm.pinprick' && !d.evidence.find((x) => x.item.id === 'e-arm').elicited, J({ before, sens: sens.shown }));
+  }
   ok('sepsis is flagged at the bedside by qSOFA (two of rate, pressure, mentation): the septic-shock case has it, the pneumonia does not; fever alone counts for nothing',
     syndromePresent(KNOWLEDGE, 'sepsis', per['urosepsis-septic-shock']) && !syndromePresent(KNOWLEDGE, 'sepsis', per['pneumonia-right-lower-lobe'])
     && has('pneumonia-right-lower-lobe', 'fever', 'tachycardia', 'tachypnoea'));

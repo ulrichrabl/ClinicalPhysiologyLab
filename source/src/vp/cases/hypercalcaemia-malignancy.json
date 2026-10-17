@@ -282,8 +282,8 @@
       },
       {
         "id": "e-mucosa",
-        "kind": "property",
-        "ref": "mouth.mucosa",
+        "kind": "sign",
+        "ref": "dry-mucosa",
         "weight": "supporting",
         "why": {
           "en": "Dry mucous membranes.",

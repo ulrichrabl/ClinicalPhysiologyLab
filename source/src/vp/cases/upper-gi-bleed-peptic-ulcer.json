@@ -251,8 +251,8 @@
     "evidence": [
       {
         "id": "e-pr",
-        "kind": "property",
-        "ref": "rectal.exam",
+        "kind": "sign",
+        "ref": "melaena",
         "weight": "essential",
         "discriminates": [
           "colorectal-cancer"
@@ -277,11 +277,8 @@
       },
       {
         "id": "e-postural",
-        "kind": "property",
-        "ref": "vitals.bp.R",
-        "context": {
-          "position": "standing"
-        },
+        "kind": "sign",
+        "ref": "orthostatic-hypotension",
         "weight": "essential",
         "why": {
           "en": "A postural drop and tachycardia: a litre or more lost.",
@@ -320,8 +317,9 @@
       },
       {
         "id": "e-liver",
-        "kind": "property",
-        "ref": "skin.liver-stigmata",
+        "kind": "sign",
+        "ref": "spider-naevi",
+        "present": false,
         "weight": "discriminating",
         "discriminates": [
           "variceal-bleed"

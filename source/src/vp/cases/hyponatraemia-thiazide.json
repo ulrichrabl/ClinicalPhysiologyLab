@@ -361,11 +361,9 @@
       },
       {
         "id": "e-neuro",
-        "kind": "property",
-        "ref": "eye.pupil.L",
-        "context": {
-          "lightOn": "L"
-        },
+        "kind": "sign",
+        "ref": "anisocoria",
+        "present": false,
         "weight": "supporting",
         "discriminates": [
           "subdural-haematoma"

@@ -255,8 +255,8 @@
       },
       {
         "id": "e-pallor",
-        "kind": "property",
-        "ref": "eyes.conjunctiva",
+        "kind": "sign",
+        "ref": "conjunctival-pallor",
         "weight": "supporting",
         "why": {
           "en": "Pale conjunctivae.",

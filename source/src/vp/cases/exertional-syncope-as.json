@@ -263,11 +263,8 @@
     "evidence": [
       {
         "id": "e-murmur",
-        "kind": "property",
-        "ref": "heart.sounds",
-        "context": {
-          "site": "chest.aortic-area"
-        },
+        "kind": "sign",
+        "ref": "ejection-systolic-murmur",
         "weight": "essential",
         "why": {
           "en": "A loud ejection systolic murmur at the aortic area with a soft, single second sound: severe obstruction at the aortic valve.",
@@ -276,8 +273,8 @@
       },
       {
         "id": "e-carotid-pulse",
-        "kind": "property",
-        "ref": "pulse.carotid.R",
+        "kind": "sign",
+        "ref": "slow-rising-pulse",
         "weight": "discriminating",
         "discriminates": [
           "hcm"
@@ -302,8 +299,8 @@
       },
       {
         "id": "e-apex",
-        "kind": "property",
-        "ref": "apex",
+        "kind": "sign",
+        "ref": "heaving-apex",
         "weight": "supporting",
         "why": {
           "en": "A heaving, undisplaced apex: a pressure-loaded, hypertrophied ventricle.",

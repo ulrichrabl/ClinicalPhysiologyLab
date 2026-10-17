@@ -303,22 +303,22 @@
     "evidence": [
       {
         "id": "e-bp",
-        "kind": "property",
-        "ref": "vitals.bp.R",
+        "kind": "sign",
+        "ref": "hypotension",
         "weight": "essential",
         "discriminates": [
           "acute-coronary-syndrome",
           "pulmonary-embolism"
         ],
         "why": {
-          "en": "Hypotension with a wide pulse pressure and warm, flushed skin: the vessels have dilated (vasodilatory shock), not a failing pump or an empty tank alone.",
-          "de": "Hypotonie mit großer Blutdruckamplitude und warmer, geröteter Haut: Die Gefäße sind weit gestellt (vasodilatatorischer Schock), nicht nur eine versagende Pumpe oder ein leerer Tank."
+          "en": "Hypotension with warm, flushed skin: the vessels have dilated (vasodilatory shock), not a failing pump or an empty tank alone.",
+          "de": "Hypotonie mit warmer, geröteter Haut: Die Gefäße sind weit gestellt (vasodilatatorischer Schock), nicht nur eine versagende Pumpe oder ein leerer Tank."
         }
       },
       {
         "id": "e-temp",
-        "kind": "property",
-        "ref": "vitals.temp",
+        "kind": "sign",
+        "ref": "fever",
         "weight": "essential",
         "why": {
           "en": "Fever with rigors: a bacteraemia until shown otherwise.",
@@ -327,8 +327,8 @@
       },
       {
         "id": "e-hr",
-        "kind": "property",
-        "ref": "vitals.hr",
+        "kind": "sign",
+        "ref": "tachycardia",
         "weight": "supporting",
         "why": {
           "en": "Tachycardia: fever, adrenaline and a falling pressure.",
@@ -337,8 +337,8 @@
       },
       {
         "id": "e-rr",
-        "kind": "property",
-        "ref": "vitals.rr",
+        "kind": "sign",
+        "ref": "tachypnoea",
         "weight": "supporting",
         "why": {
           "en": "Tachypnoea, altered mentation and a systolic pressure of 100 or less: qSOFA 3, a high risk of death.",

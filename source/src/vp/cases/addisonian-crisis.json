@@ -295,11 +295,8 @@
     "evidence": [
       {
         "id": "e-bp",
-        "kind": "property",
-        "ref": "vitals.bp.R",
-        "context": {
-          "position": "standing"
-        },
+        "kind": "sign",
+        "ref": "orthostatic-hypotension",
         "weight": "essential",
         "why": {
           "en": "Hypotension, worse on sitting up, after a litre of saline: cortisol is needed for vessels to respond to noradrenaline.",
@@ -308,8 +305,8 @@
       },
       {
         "id": "e-pig",
-        "kind": "property",
-        "ref": "skin.pigmentation",
+        "kind": "sign",
+        "ref": "hyperpigmentation",
         "weight": "essential",
         "discriminates": [
           "secondary-adrenal-insufficiency",
