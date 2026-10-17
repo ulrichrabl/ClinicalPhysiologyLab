@@ -229,10 +229,11 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     reveals: [{ property: 'eyes.conjunctiva' }], durationSeconds: 10,
   },
   {
-    id: 'test.asterixis', verb: 'test', target: 'hands',
-    label: { en: 'Arms outstretched, wrists bent back', de: 'Arme vorhalten, Handgelenke dorsalflektiert' },
-    phrases: { en: ['asterixis', 'flap', 'liver flap', 'hold your hands out', 'cock your wrists'], de: ['flapping tremor', 'asterixis', 'hände vorhalten', 'flattern'] },
-    reveals: [{ property: 'hands.asterixis' }], durationSeconds: 20,
+    id: 'test.arms-outstretched', verb: 'test', target: 'hands',
+    label: { en: 'Arms outstretched, fingers spread, then wrists bent back', de: 'Arme vorhalten, Finger spreizen, dann Handgelenke dorsalflektieren' },
+    phrases: { en: ['tremor', 'fine tremor', 'shaky hands', 'fingers spread', 'paper on the hands', 'asterixis', 'flap', 'liver flap', 'hold your hands out', 'cock your wrists', 'arms outstretched'],
+      de: ['tremor', 'zittern', 'feinschlägiger tremor', 'finger spreizen', 'blatt auf die hände', 'flapping tremor', 'asterixis', 'hände vorhalten', 'flattern', 'arme vorhalten'] },
+    reveals: [{ property: 'hands.tremor' }, { property: 'hands.asterixis' }], durationSeconds: 45,
   },
   {
     id: 'test.shifting-dullness', verb: 'percuss', target: 'abdomen',
@@ -251,12 +252,6 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     label: { en: 'Inspection of skin, hands and chest wall', de: 'Inspektion von Haut, Händen und Thoraxwand' },
     phrases: { en: ['spider naevi', 'palmar erythema', 'liver stigmata', 'stigmata of chronic liver disease', 'caput medusae', 'skin'], de: ['spider naevi', 'palmarerythem', 'leberhautzeichen', 'caput medusae', 'haut'] },
     reveals: [{ property: 'skin.liver-stigmata' }], requires: { exposure: ['chest', 'abdomen'] }, durationSeconds: 30,
-  },
-  {
-    id: 'test.tremor', verb: 'test', target: 'hands',
-    label: { en: 'Arms outstretched, fingers spread', de: 'Arme vorhalten, Finger gespreizt' },
-    phrases: { en: ['tremor', 'fine tremor', 'shaky hands', 'fingers spread', 'paper on the hands'], de: ['tremor', 'zittern', 'feinschlägiger tremor', 'finger spreizen', 'blatt auf die hände'] },
-    reveals: [{ property: 'hands.tremor' }], durationSeconds: 15,
   },
   {
     id: 'inspect.pigmentation', verb: 'inspect', target: 'skin',

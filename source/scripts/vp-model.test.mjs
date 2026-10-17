@@ -354,7 +354,7 @@ console.log('\nEncounter: preconditions, hazards, history, notes');
     /* Every finding is filed under the system of the test that produced it; none is dropped. */
     const c = caseById('decompensated-cirrhosis'), sx = startEncounter(CATALOG, REGISTRY, c, buildView(c), { locale: 'en' });
     sx.state.exposure = ['chest', 'abdomen', 'arm', 'legs', 'neck'];
-    for (const id of ['test.asterixis', 'inspect.mouth', 'smell.breath', 'inspect.breathing', 'palpate.trachea', 'palpate.thyroid', 'inspect.skin', 'measure.crt']) perform(sx, id);
+    for (const id of ['test.arms-outstretched', 'inspect.mouth', 'smell.breath', 'inspect.breathing', 'palpate.trachea', 'palpate.thyroid', 'inspect.skin', 'measure.crt']) perform(sx, id);
     const n = autoNote(sx, 'en');
     const under = (heading, re) => { const block = n.split('## ').find((b) => b.startsWith(heading)) ?? ''; return re.test(block); };
     ok('notes: asterixis and capillary refill under General examination · Hands, not Cardiovascular',
@@ -1318,8 +1318,11 @@ console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)')
   ok('the pulse names no postural rise: that needs standing, which only the lying-and-standing test does',
     !has1(found(bleed, 'measure.hr'), 'postural-tachycardia') && has1(found(bleed, 'measure.bp.lying-standing'), 'orthostatic-hypotension'));
   ok('positioning, exposing and oxygen name no signs themselves', found(bleed, 'position.standing').found.length === 0 && found(bleed, 'expose.chest').absent.length === 0);
-  ok('tests are named as tests, the old sign names still find them', CATALOG.manoeuvres['test.asterixis'].label.en === 'Arms outstretched, wrists bent back'
-    && suggest(CATALOG, 'asterixis', 'en').some((x) => x.id === 'test.asterixis') && suggest(CATALOG, 'Sklerenikterus', 'de').some((x) => x.id === 'inspect.sclera'));
+  ok('tests are named as tests, the old sign names still find them', CATALOG.manoeuvres['test.arms-outstretched'].label.en === 'Arms outstretched, fingers spread, then wrists bent back'
+    && suggest(CATALOG, 'asterixis', 'en').some((x) => x.id === 'test.arms-outstretched') && suggest(CATALOG, 'Sklerenikterus', 'de').some((x) => x.id === 'inspect.sclera'));
+  ok('one posture shows both signs: the arms held out show tremor and asterixis (owner decision)',
+    !CATALOG.manoeuvres['test.tremor'] && !CATALOG.manoeuvres['test.asterixis']
+    && ['fine-postural-tremor', 'asterixis'].every((x) => testsForSign(KNOWLEDGE, CATALOG, x).includes('test.arms-outstretched')));
 
   const rows = coverage(KNOWLEDGE, CATALOG, per);
   for (const l of coverageSummary(rows)) console.log(`  · ${l}`);
