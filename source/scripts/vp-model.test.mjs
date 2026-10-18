@@ -589,8 +589,31 @@ console.log('\nHeart sounds timed by the circulation (ADR-017 step 3)');
     `${Math.round(pe.a2 - pe.avo)} ms at ${Math.round(hrPe)}/min, normal ${Math.round(413 - 1.7 * hrPe)}: ejection shortens far more with rate than in people`);
   gap('pre-ejection period within 15 % of Weissler’s normal', Math.abs(h.avo - (131 - 0.4 * hr)) <= 0.15 * (131 - 0.4 * hr),
     `${Math.round(h.avo)} ms from activation, normal ${Math.round(131 - 0.4 * hr)} from the start of QRS: no electromechanical delay, and isovolumic contraction is quick`);
+  /* The respiratory pump (ADR-017 step 3b): pleural pressure from the lung model acts on the heart and lung vessels. */
+  const breathe = (m, seconds = 40) => {
+    const run = createCirculation(m); run.settle(20);
+    const rows = [];
+    for (let i = 0; i < seconds * 10; i++) { run.advance(0.1); rows.push({ d: run.sim.dPpl, ra: run.sim.Pra }); }
+    return { rows, beats: run.sim.beatLog };
+  };
+  const mean = (xs, f) => xs.reduce((a, x) => a + f(x), 0) / Math.max(1, xs.length);
+  const hb = breathe(healthyModel());
+  const swing = (Math.max(...hb.rows.map((r) => r.d)) - Math.min(...hb.rows.map((r) => r.d))) / 0.7356;
+  ok('quiet breathing swings pleural pressure by 2–4 cmH2O below its resting −5, and the heart feels it', swing >= 2 && swing <= 4, `${swing.toFixed(1)} cmH2O`);
+  const raIn = mean(hb.rows.filter((r) => r.d < -1), (r) => r.ra), raEx = mean(hb.rows.filter((r) => r.d > -0.3), (r) => r.ra);
+  ok('…the right atrial pressure (the JVP) falls in inspiration', raIn < raEx - 0.3, `${raIn.toFixed(1)} vs ${raEx.toFixed(1)} mmHg`);
+  const ins = hb.beats.filter((b) => b.dPpl < -1), exp = hb.beats.filter((b) => b.dPpl > -0.3);
+  const swingSys = Math.max(...hb.beats.map((b) => b.Psys)) - Math.min(...hb.beats.map((b) => b.Psys));
+  ok('…and systolic pressure varies with breathing by less than 10 mmHg (no pulsus paradoxus in health)', swingSys < 10, `${swingSys.toFixed(1)} mmHg`);
   /* Inspiration lowers intrathoracic pressure, fills the right heart more and delays P2 (Aygen 1970: ≥ 20 ms in 98 % of normals). */
-  gap('A2–P2 widens by 20 ms or more in inspiration', false, `split ${Math.round(h.p2 - h.a2)} ms in every phase: the circulation has no respiratory pump, so breathing does not change right-heart filling`);
+  const widen = mean(ins, (b) => b.p2 - b.a2) - mean(exp, (b) => b.p2 - b.a2);
+  gap('A2–P2 widens by 20 ms or more in inspiration', widen >= 20,
+    `${widen.toFixed(0)} ms (right ventricular ejection ${mean(ins, (b) => b.p2 - b.pvo).toFixed(0)} vs ${mean(exp, (b) => b.p2 - b.pvo).toFixed(0)} ms): the pump now fills the right heart more in inspiration, but the ventricle's ejection time is set by its activation, not its volume, and the pulmonary "hangout" (the outflow's inertia, which keeps blood moving after the pressures cross) is not modelled`);
+  const tamp = healthyModel(); tamp.circulation.pericardialFluid = 500;
+  const tb = breathe(tamp);
+  const para = Math.max(...tb.beats.map((b) => b.Psys)) - Math.min(...tb.beats.map((b) => b.Psys));
+  gap('tamponade: pulsus paradoxus, systolic pressure falling more than 10 mmHg in inspiration (Spodick 2003)', para > 10,
+    `${para.toFixed(1)} mmHg with 500 mL of pericardial fluid: the ventricles compete too little for the shared space when the right one fills`);
 }
 
 console.log('\nModels and measurements');
@@ -817,8 +840,8 @@ console.log('\nThe lungs and the circulation, coupled');
   const HF = settled((m) => { Object.assign(m.circulation, { Emax: 0.9, bloodVolume: 6000 }); m.body.courseHours = 0.5; });
   const hfv = viewOf(HF);
   ok('left heart failure: left atrial pressure floods the lungs from the bottom: fine crackles at the bases, oedema on the X-ray',
-    HF.s.metrics.PlaMean > 20 && at(hfv, 'lung.sounds', 'chest.lung-base.R').added.includes('fine-crackles') && REGISTRY.resolvers['resp.cxr'](hfv, { property: 'cxr' }, {}).value.findings.some((x) => x.startsWith('oedema')),
-    `LA ${HF.s.metrics.PlaMean.toFixed(0)} mmHg`);
+    (HF.s.metricsBreath ?? HF.s.metrics).PlaMean > 20 && at(hfv, 'lung.sounds', 'chest.lung-base.R').added.includes('fine-crackles') && REGISTRY.resolvers['resp.cxr'](hfv, { property: 'cxr' }, {}).value.findings.some((x) => x.startsWith('oedema')),
+    `LA ${(HF.s.metricsBreath ?? HF.s.metrics).PlaMean.toFixed(1)} mmHg over a breath (one beat ${HF.s.metrics.PlaMean.toFixed(1)})`);
   gap('…hypoxaemia and tachypnoea follow from the water, not from a rule', HF.s.resp.PaO2 < H.s.resp.PaO2 - 2 && HF.s.resp.RR > H.s.resp.RR + 5);
 
   const blue = settled((m) => Object.assign(m.respiratory, { consRLL: 0.95, consLLL: 0.95, consRML: 0.9 }));

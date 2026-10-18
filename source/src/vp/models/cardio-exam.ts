@@ -35,7 +35,7 @@ interface Hemodynamics {
 function hemo(view: RuntimeView): Hemodynamics | undefined {
   const c = view.circulation;
   if (!c) return undefined;
-  const m = c.metrics ?? c;
+  const m = c.metricsBreath ?? c.metrics ?? c;
   const n = (x: unknown, d: number) => (typeof x === 'number' && Number.isFinite(x) ? x : d);
   return {
     hr: n(m.HRbeat, n(c.HR, 72)), sys: n(m.Psys, 120), dia: n(m.Pdia, 75), pp: n(m.PP, n(m.Psys, 120) - n(m.Pdia, 75)),
@@ -162,7 +162,7 @@ export const CARDIO_RESOLVERS: Record<string, Resolver> = {
   },
   'circulation.echo': (view): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;
-    const ef = view.circulation?.metrics?.EF ?? 60;
+    const ef = (view.circulation?.metricsBreath ?? view.circulation?.metrics)?.EF ?? 60;
     const sev = (x: number) => (x > 0.4 ? 'marked' : x > 0.15 ? 'mild' : 'none');
     return { value: { ef: r(ef), aorticPeakGradient: r(h.gradient), aorticRegurgitation: sev(h.regAortic ? h.regurgFraction : 0), mitralRegurgitation: sev(h.regMitral ? h.regurgFraction : 0) } };
   },

@@ -6,6 +6,9 @@ import type { CaseDef } from '../model/types.ts';
 import { CIRCULATION_DEFAULTS, modelFromCase, type PatientModel } from '../physiology/state.ts';
 import { CIRC } from '../evidence/circulation.ts';
 import { INF } from '../evidence/inflammation.ts';
+const CMH2O_TO_MMHG = 0.7356;
+/** How quickly the circulation's reference for pleural pressure follows its mean (s): about two quiet breaths. */
+const PPL_MEAN_TAU_S = 8;
 
 /* ---------------------------------------------------------------------------
    The running patient: circulation, the heart's electrical model, the
@@ -76,6 +79,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     return { Hb: pin.haemoglobin ?? c.Hb, sbc: pin.bicarbonate ?? Math.max(3, c.SBC), albumin: pin.albumin ?? c.alb, K: pin.potassium ?? Math.min(9.5, c.K), Ca: pin.calcium ?? milieu.s.Ca };
   };
 
+  let pplMean = NaN;
   const couple = () => {
     const mt = sim.metrics;
     const out = bodyOut();
@@ -111,6 +115,12 @@ export function createCirculation(m: PatientModel): CirculationRun {
     sim.EmaxRv = model.circulation.EmaxRv * (1 - (sim.rvIschaemia ?? 0));
     sim.chemoDrive = Math.min(1.5, resp.chemoDrive() + milieu.adrenergic());
     const r = resp.snapshot();
+    /* The breath's pleural pressure acts on the heart and lung vessels (cmH2O to mmHg), as it swings about its own mean.
+       The circulation's constants were grounded on mean pressures and flows measured in breathing people, so they
+       already contain breathing's average effect; what the pump adds is the swing within each breath. The mean follows
+       over about two breaths. */
+    pplMean = Number.isFinite(pplMean) ? pplMean + (r.Ppl - pplMean) * (1 - Math.exp(-COUPLE_S / PPL_MEAN_TAU_S)) : r.Ppl;
+    sim.dPpl = (r.Ppl - pplMean) * CMH2O_TO_MMHG;
     milieu.setInputs({
       MAP: mt?.Pmean ?? 93, CO: mt?.CO && mt.CO > 0.3 ? mt.CO : 5.2, CVP: mt?.CVPmean ?? 3.5, sympathetic: sim.sigmaS ?? 0.47,
       PaCO2: r.PaCO2, DO2: r.DO2 ?? 1000, VO2: r.VO2 ?? 250, SaO2: r.SaO2,

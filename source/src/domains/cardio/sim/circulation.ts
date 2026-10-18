@@ -272,13 +272,19 @@ export class Circulation {
        chamber; it is negligible until the heart outgrows its reserve volume (tamponade, acute dilatation). */
     const Vheart = Vlv + Vrv + Vla + Vra + (this.pericardialFluid || 0);
     const Pperi = CIRC.periScale * (Math.exp(Math.min(8, (Vheart - this.periV0) / this.periVs)) - Math.exp(-this.periV0 / this.periVs));
-    const Plv = this.chamberP(Vlv + shift, av, this.effEmax, this.V0, this.pPassive(Vlv + shift)) + Pperi;
+    const Plv = this.chamberP(Vlv + shift, av, this.effEmax, this.V0, this.pPassive(Vlv + shift)) + Pperi + (this.dPpl || 0);
     // the right ventricle's filling pressure is set by its free wall; the septum it pushes over takes the left's room
-    const Prv = this.chamberP(Vrv, av, this.EmaxRv, this.V0rv, this.pPassiveRv(Vrv)) + Pperi;
+    const Prv = this.chamberP(Vrv, av, this.EmaxRv, this.V0rv, this.pPassiveRv(Vrv)) + Pperi + (this.dPpl || 0);
     const Ela = this.ElaMin + (this.ElaMax - this.ElaMin) * aa;
     const Era = this.EraMin + (this.EraMax - this.EraMin) * aa;
-    const Pla = Ela * (Vla - this.V0la) + Pperi;
-    const Pra = Era * (Vra - this.V0ra) + Pperi;
+    /* The respiratory pump: the heart and the pulmonary vessels sit in the chest, the systemic arteries and veins
+       mostly outside it. Pleural pressure, as it departs from its resting end-expiratory value, adds to every
+       intrathoracic pressure. Inspiration lowers it: the right atrium's pressure falls against the veins outside, more
+       blood returns, the right ventricle fills and ejects for longer (P2 later); the left ventricle ejects against an
+       aorta outside the chest, so its stroke falls a little (systolic pressure dips, A2 earlier). */
+    const dPpl = this.dPpl || 0;
+    const Pla = Ela * (Vla - this.V0la) + Pperi + dPpl;
+    const Pra = Era * (Vra - this.V0ra) + Pperi + dPpl;
     this.Pperi = Pperi;
 
     // --- vascular pressures ------------------------------------------------
@@ -289,8 +295,8 @@ export class Circulation {
        whole circulation stops rather than settling into shock. */
     const Psa = (Vsa - this.V0sa) / this.Csa;
     const Psv = (Vsv - this.effV0sv) / this.Csv;
-    const Ppa = (Vpa - this.V0pa) / this.Cpa;
-    const Ppv = (Vpv - this.V0pv) / this.Cpv;
+    const Ppa = (Vpa - this.V0pa) / this.Cpa + dPpl;
+    const Ppv = (Vpv - this.V0pv) / this.Cpv + dPpl;
 
     // --- valves ------------------------------------------------------------
     const Qao  = this.valveFlow(Plv, Psa, this.Raortic, this.regAortic, REG_BASE_LEFT);
@@ -447,6 +453,7 @@ export class Circulation {
     this.firingRate = this.baroFiring(this.Part);
 
     this.recordBeat();
+    this.beatPplSum = (this.beatPplSum || 0) + (this.dPpl || 0); this.beatPplN = (this.beatPplN || 0) + 1;
     this.prevEn = this.en;
   }
 
@@ -574,7 +581,18 @@ export class Circulation {
     };
 
     this.lastBeat = { samples: b, events: { ...this.events }, dur };
+    /* What a clinician measures is not one beat: with the respiratory pump, beats differ through each breath. The
+       examination reads these, each beat's values averaged over about one breath (4 s). */
+    const w = 1 - Math.exp(-dur / 4000);
+    const avg = this.metricsBreath ?? { ...this.metrics };
+    for (const k in this.metrics) { const x = this.metrics[k]; if (typeof x === 'number' && Number.isFinite(x)) avg[k] = typeof avg[k] === 'number' && Number.isFinite(avg[k]) ? avg[k] + (x - avg[k]) * w : x; }
+    this.metricsBreath = avg;
     this.valveTimes = this.timesOf(b, this.events, dur);
+    /* The recent beats, each with the pleural pressure it was made at: inspiration's beats and expiration's differ. */
+    const n = Math.max(1, this.beatPplN || 0);
+    (this.beatLog ??= []).push({ ...this.valveTimes, Psys, dPpl: (this.beatPplSum || 0) / n });
+    if (this.beatLog.length > 40) this.beatLog.shift();
+    this.beatPplSum = 0; this.beatPplN = 0;
     this.beat = [];
     this.events = { mvc: null, avo: null, avc: null, mvo: null, s1: null, tvc: null, pvo: null, pvc: null, tvo: null, m1: null };
     this.beatStartT = this.t * 1000;
@@ -781,6 +799,9 @@ export class Circulation {
       ecgLeads: this.engine?.drain() ?? {},
       beat: this.lastBeat,
       valveTimes: this.valveTimes ?? null,
+      metricsBreath: this.metricsBreath ? { ...this.metricsBreath } : null,
+      beatLog: this.beatLog ? this.beatLog.map((x) => ({ ...x })) : [],
+      dPpl: this.dPpl || 0,
       metrics: m,
       // convenience mirrors so panels can read them without null checks
       Psys: m ? m.Psys : null, Pdia: m ? m.Pdia : null, Pmean: m ? m.Pmean : null,

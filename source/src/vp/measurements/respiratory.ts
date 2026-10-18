@@ -33,7 +33,7 @@ export function chestImagingFindings(r: RespSnapshot, circ?: Record<string, any>
   else if (r.Pcap >= 15) out.push('oedema-upper-lobe');
   if (p.fibrosis >= 0.25) out.push('reticular-basal');
   if (r.TLC / r.pred.TLC > 1.15 || p.emphysema >= 0.45) out.push('hyperinflation');
-  const m = circ?.metrics ?? {};
+  const m = circ?.metricsBreath ?? circ?.metrics ?? {};
   if ((m.EDV ?? 120) >= 175 || (m.CVPmean ?? 3) >= 14) out.push('cardiomegaly');
   if (kind === 'ctpa') {
     const emb = LOBES.filter((id) => (p as any)[`emb${id}`] >= 0.2);
