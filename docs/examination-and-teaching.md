@@ -78,6 +78,12 @@ Search matches names in all languages at once, so an English learner who types "
 - **The Notes tab** lists the signs found so far. With the free patient, and after committing to a diagnosis, it also lists every sign the model produces, whether examined or not.
 - **Every sign chip opens the sign's card.**
 
+## Signs in the debrief, and the observe-only level (ADR-016 step 4)
+
+- **The expert reference speaks in signs** (with side, and pertinent negatives). The debrief credits a sign when a test the learner did showed it, read from that test's own recorded findings, and names the test, or the tests that would have shown it.
+- **Who names the signs** is chosen on the ward: *The app names them* (as above) or *You name them* (observe only). With observe only, the feed offers after each test the signs that test can show, without saying which are there; the learner picks what they saw, and the Notes tab lists and searches them. The debrief adds *Your documentation*: named and there, there and not named, and over-calls, with the normal finding an over-call really was.
+- **The typed command line** is checked against `scripts/data/typed-commands.json`, 129 phrasings learners type (EN and DE).
+
 ## Names
 
 Each manoeuvre's label is the name of the test, never of a sign it shows (ADR-016): "Inspection of the sclerae", not "Scleral icterus". The old sign-named labels remain as aliases, so search still finds them. Otherwise the label is the name a medical student learns the test by, in each language: "Romberg test" / "Romberg-Stehversuch", "Pronator drift" / "Armvorhalteversuch", "Facial nerve (VII)" / "N. facialis (VII)", "Lying and standing blood pressure" / "Schellong-Test". How to perform the test is on its card, not in the label.
@@ -91,4 +97,4 @@ Each manoeuvre's label is the name of the test, never of a sign it shows (ADR-01
 - **Cards against the model** (test section "Teaching cards against the cases"): wherever a card links a sign to a condition that has a case, the model must show the sign in that patient. 134 links do; 324 link to conditions without a case yet; 32 are listed exceptions with reasons. A new mismatch fails the suite.
   - *The model cannot produce the sign yet* (work for the model): loud P2 in pulmonary hypertension; tricuspid regurgitation murmur; pleural rub; deep vein thrombosis; glossitis; fetor hepaticus and uraemic fetor; a narrowed pulse pressure in aortic stenosis; tachypnoea in ketoacidosis (only depth rises); an empty JVP in hypovolaemia (2 mmHg reads as normal).
   - *This patient does not have the sign* (the card is right): the pneumonia case saturates 94 % on air; warm septic shock has normal capillary refill; the PE is submassive; the triple-whammy patient is dry; the stroke case has no hemianopia or sensory loss, and is too early for spasticity.
-- Not yet done: review modes (spaced repetition, matching); animations; a clinical read-through of the card texts, especially the German.
+- Not yet done: review modes (spaced repetition, matching); animations; finding texts written as observations rather than diagnoses (so observe-only also tests text-only findings); a clinical read-through of the card texts, especially the German (deferred by the owner until colleagues are involved).
