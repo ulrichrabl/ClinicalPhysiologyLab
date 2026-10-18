@@ -62,7 +62,21 @@ export function signsShown(s: Session): SignShown[] {
     const r = signsFoundBy(KNOWLEDGE, s.catalog, observe, e.manoeuvre, e.side);
     if (r.found.length || r.normal.length || r.absent.length) out.push({ t: e.t, test: e.manoeuvre, side: e.side, ...r });
   });
+  /* A result a reader looks at (the ECG) shows signs too, once it is back: read from what it recorded. */
+  for (const e of events) {
+    if (e.kind !== 'result' || !e.revealed || e.t > s.t) continue;
+    const r = signsInResult(s, e);
+    if (r.found.length || r.normal.length || r.absent.length) out.push({ t: e.t, test: e.test, ...r });
+  }
   return out;
+}
+
+/** The signs a result shows, read from the observables it recorded (ADR-017). */
+export function signsInResult(s: Session, e: { test: string; revealed?: Record<string, unknown> }): SignsFound {
+  const observe = (ref: string, ctx: ExamContext): Finding => (e.revealed && ref in e.revealed
+    ? { property: ref, context: ctx, value: e.revealed[ref], normal: false, provenance: 'model' }
+    : observeIn(s, ref, ctx));
+  return signsFoundBy(KNOWLEDGE, s.catalog, observe, e.test);
 }
 
 /**

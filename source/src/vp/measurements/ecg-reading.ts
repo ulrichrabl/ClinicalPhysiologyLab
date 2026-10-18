@@ -1,5 +1,5 @@
 import { HeartElectrical, type Activation, type ElectricalParams } from '../physiology/heart/electrical.ts';
-import { leadVectors, standardPlacement, LEAD_NAMES, type LeadName } from './ecg.ts';
+import { leadVectors, standardPlacement, measuredAxis, LEAD_NAMES, type LeadName, type Placement } from './ecg.ts';
 
 /* ---------------------------------------------------------------------------
    Reading a 12-lead ECG (ADR-017 step 2): what a careful reader measures on
@@ -45,9 +45,10 @@ const FS = 500, DT = 1000 / FS;
 const RECORD_MS = 12000, KEEP_MS = 8000;
 const cache = new Map<string, EcgReading>();
 
-/** Read the ECG of a heart with these parameters, driven at this rate with this potassium and calcium. */
-export function readEcg(p: ElectricalParams, drive: { rate: number; K: number; Ca: number }): EcgReading {
-  const key = JSON.stringify([p, Math.round(drive.rate * 2) / 2, Math.round(drive.K * 20) / 20, Math.round(drive.Ca * 20) / 20]);
+/** Read the ECG of a heart with these parameters, driven at this rate with this potassium and calcium, through electrodes
+    placed as given (standard placement by default: a misplaced V1 changes what is read, as it changes the tracing). */
+export function readEcg(p: ElectricalParams, drive: { rate: number; K: number; Ca: number }, placement?: Placement): EcgReading {
+  const key = JSON.stringify([p, Math.round(drive.rate * 2) / 2, Math.round(drive.K * 20) / 20, Math.round(drive.Ca * 20) / 20, placement ?? null]);
   const hit = cache.get(key);
   if (hit) return hit;
   const h = new HeartElectrical();
@@ -57,7 +58,7 @@ export function readEcg(p: ElectricalParams, drive: { rate: number; K: number; C
   const v = h.drain();
   const n = v.X.length, t0 = v.t0;
   const keepFrom = RECORD_MS - KEEP_MS;
-  const L = leadVectors(standardPlacement());
+  const L = leadVectors(placement ?? standardPlacement());
   const lead = (name: LeadName) => { const a = L[name], out = new Float32Array(n); for (let i = 0; i < n; i++) out[i] = a[0] * v.X[i] + a[1] * v.Y[i] + a[2] * v.Z[i]; return out; };
   const leads = Object.fromEntries(LEAD_NAMES.map((l) => [l, lead(l)])) as Record<LeadName, Float32Array>;
   const at = (x: Float32Array, t: number) => { const i = Math.round((t - t0) / DT); return i >= 0 && i < n ? x[i] : NaN; };
@@ -157,7 +158,8 @@ export function readEcg(p: ElectricalParams, drive: { rate: number; K: number; C
     pAmplitude: visible ? round(pAmp) : 0, pDuration: visible ? Math.round(median(A.map((a) => a.end - a.t))) : 0,
     ...(visible && m.PR != null && conducted.length ? { pr: Math.round(m.PR) } : {}),
     prProgressive, conduction,
-    qrs: Math.round(m.QRS), qtc: Math.round(m.QTc), axis: Math.round(m.qrsAxis),
+    /* With the electrodes where a learner put them, the axis is what those leads show (reversed arms flip it). */
+    qrs: Math.round(m.QRS), qtc: Math.round(m.QTc), axis: Math.round((placement ? measuredAxis(leads, FS) : null) ?? m.qrsAxis),
     v1, v6, delta: V.some((b) => b.delta != null), st, t, u, sokolow,
   };
   if (cache.size > 200) cache.clear();
