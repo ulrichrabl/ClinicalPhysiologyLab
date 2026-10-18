@@ -62,13 +62,13 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
 - **`ecg.reading` is a measurement of the tracing** (`measurements/ecg-reading.ts`). The heart is recorded again from what drives it now (its parameters, the rate it is driven at, potassium and calcium), so readings are deterministic and the same in the live app, in settled tests and in every case. Amplitudes are measured on the recorded leads against the T–P baseline, at the model's own fiducials: P (only where nothing ventricular overlaps it), QRS shape in V1 and V6, ST at the J point, T height, a U wave as a wave of its own, Sokolow–Lyon voltage. Intervals are the model's own.
 - **ST is read at the J point**, where the Fourth Universal Definition of MI measures it. At J + 60 ms a fast heart's T wave already rises, and ten cases with sinus tachycardia read as ST elevation.
 - **Signs are rows in `signs.json`** with standard thresholds (Thygesen 2018, Sokolow and Lyon 1949, the AHA/ACCF/HRS statements of 2009), two named predicates for leads that look at the same wall, and six syndromes (bundle branch blocks, pre-excitation, the second- and third-degree blocks).
-- **The encounter does not yet name ECG signs** after an ECG is ordered, and the debrief does not credit them. That needs the result to record its reading when it arrives, so it is a step of its own.
+- **In the encounter (step 2b):** an investigation's result records the observables it reveals, as they were when it was taken (`revealed` on the result event). The ECG's reading is taken through the electrodes where the learner put them, so reversed arm leads read as inverted T in I and a moved axis, as on the tracing. After the result, the guided level names its signs and the observe-only level offers them to name; the debrief reads them from the result (`signsInResult`).
 
 ## Steps
 
 1. **The ECG station, Explore** (this PR): the activation log in the electrical model, with tests; the station screen with settings, strip, ladder, cursor, conduction heart and explanations in EN and DE; a Stations card on the Ward.
 2. **ECG signs and the other two modes:** ECG observables and signs in the knowledge tables; Predict; Identify with the observe-only scoring. (Done; see decision 7.)
-2b. **ECG signs in the encounter:** named after an ECG result in the guided level, chips in the observe-only level, credited in the debrief.
+2b. **ECG signs in the encounter:** named after an ECG result in the guided level, chips in the observe-only level, credited in the debrief. (Done.)
 3. **Heart sounds timed from valve events** (decision 6).
 4. **The auscultation station.**
 5. **Links:** teaching cards and the debrief open a station on the relevant patient.

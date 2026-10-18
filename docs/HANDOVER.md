@@ -232,7 +232,8 @@ A station pairs one test with the mechanism that writes it, on one clock. Read `
   - `ecg-12` reveals the observable `ecg.reading` (`measurements/ecg-reading.ts`, resolver `electrical.ecg-reading`): the tracing measured at the model's fiducials. 25 ECG signs and 6 syndromes in the knowledge tables; the coverage report has an ECG section.
   - In the station, Explore lists the signs on the ECG now; "Predict first" asks which signs a pattern will bring and scores the answer; Identify hides a pattern, shows its 12-lead, and scores the signs and the mechanism named.
   - Tests in `scripts/station.test.mjs`: every pattern shows its signs and syndrome, a healthy heart none. One known gap: in right bundle branch block T in V1 should be inverted; the model's is slightly upright.
-- **Next (ADR-017 steps):** 2b. ECG signs in the encounter and the debrief; 3. heart sounds timed from the circulation's valve events; 4. the auscultation station; 5. links from the cards and the debrief.
+- **Step 2b, ECG signs in the encounter:** the ECG result records its reading (`revealed`), through the learner's own electrode placement. The guided level names its signs after the result; the observe-only level offers them as chips; the debrief and "Your documentation" read them from the result (`signsInResult` in `engine/debrief.ts`). No case's expert reference lists an ECG sign yet; the stroke case's atrial fibrillation would be the first candidate, for the owner to decide.
+- **Next (ADR-017 steps):** 3. heart sounds timed from the circulation's valve events; 4. the auscultation station; 5. links from the cards and the debrief.
 
 ## Problem reports
 

@@ -145,5 +145,26 @@ console.log('\nECG signs, from the knowledge tables (ADR-017 step 2)');
   gap('right bundle branch block: T inverted in V1, opposite the R′', rb.value.t.V1 < 0, `T in V1 ${rb.value.t.V1} mV: the model turns T only part of the way from the R′ (discordance 0.45)`);
 }
 
+console.log('\nECG signs in the encounter (ADR-017 step 2b)');
+{
+  const c = S.CASES.find((x) => x.id === 'acute-stroke-left-mca');
+  const snap = S.settleModel(S.modelFromCase(c), 20).snapshot;
+  const s = S.startEncounter(S.CATALOG, S.REGISTRY, c, S.buildView(c, { circulation: snap }), { locale: 'en' });
+  S.order(s, 'ecg-12', { performed: true });
+  const res = s.encounter.events.find((e) => e.kind === 'result' && e.test === 'ecg-12');
+  ok('an ECG result records what a reader sees in it', !!res?.revealed?.['ecg.reading'], J(Object.keys(res ?? {})));
+  const shown = S.signsShown(s).find((x) => x.test === 'ecg-12');
+  ok('…and the debrief reads its signs: the stroke patient’s atrial fibrillation', shown?.found.some((f) => f.sign === 'fibrillation-waves') && shown.found.some((f) => f.sign === 'irregular-rhythm'), J(shown));
+  s.observeOnly = true;
+  for (const sign of ['fibrillation-waves', 'st-elevation']) s.encounter.events.push({ t: s.t, kind: 'sign-named', sign, byManoeuvre: 'ecg-12' });
+  const doc = S.documentation(s);
+  ok('observe only: a sign named from the ECG and there is a hit; one not there is an over-call; one not named is a miss',
+    doc.hits.some((h) => h.sign === 'fibrillation-waves') && doc.overcalls.some((o) => o.sign === 'st-elevation') && doc.misses.some((m) => m.sign === 'irregular-rhythm' && m.test === 'ecg-12'), J(doc));
+  /* Electrodes where the learner puts them: reversed arm leads invert I and aVL, and the reading sees what the tracing shows. */
+  const h = S.settleModel(S.healthyModel(), 20).snapshot;
+  const std = S.readEcg(h.electrical, h.ecgDrive), rev = S.readEcg(h.electrical, h.ecgDrive, S.misplaced('arm-reversal'));
+  ok('reversed arm electrodes: T in I turns negative and the axis moves, as on the tracing', std.t.I > 0 && rev.t.I < 0 && Math.abs(rev.axis - std.axis) > 20, `T in I ${std.t.I} → ${rev.t.I} mV, axis ${std.axis} → ${rev.axis}°`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);
