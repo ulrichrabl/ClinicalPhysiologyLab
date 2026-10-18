@@ -167,7 +167,7 @@ export function perform(s: Session, manoeuvreId: string, side?: Side, extra: Exa
  * and may carry how it was done (`detail`, e.g. the electrode placement) and what the
  * measurement itself changed (`patch`, e.g. the axis the misplaced leads report).
  */
-export function order(s: Session, investigationId: string, opts: { performed?: boolean; detail?: Record<string, unknown>; patch?: (v: any) => any } = {}): void {
+export function order(s: Session, investigationId: string, opts: { performed?: boolean; detail?: Record<string, unknown>; patch?: (v: any) => any; revealed?: Record<string, unknown> } = {}): void {
   const inv = s.catalog.investigations[investigationId];
   if (!inv) throw new Error(`unknown investigation ${investigationId}`);
   push(s, { t: s.t, kind: 'order', test: inv.id });
@@ -175,6 +175,13 @@ export function order(s: Session, investigationId: string, opts: { performed?: b
   const authored = inv.source !== 'model' ? s.caseDef.investigations?.[inv.id] : undefined;
   let value = fromModel?.value ?? authored?.value ?? inv.normal.value;
   if (opts.patch) value = opts.patch(structuredClone(value));
-  push(s, { t: s.t + (opts.performed ? 0 : inv.turnaroundMinutes * 60000), kind: 'result', test: inv.id, value, ...(opts.detail ? { detail: opts.detail } : {}) });
+  /* What a reader can see in the result (ADR-017), recorded as it is now: the debrief reads signs from it. */
+  let revealed: Record<string, unknown> | undefined;
+  for (const r of inv.reveals ?? []) {
+    const pd = s.catalog.properties[r.property];
+    const v = opts.revealed?.[r.property] ?? (pd?.resolver ? s.registry.resolvers[pd.resolver]?.(s.view, { property: r.property }, {})?.value : undefined);
+    if (v !== undefined) (revealed ??= {})[r.property] = v;
+  }
+  push(s, { t: s.t + (opts.performed ? 0 : inv.turnaroundMinutes * 60000), kind: 'result', test: inv.id, value, ...(opts.detail ? { detail: opts.detail } : {}), ...(revealed ? { revealed } : {}) });
   s.done.add(inv.id);
 }

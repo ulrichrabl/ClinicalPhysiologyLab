@@ -412,6 +412,79 @@ body.report-picking, body.report-picking * { cursor: crosshair !important; }
 .report-buttons { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .report-done { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(60px + env(safe-area-inset-bottom, 0px)); z-index: 62; max-width: min(420px, calc(100vw - 32px));
   background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 8px; padding: 10px 12px; font-size: 13px; overflow-wrap: anywhere; }
+
+/* ---- stations (ADR-017) ---- */
+.st-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-start; margin-bottom: 14px; }
+.st-head .lede { color: var(--muted); max-width: 62ch; margin: 6px 0 0; }
+.st-grid { display: grid; grid-template-columns: minmax(240px, 290px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .st-grid { grid-template-columns: minmax(0, 1fr); } .st-settings { order: 2; } }
+.st-settings { padding: 14px; display: grid; gap: 10px; }
+.st-settings .ghost.small { justify-self: start; }
+.st-preset { display: grid; gap: 4px; font-weight: 700; font-size: .92rem; }
+.st-preset select, .st-var select { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); min-height: 40px; width: 100%; }
+.st-settings details.grp { border-top: 1px solid var(--line); padding: 6px 0 2px; }
+.st-settings summary { font-weight: 700; cursor: pointer; padding: 6px 0; min-height: 32px; }
+.st-var { display: grid; gap: 4px; margin: 8px 0; font-size: .92rem; }
+.st-var > span { display: flex; justify-content: space-between; gap: 8px; }
+.st-var output { font: 500 .85rem var(--font-mono); white-space: nowrap; }
+.st-var input[type=range] { width: 100%; accent-color: var(--accent); }
+.st-check { grid-template-columns: auto 1fr; align-items: center; }
+.st-main { display: grid; gap: 12px; min-width: 0; }
+.st-signal, .st-why { padding: 14px; min-width: 0; }
+.st-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: flex-end; margin-bottom: 8px; }
+.st-row h2 { margin: 0 0 2px; }
+.st-leads { display: flex; flex-wrap: wrap; gap: 8px; font-size: .85rem; color: var(--muted); }
+.st-leads select { font: 500 .9rem var(--font-mono); padding: 4px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); min-height: 36px; }
+.st-measures { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; font: .82rem var(--font-mono); }
+.st-measures span { background: var(--sunk); border-radius: 6px; padding: 3px 8px; }
+.st-measures span.abn { background: var(--abn-soft); color: var(--abn); }
+canvas.st-strip, canvas.st-heart { display: block; width: 100%; border-radius: 8px; touch-action: none; }
+canvas.st-strip { cursor: crosshair; }
+canvas.st-strip:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.st-legend { margin: 8px 0 0; }
+.st-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.st-bar .primary, .st-bar .ghost { min-height: 44px; }
+.st-phases { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.st-phases .tog { min-width: 44px; min-height: 44px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 0 12px; font: 500 .9rem var(--font-mono); }
+.st-phases .tog { color: var(--fg); }
+.st-phases .tog[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); font-weight: 700; }
+.st-note { color: var(--abn); font-size: .9rem; }
+.st-why { display: grid; gap: 14px; }
+.st-text h3 { font: 700 1.3rem/1.2 var(--font-display); margin: 2px 0 8px; }
+.st-text p { margin: 0 0 8px; max-width: 70ch; }
+.st-proj { background: var(--sunk); border-radius: 8px; padding: 8px 10px; font-size: .92rem; }
+.st-key { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .85rem; color: var(--muted); }
+.st-head .st-title { flex: 1 1 320px; }
+.st-mode { align-self: center; }
+.st-mode button { min-height: 40px; padding: 6px 16px; }
+.st-predict { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start; background: var(--accent-soft); border-radius: 10px; padding: 10px; cursor: pointer; }
+.st-predict input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); }
+.st-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.st-chip { min-height: 36px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 999px; padding: 4px 12px; font-size: .88rem; }
+.st-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.st-chip:disabled { cursor: default; opacity: .8; }
+.st-signs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 8px; min-height: 28px; }
+.st-signs .sign { background: var(--abn-soft); color: var(--abn); border-radius: 999px; padding: 2px 10px; font-size: .85rem; }
+.st-signs .syn { font-size: .9rem; }
+.st-predict-q, .st-predict-a { border: 2px solid var(--accent); background: var(--accent-soft); border-radius: 10px; padding: 12px; margin: 0 0 10px; display: grid; gap: 8px; }
+.st-predict-q p, .st-predict-a p { margin: 0; }
+.st-predict-a .ok, .st-result .ok { color: var(--ok); }
+.st-result .abn { color: var(--abn); }
+.st-row-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.st-paper-wrap { overflow-x: auto; border-radius: 8px; }
+canvas.st-paper { display: block; }
+.st-result { padding: 14px; display: grid; gap: 10px; }
+.st-result h2 { font: 700 1.15rem/1.25 var(--font-display); text-transform: none; letter-spacing: 0; margin: 0; }
+.st-result p { margin: 0; }
+.st-result > .ghost { justify-self: start; min-height: 44px; }
+.st-res-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.st-res { border-radius: 10px; padding: 10px 12px; }
+.st-res h3 { margin: 0 0 4px; font-size: .95rem; }
+.st-res ul { margin: 0; padding-left: 18px; }
+.st-res.hit { background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.st-res.miss { background: var(--abn-soft); }
+.st-res.over { background: var(--sunk); }
+.st-key i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; margin-right: 6px; vertical-align: -2px; }
 </style>
 
 <div id="vp">
@@ -471,6 +544,7 @@ body.report-picking, body.report-picking * { cursor: crosshair !important; }
   </section>
 
   <section id="debrief" hidden></section>
+  <section id="station" hidden></section>
 
   <footer class="lang-footer"><button type="button" class="langbtn">Deutsch</button></footer>
 

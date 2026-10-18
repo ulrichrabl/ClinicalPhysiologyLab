@@ -348,6 +348,8 @@ export interface InvestigationDef {
   turnaroundMinutes: number;      // simulated time until the result is available
   codes?: Codes;
   measurement?: MeasurementSpec;
+  /** Observables the result lets a reader see (ADR-017): the ECG's tracing, read. Signs are defined on these. */
+  reveals?: Array<{ property: string }>;
 }
 
 /* ---- 4. Case --------------------------------------------------------------- */
@@ -477,7 +479,8 @@ export type EncounterEvent =
   | { t: number; kind: 'finding'; finding: Finding; byManoeuvre: string }
   | { t: number; kind: 'utterance'; from: 'learner' | 'patient'; locale: Locale; text: string; topics?: string[]; facts?: string[] }
   | { t: number; kind: 'order'; test: string }
-  | { t: number; kind: 'result'; test: string; value: unknown; detail?: Record<string, unknown> }
+  /** `revealed`: the values of the observables the result lets a reader see (the ECG's tracing, read), as they were when it was taken. */
+  | { t: number; kind: 'result'; test: string; value: unknown; detail?: Record<string, unknown>; revealed?: Record<string, unknown> }
   | { t: number; kind: 'state'; change: Partial<PatientState> }
   | { t: number; kind: 'hazard'; code: string; byManoeuvre: string }
   | { t: number; kind: 'note'; author: 'auto' | 'learner'; text: string; locale: Locale }

@@ -9,7 +9,8 @@ import { buildView } from '../engine/view.ts';
 import { startEncounter, perform, order, advanceCourse, observeIn, type Session } from '../engine/encounter.ts';
 import { ask, opening, interpret, normalise } from '../engine/language.ts';
 import { autoNote, describe } from '../engine/notes.ts';
-import { commit, namedSigns, type Commit, type DebriefResult } from '../engine/debrief.ts';
+import { commit, namedSigns, signsInResult, type Commit, type DebriefResult } from '../engine/debrief.ts';
+import { readEcg } from '../measurements/ecg-reading.ts';
 import { tr, list, type LocalizedText } from '../model/i18n.ts';
 import type { CardPresentation, CaseDef, ExamContext, Finding, ManoeuvreDef, Side, InvestigationDef, TeachingCard } from '../model/types.ts';
 import { KNOWLEDGE, labelOf, testsForSign } from '../knowledge/index.ts';
@@ -67,6 +68,9 @@ const UI: Record<string, Record<Lang, string>> = {
   see: { en: 'See patient', de: 'Patient ansehen' }, freeTitle: { en: 'Free patient', de: 'Freier Patient' },
   freeText: { en: 'A healthy adult on the physiology bench. Examine, record an ECG, open any chapter, change any variable.', de: 'Ein gesunder Erwachsener auf dem Physiologie-Tisch. Untersuchen, EKG schreiben, jedes Kapitel öffnen, jede Variable ändern.' },
   openFree: { en: 'Open the free patient', de: 'Freien Patienten öffnen' }, lab: { en: 'Physiology lab', de: 'Physiologielabor' },
+  stationTag: { en: 'Station', de: 'Station' },
+  stationText: { en: 'One test and the physiology that writes it, side by side: the ECG with the conduction system and the cardiac vector at every instant of the beat.', de: 'Ein Test und die Physiologie, die ihn schreibt, nebeneinander: das EKG mit dem Reizleitungssystem und dem Herzvektor in jedem Moment des Herzschlags.' },
+  openStation: { en: 'Open the station', de: 'Station öffnen' },
   preparing: { en: 'Bringing the patient to a steady state…', de: 'Der Patient erreicht einen stabilen Zustand…' },
   placeholder: { en: 'Ask or examine…', de: 'Fragen oder untersuchen…' }, send: { en: 'Go', de: 'Los' },
   feed: { en: 'Encounter', de: 'Verlauf' }, notes: { en: 'Notes', de: 'Notizen' }, mine: { en: 'My notes', de: 'Meine Notizen' },
@@ -149,6 +153,8 @@ const seedOf = (id: string) => [...id].reduce((a, ch) => (a * 31 + ch.charCodeAt
 
 import { FREE_CASE } from './free-case.ts';
 import { installReport } from './report.ts';
+import { mountEcgStation, type StationHandle } from './station-ecg.ts';
+import { ECG_STATION } from '../stations/station.ts';
 
 /* ---- feed ------------------------------------------------------------------------ */
 type FeedItem =
@@ -254,6 +260,7 @@ export function mount(root: HTMLElement) {
   const shots = new Map<number, { resp: any; circ: Record<string, any>; curve?: SpiroCurve; shift: number }>();
   let liveOff: (() => void) | null = null;
   let tick = 0;
+  let station: StationHandle | null = null;
 
   const t = (k: string) => UI[k]?.[lang] ?? k;
   const $ = <T extends HTMLElement = HTMLElement>(sel: string) => root.querySelector(sel) as T;
@@ -261,8 +268,9 @@ export function mount(root: HTMLElement) {
   const minutes = () => (s ? Math.round(s.t / 60000) : 0);
 
   /* ---- screens ------------------------------------------------------------------- */
-  const show = (id: 'ward' | 'encounter' | 'debrief') => {
-    for (const x of ['ward', 'encounter', 'debrief']) ($(`#${x}`)).hidden = x !== id;
+  const show = (id: 'ward' | 'encounter' | 'debrief' | 'station') => {
+    for (const x of ['ward', 'encounter', 'debrief', 'station']) ($(`#${x}`)).hidden = x !== id;
+    if (id !== 'station') { station?.stop(); station = null; }
     window.scrollTo(0, 0);
   };
 
@@ -294,6 +302,17 @@ export function mount(root: HTMLElement) {
       <p class="bed-triage">${t('freeText')}</p><button type="button" class="primary">${t('openFree')}</button>`;
     fc.querySelector('button')!.onclick = () => start(null);
     wl.appendChild(fc);
+    const sc = document.createElement('article');
+    sc.className = 'bedcard free';
+    sc.innerHTML = `<span class="tag">${t('stationTag')}</span><h2>${esc(tr(ECG_STATION.title, lang))}</h2>
+      <p class="bed-triage">${t('stationText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
+    sc.querySelector('button')!.onclick = () => openStation();
+    wl.appendChild(sc);
+  };
+  const openStation = () => {
+    stopLive();
+    show('station');
+    station = mountEcgStation($('#station'), { lang, onLeave: () => { renderWard(); show('ward'); } });
   };
 
   /* ---- the running patient ---------------------------------------------------------- */
@@ -358,8 +377,25 @@ export function mount(root: HTMLElement) {
       });
     }
     for (const e of s.encounter.events) {
-      if (e.kind === 'result' && e.t <= s.t && !shownResults.has(`${e.test}@${e.t}`)) { shownResults.add(`${e.test}@${e.t}`); feed.push({ k: 'result', inv: e.test, value: e.value }); }
+      if (e.kind === 'result' && e.t <= s.t && !shownResults.has(`${e.test}@${e.t}`)) {
+        shownResults.add(`${e.test}@${e.t}`);
+        feed.push({ k: 'result', inv: e.test, value: e.value });
+        if (e.revealed) resultSigns(e);
+      }
     }
+  };
+  /* A result a reader looks at (the ECG, ADR-017) shows signs as a test does: named by the app, or offered for the
+     learner to name at the observe-only level. Read from what the result recorded when it was taken. */
+  const resultSigns = (e: { test: string; revealed?: Record<string, unknown> }) => {
+    if (!s) return;
+    if (s.observeOnly) {
+      const candidates = signsTestLooksFor(KNOWLEDGE, CATALOG, e.test);
+      if (candidates.length) feed.push({ k: 'name', test: e.test, candidates });
+      return;
+    }
+    const sf = signsInResult(s, e);
+    if (sf.found.length || sf.normal.length || sf.absent.length) feed.push({ k: 'signs', ...sf });
+    for (const f of sf.found) { const set = signsSeen.get(f.sign) ?? new Set<string>(); set.add(''); signsSeen.set(f.sign, set); }
   };
 
   const doAction = (id: string, side?: Side) => {
@@ -446,7 +482,9 @@ export function mount(root: HTMLElement) {
     const leads = recordLeads(vcg, p);
     const axis = measuredAxis(leads, vcg.fs);
     const before = s.t;
-    order(s, 'ecg-12', { performed: true, detail: { placement: p }, patch: (v) => ({ ...v, axis: axis ?? v.axis }) });
+    /* What a reader sees in this tracing, through the electrodes where the learner put them. */
+    const reading = live.snap.electrical && live.snap.ecgDrive ? readEcg(live.snap.electrical, live.snap.ecgDrive, p) : undefined;
+    order(s, 'ecg-12', { performed: true, detail: { placement: p }, patch: (v) => ({ ...v, axis: axis ?? v.axis }), ...(reading ? { revealed: { 'ecg.reading': reading } } : {}) });
     const idx = s.encounter.events.length - 1;
     traces.set(idx, { leads, fs: vcg.fs });
     feed.push({ k: 'order', inv: 'ecg-12' });
@@ -1052,7 +1090,7 @@ export function mount(root: HTMLElement) {
     return `${cardHead(t('aboutSign'), signLabel(id), other.length ? `<p class="muted">${esc(t('alsoCalled'))}: ${other.map(esc).join(' · ')}</p>` : '')}
       <section><p class="muted">${esc(t(c.normalVariant ? 'normalVariantNote' : c.represented ? 'simulated' : 'notSimulated'))}</p></section>
       ${c.parents.length ? `<section><h3>${esc(t('variantOf'))}</h3>${signChips(c.parents)}</section>` : ''}
-      ${c.tests.length ? `<section><h3>${esc(t('foundBy'))}</h3><p class="chips">${c.tests.filter((x) => CATALOG.manoeuvres[x]).map((x) => `<button type="button" class="chip" data-test="${x}">${esc(tr(CATALOG.manoeuvres[x].label, lang))}</button>`).join('')}</p></section>` : ''}
+      ${c.tests.length ? `<section><h3>${esc(t('foundBy'))}</h3><p class="chips">${c.tests.filter((x) => CATALOG.manoeuvres[x]).map((x) => `<button type="button" class="chip" data-test="${x}">${esc(tr(CATALOG.manoeuvres[x].label, lang))}</button>`).join('')}${c.tests.filter((x) => CATALOG.investigations[x]).map((x) => `<span class="chip">${esc(tr(CATALOG.investigations[x].label, lang))}</span>`).join('')}</p></section>` : ''}
       ${c.presentations.length ? `<section><h3>${esc(t('presentsAs'))}</h3>${presentationsHtml(c.presentations, spoilers, true)}</section>` : ''}
       ${c.variants.length ? `<section><h3>${esc(t('variantsWord'))}</h3>${signChips(c.variants)}</section>` : ''}
       ${c.syndromes.length ? `<section><h3>${esc(t('partOf'))}</h3><p>${c.syndromes.map((x) => esc(labelOf(KNOWLEDGE, `syndrome:${x.id}`, lang)) + esc(roleWord(x.role))).join(' · ')}</p></section>` : ''}
@@ -1187,7 +1225,7 @@ export function mount(root: HTMLElement) {
   const signDetail = (e: DebriefResult['evidence'][number]): string => {
     const it = e.item, present = it.present !== false;
     const name = `<button type="button" class="chip" data-sign="${it.ref}">${present ? '' : `${esc(t('absentSign'))} `}${esc(signLabel(it.ref))}${esc(sideWord(it.side))}</button>`;
-    const testName = (id: string) => esc(tr(CATALOG.manoeuvres[id]?.label ?? { en: id, de: id }, lang));
+    const testName = (id: string) => esc(tr(CATALOG.manoeuvres[id]?.label ?? CATALOG.investigations[id]?.label ?? { en: id, de: id }, lang));
     const showing = [...new Set([...testsForSign(KNOWLEDGE, CATALOG, it.ref), ...Object.values(KNOWLEDGE.presentations).filter((p) => p.signs.includes(it.ref)).flatMap((p) => p.tests)])]
       .filter((id) => !['position', 'give', 'expose'].includes(CATALOG.manoeuvres[id]?.verb ?? ''));
     const how = e.elicited
@@ -1212,7 +1250,7 @@ export function mount(root: HTMLElement) {
   const documentationHtml = (doc: NonNullable<DebriefResult['documentation']>): string => {
     const sidesTxt = (sides: Side[]) => (sides.length === 2 ? ` (${t('bothSides')})` : sideWord(sides[0]));
     const chip = (id: string, sides: Side[]) => `<button type="button" class="chip" data-sign="${id}">${esc(signLabel(id))}${esc(sidesTxt(sides))}</button>`;
-    const testName = (id: string) => esc(tr(CATALOG.manoeuvres[id]?.label ?? { en: id, de: id }, lang));
+    const testName = (id: string) => esc(tr(CATALOG.manoeuvres[id]?.label ?? CATALOG.investigations[id]?.label ?? { en: id, de: id }, lang));
     const found = doc.hits.length + doc.misses.length;
     const summary = t('docSummary').replace('{hit}', String(doc.hits.length)).replace('{found}', String(found)).replace('{over}', String(doc.overcalls.length));
     const list = (items: string[]) => (items.length ? `<ul>${items.map((x) => `<li>${x}</li>`).join('')}</ul>` : '<p class="muted">—</p>');
@@ -1286,13 +1324,14 @@ export function mount(root: HTMLElement) {
     if (s) { s.encounter.locale = lang; renderEncounter(); renderLayer(); if (visual) setVisual(visual); }
     if (debrief && !$('#debrief').hidden) renderDebrief();
     if (!$('#commit').hidden) renderCommit();
+    station?.setLang(lang);
   };
   root.querySelectorAll<HTMLButtonElement>('.langbtn').forEach((b) => b.onclick = () => { lang = lang === 'en' ? 'de' : 'en'; setLang(); });
   void observeIn;
 
   /* Report a problem: the state a report carries (report.ts). The learner's own notes stay out. */
   installReport({ root, lang: () => lang, app: () => {
-    const screen = ['ward', 'encounter', 'debrief'].find((x) => !$(`#${x}`).hidden) ?? 'ward';
+    const screen = ['ward', 'encounter', 'debrief', 'station'].find((x) => !$(`#${x}`).hidden) ?? 'ward';
     const snap = live ? Object.fromEntries(Object.entries(live.snap).filter(([k]) => k !== 'beat')) : null;
     return {
       screen: !$('#commit').hidden ? `${screen}+commit` : !$('#card').hidden ? `${screen}+card` : screen,

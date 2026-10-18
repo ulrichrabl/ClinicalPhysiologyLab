@@ -1,4 +1,5 @@
 import type { Resolved, Resolver } from '../engine/observe.ts';
+import { readEcg } from './ecg-reading.ts';
 
 /* ---------------------------------------------------------------------------
    Laboratory and ECG measurements: functions that read the models' state
@@ -29,5 +30,12 @@ export const LAB_RESOLVERS: Record<string, Resolver> = {
     const value: Record<string, number> = { rate: Math.round(e.HR), qrs: Math.round(e.QRS), qtc: Math.round(e.QTc), axis: Math.round(e.qrsAxis) };
     if (typeof e.PR === 'number') value.pr = Math.round(e.PR);
     return { value };
+  },
+  /* The tracing, read (ADR-017): the same heart recorded from what drives it now, measured at its own fiducials. */
+  'electrical.ecg-reading': (view): Resolved | undefined => {
+    const c = view.circulation;
+    if (!c?.electrical || !c.ecgDrive) return undefined;
+    const { pr, ...rest } = readEcg(c.electrical, c.ecgDrive);
+    return { value: pr == null ? rest : { ...rest, pr } };
   },
 };
