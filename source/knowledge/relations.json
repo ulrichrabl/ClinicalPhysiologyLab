@@ -451,5 +451,19 @@
 {"from": "syndrome:thyrotoxicosis", "rel": "suggests", "to": "condition:thyroid-storm", "source": "Owner decision 2026-10-17 (ADR-016 open point 2): a syndrome or state links to its causes.", "status": "draft"},
 {"from": "syndrome:sepsis", "rel": "suggests", "to": "condition:urosepsis", "source": "Owner decision 2026-10-17 (ADR-016 open point 2): a syndrome or state links to its causes.", "status": "draft"},
 {"from": "syndrome:sepsis", "rel": "suggests", "to": "condition:acute-pyelonephritis", "source": "Owner decision 2026-10-17 (ADR-016 open point 2): a syndrome or state links to its causes.", "status": "draft"},
-{"from": "syndrome:sepsis", "rel": "suggests", "to": "condition:community-acquired-pneumonia", "source": "Owner decision 2026-10-17 (ADR-016 open point 2): a syndrome or state links to its causes.", "status": "draft", "exceptions": [{"case": "pneumonia-right-lower-lobe", "kind": "case", "why": "qSOFA 1: rate 27, but systolic 128 and alert. A pneumonia without the bedside flags of sepsis."}]}
+{"from": "syndrome:sepsis", "rel": "suggests", "to": "condition:community-acquired-pneumonia", "source": "Owner decision 2026-10-17 (ADR-016 open point 2): a syndrome or state links to its causes.", "status": "draft", "exceptions": [{"case": "pneumonia-right-lower-lobe", "kind": "case", "why": "qSOFA 1: rate 27, but systolic 128 and alert. A pneumonia without the bedside flags of sepsis."}]},
+{"from": "sign:broad-qrs", "rel": "part-of", "to": "syndrome:rbbb-pattern", "role": "required", "status": "draft"},
+{"from": "sign:rsr-prime-v1", "rel": "part-of", "to": "syndrome:rbbb-pattern", "role": "required", "status": "draft"},
+{"from": "sign:broad-qrs", "rel": "part-of", "to": "syndrome:lbbb-pattern", "role": "required", "status": "draft"},
+{"from": "sign:broad-r-v6", "rel": "part-of", "to": "syndrome:lbbb-pattern", "role": "required", "status": "draft"},
+{"from": "sign:rsr-prime-v1", "rel": "part-of", "to": "syndrome:lbbb-pattern", "role": "absent", "status": "draft"},
+{"from": "sign:short-pr", "rel": "part-of", "to": "syndrome:pre-excitation-pattern", "role": "required", "status": "draft"},
+{"from": "sign:delta-wave", "rel": "part-of", "to": "syndrome:pre-excitation-pattern", "role": "required", "status": "draft"},
+{"from": "sign:broad-qrs", "rel": "part-of", "to": "syndrome:pre-excitation-pattern", "role": "supporting", "status": "draft"},
+{"from": "sign:progressive-pr", "rel": "part-of", "to": "syndrome:mobitz-1-pattern", "role": "required", "status": "draft"},
+{"from": "sign:dropped-p-waves", "rel": "part-of", "to": "syndrome:mobitz-1-pattern", "role": "required", "status": "draft"},
+{"from": "sign:dropped-p-waves", "rel": "part-of", "to": "syndrome:mobitz-2-pattern", "role": "required", "status": "draft"},
+{"from": "sign:progressive-pr", "rel": "part-of", "to": "syndrome:mobitz-2-pattern", "role": "absent", "status": "draft"},
+{"from": "sign:av-dissociation", "rel": "part-of", "to": "syndrome:complete-av-block-pattern", "role": "required", "status": "draft"},
+{"from": "sign:broad-complex-tachycardia", "rel": "part-of", "to": "syndrome:complete-av-block-pattern", "role": "absent", "status": "draft"}
 ]

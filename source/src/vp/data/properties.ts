@@ -21,6 +21,8 @@ const listOf = (of: ValueType): ValueType => ({ kind: 'list', of });
 const bool: ValueType = { kind: 'boolean' };
 const side = c('side');
 
+const LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
+const perLead = rec(Object.fromEntries(LEADS.map((l) => [l, q('mV', -5, 5)])));
 const MURMUR = rec({ valve: c('valve'), timing: c('murmur-timing'), shape: c('murmur-shape'), grade: o('murmur-grade'), pitch: c('pitch') });
 
 export const PROPERTIES: PropertyDef[] = [
@@ -99,6 +101,22 @@ export const PROPERTIES: PropertyDef[] = [
     normal: { value: { s1: 'normal', a2: 'normal', p2: 'normal', s2Split: 'physiological', added: [], murmurs: [] } },
     contextDims: ['site', 'position', 'respiration', 'instrument'],
     source: 'model-or-case', resolver: 'circulation.heart-sounds', formatter: 'heart.sounds', renderer: 'audio.heart',
+  },
+  /* The 12-lead ECG, read (ADR-017): what a careful reader measures on the tracing. Revealed by recording an ECG. */
+  {
+    id: 'ecg.reading', structure: 'chest', label: { en: '12-lead ECG, read', de: '12-Kanal-EKG, befundet' },
+    value: rec({
+      rate: q('/min', 0, 300), regular: bool, pWaves: c('ecg-p-waves'), pAmplitude: q('mV', 0, 2), pDuration: q('ms', 0, 300), pr: q('ms', 0, 600),
+      prProgressive: bool, conduction: c('ecg-conduction'), qrs: q('ms', 0, 300), qtc: q('ms', 0, 800), axis: q('deg', -180, 180),
+      v1: c('qrs-shape'), v6: c('qrs-shape'), delta: bool, st: perLead, t: perLead, u: q('mV', 0, 2), sokolow: q('mV', 0, 10),
+    }, ['pr']),
+    normal: { value: {
+      rate: 72, regular: true, pWaves: 'present', pAmplitude: 0.12, pDuration: 100, pr: 160, prProgressive: false, conduction: 'all', qrs: 92, qtc: 400, axis: 46,
+      v1: 'rS', v6: 'qR', delta: false, u: 0.02, sokolow: 2.2,
+      st: { I: 0.02, II: 0.07, III: 0.04, aVR: -0.04, aVL: -0.01, aVF: 0.05, V1: 0.01, V2: 0.06, V3: 0.1, V4: 0.09, V5: 0.07, V6: 0.04 },
+      t: { I: 0.1, II: 0.32, III: 0.22, aVR: -0.2, aVL: -0.06, aVF: 0.27, V1: 0.05, V2: 0.25, V3: 0.43, V4: 0.42, V5: 0.33, V6: 0.2 },
+    } },
+    source: 'model', resolver: 'electrical.ecg-reading', formatter: 'ecg.reading',
   },
   {
     id: 'lung.sounds', structure: 'chest', label: { en: 'Breath sounds', de: 'Atemgeräusch' },

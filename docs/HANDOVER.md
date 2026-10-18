@@ -228,7 +228,11 @@ A station pairs one test with the mechanism that writes it, on one clock. Read `
 - **Authored:** only `stations/ecg-texts.ts`, the explanations, chosen by what the model is doing. Drafts until a clinician reads them.
 - **Tests:** `scripts/station.test.mjs` (in `npm test`): the log agrees with the model's intervals and with the dipole, the patterns read correctly from it, settings are derived, texts complete in both languages.
 - **Noticed, not changed:** with pre-excitation the delta lobe starts about 70 ms before the activation the model's QRS duration counts from, so the drawn QRS band is wider than the 122 ms the model reports. The text uses the model's figure.
-- **Next (ADR-017 steps):** 2. ECG observables and signs in the knowledge tables, then Predict and Identify (the mockup is the claude.ai artifact "ECG Station mockup"); 3. heart sounds timed from the circulation's valve events; 4. the auscultation station; 5. links from the cards and the debrief.
+- **Step 2, ECG signs, Predict and Identify:**
+  - `ecg-12` reveals the observable `ecg.reading` (`measurements/ecg-reading.ts`, resolver `electrical.ecg-reading`): the tracing measured at the model's fiducials. 25 ECG signs and 6 syndromes in the knowledge tables; the coverage report has an ECG section.
+  - In the station, Explore lists the signs on the ECG now; "Predict first" asks which signs a pattern will bring and scores the answer; Identify hides a pattern, shows its 12-lead, and scores the signs and the mechanism named.
+  - Tests in `scripts/station.test.mjs`: every pattern shows its signs and syndrome, a healthy heart none. One known gap: in right bundle branch block T in V1 should be inverted; the model's is slightly upright.
+- **Next (ADR-017 steps):** 2b. ECG signs in the encounter and the debrief; 3. heart sounds timed from the circulation's valve events; 4. the auscultation station; 5. links from the cards and the debrief.
 
 ## Problem reports
 

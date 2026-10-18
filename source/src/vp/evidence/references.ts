@@ -30,6 +30,19 @@ export interface Reference {
 const R = (r: Reference) => r;
 
 export const REFERENCES: Record<string, Reference> = Object.fromEntries([
+  /* ECG reading thresholds (ADR-017 step 2): textbook standards, as the statements give them. */
+  R({ id: 'thygesen2018', authors: 'Thygesen K, Alpert JS, Jaffe AS, et al.', title: 'Fourth Universal Definition of Myocardial Infarction (2018)',
+    journal: 'Circulation', year: 2018, volume: '138', pages: 'e618–e651', doi: '10.1161/CIR.0000000000000617', pmid: '30571511', verified: 'record',
+    note: 'ST elevation of 0.1 mV in two contiguous leads (0.2 mV in V2–V3 for men 40 and over), and new horizontal or downsloping ST depression of 0.05 mV or T inversion over 0.1 mV in two contiguous leads, in the absence of left ventricular hypertrophy and left bundle branch block. Thresholds as widely quoted from this statement; the text itself not yet read here.' }),
+  R({ id: 'sokolow1949', authors: 'Sokolow M, Lyon TP', title: 'The ventricular complex in left ventricular hypertrophy as obtained by unipolar precordial and limb leads',
+    journal: 'Am Heart J', year: 1949, volume: '37', pages: '161–86', doi: '10.1016/0002-8703(49)90562-1', pmid: '18107386', verified: 'record',
+    note: 'S in V1 plus the larger R in V5 or V6 of 3.5 mV or more: the Sokolow–Lyon voltage criterion, as quoted.' }),
+  R({ id: 'rautaharju2009', authors: 'Rautaharju PM, Surawicz B, Gettes LS, et al.', title: 'AHA/ACCF/HRS recommendations for the standardization and interpretation of the electrocardiogram: part IV: the ST segment, T and U waves, and the QT interval',
+    journal: 'Circulation', year: 2009, volume: '119', pages: 'e241–50', doi: '10.1161/CIRCULATIONAHA.108.191096', pmid: '19228821', verified: 'record',
+    note: 'A prolonged QTc: 450 ms or more in men, 460 ms or more in women, as quoted.' }),
+  R({ id: 'surawicz2009', authors: 'Surawicz B, Childers R, Deal BJ, et al.', title: 'AHA/ACCF/HRS recommendations for the standardization and interpretation of the electrocardiogram: part III: intraventricular conduction disturbances',
+    journal: 'Circulation', year: 2009, volume: '119', pages: 'e235–40', doi: '10.1161/CIRCULATIONAHA.108.191095', pmid: '19228822', verified: 'record',
+    note: 'Complete bundle branch block: QRS 120 ms or more in adults; rsr′, rsR′ or rSR′ in V1–V2 for right, broad notched R in I, aVL, V5–V6 with no q for left; pre-excitation: PR under 120 ms with a delta wave, as quoted.' }),
   R({ id: 'bellissant2000', authors: 'Bellissant E, Annane D', title: 'Effect of hydrocortisone on phenylephrine–mean arterial pressure dose-response relationship in septic shock',
     journal: 'Clin Pharmacol Ther', year: 2000, volume: '68', pages: '293–303', doi: '10.1067/mcp.2000.109354', pmid: '11014411', verified: 'abstract',
     note: 'Abstract: Emax 39 → 77 mmHg in septic patients and 84 → 106 mmHg in controls 1 h after 50 mg hydrocortisone, ED50 unchanged; E0 rose 58 → 64 and 73 → 82 mmHg. The patients had septic shock with relative adrenal insufficiency, not Addison’s disease.' }),

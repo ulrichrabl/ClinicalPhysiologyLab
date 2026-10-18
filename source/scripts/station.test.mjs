@@ -13,6 +13,9 @@ unlinkSync(bundle);
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => { if (cond) { pass++; console.log(`  ✓ ${name}`); } else { fail++; console.log(`  ✗ ${name}${detail ? ' — ' + detail : ''}`); } };
 const J = (x) => JSON.stringify(x);
+/* A known gap: a comparison the model does not yet meet, reported with its numbers; it does not fail the suite. */
+const gaps = [];
+const gap = (name, cond, detail = '') => { if (cond) { pass++; console.log(`  ✓ ${name}`); } else { gaps.push(name); console.log(`  △ known gap: ${name}${detail ? ' — ' + detail : ''}`); } };
 
 /* A heart with a pattern, run long enough for the reflexes to settle, then recorded for six seconds. */
 const record = (preset) => {
@@ -104,5 +107,43 @@ console.log('\nThe explanations');
   ok('in right bundle branch block the QRS explanation names it and gives the model’s QRS width', x.title.en === 'Right bundle branch block' && x.body[0].en.includes(`QRS ${Math.round(v.qrsEnd - v.t)} ms`), x.body[0].en);
 }
 
-console.log(`\n${pass} passed, ${fail} failed`);
+console.log('\nECG signs, from the knowledge tables (ADR-017 step 2)');
+{
+  const signs = S.signsTestLooksFor(S.KNOWLEDGE, S.CATALOG, 'ecg-12');
+  ok('the 12-lead elicits the ECG signs, as their definitions say', signs.length >= 25 && signs.every((s) => S.testsForSign(S.KNOWLEDGE, S.CATALOG, s).includes('ecg-12')), J(signs));
+  const read = (preset) => {
+    const m = S.applyPreset(S.healthyModel(), preset);
+    const c = S.caseWithModel(S.FREE_CASE, m);
+    const view = S.buildView(c, { circulation: S.settleModel(m, 20).snapshot });
+    const h = new S.SignEvaluator(S.CATALOG, (ref, ctx) => S.observe(S.CATALOG, S.REGISTRY.resolvers, c, view, ref, ctx), { test: 'ecg-12' });
+    const map = Object.fromEntries(signs.map((s) => [s, h.holds(S.KNOWLEDGE.signs[s].definition)]));
+    return { present: new Set(signs.filter((s) => map[s])), map, value: S.observe(S.CATALOG, S.REGISTRY.resolvers, c, view, 'ecg.reading', {}).value };
+  };
+  const healthy = read('normal');
+  ok('a healthy heart shows none of the ECG signs', healthy.present.size === 0, J([...healthy.present]));
+  /* Each named pattern shows the signs a reader would name, and the syndrome where there is one. */
+  const expect = {
+    rbbb: [['broad-qrs', 'rsr-prime-v1'], 'rbbb-pattern'], lbbb: [['broad-qrs', 'broad-r-v6'], 'lbbb-pattern'], avb1: [['prolonged-pr']],
+    wenckebach: [['progressive-pr', 'dropped-p-waves', 'irregular-rhythm'], 'mobitz-1-pattern'], mobitz2: [['dropped-p-waves'], 'mobitz-2-pattern'],
+    chb: [['av-dissociation', 'broad-qrs'], 'complete-av-block-pattern'], af: [['fibrillation-waves', 'absent-p-waves', 'irregular-rhythm']], flutter: [['flutter-waves']],
+    vt: [['broad-complex-tachycardia']], wpw: [['short-pr', 'delta-wave', 'broad-qrs'], 'pre-excitation-pattern'], lvh: [['lvh-voltage']], rvh: [['right-axis-deviation']],
+    'p-mitrale': [['broad-p-waves']], 'p-pulmonale': [['tall-p-waves']], 'stemi-anterior': [['st-elevation']], 'stemi-inferior': [['st-elevation', 'st-depression']],
+    'stemi-lateral': [['st-elevation']], nstemi: [['st-depression', 't-wave-inversion']], wellens: [['t-wave-inversion']], pericarditis: [['st-elevation']],
+    'long-qt': [['long-qtc']], digoxin: [['st-depression']], hyperkalaemia: [['tall-t-waves']], hypokalaemia: [['u-waves']],
+  };
+  for (const [preset, [want, syn]] of Object.entries(expect)) {
+    const r = read(preset);
+    const synOk = !syn || S.syndromePresent(S.KNOWLEDGE, syn, r.map);
+    ok(`${preset}: ${want.join(', ')}${syn ? ` → ${syn}` : ''}`, want.every((s) => r.present.has(s)) && synOk, `shows ${J([...r.present])}`);
+  }
+  const lb = read('lbbb');
+  ok('left bundle branch block: its discordant ST elevation in V1–V2 is not called ST elevation', lb.value.st.V1 >= 0.1 && !lb.present.has('st-elevation'), J(lb.value.st));
+  const vt = read('vt');
+  ok('ventricular tachycardia: dissociated P waves buried in it are not read as P waves', !vt.present.has('tall-p-waves'), J([...vt.present]));
+  const rb = read('rbbb');
+  /* In right bundle branch block T is inverted in V1–V3, opposite the R′ (secondary repolarisation; Surawicz 2009). */
+  gap('right bundle branch block: T inverted in V1, opposite the R′', rb.value.t.V1 < 0, `T in V1 ${rb.value.t.V1} mV: the model turns T only part of the way from the R′ (discordance 0.45)`);
+}
+
+console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);

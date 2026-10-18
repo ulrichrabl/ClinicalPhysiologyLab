@@ -448,6 +448,15 @@ export const FORMATTERS: Record<string, Formatter> = {
       ? `12-Kanal-EKG (Gerätevermessung): Frequenz ${v.rate}/min, ${v.pr != null ? `PQ ${v.pr} ms` : 'PQ nicht messbar'}, QRS ${v.qrs} ms, QTc ${v.qtc} ms, Achse ${ax}. Die Kurve liegt unter Befunde.`
       : `12-lead ECG (machine measurements): rate ${v.rate}/min, ${v.pr != null ? `PR ${v.pr} ms` : 'PR not measurable'}, QRS ${v.qrs} ms, QTc ${v.qtc} ms, axis ${ax}. The tracing is under Results.`;
   },
+  'ecg.reading': (v, _c, l, cat) => {
+    const ax = `${v.axis > 0 ? '+' : ''}${v.axis}°`;
+    const n = (x: number) => (de(l) ? String(x).replace('.', ',') : String(x));
+    const big = (rec: Record<string, number>) => Object.entries(rec ?? {}).filter(([k]) => k !== 'aVR').sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0] ?? ['—', 0];
+    const [stL, stV] = big(v.st), p = lab(cat, 'ecg-p-waves', v.pWaves, l), cond = lab(cat, 'ecg-conduction', v.conduction, l);
+    return de(l)
+      ? `EKG befundet: ${p}, ${cond}; ${v.regular ? 'regelmäßig' : 'unregelmäßig'} ${v.rate}/min; ${v.pr != null ? `PQ ${v.pr} ms` : 'PQ nicht messbar'}, QRS ${v.qrs} ms (V1 ${v.v1}, V6 ${v.v6}${v.delta ? ', Deltawelle' : ''}), QTc ${v.qtc} ms, Achse ${ax}; größte ST-Abweichung ${n(stV)} mV in ${stL}; U ${n(v.u)} mV; Sokolow-Lyon ${n(v.sokolow)} mV.`
+      : `ECG read: ${p}, ${cond}; ${v.regular ? 'regular' : 'irregular'} at ${v.rate}/min; ${v.pr != null ? `PR ${v.pr} ms` : 'PR not measurable'}, QRS ${v.qrs} ms (V1 ${v.v1}, V6 ${v.v6}${v.delta ? ', delta wave' : ''}), QTc ${v.qtc} ms, axis ${ax}; largest ST shift ${n(stV)} mV in ${stL}; U ${n(v.u)} mV; Sokolow–Lyon ${n(v.sokolow)} mV.`;
+  },
   'inv.panel': (v, _c, l, cat, ref) => {
     const names: Record<string, [string, string, string]> = {
       sodium: ['Na⁺', 'Na⁺', 'mmol/L'], potassium: ['K⁺', 'K⁺', 'mmol/L'], chloride: ['Cl⁻', 'Cl⁻', 'mmol/L'], bicarbonate: ['HCO₃⁻', 'HCO₃⁻', 'mmol/L'],

@@ -26,7 +26,8 @@ const ACTS = new Set(['position', 'give', 'expose']);
 /** The signs a test can show: what a learner may name after it, without saying which are there. */
 export function signsTestLooksFor(k: Knowledge, cat: Catalog, testId: string): string[] {
   const m = cat.manoeuvres[testId];
-  if (!m || ACTS.has(m.verb)) return [];
+  if (!m && !cat.investigations[testId]?.reveals) return [];
+  if (m && ACTS.has(m.verb)) return [];
   const named = new Set<string>(signsElicitedBy(k, cat).get(testId) ?? []);
   for (const p of Object.values(k.presentations)) if (p.tests.includes(testId)) for (const x of p.signs) if (k.signs[x]?.definition) named.add(x);
   return [...named];
@@ -35,7 +36,8 @@ export function signsTestLooksFor(k: Knowledge, cat: Catalog, testId: string): s
 export function signsFoundBy(k: Knowledge, cat: Catalog, observe: Observer, testId: string, side?: Side): SignsFound {
   const m = cat.manoeuvres[testId];
   const out: SignsFound = { found: [], normal: [], absent: [] };
-  if (!m || ACTS.has(m.verb)) return out;
+  if (!m && !cat.investigations[testId]?.reveals) return out;
+  if (m && ACTS.has(m.verb)) return out;
   const named = new Set<string>(signsElicitedBy(k, cat).get(testId) ?? []);
   for (const p of Object.values(k.presentations)) if (p.tests.includes(testId)) for (const x of p.signs) if (k.signs[x]?.definition) named.add(x);
   const all = new SignEvaluator(cat, observe, { test: testId, side });

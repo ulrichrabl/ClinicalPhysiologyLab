@@ -64,6 +64,11 @@ export function contextsFor(cat: Catalog, obs: string, wanted: WantedContext = {
     if (!contextFits(base, wanted)) continue;
     addSides(m, { ...base, ...want } as ExamContext);
   }
+  /* An investigation whose result a reader looks at (the ECG's tracing) reveals its observables too, in no context. */
+  for (const inv of Object.values(cat.investigations)) for (const r of inv.reveals ?? []) {
+    if (r.property !== obs || (only && inv.id !== only.test)) continue;
+    if (!only?.side) push(obs, undefined, { ...want });
+  }
   if (!out.length && !only) addSides(undefined, want);
   return out;
 }
@@ -179,7 +184,37 @@ function sideDiff(h: SignEvaluator, obs: string, path: string, ctx: ExamContext)
 
 function weakMuscles(v: Record<string, number>): string[] { return Object.entries(v).filter(([, x]) => x < 5).map(([k]) => k); }
 
+/* ECG leads that look at the same wall: a change in two of them is a change in that wall (Thygesen 2018). */
+const CONTIGUOUS: Array<[string, string]> = [['II', 'III'], ['II', 'aVF'], ['III', 'aVF'], ['I', 'aVL'], ['V1', 'V2'], ['V2', 'V3'], ['V3', 'V4'], ['V4', 'V5'], ['V5', 'V6'], ['I', 'V6']];
+const RBBB_V1 = ['rsR′', 'RsR′'];
+function ecgContiguous(h: SignEvaluator, a: Record<string, any>): boolean {
+  return h.rows('ecg.reading').some((r) => {
+    const v = r.value as Record<string, any>;
+    /* With a broad QRS other than right bundle branch block (left bundle branch block, a ventricular rhythm) ST and T
+       follow the abnormal depolarisation, and these criteria do not apply. */
+    if (a.unlessBroadNonRbbb && v.qrs >= 120 && !RBBB_V1.includes(v.v1)) return false;
+    const vals = v[a.field] as Record<string, number> | undefined;
+    if (!vals) return false;
+    const exclude = new Set<string>(a.exclude ?? []);
+    const meets = (lead: string) => {
+      if (exclude.has(lead)) return false;
+      const x = vals[lead], lim = (lead === 'V2' || lead === 'V3') && a.v2v3 != null ? a.v2v3 : a.value;
+      return typeof x === 'number' && compare(a.op, x, lim);
+    };
+    return CONTIGUOUS.some(([p, q]) => meets(p) && meets(q));
+  });
+}
+
 export const NAMED: Record<string, NamedPredicateDef> = {
+  ecgContiguous: {
+    what: 'In two contiguous ECG leads, `field` (st or t, mV) compares by `op` with `value` (`v2v3` in V2 and V3), leaving out the leads in `exclude`; with `unlessBroadNonRbbb`, not when QRS is broad for a reason other than right bundle branch block.',
+    uses: () => ['ecg.reading'], holds: ecgContiguous,
+  },
+  ecgAnyLead: {
+    what: 'In any ECG lead of `leads`, `field` (st or t, mV) compares by `op` with `value`.',
+    uses: () => ['ecg.reading'],
+    holds: (h, a) => h.rows('ecg.reading').some((r) => (a.leads as string[]).some((l) => typeof r.value?.[a.field]?.[l] === 'number' && compare(a.op, r.value[a.field][l], a.value))),
+  },
   meanPressureBelow: {
     what: 'Mean arterial pressure at rest below `value` mmHg.',
     uses: () => ['vitals.bp'], holds: (h, a) => bp(h).some((v) => (v.systolic + 2 * v.diastolic) / 3 < a.value),
