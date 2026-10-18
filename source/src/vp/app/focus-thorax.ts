@@ -1,5 +1,5 @@
 import { thoraxSvg, heartUnderChest, landmarks, stethoscope, AUSCULTATION_SITES, type ThoraxLook, thoraxHit } from '../render/thorax.ts';
-import { cycle, phonoSample } from '../render/phono.ts';
+import { cycle, phonoSample, type ValveTimes } from '../render/phono.ts';
 import { traceLoop, playCycle } from './sound.ts';
 import type { Lang } from './diagrams.ts';
 
@@ -19,6 +19,8 @@ export interface AuscultationOptions {
   value: any;                   // the heart.sounds (or lung.sounds) finding value
   kind: 'heart' | 'lung';
   hr: number;
+  /** the circulation's valve times for the beat just simulated: the sounds are placed at them */
+  timing?: ValveTimes | null;
   lang: Lang;
   caption: string;
   onListenAt: (site: string) => void;
@@ -31,7 +33,7 @@ export function mountAuscultation(host: HTMLElement, o: AuscultationOptions): ()
   const site = AUSCULTATION_SITES[o.site] ?? AUSCULTATION_SITES['chest.aortic-area'];
   const view = site.view === 'back' ? 'back' : 'front';
   const dx = (x: number) => (view === 'back' ? -x : x);     // from behind, the patient's left is on our left
-  const cyc = o.kind === 'heart' ? cycle(o.value, o.hr) : null;
+  const cyc = o.kind === 'heart' ? cycle(o.value, o.hr, o.timing) : null;
   const L = (en: string, de: string) => (o.lang === 'de' ? de : en);
   host.innerHTML = `<div class="focus-grid">
     <div><div class="thorax-host"></div>
@@ -44,7 +46,7 @@ export function mountAuscultation(host: HTMLElement, o: AuscultationOptions): ()
     <div><div class="trace-head"><span class="trace-label">${o.kind === 'heart' ? L('Phonocardiogram at this site', 'Phonokardiogramm an dieser Stelle') : L('Breath sounds', 'Atemgeräusch')}</span>
       ${cyc ? `<button type="button" class="ghost small" data-listen>${L('Listen', 'Anhören')}</button>` : ''}</div>
       <canvas class="phono"></canvas>
-      <p class="focus-caption">${L('Shaded: systole. The trace and the sound are generated from the finding the model produced here.', 'Schattiert: Systole. Kurve und Ton entstehen aus dem Befund, den das Modell hier erzeugt hat.')}</p></div></div>`;
+      <p class="focus-caption">${L('Shaded: systole. Which sounds there are comes from the finding the model produced here; each is placed where the model’s valves closed or opened in the last beat.', 'Schattiert: Systole. Welche Töne es gibt, kommt aus dem Befund, den das Modell hier erzeugt hat; jeder liegt dort, wo sich die Klappen des Modells im letzten Schlag geschlossen oder geöffnet haben.')}</p></div></div>`;
   const svgHost = host.querySelector('.thorax-host') as HTMLElement;
   let beatRaf = 0;
   const t0 = performance.now();

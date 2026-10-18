@@ -92,7 +92,7 @@ export class Circulation {
     this.prevEn = 0;
     this.beat = []; this.lastBeat = null; this.lastSample = -1;
     this.metrics = null;
-    this.events = { mvc: null, avo: null, avc: null, mvo: null, s1: null };
+    this.events = { mvc: null, avo: null, avc: null, mvo: null, s1: null, tvc: null, pvo: null, pvc: null, tvo: null, m1: null };
     this.prevMitral = false; this.prevAortic = false;
     this.beatStartT = 0;
   }
@@ -434,6 +434,7 @@ export class Circulation {
 
     const f = this.deriv(y0, this.en, this.ea);
     this.prevMitral = this.mitralOpen; this.prevAortic = this.aorticOpen;
+    this.prevTricuspid = this.tricuspidOpen; this.prevPulmonic = this.pulmonicOpen;
     this.mitralOpen = f.mitral; this.aorticOpen = f.aortic;
     this.tricuspidOpen = f.tricuspid; this.pulmonicOpen = f.pulmonic;
     this.E = f.E; this.Ela = f.Ela;
@@ -459,6 +460,13 @@ export class Circulation {
     if (!this.prevAortic && this.aorticOpen) this.events.avo = idx;
     if (this.prevAortic && !this.aorticOpen) this.events.avc = idx;
     if (!this.prevMitral && this.mitralOpen) this.events.mvo = idx;
+    /* The right heart's valves, for the second heart sound's two components and the first's tricuspid one. */
+    /* (the first closure of the beat: a valve that flickers shut again at end-diastole is not the first heart sound) */
+    if (this.prevTricuspid && !this.tricuspidOpen && this.events.tvc == null) this.events.tvc = idx;
+    if (!this.prevPulmonic && this.pulmonicOpen && this.events.pvo == null) this.events.pvo = idx;
+    if (this.prevPulmonic && !this.pulmonicOpen && this.events.pvc == null) this.events.pvc = idx;
+    if (!this.prevTricuspid && this.tricuspidOpen && this.events.tvo == null) this.events.tvo = idx;
+    if (this.prevMitral && !this.mitralOpen && this.events.m1 == null) this.events.m1 = idx;
 
     if (tms - this.lastSample >= 2 || this.lastSample < 0) {
       this.lastSample = tms;
@@ -566,10 +574,31 @@ export class Circulation {
     };
 
     this.lastBeat = { samples: b, events: { ...this.events }, dur };
+    this.valveTimes = this.timesOf(b, this.events, dur);
     this.beat = [];
-    this.events = { mvc: null, avo: null, avc: null, mvo: null, s1: null };
+    this.events = { mvc: null, avo: null, avc: null, mvo: null, s1: null, tvc: null, pvo: null, pvc: null, tvo: null, m1: null };
     this.beatStartT = this.t * 1000;
     if (this.baroEnabled) this.HReff = this.modulatedHR();
+  }
+
+  /* When each valve closed and opened in the beat just recorded, and when the ventricles filled fastest, in ms from the
+     start of the beat (ventricular activation). These are the times the heart sounds happen at: S1 is mitral and
+     tricuspid closure, S2 aortic (A2) and pulmonary (P2) closure; an opening snap is mitral opening; S3 falls at the end
+     of rapid filling, S4 with the atrial kick. */
+  timesOf(b, ev, dur) {
+    const at = (i) => (i != null && b[i] ? b[i].t : null);
+    const mvo = ev.mvo;
+    let eIdx = null, ePeak = 0;
+    if (mvo != null) for (let i = mvo; i < b.length && b[i].t < b[mvo].t + 250; i++) if (b[i].Qmit > ePeak) { ePeak = b[i].Qmit; eIdx = i; }
+    let rapidEnd = null;
+    if (eIdx != null) for (let i = eIdx; i < b.length; i++) if (b[i].Qmit < 0.4 * ePeak) { rapidEnd = b[i].t; break; }
+    /* The atrial kick: the filling peak in the last 200 ms before the next activation, after rapid filling has ended. */
+    let aIdx = null, aPeak = 0;
+    for (let i = 0; i < b.length; i++) if (b[i].t >= Math.max(dur - 200, rapidEnd ?? 0) && b[i].Qmit > aPeak) { aPeak = b[i].Qmit; aIdx = i; }
+    return {
+      cycle: dur, m1: at(ev.m1 ?? ev.mvc), t1: at(ev.tvc), avo: at(ev.avo), a2: at(ev.avc), pvo: at(ev.pvo), p2: at(ev.pvc), mvo: at(mvo), tvo: at(ev.tvo),
+      ePeak: at(eIdx), rapidEnd, aPeak: at(aIdx), eFlow: ePeak, aFlow: aPeak,
+    };
   }
 
   toggleBaro() { this.baroEnabled = !this.baroEnabled; if (!this.baroEnabled) this.HReff = this.openLoopHR(); }
@@ -751,6 +780,7 @@ export class Circulation {
       ecgValue: this.ecgValue,
       ecgLeads: this.engine?.drain() ?? {},
       beat: this.lastBeat,
+      valveTimes: this.valveTimes ?? null,
       metrics: m,
       // convenience mirrors so panels can read them without null checks
       Psys: m ? m.Psys : null, Pdia: m ? m.Pdia : null, Pmean: m ? m.Pmean : null,

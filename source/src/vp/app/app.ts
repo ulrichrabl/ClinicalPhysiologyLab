@@ -529,7 +529,7 @@ export function mount(root: HTMLElement) {
       const where = CATALOG.structures[v.site.replace(/\.(L|R)$/, '')]?.label;
       const sideTxt = /\.L$/.test(v.site) ? ` (${t('left').toLowerCase()})` : /\.R$/.test(v.site) ? ` (${t('right').toLowerCase()})` : '';
       stopVisual = mountAuscultation(host, {
-        look: look(), site: v.site, bell: v.bell, value: v.value, kind: v.sound, hr, lang, overlays,
+        look: look(), site: v.site, bell: v.bell, value: v.value, kind: v.sound, hr, lang, overlays, timing: live?.snap.valveTimes ?? null,
         caption: `${where ? tr(where, lang) : v.site}${sideTxt} · ${v.bell ? (lang === 'de' ? 'Glocke' : 'bell') : (lang === 'de' ? 'Membran' : 'diaphragm')}`,
         onListenAt: (site) => { const a = SITE_ACT[site] ?? lungAct(site, 'listen'); if (a) doAction(a[0], a[1]); },
       });

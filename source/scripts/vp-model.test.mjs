@@ -566,6 +566,33 @@ console.log('\nEye kinematics');
 }
 
 /* ---- models and measurements -------------------------------------------------------- */
+console.log('\nHeart sounds timed by the circulation (ADR-017 step 3)');
+{
+  const { phonoCycle } = vp;
+  const times = (m) => settleModel(m, 20).snapshot.valveTimes;
+  const h = times(healthyModel());
+  const hr = 60000 / h.cycle;
+  ok('a beat records its valve events in order: S1, aortic opening, A2, P2, mitral opening, the end of rapid filling', h.avo > 0 && h.a2 > h.avo && h.p2 > h.a2 && h.mvo > h.p2 && h.rapidEnd > h.mvo,
+    J(h));
+  const as = times(modelFromCase(caseById('exertional-syncope-as')));
+  ok('aortic stenosis: ejection lasts longer, and A2 moves after P2 (paradoxical splitting)', as.a2 - as.avo > h.a2 - h.avo + 20 && as.a2 > as.p2, `LVET ${Math.round(as.a2 - as.avo)} vs ${Math.round(h.a2 - h.avo)} ms, A2 ${Math.round(as.a2)} P2 ${Math.round(as.p2)}`);
+  const c = phonoCycle({ s1: 'normal', a2: 'normal', p2: 'normal', s2Split: 'physiological', added: [], murmurs: [] }, hr, h);
+  const m1 = h.m1 > h.cycle / 2 ? h.m1 - h.cycle : h.m1;
+  const snd = (n) => c.sounds.find((x) => x.name === n)?.t;
+  ok('the phonocardiogram places A2 and P2 where the model’s aortic and pulmonary valves closed', Math.abs(snd('a2') - (h.a2 - m1) / 1000) < 0.002 && Math.abs(snd('p2') - (h.p2 - m1) / 1000) < 0.002, J(c.sounds));
+  /* Weissler's normal systolic time intervals, from the QRS (validation, not fitted). */
+  gap('left ventricular ejection time at rest within 10 % of Weissler’s normal', Math.abs((h.a2 - h.avo) - (413 - 1.7 * hr)) <= 0.1 * (413 - 1.7 * hr),
+    `${Math.round(h.a2 - h.avo)} ms at ${Math.round(hr)}/min, normal ${Math.round(413 - 1.7 * hr)}`);
+  const pe = times(modelFromCase(caseById('pulmonary-embolism-after-flight')));
+  const hrPe = 60000 / pe.cycle;
+  gap('…and at a fast rate', Math.abs((pe.a2 - pe.avo) - (413 - 1.7 * hrPe)) <= 0.1 * (413 - 1.7 * hrPe),
+    `${Math.round(pe.a2 - pe.avo)} ms at ${Math.round(hrPe)}/min, normal ${Math.round(413 - 1.7 * hrPe)}: ejection shortens far more with rate than in people`);
+  gap('pre-ejection period within 15 % of Weissler’s normal', Math.abs(h.avo - (131 - 0.4 * hr)) <= 0.15 * (131 - 0.4 * hr),
+    `${Math.round(h.avo)} ms from activation, normal ${Math.round(131 - 0.4 * hr)} from the start of QRS: no electromechanical delay, and isovolumic contraction is quick`);
+  /* Inspiration lowers intrathoracic pressure, fills the right heart more and delays P2 (Aygen 1970: ≥ 20 ms in 98 % of normals). */
+  gap('A2–P2 widens by 20 ms or more in inspiration', false, `split ${Math.round(h.p2 - h.a2)} ms in every phase: the circulation has no respiratory pump, so breathing does not change right-heart filling`);
+}
+
 console.log('\nModels and measurements');
 {
   const measured = [...Object.values(CATALOG.properties), ...Object.values(CATALOG.investigations)].filter((x) => x.source !== 'case');

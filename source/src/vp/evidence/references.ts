@@ -30,6 +30,13 @@ export interface Reference {
 const R = (r: Reference) => r;
 
 export const REFERENCES: Record<string, Reference> = Object.fromEntries([
+  /* Heart sound timing (ADR-017 step 3): validation only, nothing fitted to them. */
+  R({ id: 'weissler1968', authors: 'Weissler AM, Harris WS, Schoenfeld CD', title: 'Systolic time intervals in heart failure in man',
+    journal: 'Circulation', year: 1968, volume: '37', pages: '149–59', doi: '10.1161/01.cir.37.2.149', pmid: '5640345', verified: 'record',
+    note: 'The normal regressions on heart rate, as widely quoted: men LVET = 413 − 1.7·HR, PEP = 131 − 0.4·HR, QS2 = 546 − 2.1·HR (ms). The text itself not yet read here.' }),
+  R({ id: 'aygen1970', authors: 'Aygen MM, Sirkis I, Wurzel M', title: 'Splitting of second heart sound in patients with aortic regurgitation',
+    journal: 'Circulation', year: 1970, volume: '42', pages: '745–9', doi: '10.1161/01.cir.42.4.745', pmid: '11993314', verified: 'abstract',
+    note: 'Abstract: in 57 normal subjects S2 was single or closely split in expiration, and inspiration widened A2–P2 by 20 ms or more in all but one (2 %).' }),
   R({ id: 'bellissant2000', authors: 'Bellissant E, Annane D', title: 'Effect of hydrocortisone on phenylephrine–mean arterial pressure dose-response relationship in septic shock',
     journal: 'Clin Pharmacol Ther', year: 2000, volume: '68', pages: '293–303', doi: '10.1067/mcp.2000.109354', pmid: '11014411', verified: 'abstract',
     note: 'Abstract: Emax 39 → 77 mmHg in septic patients and 84 → 106 mmHg in controls 1 h after 50 mg hydrocortisone, ED50 unchanged; E0 rose 58 → 64 and 73 → 82 mmHg. The patients had septic shock with relative adrenal insufficiency, not Addison’s disease.' }),
