@@ -1,6 +1,13 @@
 # Handover: start here
 
-Last updated: 17 October 2026, after PR #40 (ADR-016 steps 1–3 merged).
+Last updated: 18 October 2026, after PR #48 (ADR-016 steps 1–4 merged). Work is paused here at the owner's request.
+
+**Where we paused.** Nothing is in flight; every PR is merged and live. Waiting on the owner (details in "Waiting for the owner" below):
+
+1. Four case texts the model contradicts: change the text, or fix the model?
+2. Rewrite the finding texts as observations rather than diagnoses, so the observe-only level is a real test for findings shown only as text?
+3. A hands-only inspection, so "look at the hands" works on a dressed patient?
+4. Which next: ADR-016 step 5 (draw the signs the views do not show yet), the Evidence ADR, or animations.
 
 This page is the entry point for anyone (or any agent) picking up the work. It covers:
 
@@ -9,7 +16,8 @@ This page is the entry point for anyone (or any agent) picking up the work. It c
 - what is done;
 - the open lists;
 - the data model for tests, signs and the knowledge graph (ADR-016), and its next steps;
-- where the topic after it, animations, starts.
+- problem reports;
+- where animations would start.
 
 If you will change the patient figure, also read `source/studio/figure/BRIEF.md`.
 
@@ -71,6 +79,11 @@ Notes:
 | Live ECG: a 12-lead monitor that follows the electrodes while they are dragged; a bedside lead II strip; "Print 12-lead ECG"; a measuring tool with calipers, ruler and guided steps (#32) | "The ECG view" below |
 | Knowledge tables, ADR-016 step 1: 202 signs defined on the observables, 25 syndromes, links to conditions, EN/DE labels; schema, validator, queries (`explore`, `signsForCondition`, `testsForSign`); every case read for every sign; sign links checked against the cases; no interface change yet | `source/knowledge/README.md`, `docs/knowledge-coverage.md` (`npm run knowledge:report`) |
 | ADR-016 step 3: tests named as tests (14 renamed; old names searchable); after each test the feed names the signs it found, with side, normal variants and pertinent negatives; general inspection names what the figure shows; signs found so far in Notes | `docs/examination-and-teaching.md`, "Signs in the encounter" |
+| Owner decisions on the ADR-016 open points (#44): grounded thresholds; diagnoses carry a `kind` (syndrome, state, lab finding) and the debrief says "right level, name the cause"; sepsis by qSOFA; mitral stenosis and the Austin Flint rumble split; hypothermia < 35 °C; one test for tremor and asterixis; the septic-shock case meets Sepsis-3 | "Tests, signs and the knowledge graph" below |
+| Notes grouped by the exam section of the test that produced each finding (#43) | `engine/notes.ts` |
+| Report button: point at a problem, comment, get the full state as a file or a pre-filled GitHub issue; replay script (#45) | "Problem reports" below |
+| Command line: 129 everyday phrasings in EN and DE understood, and kept as a test (`scripts/data/typed-commands.json`) (#46) | `engine/language.ts` |
+| ADR-016 step 4: expert references and the debrief in signs (#47); the observe-only level, with misses and over-calls scored (#48) | "Tests, signs and the knowledge graph" below |
 
 ## Open lists
 
@@ -96,7 +109,7 @@ Notes:
   - Guillain–Barré syndrome.
 
   Each new case makes more of the cards checkable. Some of these links point to broader diagnoses than the case's primary one; for example, the GI-bleed case is `peptic-ulcer-bleed`, while cards say `upper-gi-bleed`. Letting a case count for its broader diagnosis too would make more of those links checkable.
-- **Card content review.** The card texts are standard clinical teaching, written but not yet read by a clinician, the German especially. References are cited only where a threshold rests on a study.
+- **Card content review.** The card texts are standard clinical teaching, written but not yet read by a clinician, the German especially. References are cited only where a threshold rests on a study. Deferred by the owner until colleagues are involved (see the ADR-016 section).
 - **Review modes.** Spaced repetition, and matching tests to conditions, can be generated from the cards (see `docs/examination-and-teaching.md`); none is built.
 - **Patient figure:** see "Open" in `source/studio/figure/BRIEF.md`. In short:
   - The owner reviews the figure closely and judges anatomy above all, the front view especially. Show close-ups before claiming a fix.
@@ -165,7 +178,9 @@ Agreed with the owner: tests and signs are separate, each sign is defined on the
 - **Done:**
   - step 1, the tables, validator and coverage (#37);
   - step 2, cards built from the tables, with presentations and a card for every sign (#39);
-  - step 3, the interface: tests named as tests, signs named after each test, signs in Notes (#40).
+  - step 3, the interface: tests named as tests, signs named after each test, signs in Notes (#40);
+  - the owner's decisions on the open points (#44);
+  - step 4a, references and debrief in signs (#47), and step 4b, the observe-only level (#48), both below.
 - **Coverage:** `npm run knowledge:report` writes `docs/knowledge-coverage.md`. It lists every sign with its definition, the tests that elicit it, where the app shows it, which cases show it, and its gap.
 - **Step 4a, done:** the expert references speak in signs, with a side and pertinent negatives (`present: false`).
   - 56 of the 65 property items became sign items. The rest stay property items where a number or context is the point (SpO₂ on air, the murmur's radiation, the leg's relative sparing, a clear chest), or where the case text and the model disagree (below).
@@ -184,7 +199,11 @@ Agreed with the owner: tests and signs are separate, each sign is defined on the
   - The debrief adds *Your documentation*: what was named and there; what was there and not named, with the test that showed it; and what was named but shown by no test the learner did (an over-call). An over-call names the normal finding it was, when there was one: gaze-evoked nystagmus that was end-point nystagmus.
   - `documentation()` in `engine/debrief.ts`.
   - **Limitation:** the observation texts still name some signs ("Pale conjunctivae", "end-point nystagmus … physiological"). Observe only is strongest where a view shows the finding: the eyes, face, heart and lung sounds, pulse. Writing the texts as observations rather than diagnoses is a later step.
-- **Then, step 5:** the model gaps the coverage lists. These include:
+- **Waiting for the owner:**
+  - **Case texts the model contradicts** (the four above): change the text, or fix the model? Changing the model means grounding it in human data, never tuning it to the text.
+  - **Finding texts that name the sign** (the limitation above): rewrite them as observations? This is a content job across the formatters and the case layer.
+  - **"Look at the hands"** runs the merged skin, hands and chest-wall inspection, which needs the chest and abdomen uncovered, so on a dressed patient it answers "still covered". A hands-only inspection would fix it, but it reopens the owner's decision to keep that inspection merged.
+- **Next, step 5** (when the owner chooses it): the model gaps the coverage lists. These include:
   - jaundice, pallor and cyanosis missing from the eye close-up;
   - limb ataxia with the eyes closed, which no test elicits;
   - the resting deviation drawn in the eye close-up but absent from the text;
@@ -211,12 +230,12 @@ Anyone using the app can press **Report** (bottom right), point at what is wrong
   - It leaves out the learner's own notes.
 - **Where reports go today:** the file is downloaded. **Open GitHub issue** also opens a pre-filled issue, labelled `report`, with the comment, the place, the case, the build and the steps; the reporter attaches the file. That needs a GitHub account.
 - **Working on a report:** `node scripts/replay-report.mjs report-….json` (from `source/`). It prints the report, rebuilds the patient from its model, replays the steps and compares every finding with what the reporter saw. Vital signs may differ by a beat, because the app runs the circulation live.
-- **Not done yet:**
-  - **Sending without a GitHub account.** This needs a relay holding a key that may only create issues: for example a Cloudflare Worker, plus an access code for testers. The owner has to create the account and the key.
+- **Not done:**
+  - **Sending without a GitHub account.** This would need a relay holding a key that may only create issues (a Cloudflare Worker, plus an access code for testers). The owner ruled it unimportant (18 October 2026); do not start it unasked.
   - A queue for reports made offline.
-- **Seen while testing it:** "check the pulse" and "arms outstretched" are not understood by the command line.
+- **When a report shows a phrasing that was not understood,** add a line to `scripts/data/typed-commands.json` and make it pass.
 
-## Next topic: animations
+## Animations (one of the candidate next topics)
 
 ### What animates today
 
