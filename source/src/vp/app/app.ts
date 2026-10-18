@@ -67,6 +67,9 @@ const UI: Record<string, Record<Lang, string>> = {
   see: { en: 'See patient', de: 'Patient ansehen' }, freeTitle: { en: 'Free patient', de: 'Freier Patient' },
   freeText: { en: 'A healthy adult on the physiology bench. Examine, record an ECG, open any chapter, change any variable.', de: 'Ein gesunder Erwachsener auf dem Physiologie-Tisch. Untersuchen, EKG schreiben, jedes Kapitel öffnen, jede Variable ändern.' },
   openFree: { en: 'Open the free patient', de: 'Freien Patienten öffnen' }, lab: { en: 'Physiology lab', de: 'Physiologielabor' },
+  stationTag: { en: 'Station', de: 'Station' },
+  stationText: { en: 'One test and the physiology that writes it, side by side: the ECG with the conduction system and the cardiac vector at every instant of the beat.', de: 'Ein Test und die Physiologie, die ihn schreibt, nebeneinander: das EKG mit dem Reizleitungssystem und dem Herzvektor in jedem Moment des Herzschlags.' },
+  openStation: { en: 'Open the station', de: 'Station öffnen' },
   preparing: { en: 'Bringing the patient to a steady state…', de: 'Der Patient erreicht einen stabilen Zustand…' },
   placeholder: { en: 'Ask or examine…', de: 'Fragen oder untersuchen…' }, send: { en: 'Go', de: 'Los' },
   feed: { en: 'Encounter', de: 'Verlauf' }, notes: { en: 'Notes', de: 'Notizen' }, mine: { en: 'My notes', de: 'Meine Notizen' },
@@ -149,6 +152,8 @@ const seedOf = (id: string) => [...id].reduce((a, ch) => (a * 31 + ch.charCodeAt
 
 import { FREE_CASE } from './free-case.ts';
 import { installReport } from './report.ts';
+import { mountEcgStation, type StationHandle } from './station-ecg.ts';
+import { ECG_STATION } from '../stations/station.ts';
 
 /* ---- feed ------------------------------------------------------------------------ */
 type FeedItem =
@@ -254,6 +259,7 @@ export function mount(root: HTMLElement) {
   const shots = new Map<number, { resp: any; circ: Record<string, any>; curve?: SpiroCurve; shift: number }>();
   let liveOff: (() => void) | null = null;
   let tick = 0;
+  let station: StationHandle | null = null;
 
   const t = (k: string) => UI[k]?.[lang] ?? k;
   const $ = <T extends HTMLElement = HTMLElement>(sel: string) => root.querySelector(sel) as T;
@@ -261,8 +267,9 @@ export function mount(root: HTMLElement) {
   const minutes = () => (s ? Math.round(s.t / 60000) : 0);
 
   /* ---- screens ------------------------------------------------------------------- */
-  const show = (id: 'ward' | 'encounter' | 'debrief') => {
-    for (const x of ['ward', 'encounter', 'debrief']) ($(`#${x}`)).hidden = x !== id;
+  const show = (id: 'ward' | 'encounter' | 'debrief' | 'station') => {
+    for (const x of ['ward', 'encounter', 'debrief', 'station']) ($(`#${x}`)).hidden = x !== id;
+    if (id !== 'station') { station?.stop(); station = null; }
     window.scrollTo(0, 0);
   };
 
@@ -294,6 +301,17 @@ export function mount(root: HTMLElement) {
       <p class="bed-triage">${t('freeText')}</p><button type="button" class="primary">${t('openFree')}</button>`;
     fc.querySelector('button')!.onclick = () => start(null);
     wl.appendChild(fc);
+    const sc = document.createElement('article');
+    sc.className = 'bedcard free';
+    sc.innerHTML = `<span class="tag">${t('stationTag')}</span><h2>${esc(tr(ECG_STATION.title, lang))}</h2>
+      <p class="bed-triage">${t('stationText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
+    sc.querySelector('button')!.onclick = () => openStation();
+    wl.appendChild(sc);
+  };
+  const openStation = () => {
+    stopLive();
+    show('station');
+    station = mountEcgStation($('#station'), { lang, onLeave: () => { renderWard(); show('ward'); } });
   };
 
   /* ---- the running patient ---------------------------------------------------------- */
@@ -1286,13 +1304,14 @@ export function mount(root: HTMLElement) {
     if (s) { s.encounter.locale = lang; renderEncounter(); renderLayer(); if (visual) setVisual(visual); }
     if (debrief && !$('#debrief').hidden) renderDebrief();
     if (!$('#commit').hidden) renderCommit();
+    station?.setLang(lang);
   };
   root.querySelectorAll<HTMLButtonElement>('.langbtn').forEach((b) => b.onclick = () => { lang = lang === 'en' ? 'de' : 'en'; setLang(); });
   void observeIn;
 
   /* Report a problem: the state a report carries (report.ts). The learner's own notes stay out. */
   installReport({ root, lang: () => lang, app: () => {
-    const screen = ['ward', 'encounter', 'debrief'].find((x) => !$(`#${x}`).hidden) ?? 'ward';
+    const screen = ['ward', 'encounter', 'debrief', 'station'].find((x) => !$(`#${x}`).hidden) ?? 'ward';
     const snap = live ? Object.fromEntries(Object.entries(live.snap).filter(([k]) => k !== 'beat')) : null;
     return {
       screen: !$('#commit').hidden ? `${screen}+commit` : !$('#card').hidden ? `${screen}+card` : screen,
