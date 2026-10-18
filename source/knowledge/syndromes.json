@@ -24,5 +24,11 @@
 {"id": "thyrotoxicosis", "note": "A state, not a diagnosis: Graves’ disease, toxic multinodular goitre and thyroiditis are its causes, thyroid storm its extreme. Graves’ disease adds exophthalmos and a diffuse goitre with a bruit.", "status": "draft"},
 {"id": "peritonitis-signs", "status": "draft"},
 {"id": "neuromuscular-fatigability", "note": "The hallmark of junction disease.", "status": "draft"},
-{"id": "sepsis", "note": "Sepsis-3: organ dysfunction from a dysregulated response to infection. At the bedside, qSOFA counts rate ≥ 22, altered mentation and systolic ≤ 100; two or more flag it. Fever, a low temperature and a fast pulse are associated but do not make it.", "status": "draft", "refs": ["singer2016"]}
+{"id": "sepsis", "note": "Sepsis-3: organ dysfunction from a dysregulated response to infection. At the bedside, qSOFA counts rate ≥ 22, altered mentation and systolic ≤ 100; two or more flag it. Fever, a low temperature and a fast pulse are associated but do not make it.", "status": "draft", "refs": ["singer2016"]},
+{"id": "rbbb-pattern", "status": "draft", "note": "Complete right bundle branch block on the ECG; its causes are many (and it can be normal)."},
+{"id": "lbbb-pattern", "status": "draft", "note": "Complete left bundle branch block on the ECG; a broad ventricular escape rhythm can look the same."},
+{"id": "pre-excitation-pattern", "status": "draft", "note": "An accessory pathway activates the ventricles early."},
+{"id": "mobitz-1-pattern", "status": "draft"},
+{"id": "mobitz-2-pattern", "status": "draft"},
+{"id": "complete-av-block-pattern", "status": "draft", "note": "AV dissociation without a ventricular tachycardia: the ventricles beat from an escape focus."}
 ]

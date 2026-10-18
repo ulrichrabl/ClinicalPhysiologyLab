@@ -229,6 +229,8 @@ export function settleModel(m: PatientModel, seconds = 20): SettledPatient {
   run.settle(seconds);
   const snapshot = run.sim.snapshot() as Record<string, any>;
   delete snapshot.ecgLeads;
+  snapshot.electrical = { ...run.heart.p };
+  snapshot.ecgDrive = run.heart.drive();
   snapshot.resp = run.resp.snapshot();
   snapshot.body = run.body.snapshot();
   return { snapshot, state: { ...run.sim.serializeState(), resp: run.resp.serialize(), body: run.body.serialize() } };

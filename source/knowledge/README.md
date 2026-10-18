@@ -34,6 +34,7 @@ Each file holds one row per line, so a change shows as a one-line diff.
   - **`ctx`:** the context the value must be observed in. A list means "any of these, or as the patient is", so the resting vital signs never read the standing half of the lying-and-standing test.
 - **Named predicates.** A pattern a threshold cannot express is written in code (`src/vp/knowledge/predicates.ts`) and named here, for example `{"fn": "nystagmusDirectionChanging"}`. A new one needs a developer.
 - **`null` definition.** The sign is taught and linked, but no observable represents it yet.
+- **Investigations as tests.** An investigation whose result a reader looks at reveals observables too (`reveals` in `src/vp/data/investigations.ts`): the 12-lead ECG reveals `ecg.reading`, the tracing measured, and the ECG signs are defined on it (ADR-017).
 - **`threshold.status`:** `measured`, `derived`, `assumed` or `standard`, as in the evidence registry. An `assumed` threshold is waiting for a reference.
 - **`modelGap`:** what the model or a view cannot show yet, for a later run.
 - **`normalVariant: true`:** a normal finding worth naming (end-point nystagmus).

@@ -2,6 +2,7 @@ import { createCirculation, type CirculationRun } from '../engine/circulation-ho
 import type { PatientModel } from '../physiology/state.ts';
 import { chemistryState } from '../physiology/chemistry.ts';
 import type { Vcg } from '../measurements/ecg.ts';
+import type { Activation } from '../physiology/heart/electrical.ts';
 
 /* ===========================================================================
    A patient whose physiology is running.
@@ -110,6 +111,16 @@ export class LivePatient {
     return out;
   }
 
+  /** The last `seconds` of the dipole together with the activations that produced it, on the heart's clock:
+      sample i was produced at t0 + i·dt ms. */
+  recording(seconds = 10): { vcg: Vcg; t0: number; dt: number; activations: Activation[] } {
+    const vcg = this.vcg(seconds);
+    const dt = 1000 / FS, heart = this.run.heart;
+    const t0 = heart.sampledTo - (vcg.X.length - 1) * dt;
+    const activations = heart.activations.filter((a) => (a.kind === 'atria' ? a.end : a.tEnd) >= t0 - 1000 && a.t <= heart.sampledTo + 1000).map((a) => ({ ...a }));
+    return { vcg, t0, dt, activations };
+  }
+
   start(): void {
     if (this.raf) return;
     this.last = performance.now();
@@ -142,6 +153,7 @@ export class LivePatient {
     }
     delete s.ecgLeads;
     s.electrical = this.run.heart.p;
+    s.ecgDrive = this.run.heart.drive();
     s.resp = this.run.resp.snapshot();
     s.body = this.run.body.snapshot();
     return s;

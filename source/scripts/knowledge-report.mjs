@@ -39,7 +39,7 @@ const SITES = [
   ['Vital signs', ['vitals']], ['General inspection, skin and hands', ['general', 'skin', 'hands']], ['Eyes', ['eye']], ['Mouth, breath and neck', ['mouth', 'breath', 'neck']],
   ['Pulse and heart', ['pulse', 'heart']], ['Chest and lungs', ['chest']], ['Abdomen and rectum', ['abdomen', 'rectum']], ['Legs', ['limb.lower']],
   ['Hearing', ['ear', 'head']], ['Stance and gait', ['posture', 'gait']], ['Face and cranial nerves', ['face']], ['Speech', ['speech']],
-  ['Limbs: motor, coordination, sensory', ['limb', 'limb.upper', 'trunk', 'perineum']],
+  ['Limbs: motor, coordination, sensory', ['limb', 'limb.upper', 'trunk', 'perineum']], ['ECG (read from the tracing, ADR-017)', ['ecg']],
 ];
 const L = [];
 const w = (s = '') => L.push(s);

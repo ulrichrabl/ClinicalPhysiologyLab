@@ -168,6 +168,8 @@ export function testsForSign(k: Knowledge, cat: Catalog, signId: string): string
   };
   const setterOf = (key: string, v: unknown) => Object.values(cat.manoeuvres).find((m) => (m.sets as Record<string, unknown> | undefined)?.[key] === v);
   const tests = Object.values(cat.manoeuvres).filter((m) => (m.reveals ?? []).some((r) => want.some((w) => fits(m, r, w)))).map((m) => m.id);
+  /* Investigations a reader looks at (the ECG) are tests too: they reveal their observables in no context. */
+  for (const inv of Object.values(cat.investigations)) if ((inv.reveals ?? []).some((r) => want.some((w) => w.obs === r.property && Object.values(w.ctx).every(Array.isArray)))) tests.push(inv.id);
   /* The interventions that set a context the tests leave open come first: they are the first step. */
   const setters = want.flatMap((w) => Object.entries(w.ctx).filter(([, v]) => !Array.isArray(v)).map(([k, v]) => setterOf(k, v)?.id))
     .filter((id): id is string => !!id && tests.length > 0 && !tests.includes(id));
