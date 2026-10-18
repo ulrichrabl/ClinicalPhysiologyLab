@@ -126,6 +126,35 @@ export interface ElectricalMetrics {
   RR: number; conducted: boolean;
 }
 
+/** One activation as the model scheduled it, in ms on the model's clock (the clock of the dipole samples).
+    The record is what the model did, read back: the station asks it what the heart was doing at any instant of a
+    recorded strip. Nothing in it shapes the dipole. */
+export type Activation =
+  | {
+    kind: 'atria'; t: number;
+    /** when the left atrium has finished activating (the end of the P wave) */
+    end: number;
+    /** when the ventricles activated from this impulse; null when it did not reach them */
+    conductedAt: number | null;
+    /** why it did not: dropped by a failing AV node, a complete block, ventricles driven by their own rhythm
+        (dissociation), or ventricles still refractory */
+    notConducted?: 'dropped' | 'complete-block' | 'dissociated' | 'refractory';
+  }
+  | {
+    kind: 'ventricles'; t: number;
+    /** what started it: an impulse through the AV node, an escape focus, a ventricular tachycardia */
+    origin: 'conducted' | 'escape' | 'vt';
+    /** the path the wave took through the ventricles */
+    route: 'normal' | 'rbbb' | 'lbbb' | 'pre-excited' | 'ectopic';
+    /** the end of QRS (the J point), the start of the T wave and the end of repolarisation */
+    qrsEnd: number; tStart: number; tEnd: number;
+    pr: number | null;
+    /** behind a blocked bundle: the ventricle reached late, through muscle, and from when */
+    late: { chamber: 'RV' | 'LV'; from: number } | null;
+    /** with pre-excitation: when the accessory pathway's wave begins (two widths before its peak), ahead of `t` */
+    delta?: number;
+  };
+
 interface MechanicalTrigger {
   activationTimeMs: number; chamber: 'RA' | 'LA' | 'RV' | 'LV';
   activationFraction: number; synchrony: number; contractilityScale: number; ectopic: boolean; paced: boolean;
@@ -140,6 +169,8 @@ class Rng {
 }
 
 const FS = 500;                // dipole samples per second
+/** The accessory pathway's activation lobe: its peak relative to the AV-nodal activation, and its rising width (ms). */
+const DELTA = { at: -18, sl: 26 };
 const DT = 1000 / FS;
 
 /* Directions of the normal activation sequence (Frank axes: left, feet, back). */
@@ -176,6 +207,8 @@ export class HeartElectrical {
   private triggers: MechanicalTrigger[] = [];
   private rr: number[] = [];
   private afPhase: number[] = [0, 1.7, 3.1, 0.6];
+  /** The activations of the last 20 s, oldest first. */
+  activations: Activation[] = [];
   private vfPhase: number[] = [0, 2.1, 4.2, 1.3];
   private vfAmp: Vec3 = [0.5, 0.4, 0.45];
   metrics: ElectricalMetrics = { HR: 72, PR: 160, QRS: 90, QT: 390, QTc: 427, qrsAxis: 55, pAxis: 60, tAxis: 45, RR: 833, conducted: true };
@@ -220,6 +253,9 @@ export class HeartElectrical {
     return { X, Y, Z, fs: FS, t0 };
   }
   reset(): void { const p = this.p; Object.assign(this, new HeartElectrical()); this.p = p; }
+
+  /** The time of the newest dipole sample produced (ms, the clock of `activations`). */
+  get sampledTo(): number { return this.nextSampleMs - DT; }
 
   /** Where in the cycle the heart is now, for drawings of the conduction system. */
   phase(): { sinceP: number; sinceV: number; qrs: number; qt: number; pr: number | null } {
@@ -286,7 +322,7 @@ export class HeartElectrical {
     } else {
       while (this.nextAtrialMs <= end) {
         const t = this.nextAtrialMs;
-        this.atrialBeat(t);
+        const atria = this.atrialBeat(t);
         const pr = this.prInterval();
         if (p.ventricular === 'none') {
           let conduct = p.avBlock !== 'complete';
@@ -298,8 +334,10 @@ export class HeartElectrical {
             this.mobitz = (this.mobitz + 1) % 3;
             if (this.mobitz === 0) conduct = false;
           }
-          if (conduct) this.queue(t + prNow, 'conducted', prNow);
-        }
+          if (!conduct) atria.notConducted = p.avBlock === 'complete' ? 'complete-block' : 'dropped';
+          else if (this.queue(t + prNow, 'conducted', prNow)) atria.conductedAt = t + prNow;
+          else atria.notConducted = 'refractory';
+        } else atria.notConducted = 'dissociated';
         /* Respiratory sinus arrhythmia: a few per cent, at the breathing rate. */
         const rsa = 1 + ECG.rsaDepth * Math.sin((2 * Math.PI * t) / 4200);
         this.nextAtrialMs += 60000 / this.rate() / rsa;
@@ -318,12 +356,13 @@ export class HeartElectrical {
     }
   }
 
-  private queue(t: number, kind: 'conducted' | 'escape' | 'vt', pr: number | null): void {
+  private queue(t: number, kind: 'conducted' | 'escape' | 'vt', pr: number | null): boolean {
     // A ventricle activated within its refractory period cannot activate again.
     const last = Math.max(this.lastVentricularMs, ...this.pending.map((b) => b.t));
-    if (t - last < ECG.refractory) return;
+    if (t - last < ECG.refractory) return false;
     this.pending.push({ t, kind, pr });
     this.pending.sort((a, b) => a.t - b.t);
+    return true;
   }
 
   private prInterval(): number {
@@ -335,7 +374,7 @@ export class HeartElectrical {
   }
 
   /* ---- the dipole of one activation --------------------------------------------------------- */
-  private atrialBeat(t: number): void {
+  private atrialBeat(t: number): Activation & { kind: 'atria' } {
     const p = this.p;
     let amp = 0.11;
     if (this.K > ECG.pLossOnset) amp *= Math.max(0, 1 - ECG.pLossPerK * (this.K - ECG.pLossOnset));   // atrial myocytes fail first in hyperkalaemia
@@ -350,6 +389,9 @@ export class HeartElectrical {
     this.triggers.push({ activationTimeMs: t, chamber: 'RA', activationFraction: 1, synchrony: 1, contractilityScale: 1, ectopic: false, paced: false });
     this.triggers.push({ activationTimeMs: t, chamber: 'LA', activationFraction: 1, synchrony: 1, contractilityScale: 1, ectopic: false, paced: false });
     this.lastP = { t, amp: ra + la };
+    const rec = { kind: 'atria' as const, t, end: t + 28 + laDelay + 2.5 * (17 + 6 * (p.laSize - 1)), conductedAt: null };
+    this.activations.push(rec);
+    return rec;
   }
   lastP: { t: number; amp: number } | null = null;
 
@@ -370,6 +412,7 @@ export class HeartElectrical {
     let discordant = 0;     // how much the T wave turns away from the QRS (secondary repolarisation change)
     let qrsMean: Vec3;
 
+    const origin = kind;
     // A junctional escape (conduction intact, the sinus paused) is narrow; below a complete block it is ventricular, and wide.
     if (kind === 'escape' && p.avBlock !== 'complete') kind = 'conducted';
     if (kind === 'vt') {
@@ -402,7 +445,7 @@ export class HeartElectrical {
       }
       if (p.accessory) {
         /* The accessory pathway activates ventricle early and slowly before the normal wave arrives: the delta wave. */
-        k.push({ t: t - 18, sl: 26, sr: 14, v: scale(norm([0.35, 0.45, -0.82]), 0.55) });
+        k.push({ t: t + DELTA.at, sl: DELTA.sl, sr: 14, v: scale(norm([0.35, 0.45, -0.82]), 0.55) });
         qrs = Math.max(qrs, ECG.preexcitedQrs * w); discordant = Math.max(discordant, 0.5);
       }
       qrs += 10 * Math.max(0, p.lvMass - 1);
@@ -466,6 +509,12 @@ export class HeartElectrical {
 
     const tPeak = t + QT - 2.2 * sr;
     this.kernels.push({ t: tPeak, sl, sr, v: scale(norm(tDir), tAmp) });
+    const route = kind !== 'conducted' ? 'ectopic' : lbbBlock ? 'lbbb' : p.accessory ? 'pre-excited' : rbbBlock ? 'rbbb' : 'normal';
+    this.activations.push({
+      kind: 'ventricles', t, origin, route, pr, qrsEnd: jPoint, tStart: Math.max(jPoint, tPeak - 2 * sl), tEnd: t + QT,
+      late: route === 'lbbb' ? { chamber: 'LV', from: t + 30 * w } : rbbBlock && kind === 'conducted' && !lbbBlock ? { chamber: 'RV', from: t + 74 * w } : null,
+      ...(route === 'pre-excited' ? { delta: t + DELTA.at - 2 * DELTA.sl } : {}),
+    });
     if (K < ECG.uWaveOnset) this.kernels.push({ t: t + QT + 70, sl: 40, sr: 45, v: scale(D.t, 0.05 + 0.1 * (ECG.uWaveOnset - K)) });   // U wave
 
     /* ---- the beat drives the mechanics ---- */
@@ -541,6 +590,7 @@ export class HeartElectrical {
     const t = this.timeMs;
     if (this.kernels.length > 40) this.kernels = this.kernels.filter((k) => k.t + 4.5 * k.sr > t);
     if (this.plateaus.length > 10) this.plateaus = this.plateaus.filter((p) => p.t1 + 4 * p.fall > t);
+    if (this.activations.length > 80) this.activations = this.activations.filter((a) => (a.kind === 'atria' ? a.end : a.tEnd) > t - 20000);
   }
 
   /** Lead II with standard electrodes (Dower coefficients), for the monitor. */

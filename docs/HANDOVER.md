@@ -1,13 +1,13 @@
 # Handover: start here
 
-Last updated: 18 October 2026, after PR #48 (ADR-016 steps 1–4 merged). Work is paused here at the owner's request.
+Last updated: 18 October 2026, with the ADR-017 step 1 PR (the ECG station). Before it, work was paused after PR #48 at the owner's request.
 
 **Where we paused.** Nothing is in flight; every PR is merged and live. Waiting on the owner (details in "Waiting for the owner" below):
 
 1. Four case texts the model contradicts: change the text, or fix the model?
 2. Rewrite the finding texts as observations rather than diagnoses, so the observe-only level is a real test for findings shown only as text?
 3. A hands-only inspection, so "look at the hands" works on a dressed patient?
-4. Which next: ADR-016 step 5 (draw the signs the views do not show yet), the Evidence ADR, or animations.
+4. Which next: ADR-016 step 5 (draw the signs the views do not show yet), the Evidence ADR, or animations. The owner chose stations (ADR-017); step 1 is in review.
 
 This page is the entry point for anyone (or any agent) picking up the work. It covers:
 
@@ -84,6 +84,7 @@ Notes:
 | Report button: point at a problem, comment, get the full state as a file or a pre-filled GitHub issue; replay script (#45) | "Problem reports" below |
 | Command line: 129 everyday phrasings in EN and DE understood, and kept as a test (`scripts/data/typed-commands.json`) (#46) | `engine/language.ts` |
 | ADR-016 step 4: expert references and the debrief in signs (#47); the observe-only level, with misses and over-calls scored (#48) | "Tests, signs and the knowledge graph" below |
+| ADR-017 step 1: the ECG station, Explore. One test and its mechanism on one clock: strip (two chosen leads) and conduction ladder, a cursor through the beat, the heart and the cardiac vector in both planes at the cursor, explanations in EN/DE; settings derived from what the 12-lead measures. The electrical model logs its activations for it | "Stations (ADR-017)" below |
 
 ## Open lists
 
@@ -215,6 +216,19 @@ Agreed with the owner: tests and signs are separate, each sign is defined on the
 - The review drafts in `docs/adr/adr-016/` and `ADR-016-inventory.md` are superseded by `source/knowledge/` and `docs/knowledge-coverage.md`, and are kept as the record of the review.
 
 Animations (below) should hang on signs: the card of a test and the sign it shows.
+
+## Stations (ADR-017)
+
+A station pairs one test with the mechanism that writes it, on one clock. Read `docs/adr/ADR-017-stations.md`.
+
+- **Where:** a "Station" card on the Ward opens `#station` (`app/station-ecg.ts`). It runs its own healthy patient.
+- **The activation log:** `HeartElectrical.activations` records every atrial and ventricular activation (P end, conducted or why not, route, late chamber, delta onset, J point, T), on the clock of the dipole samples (`sampledTo`). `LivePatient.recording()` returns the dipole with its activations. Nothing in the log shapes the dipole.
+- **The timeline:** `stations/ecg-timeline.ts` reads the log: the phase at any instant, and the state of the atria, AV node, bundles and ventricles.
+- **Derived settings:** `stations/station.ts`: the parameters of the models the test measures, plus potassium (with its reason).
+- **Authored:** only `stations/ecg-texts.ts`, the explanations, chosen by what the model is doing. Drafts until a clinician reads them.
+- **Tests:** `scripts/station.test.mjs` (in `npm test`): the log agrees with the model's intervals and with the dipole, the patterns read correctly from it, settings are derived, texts complete in both languages.
+- **Noticed, not changed:** with pre-excitation the delta lobe starts about 70 ms before the activation the model's QRS duration counts from, so the drawn QRS band is wider than the 122 ms the model reports. The text uses the model's figure.
+- **Next (ADR-017 steps):** 2. ECG observables and signs in the knowledge tables, then Predict and Identify (the mockup is the claude.ai artifact "ECG Station mockup"); 3. heart sounds timed from the circulation's valve events; 4. the auscultation station; 5. links from the cards and the debrief.
 
 ## Problem reports
 

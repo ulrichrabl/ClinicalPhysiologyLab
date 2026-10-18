@@ -6,8 +6,9 @@
   "main": "index.js",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/physiology.test.mjs && node scripts/circulation.test.mjs && node scripts/runtime-slice.test.mjs && node scripts/phase4-observations.test.mjs && node scripts/phase5-chemistry.test.mjs && node scripts/phase6-scenarios.test.mjs && node scripts/stabilization.test.mjs && node scripts/hardening.test.mjs && node scripts/vp-model.test.mjs && node studio/figure/contract.test.mjs",
+    "test": "node scripts/physiology.test.mjs && node scripts/circulation.test.mjs && node scripts/runtime-slice.test.mjs && node scripts/phase4-observations.test.mjs && node scripts/phase5-chemistry.test.mjs && node scripts/phase6-scenarios.test.mjs && node scripts/stabilization.test.mjs && node scripts/hardening.test.mjs && node scripts/vp-model.test.mjs && node scripts/station.test.mjs && node studio/figure/contract.test.mjs",
     "test:vp": "node scripts/vp-model.test.mjs",
+    "test:station": "node scripts/station.test.mjs",
     "test:runtime": "node scripts/runtime-slice.test.mjs",
     "test:phase4": "node scripts/phase4-observations.test.mjs",
     "test:phase5": "node scripts/phase5-chemistry.test.mjs",
