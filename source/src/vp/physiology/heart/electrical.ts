@@ -292,6 +292,9 @@ export class HeartElectrical {
   }
 
   private rate(): number { return Math.max(25, Math.min(220, this.rateSource())); }
+  /** What drives this heart from outside, now: the rate the sinus node (or the AV node in AF) is driven at, potassium and
+      calcium. With the parameters, enough to record the same heart elsewhere (measurements/ecg-reading.ts). */
+  drive(): { rate: number; K: number; Ca: number } { return { rate: this.rate(), K: this.K, Ca: this.Ca }; }
 
   /** Decide activations due before `end`. */
   private schedule(end: number): void {

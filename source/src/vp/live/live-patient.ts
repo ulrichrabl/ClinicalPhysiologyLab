@@ -153,6 +153,7 @@ export class LivePatient {
     }
     delete s.ecgLeads;
     s.electrical = this.run.heart.p;
+    s.ecgDrive = this.run.heart.drive();
     s.resp = this.run.resp.snapshot();
     s.body = this.run.body.snapshot();
     return s;

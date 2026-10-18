@@ -348,6 +348,8 @@ export interface InvestigationDef {
   turnaroundMinutes: number;      // simulated time until the result is available
   codes?: Codes;
   measurement?: MeasurementSpec;
+  /** Observables the result lets a reader see (ADR-017): the ECG's tracing, read. Signs are defined on these. */
+  reveals?: Array<{ property: string }>;
 }
 
 /* ---- 4. Case --------------------------------------------------------------- */

@@ -1,6 +1,6 @@
 # ADR-017 — Stations: one test and its mechanism on one clock
 
-Status: Proposed; step 1 (the ECG station, Explore) in this PR  
+Status: Proposed; step 1, the ECG station's Explore mode (#50); step 2, ECG signs, Predict and Identify  
 Date: 2026-10-18  
 Repository: ClinicalPhysiologyLab
 
@@ -56,10 +56,19 @@ Identify scores signs, and signs live in the knowledge tables (ADR-016). Today t
 
 The auscultation station would show a Wiggers diagram (pressures and valve events from the circulation, which computes them every 0.5 ms) next to the phonocardiogram. Today the phonocardiogram is timed by a rule of thumb from a qualitative finding (`render/phono.ts`: systole ≈ 0.45 × cycle, a fixed 20 or 50 ms split). Side by side, the two would disagree. So before the auscultation station, the timing of S1, A2, P2, S3 and S4 comes from the model's own valve events, and respiratory splitting from the breath's effect on right-heart filling, grounded in human data under rule 1.
 
+### 7. How step 2 was built (added with it)
+
+- **An investigation can reveal observables.** `InvestigationDef.reveals` names them; the knowledge layer then treats the investigation as a test (`contextsFor`, `testsForSign`, `signsTestLooksFor`), in no context. `ecg-12` reveals `ecg.reading`.
+- **`ecg.reading` is a measurement of the tracing** (`measurements/ecg-reading.ts`). The heart is recorded again from what drives it now (its parameters, the rate it is driven at, potassium and calcium), so readings are deterministic and the same in the live app, in settled tests and in every case. Amplitudes are measured on the recorded leads against the T–P baseline, at the model's own fiducials: P (only where nothing ventricular overlaps it), QRS shape in V1 and V6, ST at the J point, T height, a U wave as a wave of its own, Sokolow–Lyon voltage. Intervals are the model's own.
+- **ST is read at the J point**, where the Fourth Universal Definition of MI measures it. At J + 60 ms a fast heart's T wave already rises, and ten cases with sinus tachycardia read as ST elevation.
+- **Signs are rows in `signs.json`** with standard thresholds (Thygesen 2018, Sokolow and Lyon 1949, the AHA/ACCF/HRS statements of 2009), two named predicates for leads that look at the same wall, and six syndromes (bundle branch blocks, pre-excitation, the second- and third-degree blocks).
+- **The encounter does not yet name ECG signs** after an ECG is ordered, and the debrief does not credit them. That needs the result to record its reading when it arrives, so it is a step of its own.
+
 ## Steps
 
 1. **The ECG station, Explore** (this PR): the activation log in the electrical model, with tests; the station screen with settings, strip, ladder, cursor, conduction heart and explanations in EN and DE; a Stations card on the Ward.
-2. **ECG signs and the other two modes:** ECG observables and signs in the knowledge tables; Predict; Identify with the observe-only scoring.
+2. **ECG signs and the other two modes:** ECG observables and signs in the knowledge tables; Predict; Identify with the observe-only scoring. (Done; see decision 7.)
+2b. **ECG signs in the encounter:** named after an ECG result in the guided level, chips in the observe-only level, credited in the debrief.
 3. **Heart sounds timed from valve events** (decision 6).
 4. **The auscultation station.**
 5. **Links:** teaching cards and the debrief open a station on the relevant patient.

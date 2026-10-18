@@ -29,6 +29,7 @@ export const INVESTIGATIONS: InvestigationDef[] = [
     } },
     normal: { value: { rate: 72, pr: 160, qrs: 90, qtc: 410, axis: 40 }, range: { rate: [60, 100], pr: [120, 200], qrs: [70, 110], qtc: [350, 450], axis: [-30, 90] } },
     source: 'model', resolver: 'electrical.ecg', formatter: 'inv.ecg', turnaroundMinutes: 5,
+    reveals: [{ property: 'ecg.reading' }],
   },
   {
     id: 'electrolytes', label: { en: 'Urea and electrolytes', de: 'Elektrolyte und Nierenwerte' },
