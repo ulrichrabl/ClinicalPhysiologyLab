@@ -16,7 +16,17 @@ export interface Cycle { periodS: number; systoleS: number; sounds: Sound[]; mur
 const PITCH_HZ: Record<string, number> = { low: 120, medium: 260, high: 420 };
 const LEVEL: Record<string, number> = { normal: 1, loud: 1.5, soft: 0.45, absent: 0 };
 
-export function cycle(v: any, heartRate: number): Cycle {
+/** When the valves moved in the beat just simulated (ms from ventricular activation), as the circulation records them. */
+export interface ValveTimes { cycle: number; m1: number | null; t1?: number | null; avo: number | null; a2: number | null; p2: number | null; mvo: number | null; rapidEnd?: number | null; aPeak?: number | null }
+
+/**
+ * One cycle of sounds. With the circulation's valve times, every sound is placed where the model's valve closed or
+ * opened (S1 at mitral closure, A2 and P2 at aortic and pulmonary closure, an opening snap at mitral opening, S3 at the
+ * end of rapid filling, S4 at the atrial kick), and murmurs span the phases they belong to. Which sounds there are, and
+ * how loud, still comes from the finding. Without valve times (a finding read on its own), a rule of thumb places them.
+ */
+export function cycle(v: any, heartRate: number, times?: ValveTimes | null): Cycle {
+  if (times && times.cycle > 0 && times.m1 != null && times.a2 != null) return timedCycle(v, times);
   const periodS = 60 / Math.max(30, heartRate || 72);
   // Electromechanical systole shortens less than diastole as the rate rises.
   const systoleS = Math.min(0.45 * periodS, 0.52 - 0.0017 * (heartRate || 72));
@@ -47,6 +57,39 @@ export function cycle(v: any, heartRate: number): Cycle {
     }
   });
   return { periodS, systoleS, sounds, murmurs };
+}
+
+function timedCycle(v: any, T: ValveTimes): Cycle {
+  const periodS = T.cycle / 1000;
+  /* Time zero is S1. A mitral valve that closed before activation (late in the previous recorded beat) closed just before it. */
+  const m1 = T.m1! > T.cycle / 2 ? T.m1! - T.cycle : T.m1!;
+  const at = (x: number | null | undefined) => (x == null ? null : ((((x - m1) / 1000) % periodS) + periodS) % periodS);
+  const a2 = at(T.a2)!, p2 = at(T.p2), avo = at(T.avo) ?? 0.05, mvo = at(T.mvo) ?? a2 + 0.08;
+  const rapidEnd = at(T.rapidEnd) ?? a2 + 0.15, aPeak = at(T.aPeak) ?? periodS - 0.09;
+  const sounds: Sound[] = [];
+  if (v.s1 !== undefined) sounds.push({ name: 's1', t: 0, amp: LEVEL[v.s1] ?? 1, freqHz: 55, durS: 0.1 });
+  if (v.a2 !== undefined) {
+    if ((LEVEL[v.a2] ?? 1) > 0) sounds.push({ name: 'a2', t: a2, amp: (LEVEL[v.a2] ?? 1) * 0.85, freqHz: 70, durS: 0.06 });
+    if (p2 != null) sounds.push({ name: 'p2', t: p2, amp: (LEVEL[v.p2] ?? 1) * 0.55, freqHz: 70, durS: 0.05 });
+  }
+  for (const x of v.added ?? []) {
+    if (x === 's4') sounds.push({ name: 's4', t: aPeak, amp: 0.45, freqHz: 30, durS: 0.06 });
+    if (x === 's3') sounds.push({ name: 's3', t: rapidEnd, amp: 0.45, freqHz: 30, durS: 0.06 });
+    if (x === 'opening-snap') sounds.push({ name: 'opening-snap', t: mvo, amp: 0.6, freqHz: 90, durS: 0.03 });
+    if (x === 'ejection-click') sounds.push({ name: 'ejection-click', t: avo + 0.01, amp: 0.6, freqHz: 110, durS: 0.025 });
+  }
+  const s2 = Math.min(a2, p2 ?? a2);
+  const murmurs: Murmur[] = (v.murmurs ?? []).map((m: any): Murmur => {
+    const amp = Math.min(1, m.grade / 6 * 1.2);
+    const centreHz = PITCH_HZ[m.pitch] ?? 260;
+    switch (m.timing) {
+      case 'ejection-systolic': return { start: avo + 0.01, end: a2 - 0.02, shape: 'crescendo-decrescendo', amp, centreHz };
+      case 'pansystolic': return { start: 0.01, end: Math.max(a2, p2 ?? a2) + 0.01, shape: 'plateau', amp, centreHz };
+      case 'early-diastolic': return { start: a2 + 0.01, end: a2 + 0.45 * (periodS - a2), shape: 'decrescendo', amp, centreHz };
+      default: return { start: mvo + 0.03, end: Math.max(mvo + 0.1, aPeak - 0.02), shape: 'decrescendo', amp, centreHz };   // mid-diastolic rumble, from mitral opening
+    }
+  });
+  return { periodS, systoleS: s2, sounds, murmurs };
 }
 
 /** Envelope of a murmur at time t within the cycle, 0..1 of its amplitude. */

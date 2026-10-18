@@ -67,6 +67,9 @@ The test suite (`scripts/vp-model.test.mjs`) does three things:
 7. **Diarrhoea (prerenal):** urine sodium is 32 (Miller: below 20). FENa and osmolality are correct.
 8. **Triple-whammy potassium:** 5.8 against the 6.2 or more such patients present with. How far RAAS blockade impairs the kaliuretic adaptation is not grounded.
 9. **Healthy gaze holding:** at 30° of lateral gaze a healthy integrator drifts 1.2 °/s, against 0.62 ± 0.53 °/s measured (Ritter 2020). The nystagmus it produces is labelled physiological end-point nystagmus, as it is in most healthy people at 30°, but it is about twice as brisk as average. The integrator time constant (25 s) and the 1 °/s visibility threshold are inline literals, not yet in the registry.
+10. **Ejection time at fast rates** (heart sounds, ADR-017 step 3): left ventricular ejection lasts 282 ms at 73/min, within 2 % of Weissler's normal, but 142 ms at 120/min against 209. Ejection shortens far more with rate than in people, so at a tachycardia A2 comes early. The time-varying elastance's activation shape (`actT1`, `actT2`) does not scale with rate as human systole does.
+11. **Pre-ejection period:** 55 ms from activation against Weissler's 102 from the start of QRS. The model has no electromechanical delay, and isovolumic contraction is quick. S1 therefore sits at activation (in health the mitral valve has already closed as the atria relaxed).
+12. **No respiratory splitting of S2:** A2–P2 is 22 ms in health in every phase of breathing; in people it widens by 20 ms or more in inspiration (Aygen 1970). The circulation has no respiratory pump, so breathing does not change right-heart filling. This also limits the auscultation station.
 
 ## Not grounded yet, and why
 
@@ -95,3 +98,4 @@ The test suite (`scripts/vp-model.test.mjs`) does three things:
 3. Pulmonary embolism and lung water (gaps 2–4), with the lung chapter.
 4. Age-dependent vagal tone, so resting heart rate and baroreflex sensitivity follow age (Monahan).
 5. The kidney's acid handling, if the original studies can be obtained.
+6. The respiratory pump on the right heart (gap 12), then the rate dependence of systole (gaps 10–11): both before the auscultation station (ADR-017 step 4).
