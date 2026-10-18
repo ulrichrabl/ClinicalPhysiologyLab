@@ -34,6 +34,8 @@ export const LUNG = defineConstants('lung', {
   vo2Temp: { value: 0.1, unit: 'per °C', status: 'assumed', means: 'Rise in metabolic rate per °C of body temperature.', derivation: 'The commonly quoted 10–13 % per °C of fever.' },
   breathingCost: { value: 1.0, unit: 'mL O2 per L of ventilation', status: 'assumed', means: 'O2 cost of breathing in health.', derivation: 'The textbook 0.5–1 mL O2 per litre of ventilation at rest.' },
   /* --- mechanics ------------------------------------------------------------ */
+  restingPleural: { value: -5, unit: 'cmH2O', status: 'assumed', means: 'Pleural pressure at the end of a quiet expiration (at FRC): the lung’s recoil, held by the chest wall.',
+    derivation: 'The textbook value at FRC, about −5 cmH2O at mid-lung height. The circulation takes the swing of pleural pressure about its mean as the respiratory pump on the heart and lung vessels (ADR-017 step 3b).' },
   lungCompliance: { value: 0.2, unit: 'L/cmH2O', status: 'measured', refs: ['nunn2005'], means: 'Compliance of normal lungs (scaled to predicted TLC).', derivation: 'The normal static lung compliance of an adult, about 200 mL/cmH2O.' },
   chestWallCompliance: { value: 0.2, unit: 'L/cmH2O', status: 'measured', refs: ['nunn2005'], means: 'Compliance of the normal chest wall.', derivation: 'About 200 mL/cmH2O, so the respiratory system together is about 100.' },
   airwayResistance: { value: 2.0, unit: 'cmH2O·s/L', status: 'measured', refs: ['nunn2005'], means: 'Normal airway resistance.', derivation: 'The normal adult value, 1–2 cmH2O·s/L at quiet breathing; the upper end, as resistance by mouthpiece includes the larynx.' },

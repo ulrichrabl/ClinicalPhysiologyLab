@@ -34,6 +34,8 @@ export const REFERENCES: Record<string, Reference> = Object.fromEntries([
   R({ id: 'weissler1968', authors: 'Weissler AM, Harris WS, Schoenfeld CD', title: 'Systolic time intervals in heart failure in man',
     journal: 'Circulation', year: 1968, volume: '37', pages: '149–59', doi: '10.1161/01.cir.37.2.149', pmid: '5640345', verified: 'record',
     note: 'The normal regressions on heart rate, as widely quoted: men LVET = 413 − 1.7·HR, PEP = 131 − 0.4·HR, QS2 = 546 − 2.1·HR (ms). The text itself not yet read here.' }),
+  R({ id: 'spodick2003', authors: 'Spodick DH', title: 'Acute cardiac tamponade', journal: 'N Engl J Med', year: 2003, volume: '349', pages: '684–90',
+    doi: '10.1056/NEJMra022643', pmid: '12917306', verified: 'record', note: 'Pulsus paradoxus, an inspiratory fall in systolic pressure of more than 10 mmHg, as the cardinal sign of tamponade, as quoted.' }),
   R({ id: 'aygen1970', authors: 'Aygen MM, Sirkis I, Wurzel M', title: 'Splitting of second heart sound in patients with aortic regurgitation',
     journal: 'Circulation', year: 1970, volume: '42', pages: '745–9', doi: '10.1161/01.cir.42.4.745', pmid: '11993314', verified: 'abstract',
     note: 'Abstract: in 57 normal subjects S2 was single or closely split in expiration, and inspiration widened A2–P2 by 20 ms or more in all but one (2 %).' }),

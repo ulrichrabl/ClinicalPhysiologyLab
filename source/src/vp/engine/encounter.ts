@@ -72,7 +72,7 @@ export function statePredicateHolds(p: StatePredicate, state: PatientState, view
   if (p.immobilised && !(state.immobilised ?? []).includes(p.immobilised)) return false;
   if (p.minPain && (state.pain?.[p.minPain.at] ?? 0) < p.minPain.score) return false;
   if (p.physiology) {
-    const m = view.circulation?.metrics ?? view.circulation ?? {};
+    const m = view.circulation?.metricsBreath ?? view.circulation?.metrics ?? view.circulation ?? {};
     const x = m[p.physiology.key];
     if (typeof x !== 'number') return false;
     if (p.physiology.below != null && !(x < p.physiology.below)) return false;

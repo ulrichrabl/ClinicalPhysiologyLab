@@ -660,7 +660,7 @@ export class Respiratory {
     const s = this.starling();
     // cmH2O: alveolar pressure drives flow through the airways; pleural pressure adds the lung's recoil (≈ −5 at FRC)
     const Palv = -(this.phase === 'insp' ? m.Ri : m.Re) * this.flow;
-    const Ppl = Palv - (5 + this.V / m.CL);
+    const Ppl = Palv + LUNG.restingPleural - this.V / m.CL;
     return {
       t: this.t, V: this.V, flow: this.flow, Pmus: this.Pmus, Palv, Ppl, phase: this.phase, breathT: this.breathT, EELV: m.FRC + this.endExp,
       RR: pat.RR, VT: pat.VT, VE: this.VEdrive, VA: sol.VA, VDanat: sol.VDanat, Ti: pat.Ti, Te: pat.Te, iPEEP: Math.max(0, this.endExp / m.Crs),
