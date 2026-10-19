@@ -119,6 +119,47 @@ export function heartSounds(h: Hemodynamics, ctx: ExamContext) {
 
 const r = Math.round;
 
+/* ---- read from the beats themselves (the circulation's beat log: each beat's interval and waves) ----------------- */
+type LoggedBeat = { rr: number; ven?: { mean: number; a: number | null; aClosed: number | null; x: number; v: number; y: number } };
+const recentBeats = (view: RuntimeView, n: number): LoggedBeat[] => ((view.circulation?.beatLog ?? []) as LoggedBeat[]).filter((b) => b.rr > 0).slice(-n);
+
+/** The rhythm a finger on the pulse feels, from the intervals of the last beats. Regular when they vary by less than
+    EXAM.pulseIrregularCv; regularly irregular when the intervals fall into two tight groups that repeat (a dropped beat
+    in a pattern, bigeminy); irregularly irregular otherwise (atrial fibrillation). */
+export function rhythmOf(view: RuntimeView): 'regular' | 'regularly-irregular' | 'irregularly-irregular' | undefined {
+  const rr = recentBeats(view, 12).map((b) => b.rr);
+  if (rr.length < 6) return undefined;
+  const mean = rr.reduce((a, b) => a + b, 0) / rr.length;
+  const cv = Math.sqrt(rr.reduce((a, b) => a + (b - mean) ** 2, 0) / rr.length) / mean;
+  if (cv < EXAM.pulseIrregularCv) return 'regular';
+  /* two tight groups: split at the largest gap in the sorted intervals, each group within its own tolerance */
+  const s = [...rr].sort((a, b) => a - b);
+  let cut = 1;
+  for (let i = 1; i < s.length; i++) if (s[i] - s[i - 1] > s[cut] - s[cut - 1]) cut = i;
+  const tight = (g: number[]) => { const m = g.reduce((a, b) => a + b, 0) / g.length; return g.every((x) => Math.abs(x - m) <= EXAM.pulseIrregularCv * m); };
+  return tight(s.slice(0, cut)) && tight(s.slice(cut)) ? 'regularly-irregular' : 'irregularly-irregular';
+}
+
+/** The venous waveform the eye reads in the neck, from the last beats' right atrial pressure. In health the a wave is the
+    tallest. Cannon a waves: the atrium contracting against a shut tricuspid valve (ventricle contracting at the same time)
+    makes a wave taller than the v wave, on any of the recent beats. Absent a: no atrial contraction wave on any.
+    Large v: the v wave taller than the a wave (a leaking tricuspid valve fills the atrium in systole). */
+export function jvpWaveform(view: RuntimeView): { form: 'normal' | 'cannon-a' | 'absent-a' | 'large-v'; basis: string } | undefined {
+  const bs = recentBeats(view, 8).filter((b) => b.ven);
+  if (bs.length < 4) return undefined;
+  const f = (x: number) => x.toFixed(1);
+  const cannon = bs.filter((b) => b.ven!.aClosed != null && b.ven!.aClosed > b.ven!.v);
+  if (cannon.length) {
+    const b = cannon[cannon.length - 1].ven!;
+    return { form: 'cannon-a', basis: `atrium contracting against a shut tricuspid valve on ${cannon.length} of ${bs.length} beats (a ${f(b.aClosed!)} mmHg, v ${f(b.v)})` };
+  }
+  if (bs.every((b) => b.ven!.a == null)) return { form: 'absent-a', basis: 'no atrial contraction wave in the last beats' };
+  const withA = bs.filter((b) => b.ven!.a != null);
+  const vOverA = withA.filter((b) => b.ven!.v > b.ven!.a!).length;
+  if (vOverA > withA.length / 2) return { form: 'large-v', basis: `v wave taller than a on ${vOverA} of ${withA.length} beats` };
+  return { form: 'normal', basis: `a wave tallest (a ${f(withA.at(-1)!.ven!.a!)}, v ${f(withA.at(-1)!.ven!.v)} mmHg)` };
+}
+
 export const CARDIO_RESOLVERS: Record<string, Resolver> = {
   'circulation.hr': (view, _ref, ctx): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;
@@ -143,14 +184,15 @@ export const CARDIO_RESOLVERS: Record<string, Resolver> = {
     else if (carotid && h.gradient >= 40) character = 'slow-rising';   // the upstroke is judged at the carotid
     else if (h.sv < 35) character = 'thready';
     return {
-      value: { rate: r(h.hr), rhythm: h.af ? 'irregularly-irregular' : 'regular', volume, character },
+      value: { rate: r(h.hr), rhythm: rhythmOf(view) ?? (h.af ? 'irregularly-irregular' : 'regular'), volume, character },
       basis: `pulse pressure ${h.pp.toFixed(0)} mmHg, stroke volume ${h.sv.toFixed(0)} mL, aortic gradient ${h.gradient.toFixed(0)} mmHg`,
     };
   },
   'circulation.jvp': (view): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;
     const heightCm = Math.round((h.cvp * 1.36 - EXAM.jvpSternalOffset) * 2) / 2;   // cmH2O above the right atrium, minus ~5 cm to the sternal angle
-    return { value: { heightCm, waveform: h.regTricuspid > 0.2 ? 'large-v' : 'normal' }, basis: `mean right atrial pressure ${h.cvp.toFixed(1)} mmHg` };
+    const w = jvpWaveform(view);
+    return { value: { heightCm, waveform: w?.form ?? 'normal' }, basis: `mean right atrial pressure ${h.cvp.toFixed(1)} mmHg${w ? `; ${w.basis}` : ''}` };
   },
   'circulation.apex': (view): Resolved | undefined => {
     const h = hemo(view); if (!h) return undefined;

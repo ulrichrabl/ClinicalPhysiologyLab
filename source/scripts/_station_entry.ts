@@ -38,3 +38,9 @@ export { eyeSigns, eyeSignsOf, eyeContext, eyeView, eyeSignGroups, eyeSignature,
 export { explainEye, EYE_TESTS } from '../src/vp/stations/eye-texts.ts';
 export { scene, sceneFindings, pursuitTarget } from '../src/vp/render/eye-scene.ts';
 export { chemistryState } from '../src/vp/physiology/chemistry.ts';
+/* the pulse and neck-vein station */
+export { PULSE_STATION } from '../src/vp/stations/station.ts';
+export { PULSE_PRESETS, PULSE_PRESET_GROUPS, applyPulsePreset } from '../src/vp/stations/pulse-presets.ts';
+export { pulseSigns, pulseSignsOf, PULSE_MANOEUVRES } from '../src/vp/stations/pulse-signs.ts';
+export { explainPulse } from '../src/vp/stations/pulse-texts.ts';
+export { venousWaves, arterialWave } from '../src/domains/cardio/sim/waves.ts';

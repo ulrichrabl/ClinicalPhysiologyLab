@@ -83,7 +83,23 @@ export const EYE_STATION: StationDef = {
   presets: [],
 };
 
-export const STATIONS: StationDef[] = [ECG_STATION, AUSCULTATION_STATION, EYE_STATION];
+/* The pulse and neck-vein station: the arterial pulse and the jugular venous pressure, read from the circulation's own
+   beats. Its starting points are haemodynamic or rhythms (stations/pulse-presets.ts), so `presets` is empty here. */
+export const PULSE_STATION: StationDef = {
+  id: 'pulse', test: 'jvp', alsoTests: ['pulse.radial', 'pulse.carotid'],
+  title: L('Pulse and neck-vein station', 'Puls- und Halsvenen-Station'),
+  summary: L('The pulse under the finger and the jugular vein in the neck, beside the pressures that make them: the aorta’s wave, and the right atrium’s a, x, v and y. Change the valves, the vessels or the rhythm; feel and see the difference.',
+    'Der Puls unter dem Finger und die Jugularvene am Hals, neben den Drücken, die sie erzeugen: die Welle der Aorta und a, x, v und y des rechten Vorhofs. Ändern Sie Klappen, Gefäße oder Rhythmus; fühlen und sehen Sie den Unterschied.'),
+  drivers: {
+    'electrical.HR': L('The rate sets how often the wave comes, and how long the ventricle fills before each.', 'Die Frequenz bestimmt, wie oft die Welle kommt und wie lange der Ventrikel vor jeder füllt.'),
+    'electrical.atrial': L('Without atrial contraction (fibrillation) there is no a wave, and the pulse loses its regularity.', 'Ohne Vorhofkontraktion (Flimmern) gibt es keine a-Welle, und der Puls verliert seine Regelmäßigkeit.'),
+    'electrical.avBlock': L('When atria and ventricles lose step, the atrium can contract against a shut tricuspid valve: cannon waves.', 'Verlieren Vorhöfe und Kammern den Takt, kann der Vorhof gegen die geschlossene Trikuspidalklappe kontrahieren: Kanonenwellen.'),
+    'electrical.ventricular': L('A ventricular rhythm taking over separates the ventricles from the atria.', 'Ein übernehmender Kammerrhythmus trennt die Kammern von den Vorhöfen.'),
+  },
+  presets: [],
+};
+
+export const STATIONS: StationDef[] = [ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION];
 
 export interface SettingGroup { id: string; label: LocalizedText; vars: VariableDef[]; why?: LocalizedText }
 
