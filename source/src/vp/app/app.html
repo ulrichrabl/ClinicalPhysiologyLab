@@ -471,6 +471,19 @@ canvas.st-strip:focus-visible { outline: 3px solid var(--accent); outline-offset
 .st-predict-a .ok, .st-result .ok { color: var(--ok); }
 .st-result .abn { color: var(--abn); }
 .st-row-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.st-tests { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; }
+.st-tests .tog { min-height: 40px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 999px; padding: 0 12px; font: inherit; font-size: .9rem; cursor: pointer; }
+.st-tests .tog[aria-selected="true"] { border-color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+.st-signal .st-listen { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 10px; }
+.st-eyes { height: clamp(200px, 30vw, 300px); }
+.st-findings { margin: 10px 0 8px; display: grid; gap: 3px; }
+.st-findings .abn { color: var(--abn); }
+canvas.st-mech { display: block; width: 100%; border-radius: 8px; }
+.st-lesions { border: 0; margin: 4px 0; padding: 0; }
+.st-lesions legend { font-weight: 700; font-size: .85rem; color: var(--muted); padding: 6px 0 0; }
+.st-lesions .st-var { margin: 4px 0; }
+.st-signal .st-listen .seg { flex-wrap: wrap; border-radius: 14px; }
+.st-lift { display: inline-flex; gap: 6px; align-items: center; min-height: 36px; font-size: .92rem; }
 .st-paper-wrap { overflow-x: auto; border-radius: 8px; }
 canvas.st-paper { display: block; }
 .st-result { padding: 14px; display: grid; gap: 10px; }

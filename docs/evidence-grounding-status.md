@@ -80,6 +80,12 @@ The test suite (`scripts/vp-model.test.mjs`) does three things:
 
 - **Length-dependent systole** (`systoleLengthGain`, gap 12): fitted to one study, Curtiss 1975 (7 volunteers, abstract only, Q–O +7.7 ± 5.0 ms). Within that spread the gain could lie anywhere from about 0.12 to 0.58. The independent cross-check has been done, and it fails upstream: the model's ventricles fill in inspiration about a quarter as much as on real-time MRI (gap 16). The gain therefore compensates for too little filling and is probably too large. Refit it once gap 16 is fixed.
 
+- **Eye examination (the eye station):**
+  - Comitance: a vertical deviation counts as a skew deviation when it stays within 5 prism dioptres looking up and down (assumed). Brodsky 2006 calls skew "relatively comitant" and describes incomitant variants, so some real skews would be named a vertical tropia here.
+  - A fixed dilated pupil needs 5.5 mm or more in room light (assumed; a third-nerve pupil is typically 6–7 mm).
+  - Saccadic pursuit follows with a gain of 0.5 and catches up every 300 ms (assumed, for the drawing; the sign itself is the model's `pursuit` state).
+  - The afferent pupillary pathway is on or off, so a partial optic nerve lesion gives the same defect as a complete one; the field model has a temporal and a nasal half per eye only; the fundus has no model.
+
 - **Kidney:**
   - Acid handling (NH4⁺ production and capacity) and diuretic natriuresis. Sartorius 1949, Lemann 1966 and Wilcox 1983 exist only as scanned full text, which could not be read here.
   - Autoregulation shifts with ACE inhibitors and NSAIDs; the tubular-injury and CKD modifiers.

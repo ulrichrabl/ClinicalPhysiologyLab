@@ -263,6 +263,9 @@ export const FORMATTERS: Record<string, Formatter> = {
     if (v.saccade === 'overt') return de(l)
       ? `Kopfimpuls ${dir}: die Augen werden mit dem Kopf mitgenommen, dann sichtbare Refixationssakkade zurück zum Ziel.`
       : `Head impulse ${dir}: the eyes are carried off target with the head, then an overt corrective saccade back to the target.`;
+    if (v.saccade === 'covert') return de(l)
+      ? `Kopfimpuls ${dir}: die Augen bleiben kaum zurück; eine kleine Korrektursakkade noch während der Drehung (verdeckt), am Bett schwer zu sehen.`
+      : `Head impulse ${dir}: the eyes lag a little; a small corrective saccade during the turn (covert), hard to see at the bedside.`;
     return de(l) ? `Kopfimpuls ${dir}: die Augen bleiben auf dem Ziel.` : `Head impulse ${dir}: the eyes stay on target.`;
   },
   'eyes.pursuit': (v, _c, l) => (v.quality === 'smooth'

@@ -2,7 +2,7 @@ import type { CaseDef, ExamContext, Gaze, Side } from '../model/types.ts';
 import type { Catalog } from '../data/catalog.ts';
 import type { Registry } from '../registry.ts';
 import { observe, type RuntimeView } from '../engine/observe.ts';
-import type { NystagmusValue } from '../models/neuro-exam.ts';
+import { verticalRange, type NystagmusValue } from '../models/neuro-exam.ts';
 import { eyeAngles } from './eye-motion.ts';
 
 /* ---------------------------------------------------------------------------
@@ -35,6 +35,10 @@ export interface SceneControls {
   impulse?: { to: Side; t: number };
   /** Alternate cover: which eye is covered now. */
   cover?: Side | null;
+  /** Seconds since a slow pursuit target began moving side to side (overrides gaze). */
+  pursuit?: number;
+  /** The examiner holds the upper lids up (to see an eye behind a complete ptosis). */
+  liftLids?: boolean;
 }
 
 /** Static findings for a context, observed once and reused every frame. */
@@ -45,6 +49,7 @@ export interface SceneFindings {
   motility: Record<Side, { abduction: number; adduction: number; elevation: number; depression: number; restingDeg: { horizontal: number; vertical: number } }>;
   alignment: { verticalPD: number; higherEye?: Side };
   hit: Record<Side, { gain: number; saccade: string }>;
+  pursuit: { quality: string };
 }
 
 export function sceneFindings(cat: Catalog, reg: Registry, c: CaseDef, view: RuntimeView, k: SceneControls): SceneFindings {
@@ -57,6 +62,7 @@ export function sceneFindings(cat: Catalog, reg: Registry, c: CaseDef, view: Run
     motility: { L: o('eye.motility.L'), R: o('eye.motility.R') },
     alignment: o('eyes.alignment'),
     hit: { L: o('eye.head-impulse.L'), R: o('eye.head-impulse.R') },
+    pursuit: o('eyes.pursuit') ?? { quality: 'smooth' },
   };
 }
 
@@ -77,9 +83,11 @@ function deviation(f: SceneFindings, S: Side): { h: number; v: number } {
 function limits(f: SceneFindings, S: Side) {
   const m = f.motility[S];
   const abd = 30 * m.abduction / 100, add = 30 * m.adduction / 100;
+  /* a paretic eye can rest beyond what its muscles reach on command (down and out in a third nerve palsy) */
+  const v = verticalRange({ elevation: m.elevation, depression: m.depression, restV: m.restingDeg.vertical });
   return {
     hMin: S === 'L' ? -abd : -add, hMax: S === 'L' ? add : abd,
-    vMin: -25 * m.depression / 100, vMax: 25 * m.elevation / 100,
+    vMin: v.min, vMax: v.max,
   };
 }
 
@@ -98,8 +106,20 @@ function impulse(gain: number, saccade: string, t: number): { head: number; eyeW
   return { head, eyeWorld };
 }
 
+/**
+ * Where the eyes look during slow pursuit of a target swinging 25° to each side at 0.2 Hz (s since it began). Smooth
+ * pursuit keeps them on it. Saccadic pursuit follows with too low a gain, so the eyes fall behind and a catch-up saccade
+ * brings them back every few hundred ms: a staircase.
+ */
+export function pursuitTarget(quality: string, t: number): number {
+  const T = (x: number) => 25 * Math.sin(2 * Math.PI * 0.2 * x);
+  if (quality !== 'saccadic') return T(t);
+  const step = 0.3, ts = Math.floor(t / step) * step;
+  return T(ts) + 0.5 * (T(t) - T(ts));
+}
+
 export function scene(f: SceneFindings, k: SceneControls, t: number): Scene {
-  const target = GAZE_TARGET[k.gaze] ?? GAZE_TARGET.primary;
+  const target = k.pursuit != null ? { h: pursuitTarget(f.pursuit.quality, k.pursuit), v: 0 } : GAZE_TARGET[k.gaze] ?? GAZE_TARGET.primary;
   const covered = k.cover ?? null;
   const fixing: Side = covered === 'R' ? 'L' : 'R';
   const devF = deviation(f, fixing);
@@ -115,7 +135,7 @@ export function scene(f: SceneFindings, k: SceneControls, t: number): Scene {
     const d = deviation(f, S), lim = limits(f, S);
     const h = clamp(target.h + d.h - devF.h, lim.hMin, lim.hMax) + beat.h + hitOffset;
     const v = clamp(target.v + d.v - devF.v, lim.vMin, lim.vMax) + beat.v;
-    return { h, v, torsion: beat.torsion, pupilMm: f.pupil[S].sizeMm, ptosisMm: f.lid[S].ptosisMm };
+    return { h, v, torsion: beat.torsion, pupilMm: f.pupil[S].sizeMm, ptosisMm: k.liftLids ? 0 : f.lid[S].ptosisMm };
   };
   return { head, L: eye('L'), R: eye('R'), fixing, covered };
 }

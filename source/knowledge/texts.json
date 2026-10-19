@@ -895,6 +895,8 @@
 {"entity": "sign:head-impulse-positive", "locale": "de", "fields": {"label": "Pathologischer Kopfimpulstest (Refixationssakkade)"}},
 {"entity": "sign:skew-deviation", "locale": "en", "fields": {"label": "Skew deviation (vertical refixation on cover)"}},
 {"entity": "sign:skew-deviation", "locale": "de", "fields": {"label": "Vertikale Divergenz (Skew deviation)"}},
+{"entity": "sign:vertical-tropia", "locale": "en", "fields": {"label": "Vertical squint that changes with gaze (paretic)"}},
+{"entity": "sign:vertical-tropia", "locale": "de", "fields": {"label": "Blickrichtungsabhängiges Vertikalschielen (paretisch)"}},
 {"entity": "sign:horizontal-tropia", "locale": "en", "fields": {"label": "Horizontal misalignment on cover test"}},
 {"entity": "sign:horizontal-tropia", "locale": "de", "fields": {"label": "Horizontales Schielen im Abdecktest"}},
 {"entity": "sign:homonymous-hemianopia", "locale": "en", "fields": {"label": "Homonymous hemianopia"}},

@@ -22,6 +22,8 @@ export interface StationDef {
   id: string;
   /** the investigation or examination the station is about */
   test: string;
+  /** the other observables of the same examination, when it reads several (the eye examination: pupils, movements, fields…) */
+  alsoTests?: string[];
   title: LocalizedText;
   summary: LocalizedText;
   /** parameters of other models that a measured variable depends on: variable id → why */
@@ -63,14 +65,25 @@ export const AUSCULTATION_STATION: StationDef = {
   presets: [],
 };
 
-export const STATIONS: StationDef[] = [ECG_STATION, AUSCULTATION_STATION];
+/* The eye station: the whole eye examination, neurological and vestibular, and the pathway each test reads. Its starting
+   points are lesions (stations/eye-presets.ts), so `presets` is empty here. */
+export const EYE_STATION: StationDef = {
+  id: 'eyes', test: 'eyes.nystagmus',
+  alsoTests: ['eye.pupil', 'eyes.swinging-light', 'eye.lid', 'eye.motility', 'eyes.alignment', 'eye.head-impulse', 'eyes.pursuit', 'eye.field'],
+  title: L('Eye station', 'Augen-Station'),
+  summary: L('The eye examination and the pathways it reads: pupils, movements, alignment, nystagmus, the head impulse and the fields. Cut a nerve or a tract; watch the eyes and the pathway side by side.',
+    'Die Augenuntersuchung und die Bahnen, die sie prüft: Pupillen, Motorik, Stellung, Nystagmus, Kopfimpuls und Gesichtsfeld. Durchtrennen Sie einen Nerv oder eine Bahn; sehen Sie Augen und Bahn nebeneinander.'),
+  drivers: {},
+  presets: [],
+};
+
+export const STATIONS: StationDef[] = [ECG_STATION, AUSCULTATION_STATION, EYE_STATION];
 
 export interface SettingGroup { id: string; label: LocalizedText; vars: VariableDef[]; why?: LocalizedText }
 
 /** The settings a station offers: derived from what its test measures. */
 export function stationSettings(def: StationDef): SettingGroup[] {
-  const test = CATALOG.investigations[def.test] ?? CATALOG.properties[def.test];
-  const measures = test?.measurement?.measures ?? [];
+  const measures = [def.test, ...(def.alsoTests ?? [])].flatMap((id) => (CATALOG.investigations[id] ?? CATALOG.properties[id])?.measurement?.measures ?? []);
   const models = [...new Set(measures.map((id) => id.split('.')[0]))].map((id) => MODEL_BY_ID[id]).filter(Boolean);
   const out: SettingGroup[] = [];
   for (const m of models) {

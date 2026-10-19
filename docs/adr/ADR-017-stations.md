@@ -76,6 +76,17 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
   - an event in a beat's last step keeps its time;
   - lead II holds its value between drains.
 
+### 9. How the eye station was built (added with it)
+
+- **One station for one examination, not one test.** The eye examination reads several observables (pupils, lids, ductions, alignment, nystagmus, head impulse, pursuit, fields), so `StationDef` gains `alsoTests`, and the settings are derived from all of them: the vestibular loss and the lesions of the nervous-system graph.
+- **No clock of its own.** The eyes need no running circulation. The eye view the encounter uses draws them from the examination model's findings; the mechanism diagram is drawn every frame from that same scene, so its traces are the animation's own.
+- **Starting points are lesions**, each naming the textbook signs it should bring; a test checks the model brings them.
+- **Model changes made for it:**
+  - the cover test also looks up and down, and the alignment model gives the vertical deviation in each gaze: a nerve palsy's grows in the weak muscle's field, a skew deviation's does not;
+  - `skew-deviation` now needs that comitance, and a new sign, `vertical-tropia`, names the incomitant one, so a fourth nerve palsy is no longer called a skew (Brodsky 2006);
+  - `fixed-dilated-pupil` now needs the pupil to be dilated (≥ 5.5 mm in room light), so a blind eye's pupil is an afferent defect, not this sign;
+  - the scene can hold the lids up and show slow pursuit; a paretic eye can rest beyond its voluntary range (the third nerve's down and out).
+
 ## Steps
 
 1. **The ECG station, Explore** (this PR): the activation log in the electrical model, with tests; the station screen with settings, strip, ladder, cursor, conduction heart and explanations in EN and DE; a Stations card on the Ward.
@@ -87,7 +98,9 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
    - A station opens on the learner's own patient only in the free lab or after commit, so the mechanism is not a spoiler. Before that, the card's link opens a healthy heart.
    - Back returns to the encounter or debrief as it was; the encounter's patient is paused, not discarded.
 
-Further stations follow the same pattern where a test's signal and its mechanism are both in a model: the pulse wave and the arterial pressure, the eye movements and the vestibulo-ocular reflex, the pupils and the light reflex.
+6. **The eye station, Explore** (done; see decision 9): pupils and lids, the swinging light, eye movements and pursuit, the cover test, nystagmus, the head impulse and the visual fields, each beside the pathway it reads. Next: the eye as a window on the body (jaundice, conjunctival pallor, thyroid eye signs), then Predict and Identify over all eye signs.
+
+Further stations follow the same pattern where a test's signal and its mechanism are both in a model: the pulse wave and the arterial pressure.
 
 ## Consequences
 

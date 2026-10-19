@@ -240,5 +240,52 @@ console.log('\nThe auscultation station (ADR-017 step 4)');
   ok('every auscultation explanation exists in English and German, with its numbers filled in', texts.length > 40 && texts.every((x) => x.en && x.de && !/\$\{|undefined|NaN/.test(x.en + x.de)), `${texts.length} texts`);
 }
 
+
+console.log('\nThe eye station');
+{
+  const H = S.healthyModel();
+  ok('a healthy adult: no eye sign', S.eyeSignsOf(H).present.size === 0, J([...S.eyeSignsOf(H).present]));
+  const signs = {};
+  for (const p of S.EYE_PRESETS) {
+    const got = S.eyeSignsOf(S.applyEyePreset(H, p.id)).present;
+    signs[p.id] = got;
+    ok(`${p.id}: brings ${p.signs.join(', ')}`, p.signs.every((x) => got.has(x)), J([...got]));
+  }
+  ok('every starting point is in a group, once', J(S.EYE_PRESET_GROUPS.flatMap((g) => g.ids).sort()) === J(S.EYE_PRESETS.map((p) => p.id).sort()));
+  ok('HINTS: the neuritis has an abnormal head impulse and no skew; the lateral medulla a normal head impulse and a skew',
+    signs['neuritis-l'].has('head-impulse-positive') && !signs['neuritis-l'].has('skew-deviation') && !signs['lateral-medulla-l'].has('head-impulse-positive') && signs['lateral-medulla-l'].has('skew-deviation'));
+  ok('a fourth or third nerve palsy’s vertical deviation changes with gaze: a vertical tropia, not a skew deviation (Brodsky 2006)',
+    !signs['cn4-l'].has('skew-deviation') && !signs['cn3-l'].has('skew-deviation') && !signs['lateral-medulla-l'].has('vertical-tropia'));
+  const c4 = S.eyeContext(S.applyEyePreset(H, 'cn4-l')).verticalPD;
+  ok('…the fourth nerve’s hypertropia is the affected eye’s and largest looking down', c4.primary < 0 && Math.abs(c4.down) > Math.abs(c4.primary) + 5, J(c4));
+  ok('a blind eye’s pupil does not react to its own light but is not called a fixed dilated pupil: an afferent defect', !signs['optic-nerve-l'].has('fixed-dilated-pupil') && signs['optic-nerve-l'].has('afferent-pupillary-defect'));
+  ok('Horner’s dilation lag needs two tests compared (room against dim light): found by none alone, found by the examination', signs['horner-l'].has('dilation-lag')
+    && J(S.eyeSignsOf(S.applyEyePreset(H, 'horner-l')).where.get('dilation-lag')) === '[]');
+  const idle = [];
+  for (const g of S.EYE_STRUCTURES) for (const n of g.nodes) {
+    const m = structuredClone(H); m.lesions = { nodes: [n.id], complete: true };
+    if (!(S.eyeView(m).view.neuro?.findings.length > 0) && !S.eyeSignsOf(m).present.size) idle.push(n.id);
+  }
+  ok('every structure the station lets you cut changes something: a pathway of the graph or an eye sign', !idle.length, J(idle));
+  const groups = S.stationSettings(S.EYE_STATION).map((g) => g.id);
+  ok('the station’s settings are what the eye examination measures: the vestibular loss and the lesions', groups.includes('vor/periphery') && groups.includes('nervous-system/lesions'), J(groups));
+  const txt = [];
+  for (const id of ['', ...S.EYE_PRESETS.map((p) => p.id)]) {
+    const ctx = S.eyeContext(S.applyEyePreset(H, id));
+    for (const t of S.EYE_TESTS) { const e = S.explainEye(t, ctx); txt.push(e.title, ...e.body); }
+  }
+  ok('teaching cards of the eye tests link to the eye station', S.EYE_MANOEUVRES.every((m) => S.KNOWLEDGE.tests[m]?.animation === 'station:eyes'));
+  ok('every eye explanation exists in English and German, with its numbers filled in', txt.length > 150 && txt.every((x) => x.en && x.de && x.en !== x.de && !/\$\{|undefined|NaN/.test(x.en + x.de)), `${txt.length} texts`);
+  /* the eye view's scene */
+  const { c, view } = S.eyeView(S.applyEyePreset(H, 'cn3-l'));
+  const k = { gaze: 'primary', fixation: true, lightOn: 'none', ambient: 'room', cover: null };
+  const f = S.sceneFindings(S.CATALOG, S.REGISTRY, c, view, k);
+  ok('a complete third nerve ptosis hides the eye until the examiner lifts the lid', S.scene(f, k, 0).L.ptosisMm >= 7 && S.scene(f, { ...k, liftLids: true }, 0).L.ptosisMm === 0);
+  ok('…and the eye then rests down and out', S.scene(f, { ...k, liftLids: true }, 0).L.v < -5 && S.scene(f, { ...k, liftLids: true }, 0).L.h < -5, J(S.scene(f, k, 0).L));   // the left eye's out is toward the patient's left
+  const ts = Array.from({ length: 50 }, (_, i) => i * 0.05);
+  const lagS = Math.max(...ts.map((x) => Math.abs(S.pursuitTarget('saccadic', x) - S.pursuitTarget('smooth', x))));
+  ok('saccadic pursuit falls behind the target and catches up in steps; smooth pursuit stays on it', lagS > 1 && lagS < 6, lagS.toFixed(2));
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);

@@ -252,6 +252,23 @@ export function nystagmus(s: NeuroExamState, ctx: ExamContext): NystagmusValue {
   };
 }
 
+/* ---- vertical alignment by gaze -------------------------------------------------- */
+
+/** How far one eye can look down and up (degrees, down negative). A paretic eye at rest can lie beyond what its muscles
+    can reach on command (the third nerve's eye rests down and out, pulled by the muscles still working), so the range
+    always includes where it rests. */
+export function verticalRange(d: { elevation: number; depression: number; restV: number }): { min: number; max: number } {
+  return { min: Math.min(-25 * d.depression / 100, d.restV), max: Math.max(25 * d.elevation / 100, d.restV) };
+}
+
+/** The vertical position of the right eye minus the left (degrees) when the patient looks in `gaze` with the better eye
+    fixing: each eye goes to the target plus its resting deviation, as far as its range allows. */
+export function verticalAt(s: NeuroExamState, gaze: string): number {
+  const target = ECC_V[gaze] ?? 0;
+  const pos = (S: Side) => { const d = s.ductions[S], r = verticalRange(d); return Math.max(r.min, Math.min(r.max, target + d.restV)); };
+  return pos('R') - pos('L');
+}
+
 /* ---- resolvers ------------------------------------------------------------------ */
 
 const pupilBase = (age: number) => (age < 12 ? 5 : age >= 60 ? 3.5 : 4);
@@ -313,7 +330,10 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
     }
     // eyes.alignment: positive restH = abducted; the deviation is the sum across both eyes.
     const h = s.ductions.L.restH + s.ductions.R.restH;
-    const vDiff = s.ductions.R.restV - s.ductions.L.restV;
+    /* The vertical deviation in the gaze asked for (primary unless stated). A paretic eye goes where the target asks
+       only as far as its weak muscle lets it, so a nerve palsy's vertical deviation grows in the weak muscle's field:
+       incomitant. A skew deviation comes from the otolith pathway, not from a muscle, and is the same in every gaze. */
+    const vDiff = verticalAt(s, ctx.gaze ?? 'primary');
     let verticalPD = Math.round(Math.abs(vDiff) * 1.75);
     let higherEye: Side | undefined = vDiff > 0 ? 'R' : vDiff < 0 ? 'L' : undefined;
     if (s.skew && verticalPD === 0) { verticalPD = s.skew.prismDioptres; higherEye = s.skew.higherEye; }
@@ -322,7 +342,6 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
       horizontalPD: Math.round(Math.abs(h) * 1.75), verticalPD,
     };
     if (higherEye && verticalPD > 0) value.higherEye = higherEye;
-    void ctx;
     return { value };
   },
 
