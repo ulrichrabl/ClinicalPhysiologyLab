@@ -83,7 +83,9 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
 2b. **ECG signs in the encounter:** named after an ECG result in the guided level, chips in the observe-only level, credited in the debrief. (Done.)
 3. **Heart sounds timed from valve events** (decision 6).
 4. **The auscultation station** (done; see decision 8): Explore, then Predict and Identify, scored on the knowledge tables' heart-sound signs as found by the standard cardiac auscultation manoeuvres.
-5. **Links:** teaching cards and the debrief open a station on the relevant patient.
+5. **Links** (done). The debrief has an "In a station" section: what the patient's ECG and heart sounds show (the tables' signs), each with a way into the station on that patient. An ECG result has the same link once spoilers are allowed. The cardiac auscultation teaching cards link to the auscultation station (`animation: "station:auscultation"` in `tests.json`).
+   - A station opens on the learner's own patient only in the free lab or after commit, so the mechanism is not a spoiler. Before that, the card's link opens a healthy heart.
+   - Back returns to the encounter or debrief as it was; the encounter's patient is paused, not discarded.
 
 Further stations follow the same pattern where a test's signal and its mechanism are both in a model: the pulse wave and the arterial pressure, the eye movements and the vestibulo-ocular reflex, the pupils and the light reflex.
 

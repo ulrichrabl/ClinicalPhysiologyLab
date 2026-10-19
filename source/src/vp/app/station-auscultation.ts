@@ -21,7 +21,7 @@ import { auscSigns, auscSignsOf } from '../stations/auscultation-signs.ts';
 import { KNOWLEDGE, labelOf } from '../knowledge/index.ts';
 import { fmtValue } from './math.ts';
 import type { Lang } from './diagrams.ts';
-import type { StationHandle } from './station-ecg.ts';
+import { patientBanner, type StationHandle, type StationOptions } from './station-ecg.ts';
 import type { ExamContext } from '../model/types.ts';
 
 /* ---------------------------------------------------------------------------
@@ -93,11 +93,11 @@ const secondsFor = (w: number) => (w < 600 ? 3 : 5);
 
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
-export function mountAuscultationStation(host: HTMLElement, o: { lang: Lang; onLeave: () => void }): StationHandle {
+export function mountAuscultationStation(host: HTMLElement, o: StationOptions): StationHandle {
   let lang = o.lang;
   const t = (k: string) => tr(T[k], lang);
   const healthy = healthyModel();
-  const live = new LivePatient(healthy);
+  const live = new LivePatient(o.patient?.model ?? healthy);
   let raf = 0, stopped = false, ready = false;
   let playing = !matchMedia('(prefers-reduced-motion: reduce)').matches;
   let slow = false;
@@ -126,10 +126,11 @@ export function mountAuscultationStation(host: HTMLElement, o: { lang: Lang; onL
   const beats = () => frozen ?? live.beats;
 
   const head = () => `<div class="st-head">
-        <button type="button" class="ghost" data-leave>← ${t('back')}</button>
+        <button type="button" class="ghost" data-leave>← ${o.backLabel ? tr(o.backLabel, lang) : t('back')}</button>
         <div class="st-title"><div class="eyebrow">${t('eyebrow')}</div><h1>${esc(tr(AUSCULTATION_STATION.title, lang))}</h1><p class="lede">${esc(tr(AUSCULTATION_STATION.summary, lang))}</p></div>
         <span class="seg st-mode" role="radiogroup" aria-label="${t('mode')}">${(['explore', 'identify'] as const).map((m) => `<button type="button" role="radio" aria-checked="${mode === m}" data-mode="${m}">${t(m)}</button>`).join('')}</span>
       </div>
+      ${mode === 'explore' ? patientBanner(o, lang) : ''}
       ${ready ? '' : `<p class="muted" data-preparing>${t('preparing')}</p>`}`;
   const listenControls = () => `<div class="st-listen" role="group" aria-label="${t('listen')}">
               <label>${t('site')} <select data-site>${SITES.map((s) => `<option value="${s}" ${s === ctx.site ? 'selected' : ''}>${esc(tr(CATALOG.structures[s]?.label ?? L(s, s), lang))}</option>`).join('')}</select></label>

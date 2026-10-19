@@ -30,3 +30,4 @@ export { cycleAt, cycleSegments, valveEvents, meanMitralGradient, CYCLE_PHASES }
 export { explainCycle, allAuscTexts, CYCLE_LABEL } from '../src/vp/stations/auscultation-texts.ts';
 export { REFERENCES } from '../src/vp/evidence/references.ts';
 export { auscSigns, auscSignsOf, heartManoeuvres } from '../src/vp/stations/auscultation-signs.ts';
+export { STATIONS } from '../src/vp/stations/station.ts';
