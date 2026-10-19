@@ -1,6 +1,6 @@
 # Handover: start here
 
-Last updated: 19 October 2026, with the ADR-017 step 4 PR (the auscultation station, Explore). Earlier: 18 October 2026, with the ADR-017 step 1 PR (the ECG station). Before it, work was paused after PR #48 at the owner's request.
+Last updated: 19 October 2026, with the eye station (Explore). Before it: the ADR-017 step 4 PR (the auscultation station, Explore). Earlier: 18 October 2026, with the ADR-017 step 1 PR (the ECG station). Before it, work was paused after PR #48 at the owner's request.
 
 **Where we paused.** Nothing is in flight; every PR is merged and live. Waiting on the owner (details in "Waiting for the owner" below):
 
@@ -85,6 +85,7 @@ Notes:
 | Command line: 129 everyday phrasings in EN and DE understood, and kept as a test (`scripts/data/typed-commands.json`) (#46) | `engine/language.ts` |
 | ADR-016 step 4: expert references and the debrief in signs (#47); the observe-only level, with misses and over-calls scored (#48) | "Tests, signs and the knowledge graph" below |
 | ADR-017 step 1: the ECG station, Explore. One test and its mechanism on one clock: strip (two chosen leads) and conduction ladder, a cursor through the beat, the heart and the cardiac vector in both planes at the cursor, explanations in EN/DE; settings derived from what the 12-lead measures. The electrical model logs its activations for it | "Stations (ADR-017)" below |
+| The eye station, Explore: the whole eye examination with the pathway each test reads; skew deviation told from a nerve palsy by comitance | "Stations (ADR-017)" below |
 
 ## Open lists
 
@@ -249,7 +250,16 @@ A station pairs one test with the mechanism that writes it, on one clock. Read `
   - "Predict first" asks which signs a heart will bring, and scores the answer once the circulation has settled.
   - Identify hides a heart among the starting points and a healthy one. The learner listens with full control of site, instrument, position and breathing, but sees no labels, measures, finding text or Wiggers diagram. They name the signs and the heart, and are scored hits, misses and over-calls, with where each sign is heard. Moderate mitral stenosis is left out (gap 17).
 - **Links (step 5):** `openStation(which, onPatient)` in `app/app.ts`. Every `[data-open-station]` button goes through one delegated handler: on the debrief's "In a station" section, on an ECG result after commit, and on the cardiac auscultation cards. Stations take `StationOptions.patient` (the encounter's model and the patient's name, shown as a banner) and `backLabel`.
-- **Next:** gap 17 (the mitral stenosis rule), then a pulse and neck-vein station (the circulation's arterial and venous waveforms; pulsus paradoxus waits on gap 13).
+- **The eye station (Explore):** a third Station card opens `app/station-eyes.ts`. Read ADR-017, decision 9.
+  - **Tests:** pupils and lids, swinging light, eye movements (with "follow a moving target"), cover test (up, ahead, down), nystagmus (Frenzel or fixating), head impulse, visual fields. Each has the controls an examiner has (where the light is, room or dim, gaze, which eye is covered, a head turn to either side, holding the lids up).
+  - **Signal:** the encounter's eye view (`render/eye-view.ts`), driven by the station's controls, and the findings worded as the encounter words them.
+  - **Mechanism:** `render/eye-mechanism.ts`, per test: the light reflex and the sympathetic chain, the six muscles with their nerves (and the vertical deviation by gaze), the labyrinths' tone with the eye's own position trace, head and eye during the impulse, the visual pathway from above with each eye's field.
+  - **Settings:** the vestibular loss and the lesions; the lesions as a curated list of the structures the eye examination reads (`EYE_STRUCTURES`).
+  - **Starting points:** `stations/eye-presets.ts`: vestibular neuritis (day 1, day 7), lateral medulla, cerebellar hemisphere, III, IV and VI palsies, Horner, optic nerve, chiasm, optic tract, occipital cortex.
+  - **Signs:** `stations/eye-signs.ts`, read from the knowledge tables over the eye manoeuvres; a sign that needs tests compared (Horner's dilation lag) counts when the whole examination shows it. The debrief's "In a station" lists the patient's eye signs; the nine eye test cards link to the station.
+  - **Explanations:** `stations/eye-texts.ts`, EN/DE, drafts until a clinician reads them.
+  - **Not modelled:** the fundus (case data only), INO and other gaze palsies (no MLF or saccade model), quadrantanopia and macular sparing (the field model has halves), a partial afferent defect (the afferent pathway is on or off).
+- **Next:** the eye station's body signs (jaundice, conjunctival pallor, thyroid eye signs), then its Predict and Identify; then gap 17 (the mitral stenosis rule) and a pulse and neck-vein station (the circulation's arterial and venous waveforms; pulsus paradoxus waits on gap 13).
 
 ## Problem reports
 

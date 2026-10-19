@@ -257,6 +257,23 @@ export const NAMED: Record<string, NamedPredicateDef> = {
     uses: () => ['eye.motility'],
     holds: (h) => h.rows('eye.motility').some((r) => (r.value.restingDeg?.vertical ?? 0) < 0 && (r.value.adduction ?? 100) < 50),
   },
+  verticalComitant: {
+    what: 'A vertical deviation on cover test in primary gaze that stays within `value` prism dioptres of itself looking up and looking down (comitant); with `incomitant`, one that changes by more.',
+    uses: () => ['eyes.alignment'],
+    observes: () => [{ obs: 'eyes.alignment', ctx: { gaze: 'up' } }, { obs: 'eyes.alignment', ctx: { gaze: 'down' } }],
+    holds: (h, a) => {
+      const pd = (gaze: ExamContext['gaze']) => h.rows('eyes.alignment', { gaze }).map((r) => {
+        const v = r.value as { verticalPD?: number; higherEye?: Side };
+        return (v.verticalPD ?? 0) * (v.higherEye === 'L' ? -1 : 1);   // signed: right eye higher positive
+      });
+      const p = pd('primary');
+      if (!p.length || !p.some((x) => x !== 0)) return false;
+      const others = [...pd('up'), ...pd('down')];
+      if (!others.length) return undefined;   // looked only straight ahead: comitance not tested
+      const comitant = others.every((x) => p.some((y) => Math.abs(x - y) <= a.value));
+      return a.incomitant ? !comitant : comitant;
+    },
+  },
   nystagmusPeripheral: {
     what: 'Pathological nystagmus in primary gaze beating one way only, horizontal, stronger without fixation.',
     uses: () => ['eyes.nystagmus'],

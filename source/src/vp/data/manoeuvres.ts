@@ -370,7 +370,8 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     id: 'test.cover', verb: 'test', target: 'eyes',
     label: { en: 'Cover test', de: 'Abdecktest (Cover-Test)' },
     phrases: { en: ['cover test', 'alternate cover', 'skew', 'test of skew'], de: ['abdecktest', 'cover-test', 'alternierender abdecktest', 'skew'] },
-    reveals: [{ property: 'eyes.alignment' }],
+    /* in primary gaze (the test of skew), and looking up and down: a nerve palsy's vertical deviation changes with gaze, a skew's does not */
+    reveals: [{ property: 'eyes.alignment' }, { property: 'eyes.alignment', context: { gaze: 'up' } }, { property: 'eyes.alignment', context: { gaze: 'down' } }],
     context: { gaze: 'primary' }, requires: { ability: ['can-fixate'] }, durationSeconds: 20,
   },
   {

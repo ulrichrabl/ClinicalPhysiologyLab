@@ -12,6 +12,7 @@
 {"from": "sign:ptosis", "rel": "part-of", "to": "syndrome:third-nerve-palsy", "role": "required", "status": "draft"},
 {"from": "sign:eye-down-and-out", "rel": "part-of", "to": "syndrome:third-nerve-palsy", "role": "required", "status": "draft"},
 {"from": "sign:fixed-dilated-pupil", "rel": "part-of", "to": "syndrome:third-nerve-palsy", "role": "supporting", "status": "draft"},
+{"from": "sign:vertical-tropia", "rel": "part-of", "to": "syndrome:third-nerve-palsy", "role": "supporting", "status": "draft"},
 {"from": "sign:abduction-deficit", "rel": "part-of", "to": "syndrome:sixth-nerve-palsy", "role": "required", "status": "draft"},
 {"from": "sign:horizontal-tropia", "rel": "part-of", "to": "syndrome:sixth-nerve-palsy", "role": "supporting", "status": "draft"},
 {"from": "sign:limb-dysmetria", "rel": "part-of", "to": "syndrome:cerebellar-syndrome", "role": "supporting", "status": "draft"},

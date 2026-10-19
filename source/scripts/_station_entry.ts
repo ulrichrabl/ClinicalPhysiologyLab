@@ -31,3 +31,9 @@ export { explainCycle, allAuscTexts, CYCLE_LABEL } from '../src/vp/stations/ausc
 export { REFERENCES } from '../src/vp/evidence/references.ts';
 export { auscSigns, auscSignsOf, heartManoeuvres } from '../src/vp/stations/auscultation-signs.ts';
 export { STATIONS } from '../src/vp/stations/station.ts';
+/* the eye station */
+export { EYE_STATION } from '../src/vp/stations/station.ts';
+export { EYE_PRESETS, EYE_PRESET_GROUPS, EYE_STRUCTURES, applyEyePreset } from '../src/vp/stations/eye-presets.ts';
+export { eyeSigns, eyeSignsOf, eyeContext, eyeView, EYE_MANOEUVRES } from '../src/vp/stations/eye-signs.ts';
+export { explainEye, EYE_TESTS } from '../src/vp/stations/eye-texts.ts';
+export { scene, sceneFindings, pursuitTarget } from '../src/vp/render/eye-scene.ts';
