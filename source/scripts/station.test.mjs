@@ -210,7 +210,7 @@ console.log('\nThe auscultation station (ADR-017 step 4)');
     S.auscSigns().length >= 8 && S.auscSigns().every((x) => S.KNOWLEDGE.signs[x]?.definition) && S.heartManoeuvres().length >= 5, J(S.auscSigns()));
   const EXPECT = {
     healthy: [], 'as-moderate': ['ejection-systolic-murmur'], 'as-severe': ['ejection-systolic-murmur', 'soft-a2', 'fourth-heart-sound'],
-    'ms-severe': ['opening-snap', 'mid-diastolic-murmur'], 'ar-moderate': ['early-diastolic-murmur'], 'mr-moderate': ['pansystolic-murmur'],
+    'ms-moderate': ['opening-snap', 'mid-diastolic-murmur'], 'ms-severe': ['opening-snap', 'mid-diastolic-murmur'], 'ar-moderate': ['early-diastolic-murmur'], 'mr-moderate': ['pansystolic-murmur'],
     'dilated-failing': ['third-heart-sound'],
   };
   const signsAt = {};
@@ -223,11 +223,12 @@ console.log('\nThe auscultation station (ADR-017 step 4)');
   ok('…the mitral rumble with the bell at the apex, the patient on the left side', (signsAt['ms-severe'].where.get('mid-diastolic-murmur') ?? []).includes('auscultate.heart.apex-bell-left-lateral'));
   ok('…the aortic regurgitation murmur at the left sternal edge, sitting forward in held expiration', (signsAt['ar-moderate'].where.get('early-diastolic-murmur') ?? []).includes('auscultate.heart.lse-sitting-forward'));
   ok('…S3 and S4 with the bell at the apex only', J(signsAt['dilated-failing'].where.get('third-heart-sound')) === J(['auscultate.heart.apex-bell-left-lateral']) && J(signsAt['as-severe'].where.get('fourth-heart-sound')) === J(['auscultate.heart.apex-bell-left-lateral']));
-  const msm = await beatsOf('ms-moderate');
-  const msmSigns = S.auscSignsOf(msm.live.model, msm.live.snap, msm.live.chemistry).present;
-  gap('moderate mitral stenosis (mean gradient 5–10 mmHg) is heard: opening snap and mid-diastolic rumble', msmSigns.has('mid-diastolic-murmur') && msmSigns.has('opening-snap'),
-    `${S.meanMitralGradient(msm.beats.at(-1)).toFixed(1)} mmHg, signs ${J([...msmSigns])}: the examination model hears mitral stenosis only above a valve resistance of 0.05 mmHg·s/mL, an ungrounded threshold; it should follow the gradient. Left out of Identify meanwhile`);
-
+  /* Gap 17, closed: mitral stenosis is heard by its gradient (Bonow's grades), not by a resistance threshold. */
+  const gradOf = (r) => r.live.snap.metricsBreath?.mitralMeanGradient ?? 0;
+  const msm = await beatsOf('ms-moderate'), mss = await beatsOf('ms-severe');
+  ok('moderate mitral stenosis (mean gradient 5–10 mmHg, Bonow 2006) is heard: opening snap and rumble; the rumble is louder in severe stenosis',
+    signsAt['ms-moderate'].present.has('opening-snap') && gradOf(msm) >= 5 && gradOf(msm) < 10 && gradOf(mss) >= 10, `${gradOf(msm).toFixed(1)} and ${gradOf(mss).toFixed(1)} mmHg`);
+  ok('a gradient from flow alone through a normal valve (regurgitation) is not heard as mitral stenosis', !signsAt['mr-moderate'].present.has('opening-snap') && !signsAt['ar-moderate'].present.has('opening-snap'));
   /* Links from the teaching cards (ADR-017 step 5): a test row's animation "station:<id>" names a station that exists. */
   const links = Object.values(S.KNOWLEDGE.tests).filter((x) => x.animation?.startsWith('station:'));
   ok('teaching cards link to stations that exist: every cardiac auscultation card to the auscultation station',

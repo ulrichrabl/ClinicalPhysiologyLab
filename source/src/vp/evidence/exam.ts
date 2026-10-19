@@ -6,6 +6,11 @@ import { defineConstants } from './constants.ts';
    sign usually appears. Thresholds not listed here are heuristics described where they are used. */
 
 export const EXAM = defineConstants('exam', {
+  msAudibleGradient: { value: 3, unit: 'mmHg', status: 'assumed', refs: ['bonow2006'], means: 'Mean diastolic gradient across a narrowed mitral valve at which its opening snap, loud S1 and rumble are heard.',
+    derivation: 'Placed just above what a normal valve gives (the model’s healthy heart: 1.75 mmHg) and below the 5 mmHg at which Bonow grades stenosis moderate. No study of audibility against the gradient was found; the sounds of mild stenosis are often present, but faint and short.' },
+  msModerateGradient: { value: 5, unit: 'mmHg', status: 'derived', refs: ['bonow2006'], means: 'Mean mitral gradient from which the rumble is graded louder (moderate stenosis).',
+    derivation: 'Bonow 2006: mild stenosis below 5 mmHg, moderate 5–10, severe above 10. The rumble’s loudness tracks severity only loosely; its length tracks it better.' },
+  msSevereGradient: { value: 10, unit: 'mmHg', status: 'derived', refs: ['bonow2006'], means: 'Mean mitral gradient above which stenosis is severe.', derivation: 'Bonow 2006.' },
   icterusMild: { value: 40, unit: 'µmol/L', status: 'assumed', refs: ['hung2000'], means: 'Bilirubin at which scleral icterus becomes visible.',
     derivation: 'The classical 2.5–3 mg/dL (43–51 µmol/L), slightly lower; physicians detect jaundice with sensitivity and specificity of only about 70 % (Hung).' },
   icterusMarked: { value: 85, unit: 'µmol/L', status: 'ungrounded', means: 'Bilirubin at which jaundice is obvious.' },

@@ -1,4 +1,5 @@
 import type { LocalizedText } from '../model/i18n.ts';
+import { EXAM } from '../evidence/exam.ts';
 import type { CyclePhase, ValveStates } from './cardiac-cycle.ts';
 
 /* ---------------------------------------------------------------------------
@@ -30,7 +31,9 @@ export interface AuscContext {
   finding: { s1?: string; a2?: string; p2?: string; s2Split?: string; added?: string[]; murmurs?: Array<{ valve: string; timing: string; grade: number }> };
   /** the running circulation */
   m: {
-    hr: number; gradient: number; msGradient: number; regurgFraction: number; ef: number; edv: number; la: number;
+    hr: number; gradient: number; msGradient: number;
+    /** the mitral valve is narrowed (a gradient through a normal valve is flow, not stenosis) */
+    msNarrowed?: boolean; regurgFraction: number; ef: number; edv: number; la: number;
     /** A2–P2 of the beat at the cursor (ms; negative when P2 comes first), and how long this phase lasts in it */
     split: number | null; phaseMs: number;
     mitralLeaks: boolean; aorticLeaks: boolean; prematureMitralClosure: boolean;
@@ -97,7 +100,7 @@ export function explainCycle(c: AuscContext): AuscText {
           `S3: Der Einstrom in diese dilatierte, überfüllte Kammer (enddiastolisches Volumen ${r(m.edv)} mL, linker Vorhofdruck ${r(m.la)} mmHg) wird plötzlich gebremst, wenn die Kammer an die Grenze ihrer Dehnung kommt. Die Schwingung ist der dritte Herzton, tieffrequent: Hier hören Sie ihn.`)
         : L(`In this dilated, overfilled ventricle the inflow stops abruptly: a third heart sound. It is low-pitched: listen with the bell at the apex.`,
           `In dieser dilatierten, überfüllten Kammer bricht der Einstrom abrupt ab: ein dritter Herzton. Er ist tieffrequent: Hören Sie mit der Glocke über der Herzspitze.`));
-      if (m.msGradient >= 5) body.push(L(`The stenotic mitral valve opens with a snap, then forces blood through its narrow orifice: a mean gradient of ${m.msGradient.toFixed(1)} mmHg drives a low rumble that lasts as long as filling does. Filling never pauses here: the narrowing keeps the atrium above the ventricle all through diastole.`,
+      if (m.msNarrowed && m.msGradient >= EXAM.msAudibleGradient) body.push(L(`The stenotic mitral valve opens with a snap, then forces blood through its narrow orifice: a mean gradient of ${m.msGradient.toFixed(1)} mmHg drives a low rumble that lasts as long as filling does. Filling never pauses here: the narrowing keeps the atrium above the ventricle all through diastole.`,
           `Die stenotische Mitralklappe öffnet mit einem Klick (Öffnungston) und presst dann Blut durch ihre enge Öffnung: Ein mittlerer Gradient von ${m.msGradient.toFixed(1).replace('.', ',')} mmHg treibt ein tiefes Rumpeln, das so lange dauert wie die Füllung. Die Füllung pausiert hier nie: Die Enge hält den Vorhof die ganze Diastole über dem Ventrikel.`));
       if (m.aorticLeaks) body.push(L(`Blood also leaks back from the aorta through the incompetent valve (regurgitant fraction ${r(m.regurgFraction * 100)} %): the early diastolic murmur, decrescendo because the aortic pressure that drives it falls. It is high-pitched and faint: listen at the left sternal edge, the patient sitting forward, breath held out.`,
           `Zusätzlich fließt Blut durch die undichte Klappe aus der Aorta zurück (Regurgitationsfraktion ${r(m.regurgFraction * 100)} %): das frühdiastolische Geräusch, decrescendo, weil der Aortendruck, der es treibt, abfällt. Es ist hochfrequent und leise: Hören Sie am linken Sternalrand, die Patientin oder der Patient vorgebeugt, in Exspiration angehalten.`));
@@ -117,7 +120,7 @@ export function explainCycle(c: AuscContext): AuscText {
         `Die Vorhöfe kontrahieren und füllen die Kammern kurz vor deren Schlag nach (die letzten ${ms} der Diastole). In Ruhe trägt das etwa ein Fünftel zur Füllung bei; bei hoher Frequenz oder in eine steife Kammer viel mehr.`));
       if (has(c, 's4')) body.push(L('S4: here the atrial kick meets a stiff, pressure-loaded ventricle whose pressure rises steeply as it fills. The sudden check to the inflow is the fourth heart sound, just before S1.',
         'S4: Hier trifft der Vorhofstoß auf eine steife, druckbelastete Kammer, deren Druck beim Füllen steil ansteigt. Das plötzliche Abbremsen des Einstroms ist der vierte Herzton, kurz vor S1.'));
-      if (m.msGradient >= 5) body.push(L('The atrial contraction drives the last of the blood through the narrow mitral valve: the rumble swells just before S1 (presystolic accentuation).',
+      if (m.msNarrowed && m.msGradient >= EXAM.msAudibleGradient && !m.af) body.push(L('The atrial contraction drives the last of the blood through the narrow mitral valve: the rumble swells just before S1 (presystolic accentuation).',
         'Die Vorhofkontraktion treibt das letzte Blut durch die enge Mitralklappe: Das Rumpeln schwillt kurz vor S1 an (präsystolische Verstärkung).'));
       if (c.valves.mitral === 'closed' && !m.af) body.push(L('The mitral valve is already closed: what the atrium does now no longer reaches the ventricle.', 'Die Mitralklappe ist schon geschlossen: Was der Vorhof jetzt tut, erreicht die Kammer nicht mehr.'));
       return { title: L('Atrial systole', 'Vorhofsystole'), body };
@@ -130,7 +133,7 @@ export function allAuscTexts(): LocalizedText[] {
   const out: LocalizedText[] = Object.values(CYCLE_LABEL);
   const finding = { s1: 'loud', a2: 'soft', added: ['s3', 's4'], murmurs: [{ valve: 'aortic', timing: 'ejection-systolic', grade: 3 }] };
   for (const phase of Object.keys(CYCLE_LABEL) as CyclePhase[])
-    for (const flags of [{}, { mitralLeaks: true, aorticLeaks: true, prematureMitralClosure: true, af: true, gradient: 50, msGradient: 8, ef: 25, edv: 220, split: -20 }, { split: 30, breath: 'insp' as const }]) {
+    for (const flags of [{}, { mitralLeaks: true, aorticLeaks: true, prematureMitralClosure: true, af: true, gradient: 50, msGradient: 8, msNarrowed: true, ef: 25, edv: 220, split: -20 }, { split: 30, breath: 'insp' as const }]) {
       const x = explainCycle({ phase, valves: { mitral: 'closed', aortic: 'closed', tricuspid: 'closed', pulmonic: 'closed' }, finding, site: 'chest.mitral-area', bell: true,
         m: { hr: 70, gradient: 2, msGradient: 1, regurgFraction: 0.4, ef: 60, edv: 120, la: 8, split: null, phaseMs: 80, mitralLeaks: false, aorticLeaks: false, prematureMitralClosure: false, af: false, breath: null, ...flags } });
       out.push(x.title, ...x.body);

@@ -2,6 +2,7 @@ import type { ExamContext } from '../model/types.ts';
 import { EXAM } from '../evidence/exam.ts';
 import type { Resolved, Resolver, RuntimeView } from '../engine/observe.ts';
 import { orthostatic } from './body-exam.ts';
+import { CIRC } from '../evidence/circulation.ts';
 
 /* ===========================================================================
    Cardiovascular examination model.
@@ -29,6 +30,8 @@ interface Hemodynamics {
   hr: number; sys: number; dia: number; pp: number; map: number; sv: number;
   gradient: number; pvPeak: number; edv: number; cvp: number; la: number;
   regAortic: number; regMitral: number; regTricuspid: number; rMitral: number; regurgFraction: number;
+  /** mean diastolic gradient across the mitral valve, and whether the valve is narrowed at all */
+  mitralGradient: number; mitralNarrowed: boolean;
   af: boolean;
 }
 
@@ -43,11 +46,19 @@ function hemo(view: RuntimeView): Hemodynamics | undefined {
     edv: n(m.EDV, 120), cvp: n(m.CVPmean, n(c.CVP, 4)), la: n(m.PlaMean, n(c.Pla, 8)),
     regAortic: n(c.regAortic, 0), regMitral: n(c.regMitral, 0), regTricuspid: n(c.regTricuspid, 0),
     rMitral: n(c.Rmitral, 0.01), regurgFraction: n(m.regurgFraction, 0),
+    mitralGradient: n(m.mitralMeanGradient, 0), mitralNarrowed: n(c.Rmitral, CIRC.Rmitral) > CIRC.Rmitral * 1.2,
     af: typeof c.pathology === 'string' && /fib|af\b/i.test(c.pathology),
   };
 }
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
+
+/* Mitral stenosis is heard by what the valve does to the flow, not by its resistance: a narrowed valve whose mean
+   diastolic gradient passes the audible threshold snaps open, shuts loudly (S1, from wide open) and makes a rumble that
+   grows with the gradient (Bonow's grades). A gradient from flow alone through a normal valve (regurgitation, a fast
+   rate) is not mitral stenosis. The model's valve is always pliable: calcification, which silences the snap and S1, is
+   not modelled. */
+const msAudible = (h: Hemodynamics) => h.mitralNarrowed && h.mitralGradient >= EXAM.msAudibleGradient;
 
 /** Murmur grades at their loudest, before site attenuation. */
 function sourceMurmurs(h: Hemodynamics, ctx: ExamContext): Array<Murmur & { loudestAt: string[]; radiates: string[] }> {
@@ -67,9 +78,10 @@ function sourceMurmurs(h: Hemodynamics, ctx: ExamContext): Array<Murmur & { loud
     out.push({ valve: 'aortic', timing: 'early-diastolic', shape: 'decrescendo', grade: clamp(Math.round(1 + h.regurgFraction * 6) - (best ? 0 : 1), 1, 4), pitch: 'high',
       loudestAt: ['chest.erb', 'chest.tricuspid-area'], radiates: ['chest.aortic-area'] });
   }
-  if (h.rMitral > 0.05 && ctx.instrument === 'stethoscope-bell') {
+  if (msAudible(h) && ctx.instrument === 'stethoscope-bell') {
     const best = ctx.position === 'left-lateral';
-    out.push({ valve: 'mitral', timing: 'mid-diastolic', shape: 'decrescendo', grade: clamp(Math.round(h.rMitral * 20) - (best ? 0 : 1), 1, 4), pitch: 'low',
+    const g = h.mitralGradient, base = g >= EXAM.msSevereGradient ? 3 : g >= EXAM.msModerateGradient ? 2 : 1;
+    out.push({ valve: 'mitral', timing: 'mid-diastolic', shape: 'decrescendo', grade: clamp(base - (best ? 0 : 1), 1, 4), pitch: 'low',
       loudestAt: ['chest.mitral-area'], radiates: [] });
   }
   return out;
@@ -98,9 +110,9 @@ export function heartSounds(h: Hemodynamics, ctx: ExamContext) {
   const bellAtApex = ctx.instrument === 'stethoscope-bell' && site === 'chest.mitral-area';
   if (bellAtApex && h.pvPeak >= 160) added.push('s4');           // atrial kick into a pressure-loaded ventricle
   if (bellAtApex && h.edv >= 180 && h.la >= 18) added.push('s3');  // rapid filling of a dilated, high-pressure ventricle
-  if (h.rMitral > 0.05 && site === 'chest.mitral-area') added.push('opening-snap');
+  if (msAudible(h) && site === 'chest.mitral-area') added.push('opening-snap');
   return {
-    s1: h.rMitral > 0.05 ? 'loud' : 'normal',
+    s1: msAudible(h) ? 'loud' : 'normal',
     a2, p2: h.la >= 25 ? 'loud' : 'normal', s2Split, added, murmurs,
   };
 }

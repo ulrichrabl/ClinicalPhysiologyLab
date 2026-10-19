@@ -1,4 +1,5 @@
 import { LivePatient, type BeatRecord } from '../live/live-patient.ts';
+import { CIRC } from '../evidence/circulation.ts';
 import { healthyModel, caseWithModel } from '../physiology/state.ts';
 import { getPath, setPath } from '../physiology/models.ts';
 import type { VariableDef } from '../physiology/types.ts';
@@ -80,9 +81,8 @@ const T: Record<string, LocalizedText> = {
   hits: L('Named, and there', 'Benannt und vorhanden'), misses: L('There, not named', 'Vorhanden, nicht benannt'), over: L('Named, not there', 'Benannt, nicht vorhanden'),
   mechRight: L('Right', 'Richtig'), mechWrong: L('It was', 'Es war'), score: L('right this session', 'richtig in dieser Sitzung'), heardWhere: L('Where each is heard', 'Wo jedes zu hören ist'),
 };
-/* The hearts Identify hides: the starting points and a healthy one. Moderate mitral stenosis is left out: the examination
-   model does not yet let it be heard (known gap), and a silent unknown would be unfair. */
-const IDENTIFY_POOL = ['healthy', 'as-moderate', 'as-severe', 'ms-severe', 'ar-moderate', 'mr-moderate', 'dilated-failing'];
+/* The hearts Identify hides: the starting points and a healthy one. */
+const IDENTIFY_POOL = ['healthy', 'as-moderate', 'as-severe', 'ms-moderate', 'ms-severe', 'ar-moderate', 'mr-moderate', 'dilated-failing'];
 const SITES = ['chest.aortic-area', 'chest.pulmonary-area', 'chest.erb', 'chest.tricuspid-area', 'chest.mitral-area'];
 const PHASE_SHORT: Record<CyclePhase, LocalizedText> = {
   'iso-contraction': L('IVCT', 'Anspannung'), ejection: L('ejection', 'Austreibung'), 'iso-relaxation': L('IVRT', 'Entspannung'),
@@ -546,7 +546,7 @@ const wireCommon = () => {
     const split = beat.times.a2 != null && beat.times.p2 != null ? beat.times.p2 - beat.times.a2 : null;
     const ms = meanMitralGradient(beat);
     const m = {
-      hr: hr(), gradient: mt.aorticGradient ?? 0, msGradient: ms, regurgFraction: mt.regurgFraction ?? 0, ef: mt.EF ?? 60, edv: mt.EDV ?? 120, la: mt.PlaMean ?? 8,
+      hr: hr(), gradient: mt.aorticGradient ?? 0, msGradient: ms, msNarrowed: live.model.circulation.Rmitral > CIRC.Rmitral * 1.2, regurgFraction: mt.regurgFraction ?? 0, ef: mt.EF ?? 60, edv: mt.EDV ?? 120, la: mt.PlaMean ?? 8,
       split, phaseMs: seg ? seg.to - seg.from : 0, mitralLeaks: leaks('mitral'), aorticLeaks: leaks('aortic'),
       prematureMitralClosure: (beat.times.m1 ?? 0) > beat.dur / 2 && beat.dur - (beat.times.m1 ?? 0) > 120,
       af: live.model.electrical.atrial === 'af', breath: (beat.log.breath?.phase ?? null) as 'insp' | 'exp' | null,

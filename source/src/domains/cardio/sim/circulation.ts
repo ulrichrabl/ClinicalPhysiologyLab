@@ -574,8 +574,12 @@ export class Circulation {
     let peakQao = 0, dPdtMax = 0;
     let PvPeak = -Infinity, PpaMax = -Infinity, PpaMin = Infinity, PpaMean = 0;
     let PraMean = 0, PraMax = -Infinity;
+    /* The mean pressure difference across the open mitral valve: left atrium minus ventricle while blood flows forward
+       through it. How mitral stenosis is graded (Bonow 2006), and what drives the flow that the stethoscope hears. */
+    let mitGradSum = 0, mitGradN = 0;
     for (let i = 0; i < b.length; i++) {
       const s = b[i];
+      if ((s.Qmit ?? 0) > 0.5) { mitGradSum += s.Pla - s.Pv; mitGradN++; }
       if (s.Pa > Psys) Psys = s.Pa;
       if (s.Pa < Pdia) Pdia = s.Pa;
       Pmean += s.Pa;
@@ -644,6 +648,7 @@ export class Circulation {
       PpaSys: PpaMax, PpaDia: PpaMin, PpaMean,
       CVPmean: PraMean, CVPmax: PraMax,
       aorticGradient: Math.max(0, PvPeak - Psys),
+      mitralMeanGradient: mitGradN ? Math.max(0, mitGradSum / mitGradN) : 0,
       cycleMs: dur, HRbeat,
     };
 
