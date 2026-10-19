@@ -17,7 +17,7 @@ let n = 0;
 const systolic = async (k) => {
   globalThis.__CONSTANT_OVERRIDES = { 'cpr.cardiacExtra': k };
   const M = await import(`${pathToFileURL(bundle).href}?k=${n++}`);
-  const r = M.cprTrial({ itp: M.CPR.itpMechanical, rate: 60 });
+  const r = M.cprTrial({ device: 'mechanical', rate: 60 });
   console.log(`  cardiacExtra ${k.toFixed(3)}: ${r.Psys.toFixed(1)}/${r.Pdia.toFixed(1)} mmHg`);
   return r.Psys;
 };

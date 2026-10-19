@@ -42,9 +42,9 @@ console.log('\nUntreated ventricular fibrillation');
 }
 
 console.log('\nCompressions, against patients in arrest');
-const mech60 = S.cprTrial({ itp: S.CPR.itpMechanical, rate: 60 });
-const mech140 = S.cprTrial({ itp: S.CPR.itpMechanical, rate: 140 });
-const manual = S.cprTrial({ itp: S.CPR.itpManual, rate: 110 });
+const mech60 = S.cprTrial({ device: 'mechanical', rate: 60 });
+const mech140 = S.cprTrial({ device: 'mechanical', rate: 140 });
+const manual = S.cprTrial({ device: 'manual', rate: 110 });
 {
   ok('fitted: a mechanical compressor at 60/min gives Ornato’s systolic pressure (59 ± 5 mmHg; the one constant fitted here, cpr.cardiacExtra)', Math.abs(mech60.Psys - 59) <= 5, reading(mech60));
   ok('compressions make flow and a positive coronary perfusion pressure out of a circulation at a standstill', mech60.CO > 0.5 && mech60.CPP > 5, reading(mech60));
