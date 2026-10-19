@@ -88,7 +88,7 @@ Notes:
 
 ## Open lists
 
-- **Physiology known gaps (13).** See `docs/evidence-grounding-status.md`, including the suggested order. Start with the cardiopulmonary reflex. Gaps 10–12 came with the heart sounds timed by the circulation (ADR-017 step 3); gap 13 with the respiratory pump (step 3b). Since the pump, single beats differ through each breath: examinations read `metricsBreath` (each beat's values averaged over about a breath), the monitor and the body still read the last beat.
+- **Physiology known gaps (14).** See `docs/evidence-grounding-status.md`, including the suggested order. Start with the cardiopulmonary reflex. Gaps 10–12 came with the heart sounds timed by the circulation (ADR-017 step 3); gap 13 with the respiratory pump (step 3b); gap 14 (oxygen-induced hypercapnia) replaced a judgement margin in the COPD oxygen test. Since the pump, single beats differ through each breath: examinations read `metricsBreath` (each beat's values averaged over about a breath), the monitor and the body still read the last beat.
 - **Signs the model cannot produce yet** (from the card check):
   - Heart: loud P2 in pulmonary hypertension; tricuspid regurgitation murmur; narrow pulse pressure in aortic stenosis.
   - Lungs and veins: pleural rub; deep vein thrombosis.
