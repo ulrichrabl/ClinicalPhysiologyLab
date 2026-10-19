@@ -606,7 +606,8 @@ console.log('\nHeart sounds timed by the circulation (ADR-017 step 3)');
     const from = run.sim.t * 1000;
     const rows = [], beats = new Map();
     for (let i = 0; i < seconds * 10; i++) {
-      run.advance(0.1); rows.push({ d: run.sim.dPpl, ra: run.sim.Pra });
+      run.advance(0.1); const r = run.resp.snapshot();
+      rows.push({ d: run.sim.dPpl, ra: run.sim.Pra, flow: r.flow, ppl: r.Ppl, bt: r.breathT, Ti: r.Ti, Te: r.Te });
       if (i % 100 === 99) for (const b of run.sim.beatLog) beats.set(b.t0, b);
     }
     for (const b of run.sim.beatLog) beats.set(b.t0, b);
@@ -615,6 +616,13 @@ console.log('\nHeart sounds timed by the circulation (ADR-017 step 3)');
   const mean = (xs, f) => xs.reduce((a, x) => a + f(x), 0) / Math.max(1, xs.length);
   const hb = breathe(healthyModel(), 240);
   const swing = (Math.max(...hb.rows.map((r) => r.d)) - Math.min(...hb.rows.map((r) => r.d))) / 0.7356;
+  /* Tobin 1983: in quiet breathing inspiration (inflow) takes 0.42 ± 0.03 of each breath; pleural pressure is lowest at its end. */
+  const inflow = hb.rows.filter((r) => r.flow > 0).length / hb.rows.length;
+  ok('air flows in for Tobin’s share of each breath (duty cycle 0.42 ± 0.03)', Math.abs(inflow - 0.42) <= 0.03, `${inflow.toFixed(2)}`);
+  const lowAt = (() => { const per = new Map(); let k = 0, prev = Infinity;
+    for (const r of hb.rows) { if (r.bt < prev) k++; prev = r.bt; const x = per.get(k); if (!x || r.ppl < x.ppl) per.set(k, r); }
+    const xs = [...per.values()].slice(1, -1).map((r) => (r.bt - r.Ti) / (r.Ti + r.Te)); return xs.reduce((a, x) => a + x, 0) / xs.length; })();
+  ok('…and pleural pressure is lowest at the end of inspiration (within a tenth of the breath)', Math.abs(lowAt) <= 0.1, `${(100 * lowAt).toFixed(0)} % of the breath from end-inspiration`);
   ok('quiet breathing swings pleural pressure by 2–4 cmH2O below its resting −5, and the heart feels it', swing >= 2 && swing <= 4, `${swing.toFixed(1)} cmH2O`);
   const raIn = mean(hb.rows.filter((r) => r.d < -1), (r) => r.ra), raEx = mean(hb.rows.filter((r) => r.d > -0.3), (r) => r.ra);
   ok('…the right atrial pressure (the JVP) falls in inspiration', raIn < raEx - 0.3, `${raIn.toFixed(1)} vs ${raEx.toFixed(1)} mmHg`);
