@@ -343,6 +343,13 @@ console.log('\nThe pulse and neck-vein station');
     got[p.id] = { lp, signs: S.pulseSignsOf(lp.model, lp.snap, lp.chemistry).present };
     ok(`${p.id}: brings ${p.signs.join(', ')}`, p.signs.every((x) => got[p.id].signs.has(x)), J([...got[p.id].signs]));
   }
+  const offeredP = S.pulseSignGroups().flatMap((g) => g.signs);
+  ok('Predict and Identify offer every pulse and neck sign once, beside the manoeuvre that finds it', J([...offeredP].sort()) === J([...S.pulseSigns()].sort()) && new Set(offeredP).size === offeredP.length);
+  ok('…every sign a starting point brings is among them', S.PULSE_PRESETS.every((p) => [...got[p.id].signs].every((x) => offeredP.includes(x))));
+  {
+    const sig = S.PULSE_PRESETS.map((p) => J([...got[p.id].signs].sort()));
+    ok('Identify can tell every starting point from health and from the others by the signs alone', new Set(sig).size === sig.length && !sig.includes('[]'), J(S.PULSE_PRESETS.map((p, i) => [p.id, sig[i]])));
+  }
   ok('every starting point is in a group, once', J(S.PULSE_PRESET_GROUPS.flatMap((g) => g.ids).sort()) === J(S.PULSE_PRESETS.map((p) => p.id).sort()));
   ok('the irregular pulse of atrial fibrillation is felt from the beat intervals, not read from a label: sinus rhythm with breathing stays regular',
     healthy.snap.beatLog.length >= 8 && !hs.present.has('irregularly-irregular-pulse') && got['af'].signs.has('irregularly-irregular-pulse'));

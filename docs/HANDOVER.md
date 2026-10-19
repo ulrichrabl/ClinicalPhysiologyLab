@@ -1,6 +1,6 @@
 # Handover: start here
 
-Last updated: 19 October 2026, with the pulse and neck-vein station (Explore). Before it: gap 17 closed, and the eye station completed. Before it: the eye station (Explore). Before it: the ADR-017 step 4 PR (the auscultation station, Explore). Earlier: 18 October 2026, with the ADR-017 step 1 PR (the ECG station). Before it, work was paused after PR #48 at the owner's request.
+Last updated: 19 October 2026, with the pulse and neck-vein station's Predict and Identify (the station is complete). Before it: gap 17 closed, and the eye station completed. Before it: the eye station (Explore). Before it: the ADR-017 step 4 PR (the auscultation station, Explore). Earlier: 18 October 2026, with the ADR-017 step 1 PR (the ECG station). Before it, work was paused after PR #48 at the owner's request.
 
 **Where we paused.** Nothing is in flight; every PR is merged and live. Waiting on the owner (details in "Waiting for the owner" below):
 
@@ -277,7 +277,8 @@ A station pairs one test with the mechanism that writes it, on one clock. Read `
   - **What it shows:** the strip (ECG, arterial and right atrial pressure over the last seconds, each beat's a/x/v/y named where the model made them, cannon waves marked), the neck at 45° (the jugular column rising and falling with right atrial pressure now; the JVP read from the beat's mean), and one beat in detail (tap a beat). Explanations are in `stations/pulse-texts.ts`.
   - **Starting points:** `stations/pulse-presets.ts`: aortic stenosis and regurgitation, pulmonary hypertension, severe tricuspid regurgitation, AF, Wenckebach, complete heart block and VT, each checked to bring its signs.
   - **Not modelled:** the c wave, and the respiratory signs (Kussmaul's sign, pulsus paradoxus), which wait on gap 13. Gap 18: the model's tricuspid regurgitation is too small to fill in the x descent.
-- **Next:** the pulse station's Predict and Identify.
+  - **Predict and Identify,** as at the other stations. The signs are offered beside the manoeuvre that finds each one (`pulseSignGroups`). Identify gives what the bedside gives: the pulse and the neck at 45°, with no ECG, no named waves, no findings and no beat in detail. A test checks that every starting point can be told from health and from the others by its signs.
+- **Next:** open for the owner. The heart–lung chain (gaps 16, 12, 13, 15) is parked; with it would come pulsus paradoxus and Kussmaul's sign at this station.
 
 ## Problem reports
 
