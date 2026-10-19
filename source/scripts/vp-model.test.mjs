@@ -574,8 +574,18 @@ console.log('\nHeart sounds timed by the circulation (ADR-017 step 3)');
   const hr = 60000 / h.cycle;
   ok('a beat records its valve events in order: S1, aortic opening, A2, P2, mitral opening, the end of rapid filling', h.avo > 0 && h.a2 > h.avo && h.p2 > h.a2 && h.mvo > h.p2 && h.rapidEnd > h.mvo,
     J(h));
-  const as = times(modelFromCase(caseById('exertional-syncope-as')));
-  ok('aortic stenosis: ejection lasts longer, and A2 moves after P2 (paradoxical splitting)', as.a2 - as.avo > h.a2 - h.avo + 20 && as.a2 > as.p2, `LVET ${Math.round(as.a2 - as.avo)} vs ${Math.round(h.a2 - h.avo)} ms, A2 ${Math.round(as.a2)} P2 ${Math.round(as.p2)}`);
+  /* With the respiratory pump, beats differ through each breath. As at the bedside (and in Curtiss 1975), a beat is
+     inspiratory or expiratory by when its second sound is heard: here, P2 in the second half of inspiration against P2 in
+     the second half of expiration (each beat records where in the breath its P2 fell). */
+  const avg = (xs, f) => xs.reduce((a, x) => a + f(x), 0) / Math.max(1, xs.length);
+  const inspBeats = (log) => log.filter((b) => b.breath?.phase === 'insp' && b.breath.frac >= 0.5);
+  const expBeats = (log) => log.filter((b) => b.breath?.phase === 'exp' && b.breath.frac >= 0.5);
+  const asLog = settleModel(modelFromCase(caseById('exertional-syncope-as')), 20).snapshot.beatLog;
+  const asE = expBeats(asLog);
+  const lvet = (log) => avg(log, (b) => b.a2 - b.avo);
+  /* Paradoxical splitting: in expiration A2 follows P2 (it narrows, or reverses back, as P2 moves later in inspiration). */
+  ok('aortic stenosis: ejection lasts longer, and in expiration A2 moves after P2 (paradoxical splitting)', lvet(asLog) > h.a2 - h.avo + 20 && avg(asE, (b) => b.a2 - b.p2) > 0,
+    `LVET ${Math.round(lvet(asLog))} vs ${Math.round(h.a2 - h.avo)} ms, A2 − P2 in expiration ${avg(asE, (b) => b.a2 - b.p2).toFixed(0)} ms (n ${asE.length}), in inspiration ${avg(inspBeats(asLog), (b) => b.a2 - b.p2).toFixed(0)} ms`);
   const c = phonoCycle({ s1: 'normal', a2: 'normal', p2: 'normal', s2Split: 'physiological', added: [], murmurs: [] }, hr, h);
   const m1 = h.m1 > h.cycle / 2 ? h.m1 - h.cycle : h.m1;
   const snd = (n) => c.sounds.find((x) => x.name === n)?.t;
@@ -592,23 +602,44 @@ console.log('\nHeart sounds timed by the circulation (ADR-017 step 3)');
   /* The respiratory pump (ADR-017 step 3b): pleural pressure from the lung model acts on the heart and lung vessels. */
   const breathe = (m, seconds = 40) => {
     const run = createCirculation(m); run.settle(20);
-    const rows = [];
-    for (let i = 0; i < seconds * 10; i++) { run.advance(0.1); rows.push({ d: run.sim.dPpl, ra: run.sim.Pra }); }
-    return { rows, beats: run.sim.beatLog };
+    /* only the beats of this run, not those of the settling before it */
+    const from = run.sim.t * 1000;
+    const rows = [], beats = new Map();
+    for (let i = 0; i < seconds * 10; i++) {
+      run.advance(0.1); rows.push({ d: run.sim.dPpl, ra: run.sim.Pra });
+      if (i % 100 === 99) for (const b of run.sim.beatLog) beats.set(b.t0, b);
+    }
+    for (const b of run.sim.beatLog) beats.set(b.t0, b);
+    return { rows, beats: [...beats.values()].filter((b) => b.t0 >= from) };
   };
   const mean = (xs, f) => xs.reduce((a, x) => a + f(x), 0) / Math.max(1, xs.length);
-  const hb = breathe(healthyModel());
+  const hb = breathe(healthyModel(), 240);
   const swing = (Math.max(...hb.rows.map((r) => r.d)) - Math.min(...hb.rows.map((r) => r.d))) / 0.7356;
   ok('quiet breathing swings pleural pressure by 2–4 cmH2O below its resting −5, and the heart feels it', swing >= 2 && swing <= 4, `${swing.toFixed(1)} cmH2O`);
   const raIn = mean(hb.rows.filter((r) => r.d < -1), (r) => r.ra), raEx = mean(hb.rows.filter((r) => r.d > -0.3), (r) => r.ra);
   ok('…the right atrial pressure (the JVP) falls in inspiration', raIn < raEx - 0.3, `${raIn.toFixed(1)} vs ${raEx.toFixed(1)} mmHg`);
-  const ins = hb.beats.filter((b) => b.dPpl < -1), exp = hb.beats.filter((b) => b.dPpl > -0.3);
+  const ins = inspBeats(hb.beats), exp = expBeats(hb.beats);
   const swingSys = Math.max(...hb.beats.map((b) => b.Psys)) - Math.min(...hb.beats.map((b) => b.Psys));
   ok('…and systolic pressure varies with breathing by less than 10 mmHg (no pulsus paradoxus in health)', swingSys < 10, `${swingSys.toFixed(1)} mmHg`);
-  /* Inspiration lowers intrathoracic pressure, fills the right heart more and delays P2 (Aygen 1970: ≥ 20 ms in 98 % of normals). */
-  const widen = mean(ins, (b) => b.p2 - b.a2) - mean(exp, (b) => b.p2 - b.a2);
+  /* Inspiration fills the right heart and empties the left a little; each ventricle's systole lasts longer the fuller it
+     starts (length-dependent systole). Curtiss 1975, in normal volunteers: Q–O (the right ventricle's systole) +7.7 ± 5.0
+     ms, Q–A2 −7.6 ± 2.7 ms, O–P2 +11.9 ± 3.0 ms, A2–P2 +27.2 ms. The gain was fitted once to Q–O; the rest validates. */
+  const d = (f) => mean(ins, f) - mean(exp, f);
+  const dQO = d((b) => b.rvRelax), dQA2 = d((b) => b.a2), dOP2 = d((b) => b.p2 - b.rvRelax);
+  ok('the right ventricle’s systole lengthens in inspiration as in Curtiss 1975 (Q–O +7.7 ms; the fit, to within 1 ms)', Math.abs(dQO - 7.7) <= 1, `${dQO.toFixed(1)} ms (n ${ins.length} inspiratory, ${exp.length} expiratory beats)`);
+  ok('…and the split is widest late in inspiration and narrowest early in expiration, as heard', (() => {
+    const pos = (b) => b.breath.phase === 'insp' ? b.breath.frac : 1 + b.breath.frac;
+    const bin = (lo, hi) => mean(hb.beats.filter((b) => b.breath && pos(b) >= lo && pos(b) < hi), (b) => b.p2 - b.a2);
+    return bin(0.5, 1) > bin(0, 0.5) && bin(0.5, 1) > bin(1, 1.5) && bin(0.5, 1) > bin(1.5, 2);
+  })());
+  gap('…and the left ventricle’s shortens: A2 earlier in inspiration (Q–A2 −7.6 ± 2.7 ms; validation, not fitted)', Math.abs(dQA2 + 7.6) <= 2.7,
+    `${dQA2.toFixed(1)} ms: the left ventricle's share of the widening is about 60 % of Curtiss's; how much less the left ventricle fills in inspiration (interdependence, the pulmonary transit) is not grounded`);
+  gap('…and P2 hangs out longer after the right ventricle relaxes (O–P2 +11.9 ± 3.0 ms)', Math.abs(dOP2 - 11.9) <= 3.0,
+    `${dOP2.toFixed(1)} ms: the pulmonary "hangout" (the outflow's inertia, which keeps blood moving into the low-impedance lung after the pressures cross) is not modelled; measured hangout intervals are needed to ground it`);
+  const widen = d((b) => b.p2 - b.a2);
+  /* Aygen 1970: ≥ 20 ms in 98 % of normals. */
   gap('A2–P2 widens by 20 ms or more in inspiration', widen >= 20,
-    `${widen.toFixed(0)} ms (right ventricular ejection ${mean(ins, (b) => b.p2 - b.pvo).toFixed(0)} vs ${mean(exp, (b) => b.p2 - b.pvo).toFixed(0)} ms): the pump now fills the right heart more in inspiration, but the ventricle's ejection time is set by its activation, not its volume, and the pulmonary "hangout" (the outflow's inertia, which keeps blood moving after the pressures cross) is not modelled`);
+    `${widen.toFixed(0)} ms (Curtiss 27.2): the ventricles' share is in (Q–O ${dQO >= 0 ? '+' : ''}${dQO.toFixed(1)}, Q–A2 ${dQA2.toFixed(1)} ms); the pulmonary hangout's share (O–P2) is missing`);
   const tamp = healthyModel(); tamp.circulation.pericardialFluid = 500;
   const tb = breathe(tamp);
   const para = Math.max(...tb.beats.map((b) => b.Psys)) - Math.min(...tb.beats.map((b) => b.Psys));

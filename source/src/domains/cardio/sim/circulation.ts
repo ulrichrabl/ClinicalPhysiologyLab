@@ -83,7 +83,8 @@ export class Circulation {
     this.t = 0; this.seq = 0;
     this.mitralOpen = false; this.aorticOpen = false;
     this.tricuspidOpen = false; this.pulmonicOpen = false;
-    this.en = 0; this.ea = 0; this.E = 0; this.Ela = 0;
+    this.en = 0; this.enRv = 0; this.ea = 0; this.E = 0; this.Ela = 0;
+    this.stretchLv = 1; this.stretchRv = 1; this.normLv = null; this.normRv = null; this.edvRefLv = null; this.edvRefRv = null; this.edvBreathLv = null; this.edvBreathRv = null; this.lastBeatPpl = null;
     this.Pv = 0; this.Pla = 0; this.Prv = 0; this.Pra = 0; this.Ppa = 0; this.Ppv = 0; this.Psv = 0;
     this.Qfill = 0; this.Qeject = 0; this.Qout = 0; this.Qpv = 0;
     this.Qtri = 0; this.Qpulv = 0; this.Qven = 0; this.Qpulcap = 0;
@@ -214,13 +215,67 @@ export class Circulation {
      (Stergiopulos et al.): a steep rise, a rounded peak at end-systole, and a
      faster relaxation. The rounded peak is what makes the ejection limb of the
      PV loop bow above the ESPVR and touch it only at end-systole. */
-  activation(t, T) {
+  activation(t, T, stretch = 1, norm = this.actNorm) {
     if (t < 0) return 0;
-    const t1 = this.actT1 * T, t2 = this.actT2 * T;
+    const t1 = this.actT1 * T, t2 = this.actT2 * T * stretch;
     const g1 = Math.pow(t / t1, this.actM1);
     const g2 = Math.pow(t / t2, this.actM2);
     const e = (g1 / (1 + g1)) * (1 / (1 + g2));
-    return Math.min(1, e / this.actNorm);
+    return Math.min(1, e / norm);
+  }
+
+  /* Where in the breath the circulation is now (the host passes the lung's breath clock with each coupling): the phase,
+     and how far through it (0 at its start, 1 at its end). Null without a breathing host. */
+  breathPhase() {
+    const b = this.breath;
+    if (!b || !(b.Ti > 0) || !(b.Te > 0)) return null;
+    const Ttot = b.Ti + b.Te;
+    const t = (((b.t + (this.t - b.at)) % Ttot) + Ttot) % Ttot;
+    return t < b.Ti ? { phase: 'insp', frac: t / b.Ti } : { phase: 'exp', frac: (t - b.Ti) / b.Te };
+  }
+
+  /* When the host brings the circulation to a new steady state at once (settling, a changed patient), the reference
+     filling is set to the present breath-averaged filling: the reference is the ventricle's usual filling, and a
+     state reached by settling is usual by construction. Without this, how long ago and from where a patient was
+     settled would bias its systole for the next minute. */
+  anchorSystole() {
+    if (this.edvBreathLv != null) this.edvRefLv = this.edvBreathLv;
+    if (this.edvBreathRv != null) this.edvRefRv = this.edvBreathRv;
+  }
+
+  /* The peak of the un-normalised curve whose relaxation is stretched by `stretch` (the peak does not depend on the
+     period, only on the ratio of the two time constants). */
+  actPeak(stretch) {
+    let peak = 0;
+    for (let i = 0; i <= 400; i++) {
+      const t = i / 400, g1 = Math.pow(t / this.actT1, this.actM1), g2 = Math.pow(t / (this.actT2 * stretch), this.actM2);
+      const e = (g1 / (1 + g1)) * (1 / (1 + g2));
+      if (e > peak) peak = e;
+    }
+    return peak || 1;
+  }
+
+  /* Length-dependent systole. A ventricle that starts its beat fuller than usual stays active longer: its relaxation
+     comes later, so it ejects for longer (Curtiss 1975: in inspiration the right ventricle's systole, Q–O, lengthens
+     by 7.7 ms as venous return fills it; Weissler: ejection time rises with stroke volume). Each ventricle is compared
+     with its own recent filling, so the effect is beat to beat (breathing, irregular rhythms), and a heart that is
+     simply large is not given a longer systole by it. */
+  beginSystole() {
+    const rr = 60 / Math.max(30, this.baroEnabled ? this.HReff : this.openLoopHR());
+    const w = 1 - Math.exp(-rr / CIRC.systoleLengthTau);
+    const one = (V, ref) => {
+      const r = ref == null || !(ref > 0) ? V : ref;
+      const stretch = Math.max(0.8, Math.min(1.25, 1 + CIRC.systoleLengthGain * (V / r - 1)));
+      return { stretch, ref: r + (V - r) * w };
+    };
+    const lv = one(this.s[S_VLV], this.edvRefLv), rv = one(this.s[S_VRV], this.edvRefRv);
+    this.edvRefLv = lv.ref; this.edvRefRv = rv.ref;
+    /* the filling averaged over about a breath, as the examination's breath-averaged metrics are (4 s) */
+    const wb = 1 - Math.exp(-rr / 4);
+    this.edvBreathLv = this.edvBreathLv == null ? this.s[S_VLV] : this.edvBreathLv + (this.s[S_VLV] - this.edvBreathLv) * wb;
+    this.edvBreathRv = this.edvBreathRv == null ? this.s[S_VRV] : this.edvBreathRv + (this.s[S_VRV] - this.edvBreathRv) * wb;
+    this.stretchLv = lv.stretch; this.stretchRv = rv.stretch;
+    this.normLv = this.actPeak(lv.stretch); this.normRv = this.actPeak(rv.stretch);
   }
 
   /* Peak value of the un-normalised double-Hill curve, for scaling. */
@@ -255,7 +310,7 @@ export class Circulation {
     if (key in this) { this[key] = value; return; }
   }
 
-  deriv(y, av, aa) {
+  deriv(y, av, aa, avr = av) {
     const Vlv = y[S_VLV], Vla = y[S_VLA], Vrv = y[S_VRV], Vra = y[S_VRA];
     const Vsa = y[S_VSA], Vsv = y[S_VSV], Vpa = y[S_VPA], Vpv = y[S_VPV];
 
@@ -274,7 +329,7 @@ export class Circulation {
     const Pperi = CIRC.periScale * (Math.exp(Math.min(8, (Vheart - this.periV0) / this.periVs)) - Math.exp(-this.periV0 / this.periVs));
     const Plv = this.chamberP(Vlv + shift, av, this.effEmax, this.V0, this.pPassive(Vlv + shift)) + Pperi + (this.dPpl || 0);
     // the right ventricle's filling pressure is set by its free wall; the septum it pushes over takes the left's room
-    const Prv = this.chamberP(Vrv, av, this.EmaxRv, this.V0rv, this.pPassiveRv(Vrv)) + Pperi + (this.dPpl || 0);
+    const Prv = this.chamberP(Vrv, avr, this.EmaxRv, this.V0rv, this.pPassiveRv(Vrv)) + Pperi + (this.dPpl || 0);
     const Ela = this.ElaMin + (this.ElaMax - this.ElaMin) * aa;
     const Era = this.EraMin + (this.EraMax - this.EraMin) * aa;
     /* The respiratory pump: the heart and the pulmonary vessels sit in the chest, the systemic arteries and veins
@@ -368,7 +423,7 @@ export class Circulation {
     for (const tr of triggers) {
       if (tr.chamber === 'LV' || tr.chamber === 'RV') {
         ventActivation = Math.max(ventActivation, tr.activationFraction * tr.synchrony);
-        if (this.mechT < 0) { this.mechT = 0; this.beatTrigger = true; }
+        if (this.mechT < 0) { this.mechT = 0; this.beatTrigger = true; this.beginSystole(); }
       }
       if (tr.chamber === 'RA' || tr.chamber === 'LA') {
         atrialActivation = Math.max(atrialActivation, tr.activationFraction);
@@ -377,13 +432,14 @@ export class Circulation {
     }
 
     if (ventActivation > 0.1 && this.enRaw <= 0.1) {
-      this.mechT = 0; this.beatTrigger = true;
+      this.mechT = 0; this.beatTrigger = true; this.beginSystole();
       /* A dyssynchronous activation (bundle branch block, a ventricular focus) contracts less
          effectively: parts of the wall are still relaxing while others shorten. */
       this.beatSync = Math.min(1, Math.max(0.3, ventActivation));
     }
     this.enRaw = ventActivation;
-    this.en = this.activation(this.mechT, this.TmaxV) * (this.beatSync ?? 1);
+    this.en = this.activation(this.mechT, this.TmaxV, this.stretchLv ?? 1, this.normLv ?? this.actNorm) * (this.beatSync ?? 1);
+    this.enRv = this.activation(this.mechT, this.TmaxV, this.stretchRv ?? 1, this.normRv ?? this.actNorm) * (this.beatSync ?? 1);
     if (this.mechT >= 0) this.mechT += this.dt;
 
     if (atrialActivation > 0.1 && this.eaRaw <= 0.1) this.mechTa = 0;
@@ -407,13 +463,13 @@ export class Circulation {
     // ---- RK4 over the whole state vector ---------------------------------
     const h = this.dt, y0 = this.s;
     const tmp = new Float64Array(N_STATE);
-    const k1 = this.deriv(y0, this.en, this.ea).d;
+    const k1 = this.deriv(y0, this.en, this.ea, this.enRv ?? this.en).d;
     for (let i = 0; i < N_STATE; i++) tmp[i] = y0[i] + 0.5 * h * k1[i];
-    const k2 = this.deriv(tmp, this.en, this.ea).d;
+    const k2 = this.deriv(tmp, this.en, this.ea, this.enRv ?? this.en).d;
     for (let i = 0; i < N_STATE; i++) tmp[i] = y0[i] + 0.5 * h * k2[i];
-    const k3 = this.deriv(tmp, this.en, this.ea).d;
+    const k3 = this.deriv(tmp, this.en, this.ea, this.enRv ?? this.en).d;
     for (let i = 0; i < N_STATE; i++) tmp[i] = y0[i] + h * k3[i];
-    const k4 = this.deriv(tmp, this.en, this.ea).d;
+    const k4 = this.deriv(tmp, this.en, this.ea, this.enRv ?? this.en).d;
     for (let i = 0; i < N_STATE; i++) {
       y0[i] += (h / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]);
     }
@@ -438,7 +494,7 @@ export class Circulation {
     this.sigmaS = y0[S_SS]; this.sigmaP = y0[S_SP];
     this.t += h;
 
-    const f = this.deriv(y0, this.en, this.ea);
+    const f = this.deriv(y0, this.en, this.ea, this.enRv ?? this.en);
     this.prevMitral = this.mitralOpen; this.prevAortic = this.aorticOpen;
     this.prevTricuspid = this.tricuspidOpen; this.prevPulmonic = this.pulmonicOpen;
     this.mitralOpen = f.mitral; this.aorticOpen = f.aortic;
@@ -471,7 +527,7 @@ export class Circulation {
     /* (the first closure of the beat: a valve that flickers shut again at end-diastole is not the first heart sound) */
     if (this.prevTricuspid && !this.tricuspidOpen && this.events.tvc == null) this.events.tvc = idx;
     if (!this.prevPulmonic && this.pulmonicOpen && this.events.pvo == null) this.events.pvo = idx;
-    if (this.prevPulmonic && !this.pulmonicOpen && this.events.pvc == null) this.events.pvc = idx;
+    if (this.prevPulmonic && !this.pulmonicOpen && this.events.pvc == null) { this.events.pvc = idx; this.breathAtP2 = this.breathPhase(); }
     if (!this.prevTricuspid && this.tricuspidOpen && this.events.tvo == null) this.events.tvo = idx;
     if (this.prevMitral && !this.mitralOpen && this.events.m1 == null) this.events.m1 = idx;
 
@@ -590,7 +646,14 @@ export class Circulation {
     this.valveTimes = this.timesOf(b, this.events, dur);
     /* The recent beats, each with the pleural pressure it was made at: inspiration's beats and expiration's differ. */
     const n = Math.max(1, this.beatPplN || 0);
-    (this.beatLog ??= []).push({ ...this.valveTimes, Psys, dPpl: (this.beatPplSum || 0) / n });
+    /* A beat's window runs from its QRS to the next: its own ejection, then the diastole that fills the next beat. So
+       the pleural pressure a beat was filled under is the previous window's (fillPpl); that is the breathing phase
+       its ejection, and its P2, belong to. */
+    const dPplBeat = (this.beatPplSum || 0) / n;
+    /* t0: when the beat began (ms on the circulation's clock); breath: where in the breath its P2 fell. */
+    (this.beatLog ??= []).push({ ...this.valveTimes, Psys, dPpl: dPplBeat, fillPpl: this.lastBeatPpl ?? dPplBeat, t0: this.beatStartT, breath: this.breathAtP2 ?? null });
+    this.breathAtP2 = null;
+    this.lastBeatPpl = dPplBeat;
     if (this.beatLog.length > 40) this.beatLog.shift();
     this.beatPplSum = 0; this.beatPplN = 0;
     this.beat = [];
@@ -613,8 +676,15 @@ export class Circulation {
     /* The atrial kick: the filling peak in the last 200 ms before the next activation, after rapid filling has ended. */
     let aIdx = null, aPeak = 0;
     for (let i = 0; i < b.length; i++) if (b[i].t >= Math.max(dur - 200, rapidEnd ?? 0) && b[i].Qmit > aPeak) { aPeak = b[i].Qmit; aIdx = i; }
+    /* The end of the right ventricle's active systole, as Curtiss timed it (the "O" of Q–O): the onset of the rapid
+       fall of its pressure, here where it has fallen a fifth of the way from its peak to its diastolic minimum. */
+    let ip = 0, lo = Infinity, rvRelax = null;
+    for (let i = 0; i < b.length; i++) if (b[i].Prv > b[ip].Prv) ip = i;
+    for (let i = ip; i < b.length; i++) lo = Math.min(lo, b[i].Prv);
+    const th = b.length ? b[ip].Prv - 0.2 * (b[ip].Prv - lo) : 0;
+    for (let i = ip + 1; i < b.length; i++) if (b[i].Prv <= th) { const f = (b[i - 1].Prv - th) / Math.max(1e-9, b[i - 1].Prv - b[i].Prv); rvRelax = b[i - 1].t + f * (b[i].t - b[i - 1].t); break; }
     return {
-      cycle: dur, m1: at(ev.m1 ?? ev.mvc), t1: at(ev.tvc), avo: at(ev.avo), a2: at(ev.avc), pvo: at(ev.pvo), p2: at(ev.pvc), mvo: at(mvo), tvo: at(ev.tvo),
+      cycle: dur, m1: at(ev.m1 ?? ev.mvc), rvRelax, t1: at(ev.tvc), avo: at(ev.avo), a2: at(ev.avc), pvo: at(ev.pvo), p2: at(ev.pvc), mvo: at(mvo), tvo: at(ev.tvo),
       ePeak: at(eIdx), rapidEnd, aPeak: at(aIdx), eFlow: ePeak, aFlow: aPeak,
     };
   }
@@ -679,6 +749,7 @@ export class Circulation {
       tricuspidOpen: this.tricuspidOpen, pulmonicOpen: this.pulmonicOpen,
       prevMitral: this.prevMitral, prevAortic: this.prevAortic,
       en: this.en, ea: this.ea, E: this.E, Ela: this.Ela, prevEn: this.prevEn,
+      enRv: this.enRv, stretchLv: this.stretchLv, stretchRv: this.stretchRv, normLv: this.normLv, normRv: this.normRv, edvRefLv: this.edvRefLv, edvRefRv: this.edvRefRv, edvBreathLv: this.edvBreathLv, edvBreathRv: this.edvBreathRv, lastBeatPpl: this.lastBeatPpl,
       beatStartT: this.beatStartT, lastSample: this.lastSample,
       avConduction: this.avConduction, lbbConduction: this.lbbConduction, rbbConduction: this.rbbConduction,
       _pathParams: { ...(this._pathParams || {}) },
@@ -734,6 +805,9 @@ export class Circulation {
     this.prevMitral = !!state.prevMitral;
     this.prevAortic = !!state.prevAortic;
     this.en = state.en ?? 0;
+    this.enRv = state.enRv ?? this.en;
+    for (const k of ['stretchLv', 'stretchRv']) this[k] = state[k] ?? 1;
+    for (const k of ['normLv', 'normRv', 'edvRefLv', 'edvRefRv', 'edvBreathLv', 'edvBreathRv', 'lastBeatPpl']) this[k] = state[k] ?? null;
     this.ea = state.ea ?? 0;
     this.E = state.E ?? 0;
     this.Ela = state.Ela ?? 0;
