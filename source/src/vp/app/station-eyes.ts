@@ -8,8 +8,8 @@ import { observe } from '../engine/observe.ts';
 import { FORMATTERS } from '../text/formatters.ts';
 import { tr, type LocalizedText } from '../model/i18n.ts';
 import { EYE_STATION, stationSettings } from '../stations/station.ts';
-import { EYE_PRESETS, EYE_PRESET_GROUPS, EYE_STRUCTURES, applyEyePreset } from '../stations/eye-presets.ts';
-import { eyeSignsOf, eyeView, eyeContext } from '../stations/eye-signs.ts';
+import { EYE_PRESETS, EYE_PRESET_GROUPS, EYE_STRUCTURES, EYE_LOOK_ALIKE, applyEyePreset, lookAlike } from '../stations/eye-presets.ts';
+import { eyeSignsOf, eyeView, eyeContext, eyeSignGroups } from '../stations/eye-signs.ts';
 import { explainEye, EYE_TESTS, EYE_TEST_LABEL, BODY_TESTS, type EyeTest } from '../stations/eye-texts.ts';
 import { sceneFindings, type SceneControls, type Scene } from '../render/eye-scene.ts';
 import { EyeView } from '../render/eye-view.ts';
@@ -22,7 +22,7 @@ import { patientBanner, type StationHandle, type StationOptions } from './statio
 import type { ExamContext, Gaze, Side } from '../model/types.ts';
 
 /* ---------------------------------------------------------------------------
-   The eye station: Explore.
+   The eye station: Explore, Predict and Identify.
 
    A healthy adult's face, close up, examined test by test: pupils and lids,
    the swinging light, eye movements and pursuit, the cover test, nystagmus
@@ -32,6 +32,15 @@ import type { ExamContext, Gaze, Side } from '../model/types.ts';
    examiner is doing now. The settings are lesions of the nervous-system
    graph and a peripheral vestibular loss: nothing here decides how the eyes
    look.
+
+   Predict: choosing a starting point first asks which signs it will bring,
+   and scores the answer once the eyes (and the body, if it changed) show
+   it. Identify hides a lesion, or a healthy patient, among the starting
+   points: the learner examines with every test and control, but sees no
+   finding text, signs, settings or pathway, then names the signs and the
+   lesion. Scoring is the knowledge tables' own: the signs the eye
+   examination finds, named and there, there but not named, named but not
+   there.
 --------------------------------------------------------------------------- */
 
 const L = (en: string, de: string): LocalizedText => ({ en, de });
@@ -63,7 +72,24 @@ const T: Record<string, LocalizedText> = {
   pullNote: L('Your thumb draws the lower lid down; the patient looks up.', 'Ihr Daumen zieht das Unterlid herab; der Patient blickt nach oben.'),
   followDown: L('Follow my finger down', 'Meinem Finger nach unten folgen'),
   running: L('The body is being run through the illness (days to weeks of it, in a few seconds)…', 'Der Körper wird durch die Erkrankung gerechnet (Tage bis Wochen davon, in wenigen Sekunden)…'),
+  explore: L('Explore', 'Erkunden'), identify: L('Identify', 'Erkennen'), mode: L('Mode', 'Modus'),
+  predict: L('Predict first', 'Erst vorhersagen'), predictNote: L('Choosing a starting point first asks which signs it will bring.', 'Bei der Wahl eines Ausgangspunkts fragt die Station zuerst, welche Zeichen er bringt.'),
+  predictQ: L('Which signs will this bring to the eye examination?', 'Welche Zeichen wird das in der Augenuntersuchung bringen?'),
+  showIt: L('Show it', 'Zeigen'), cancel: L('Cancel', 'Abbrechen'),
+  brought: L('It brought', 'Es brachte'), took: L('It took away', 'Es nahm weg'), youMissed: L('Not predicted', 'Nicht vorhergesagt'), notCome: L('Predicted, did not come', 'Vorhergesagt, kam nicht'), nothing: L('nothing', 'nichts'),
+  allRight: L('Every sign as you predicted.', 'Jedes Zeichen wie vorhergesagt.'), waiting: L('Examining the new patient…', 'Der neue Patient wird untersucht…'),
+  unknown: L('Unknown', 'Unbekannt'), unknownNote: L('A healthy adult with a hidden lesion, or none. Examine as you would at the bedside: every test, every control. No findings are written for you; for the visual fields, the patient tells you what they see.', 'Ein gesunder Erwachsener mit einer verdeckten Läsion, oder ohne. Untersuchen Sie wie am Bett: jeder Test, jedes Bedienelement. Befunde werden Ihnen nicht vorgeschrieben; beim Gesichtsfeld sagt Ihnen der Patient, was er sieht.'),
+  preparingUnknown: L('Preparing the patient…', 'Der Patient wird vorbereitet…'),
+  nameSigns: L('Name the signs', 'Zeichen benennen'), nameSignsNote: L('Pick every sign you find. Naming one that is not there counts too.', 'Wählen Sie jedes Zeichen, das Sie finden. Ein Zeichen zu nennen, das nicht da ist, zählt auch.'),
+  nameMech: L('Name the lesion', 'Die Läsion benennen'), healthyPatient: L('No lesion: a healthy patient', 'Keine Läsion: ein gesunder Patient'), chooseMech: L('Choose…', 'Wählen…'),
+  check: L('Check', 'Prüfen'), next: L('Next unknown', 'Nächstes Unbekanntes'), seeWhy: L('See why, in Explore', 'Das Warum ansehen, im Erkunden-Modus'),
+  hits: L('Named, and there', 'Benannt und vorhanden'), misses: L('There, not named', 'Vorhanden, nicht benannt'), over: L('Named, not there', 'Benannt, nicht vorhanden'),
+  mechRight: L('Right', 'Richtig'), mechWrong: L('It was', 'Es war'), score: L('right this session', 'richtig in dieser Sitzung'), foundWhere: L('Where each is found', 'Wo jedes zu finden ist'),
+  patientSays: L('The patient says', 'Der Patient sagt'),
+  looksSame: L('looks the same at the bedside, so it counts', 'sieht am Bett genauso aus und zählt daher'),
 };
+/* Identify hides every starting point and a healthy patient. */
+const IDENTIFY_POOL = ['healthy', ...EYE_PRESETS.map((p) => p.id)];
 const SIDE2: Side[] = ['L', 'R'];
 const GAZES: Gaze[] = ['primary', 'left', 'right', 'up', 'down'];
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
@@ -105,6 +131,15 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
   const settings = stationSettings(EYE_STATION);
   const open = new Set<string>(['nervous-system/lesions']);
   const signLabel = (x: string) => labelOf(KNOWLEDGE, `sign:${x}`, lang);
+  let mode: 'explore' | 'identify' = 'explore';
+  let predict = false;
+  let pending: { id: string; picked: Set<string> } | null = null;
+  let awaiting: { before: Set<string>; picked: string[] } | null = null;
+  let feedback: { brought: string[]; took: string[]; picked: string[] } | null = null;
+  const id: { pool: string[]; n: number; hidden: string; truth: ReturnType<typeof eyeSignsOf> | null; named: Set<string>; mech: string; checked: boolean; right: number; done: number } =
+    { pool: [], n: 0, hidden: 'healthy', truth: null, named: new Set(), mech: '', checked: false, right: 0, done: 0 };
+  const presetLabel = (pid: string) => (pid === 'healthy' ? t('healthyPatient') : tr(EYE_PRESETS.find((p) => p.id === pid)?.label ?? L(pid, pid), lang));
+  const signsNow = () => eyeSignsOf(model, snapNow(), chemNow());
   const manoeuvreLabel = (m: string) => tr(CATALOG.manoeuvres[m]?.label ?? L(m, m), lang);
 
   /* what the examiner is doing now, as the eye view's controls */
@@ -135,8 +170,15 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
   const head = () => `<div class="st-head">
         <button type="button" class="ghost" data-leave>← ${o.backLabel ? tr(o.backLabel, lang) : t('back')}</button>
         <div class="st-title"><div class="eyebrow">${t('eyebrow')}</div><h1>${esc(tr(EYE_STATION.title, lang))}</h1><p class="lede">${esc(tr(EYE_STATION.summary, lang))}</p></div>
+        <span class="seg st-mode" role="radiogroup" aria-label="${t('mode')}">${(['explore', 'identify'] as const).map((m) => `<button type="button" role="radio" aria-checked="${mode === m}" data-mode="${m}">${t(m)}</button>`).join('')}</span>
       </div>
-      ${patientBanner(o, lang)}`;
+      ${mode === 'explore' ? patientBanner(o, lang) : ''}`;
+  const testTabs = () => `<div class="st-tests" role="tablist" aria-label="${t('test')}">${EYE_TESTS.map((x) => `<button type="button" role="tab" class="tog" aria-selected="${x === test}" data-test="${x}">${esc(tr(EYE_TEST_LABEL[x], lang))}</button>`).join('')}</div>`;
+  const chips = (ids: string[], on: Set<string>, attr: string, disabled = false) => ids.map((x) =>
+    `<button type="button" class="chip st-chip" ${attr}="${x}" aria-pressed="${on.has(x)}" ${disabled ? 'disabled' : ''}>${esc(signLabel(x))}</button>`).join('');
+  /* the signs grouped by the test that shows them */
+  const groupedChips = (on: Set<string>, attr: string, disabled = false) => eyeSignGroups().map((g) =>
+    `<div class="st-chip-group"><div class="muted small">${esc(tr(EYE_TEST_LABEL[g.test], lang))}</div><div class="st-chips">${chips(g.signs, on, attr, disabled)}</div></div>`).join('');
   const seg = (attr: string, items: Array<[string, string]>, cur: string, label: string) =>
     `<span class="seg" role="radiogroup" aria-label="${esc(label)}">${items.map(([v, lab]) => `<button type="button" role="radio" aria-checked="${v === cur}" ${attr}="${v}">${esc(lab)}</button>`).join('')}</span>`;
   const liftBox = () => `<label class="st-check st-lift"><input type="checkbox" data-lift ${k.lift ? 'checked' : ''}> ${t('lift')}</label>`;
@@ -163,6 +205,7 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
   };
 
   const render = () => {
+    if (mode === 'identify') { renderIdentify(); return; }
     host.innerHTML = `${head()}
       <div class="st-grid">
         <aside class="panel st-settings" aria-labelledby="st-set-h">
@@ -172,12 +215,14 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
             <select data-preset><option value="">${t('choose')}</option>${EYE_PRESET_GROUPS.map((g) => `<optgroup label="${esc(tr(g.group, lang))}">${g.ids.map((id) => EYE_PRESETS.find((p) => p.id === id)!).map((p) => `<option value="${p.id}">${esc(tr(p.label, lang))}</option>`).join('')}</optgroup>`).join('')}</select>
           </label>
           <button type="button" class="ghost small" data-healthy>${t('healthy')}</button>
+          <label class="st-predict"><input type="checkbox" data-predict ${predict ? 'checked' : ''}><span><b>${t('predict')}</b><br><span class="muted small">${t('predictNote')}</span></span></label>
           <div data-controls></div>
         </aside>
         <div class="st-main">
           <section class="panel st-signal" aria-labelledby="st-see-h">
             <div class="st-row"><div><h2 id="st-see-h">${t('see')}</h2><div class="muted small">${t('seeNote')}</div></div></div>
-            <div class="st-tests" role="tablist" aria-label="${t('test')}">${EYE_TESTS.map((x) => `<button type="button" role="tab" class="tog" aria-selected="${x === test}" data-test="${x}">${esc(tr(EYE_TEST_LABEL[x], lang))}</button>`).join('')}</div>
+            <div data-predict-box></div>
+            ${testTabs()}
             <div class="st-listen" data-test-controls>${testControls()}</div>
             <p class="muted small" data-running role="status" ${BODY_TESTS.includes(test) && !snapNow() ? '' : 'hidden'}>${t('running')}</p>
             <div class="eyehost st-eyes" role="img" aria-label="${t('face')}"></div>
@@ -195,6 +240,128 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
     wire();
     startView();
     renderFindings();
+    renderPredict();
+  };
+
+  /* ---- predict -------------------------------------------------------------------------------------------------------- */
+  const renderPredict = () => {
+    const box = host.querySelector<HTMLElement>('[data-predict-box]');
+    if (!box) return;
+    if (pending) {
+      box.innerHTML = `<div class="st-predict-q" role="group" aria-label="${t('predictQ')}">
+        <div class="eyebrow">${t('predict')} · ${esc(presetLabel(pending.id))}</div>
+        <p><b>${t('predictQ')}</b></p>
+        ${groupedChips(pending.picked, 'data-pick')}
+        <div class="st-row-buttons"><button type="button" class="primary" data-go>${t('showIt')}</button><button type="button" class="ghost" data-cancel>${t('cancel')}</button></div></div>`;
+      box.querySelectorAll<HTMLButtonElement>('[data-pick]').forEach((b) => b.onclick = () => {
+        const x = b.dataset.pick!; pending!.picked.has(x) ? pending!.picked.delete(x) : pending!.picked.add(x);
+        b.setAttribute('aria-pressed', String(pending!.picked.has(x)));
+      });
+      box.querySelector<HTMLButtonElement>('[data-cancel]')!.onclick = () => { pending = null; host.querySelector<HTMLSelectElement>('[data-preset]')!.value = ''; renderPredict(); };
+      box.querySelector<HTMLButtonElement>('[data-go]')!.onclick = () => {
+        const pid = pending!.id;
+        awaiting = { before: signsNow().present, picked: [...pending!.picked] };
+        pending = null; feedback = null;
+        applyPreset(pid);
+      };
+    } else if (awaiting) box.innerHTML = `<p class="muted">${t('waiting')}</p>`;
+    else if (feedback) {
+      const f = feedback, got = new Set(f.brought);
+      const right = f.picked.filter((x) => got.has(x)), missed = f.brought.filter((x) => !f.picked.includes(x)), wrong = f.picked.filter((x) => !got.has(x));
+      const list = (xs: string[]) => (xs.length ? xs.map((x) => esc(signLabel(x))).join(', ') : t('nothing'));
+      box.innerHTML = `<div class="st-predict-a" role="status">
+        <p><b>${t('brought')}:</b> ${list(f.brought)}${f.took.length ? `. <b>${t('took')}:</b> ${list(f.took)}` : ''}.</p>
+        ${!missed.length && !wrong.length ? `<p class="ok">${t('allRight')}</p>` : `${missed.length ? `<p><b>${t('youMissed')}:</b> ${list(missed)}</p>` : ''}${wrong.length ? `<p><b>${t('notCome')}:</b> ${list(wrong)}</p>` : ''}`}
+        ${right.length ? `<p class="muted small">✓ ${list(right)}</p>` : ''}</div>`;
+    } else box.innerHTML = '';
+  };
+  /** Once the eyes (and the body, if it changed) show the new patient, the prediction is scored. */
+  const resolvePrediction = () => {
+    if (!awaiting || !snapNow()) return;
+    const after = signsNow().present, a = awaiting;
+    awaiting = null;
+    feedback = { brought: [...after].filter((x) => !a.before.has(x)), took: [...a.before].filter((x) => !after.has(x)), picked: a.picked };
+    renderPredict();
+  };
+  const applyPreset = (pid: string) => {
+    const p = EYE_PRESETS.find((x) => x.id === pid);
+    change(applyEyePreset(model, pid));
+    if (p) { test = p.look; t0 = performance.now(); k.lift = SIDE2.some((S) => ctxCache.s.ptosisMm[S] >= 7); }
+    render();
+    const sel = host.querySelector<HTMLSelectElement>('[data-preset]');
+    if (sel) sel.value = pid;
+    resolvePrediction();
+  };
+
+  /* ---- identify ------------------------------------------------------------------------------------------------------- */
+  const nextUnknown = () => {
+    if (!id.pool.length) id.pool = [...IDENTIFY_POOL].sort(() => Math.random() - 0.5);
+    id.hidden = id.pool.pop()!;
+    id.n++; id.truth = null; id.named = new Set(); id.mech = ''; id.checked = false;
+    test = 'pupils'; t0 = performance.now(); k.lift = false;
+    model = applyEyePreset(model, id.hidden === 'healthy' ? '' : id.hidden);
+    /* every unknown runs the body, so how long it takes says nothing about what it is */
+    runBody();
+    refresh();
+  };
+  const renderIdentify = () => {
+    const ready = !!id.truth;
+    host.innerHTML = `${head()}
+      <div class="st-grid">
+        <aside class="panel st-settings" aria-labelledby="st-name-h">
+          <h2 id="st-name-h">${t('nameSigns')}</h2>
+          <p class="layer-note">${t('nameSignsNote')}</p>
+          ${groupedChips(id.named, 'data-name', id.checked)}
+          <label class="st-preset">${t('nameMech')}
+            <select data-mech ${id.checked ? 'disabled' : ''}><option value="">${t('chooseMech')}</option><option value="healthy" ${id.mech === 'healthy' ? 'selected' : ''}>${t('healthyPatient')}</option>
+            ${EYE_PRESET_GROUPS.map((g) => `<optgroup label="${esc(tr(g.group, lang))}">${g.ids.map((x) => `<option value="${x}" ${id.mech === x ? 'selected' : ''}>${esc(presetLabel(x))}</option>`).join('')}</optgroup>`).join('')}</select>
+          </label>
+          ${id.checked ? `<button type="button" class="primary" data-next>${t('next')}</button>` : `<button type="button" class="primary" data-check ${ready && id.mech ? '' : 'disabled'}>${t('check')}</button>`}
+          ${id.done ? `<p class="muted small">${id.right} / ${id.done} ${t('score')}</p>` : ''}
+        </aside>
+        <div class="st-main">
+          <section class="panel st-signal" aria-labelledby="st-unk-h">
+            <div class="st-row"><div><h2 id="st-unk-h">${t('unknown')} ${id.n}</h2><div class="muted small">${t('unknownNote')}</div></div></div>
+            ${ready ? '' : `<p class="muted" data-recording role="status">${t('preparingUnknown')}</p>`}
+            ${testTabs()}
+            <div class="st-listen" data-test-controls>${testControls()}</div>
+            <div class="eyehost st-eyes" role="img" aria-label="${t('face')}"></div>
+            <ul class="st-findings plain small" data-findings aria-live="polite"></ul>
+          </section>
+          ${id.checked ? resultHtml() : ''}
+        </div>
+      </div>`;
+    wire();
+    startView();
+    renderFindings();
+    host.querySelectorAll<HTMLButtonElement>('[data-name]').forEach((b) => b.onclick = () => {
+      const x = b.dataset.name!; id.named.has(x) ? id.named.delete(x) : id.named.add(x);
+      b.setAttribute('aria-pressed', String(id.named.has(x)));
+    });
+    host.querySelector<HTMLSelectElement>('[data-mech]')!.onchange = (e) => { id.mech = (e.target as HTMLSelectElement).value; const c = host.querySelector<HTMLButtonElement>('[data-check]'); if (c) c.disabled = !(id.truth && id.mech); };
+    host.querySelector<HTMLButtonElement>('[data-check]')?.addEventListener('click', () => {
+      id.checked = true; id.done++;
+      const tp = id.truth!.present;
+      if (lookAlike(id.mech, id.hidden) && [...id.named].every((x) => tp.has(x)) && [...tp].every((x) => id.named.has(x))) id.right++;
+      renderIdentify();
+    });
+    host.querySelector<HTMLButtonElement>('[data-next]')?.addEventListener('click', () => { nextUnknown(); renderIdentify(); });
+    host.querySelector<HTMLButtonElement>('[data-why]')?.addEventListener('click', () => { mode = 'explore'; render(); });
+  };
+  const resultHtml = () => {
+    const truth = id.truth!;
+    const hits = [...id.named].filter((x) => truth.present.has(x)), misses = [...truth.present].filter((x) => !id.named.has(x)), over = [...id.named].filter((x) => !truth.present.has(x));
+    const col = (title: string, xs: string[], cls: string) => `<div class="st-res ${cls}"><h3>${title}</h3>${xs.length ? `<ul>${xs.map((x) => `<li>${esc(signLabel(x))}</li>`).join('')}</ul>` : `<p class="muted small">—</p>`}</div>`;
+    const right = lookAlike(id.mech, id.hidden);
+    const alike = right && id.mech !== id.hidden ? EYE_LOOK_ALIKE.find((g) => g.ids.includes(id.hidden)) : undefined;
+    const where = [...truth.present].map((x) => { const w = truth.where.get(x) ?? []; return `<li><b>${esc(signLabel(x))}</b>: ${esc(w.length ? w.map(manoeuvreLabel).join('; ') : t('compared'))}</li>`; }).join('');
+    return `<section class="panel st-result" aria-labelledby="st-res-h">
+      <h2 id="st-res-h" class="${right ? 'ok' : 'abn'}">${right ? t('mechRight') : t('mechWrong')}: ${esc(presetLabel(id.hidden))}</h2>
+      ${alike ? `<p class="muted small">${esc(presetLabel(id.mech))} ${t('looksSame')}: ${esc(tr(alike.why, lang))}</p>` : ''}
+      <div class="st-res-grid">${col(t('hits'), hits, 'hit')}${col(t('misses'), misses, 'miss')}${col(t('over'), over, 'over')}</div>
+      ${where ? `<div><h3 class="small">${t('foundWhere')}</h3><ul class="small">${where}</ul></div>` : ''}
+      <button type="button" class="ghost" data-why>${t('seeWhy')}</button>
+    </section>`;
   };
 
   /* ---- settings ----------------------------------------------------------------------------------------------------------- */
@@ -250,6 +417,8 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
     renderFindings();
     const run = host.querySelector<HTMLElement>('[data-running]');
     if (run) run.hidden = !(BODY_TESTS.includes(test) && !snap);
+    resolvePrediction();
+    if (mode === 'identify' && !id.truth && snap) { id.truth = signsNow(); renderIdentify(); }
   };
   runBody();
 
@@ -260,12 +429,13 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
     const eh = host.querySelector<HTMLElement>('.st-eyes')!;
     view = new EyeView(eh, appearanceOf(ev.c.patient as any, 7));
     trace = [];
-    const canvas = host.querySelector<HTMLCanvasElement>('.st-mech')!;
+    const canvas = host.querySelector<HTMLCanvasElement>('.st-mech');
     const colors = { fg: css('--fg'), muted: css('--muted'), accent: css('--accent'), abn: css('--abn'), line: css('--line'), surface: css('--surface'), light: '#e8a317' };
     view.show((sc) => sceneFindings(CATALOG, REGISTRY, ev.c, ev.view, sc), controls, (sc: Scene, kk: SceneControls, now: number) => {
       if (stopped) return;
       trace.push({ t: now / 1000, h: sc.R.h, v: sc.R.v, head: sc.head, vR: sc.R.v, vL: sc.L.v });
       while (trace.length && trace[0].t < now / 1000 - 8) trace.shift();
+      if (!canvas) return;   // Identify draws no pathway
       const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth || 600, h = eyeMechanismHeight(test, w);
       if (canvas.style.height !== `${h}px`) canvas.style.height = `${h}px`;
       if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
@@ -313,6 +483,11 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
   const renderFindings = () => {
     const box = host.querySelector<HTMLElement>('[data-findings]');
     if (!box) return;
+    if (mode === 'identify') {
+      /* the eyes show everything but the fields, which only the patient can report */
+      box.innerHTML = test === 'fields' && id.truth ? `<li><b>${t('patientSays')}:</b></li>${findingLines().map((x) => `<li>${x.replace(/<b class="abn"[^>]*>●<\/b> /, '')}</li>`).join('')}` : '';
+      return;
+    }
     box.innerHTML = findingLines().map((x) => `<li>${x}</li>`).join('');
     const snap = snapNow();
     const r = eyeSignsOf(model, snap, chemNow());
@@ -327,17 +502,27 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
 
   const wire = () => {
     host.querySelector<HTMLButtonElement>('[data-leave]')!.onclick = () => { stop(); o.onLeave(); };
-    host.querySelector<HTMLSelectElement>('[data-preset]')!.onchange = (e) => {
-      const id = (e.target as HTMLSelectElement).value;
-      if (!id) return;
-      const p = EYE_PRESETS.find((x) => x.id === id);
-      change(applyEyePreset(model, id));
-      if (p) { test = p.look; t0 = performance.now(); k.lift = SIDE2.some((S) => ctxCache.s.ptosisMm[S] >= 7); }
+    host.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.onclick = () => {
+      const m = b.dataset.mode as typeof mode;
+      if (m === mode) return;
+      mode = m; pending = null; awaiting = null; feedback = null;
+      if (mode === 'identify') { if (!id.n || id.checked) nextUnknown(); }
+      else change(applyEyePreset(model, id.hidden === 'healthy' ? '' : id.hidden));   // Explore opens on the patient just identified
       render();
-      host.querySelector<HTMLSelectElement>('[data-preset]')!.value = id;
+    });
+    const sel = host.querySelector<HTMLSelectElement>('[data-preset]');
+    if (sel) sel.onchange = () => {
+      const pid = sel.value;
+      if (!pid) return;
+      if (predict) { pending = { id: pid, picked: new Set() }; awaiting = null; feedback = null; renderPredict(); return; }
+      feedback = null;
+      applyPreset(pid);
     };
-    host.querySelector<HTMLButtonElement>('[data-healthy]')!.onclick = () => { change(applyEyePreset(model, '')); render(); };
-    host.querySelectorAll<HTMLButtonElement>('[data-test]').forEach((b) => b.onclick = () => { test = b.dataset.test as EyeTest; t0 = performance.now(); render(); });
+    const pr = host.querySelector<HTMLInputElement>('[data-predict]');
+    if (pr) pr.onchange = () => { predict = pr.checked; };
+    const hb = host.querySelector<HTMLButtonElement>('[data-healthy]');
+    if (hb) hb.onclick = () => { pending = null; feedback = null; change(applyEyePreset(model, '')); render(); };
+    host.querySelectorAll<HTMLButtonElement>('[data-test]').forEach((b) => b.onclick = () => { test = b.dataset.test as EyeTest; t0 = performance.now(); mode === 'identify' ? renderIdentify() : render(); });
     wireTestControls();
   };
   const wireTestControls = () => {

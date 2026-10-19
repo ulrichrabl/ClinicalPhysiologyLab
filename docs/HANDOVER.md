@@ -1,6 +1,6 @@
 # Handover: start here
 
-Last updated: 19 October 2026, with the eye station's body signs. Before it: the eye station (Explore). Before it: the ADR-017 step 4 PR (the auscultation station, Explore). Earlier: 18 October 2026, with the ADR-017 step 1 PR (the ECG station). Before it, work was paused after PR #48 at the owner's request.
+Last updated: 19 October 2026, with the eye station's Predict and Identify (the eye station is complete). Before it: the eye station (Explore). Before it: the ADR-017 step 4 PR (the auscultation station, Explore). Earlier: 18 October 2026, with the ADR-017 step 1 PR (the ECG station). Before it, work was paused after PR #48 at the owner's request.
 
 **Where we paused.** Nothing is in flight; every PR is merged and live. Waiting on the owner (details in "Waiting for the owner" below):
 
@@ -259,8 +259,14 @@ A station pairs one test with the mechanism that writes it, on one clock. Read `
   - **Signs:** `stations/eye-signs.ts`, read from the knowledge tables over the eye manoeuvres; a sign that needs tests compared (Horner's dilation lag) counts when the whole examination shows it. The debrief's "In a station" lists the patient's eye signs; the nine eye test cards link to the station.
   - **Explanations:** `stations/eye-texts.ts`, EN/DE, drafts until a clinician reads them.
   - **The body in the eye:** three more tests, Sclerae, Conjunctivae and Thyroid eye signs, read the body model: bilirubin, haemoglobin and thyroid hormone with Graves' orbitopathy. The station runs the body through the illness in a fresh `LivePatient` whenever a body setting changes (a few seconds: days to weeks of illness), and shows those signs only once it has. The eye view now draws the yellow sclera, the drawn-down lower lid with its conjunctival colour, lid retraction and lid lag, and the globe standing forward, all graded from the findings; the encounter's close-up does too, for the three inspections. Five starting points: bile duct obstruction, haemolytic anaemia, a slow colonic bleed, Graves' disease with orbitopathy, too much levothyroxine (lid signs without exophthalmos). Settings add the liver, blood and thyroid groups and the illness's duration; calcium and bone are left out (`leaveOut`).
+  - **Predict and Identify**, as at the auscultation station:
+    - "Predict first" asks which signs a starting point will bring. It scores the answer once the eyes (and the body, if it changed) show the new patient.
+    - Identify hides one of the starting points, or a healthy patient. The learner examines with every test and control but sees no finding text, signs, settings or pathway. For the visual fields, the patient's own report is shown. The learner then names the signs and the lesion.
+    - The signs are offered grouped by the test that shows each one (`eyeSignGroups`).
+    - Every unknown runs the body, so the waiting time gives nothing away.
+    - The optic tract and the occipital cortex look the same to the model's examination, so either counts as right, with the reason (`EYE_LOOK_ALIKE`). A test checks that no other two starting points look alike, with sides counted.
   - **Not modelled:** the fundus (case data only), INO and other gaze palsies (no MLF or saccade model), quadrantanopia and macular sparing (the field model has halves), a partial afferent defect (the afferent pathway is on or off).
-- **Next:** the eye station's Predict and Identify; then gap 17 (the mitral stenosis rule) and a pulse and neck-vein station (the circulation's arterial and venous waveforms; pulsus paradoxus waits on gap 13).
+- **Next:** gap 17 (the mitral stenosis rule) and a pulse and neck-vein station (the circulation's arterial and venous waveforms; pulsus paradoxus waits on gap 13).
 
 ## Problem reports
 

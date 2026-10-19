@@ -8,7 +8,7 @@ import { KNOWLEDGE, SignEvaluator } from '../knowledge/index.ts';
 import { signsTestLooksFor, signsFoundBy } from '../knowledge/elicited.ts';
 import type { CaseDef, ExamContext } from '../model/types.ts';
 import { neuroExamState } from '../models/neuro-exam.ts';
-import type { EyeContext } from './eye-texts.ts';
+import { EYE_TESTS, EYE_TEST_MANOEUVRES, type EyeContext, type EyeTest } from './eye-texts.ts';
 
 /* ---------------------------------------------------------------------------
    The eye station's signs: read from the knowledge tables, never defined
@@ -39,11 +39,14 @@ export function eyeView(model: PatientModel, snap?: Record<string, any>, chemist
 }
 
 /** The eye signs of a patient with this model: each with the tests that find it on their own. */
-export function eyeSignsOf(model: PatientModel, snap?: Record<string, any>, chemistry?: Record<string, number>): { present: Set<string>; where: Map<string, string[]> } {
+export function eyeSignsOf(model: PatientModel, snap?: Record<string, any>, chemistry?: Record<string, number>): { present: Set<string>; where: Map<string, string[]>; sides: Map<string, Set<string>> } {
   const { c, view } = eyeView(model, snap, chemistry);
   const obs = (ref: any, ctx: any) => observe(CATALOG, REGISTRY.resolvers, c, view, ref, ctx);
-  const where = new Map<string, string[]>();
-  for (const m of EYE_MANOEUVRES) for (const f of signsFoundBy(KNOWLEDGE, CATALOG, obs, m).found) where.set(f.sign, [...(where.get(f.sign) ?? []), m]);
+  const where = new Map<string, string[]>(), sides = new Map<string, Set<string>>();
+  for (const m of EYE_MANOEUVRES) for (const f of signsFoundBy(KNOWLEDGE, CATALOG, obs, m).found) {
+    where.set(f.sign, [...(where.get(f.sign) ?? []), m]);
+    const s = sides.get(f.sign) ?? new Set<string>(); for (const x of f.sides) s.add(x); sides.set(f.sign, s);
+  }
   /* signs that need tests compared */
   const all = new SignEvaluator(CATALOG, obs);
   for (const id of eyeSigns()) {
@@ -51,7 +54,13 @@ export function eyeSignsOf(model: PatientModel, snap?: Record<string, any>, chem
     const d = KNOWLEDGE.signs[id].definition;
     if (d && all.holds(d) === true) where.set(id, []);
   }
-  return { present: new Set(where.keys()), where };
+  return { present: new Set(where.keys()), where, sides };
+}
+
+/** What the eye examination shows, with the side of each sign where it has one: two patients with the same signature look
+    the same at the bedside. */
+export function eyeSignature(r: ReturnType<typeof eyeSignsOf>): string {
+  return [...r.present].sort().map((x) => `${x}:${[...(r.sides.get(x) ?? [])].sort().join('')}`).join(' ');
 }
 
 /** What the eye station's explanations read: the examination model's state and the few findings they quote. */
@@ -73,4 +82,18 @@ export function eyeContext(model: PatientModel, snap?: Record<string, any>, chem
     } : null,
     findings: { icterus: o('eyes.sclera')?.icterus ?? 'none', pallor: o('eyes.conjunctiva')?.pallor ?? 'none', thyroid: o('eyes.thyroid') ?? {} },
   };
+}
+
+/** The eye signs by the test that looks for them first, in the station's order of tests: how Predict and Identify offer
+    them, so a learner finds each sign beside the test that shows it. */
+export function eyeSignGroups(): Array<{ test: EyeTest; signs: string[] }> {
+  /* A sign goes to the most specific test that looks for it: inspecting the eyes at rest looks for nearly everything, so it
+     comes last; nystagmus goes to the Frenzel goggles before the eye movements that also show it. */
+  const PRIORITY: EyeTest[] = ['swinging', 'cover', 'impulse', 'fields', 'sclera', 'conjunctiva', 'thyroid', 'nystagmus', 'movements', 'pupils'];
+  const all = eyeSigns(), home = new Map<string, EyeTest>();
+  for (const test of PRIORITY) {
+    const looked = new Set(EYE_TEST_MANOEUVRES[test].flatMap((m) => signsTestLooksFor(KNOWLEDGE, CATALOG, m)));
+    for (const x of all) if (looked.has(x) && !home.has(x)) home.set(x, test);
+  }
+  return EYE_TESTS.map((test) => ({ test, signs: all.filter((x) => home.get(x) === test) })).filter((g) => g.signs.length);
 }

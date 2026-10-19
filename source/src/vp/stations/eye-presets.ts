@@ -114,3 +114,13 @@ export const EYE_STRUCTURES: Array<{ group: LocalizedText; nodes: Array<{ id: st
     { id: 'R_cerebellum', label: L('Cerebellar hemisphere, right', 'Kleinhirnhemisphäre rechts') }, { id: 'L_cerebellum', label: L('Cerebellar hemisphere, left', 'Kleinhirnhemisphäre links') },
   ] },
 ];
+
+/** Starting points the eye examination cannot tell apart, each with why: Identify counts either as right. An optic tract
+    lesion and an occipital one both give a homonymous hemianopia here; at the bedside a tract lesion can add a relative
+    afferent defect in the eye with the temporal loss and the occipital one may spare the macula, and the model has
+    neither (a known gap). */
+export const EYE_LOOK_ALIKE: Array<{ ids: string[]; why: LocalizedText }> = [
+  { ids: ['optic-tract-r', 'occipital-r'], why: L('Both give a left homonymous hemianopia, and the model has neither the tract lesion’s afferent pupil defect nor the cortex’s macular sparing.',
+    'Beide ergeben eine homonyme Hemianopsie nach links; das Modell hat weder den afferenten Pupillendefekt der Tractusläsion noch die Makulaaussparung der Rinde.') },
+];
+export const lookAlike = (a: string, b: string) => a === b || EYE_LOOK_ALIKE.some((g) => g.ids.includes(a) && g.ids.includes(b));

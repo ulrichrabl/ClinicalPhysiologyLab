@@ -33,8 +33,8 @@ export { auscSigns, auscSignsOf, heartManoeuvres } from '../src/vp/stations/ausc
 export { STATIONS } from '../src/vp/stations/station.ts';
 /* the eye station */
 export { EYE_STATION } from '../src/vp/stations/station.ts';
-export { EYE_PRESETS, EYE_PRESET_GROUPS, EYE_STRUCTURES, applyEyePreset } from '../src/vp/stations/eye-presets.ts';
-export { eyeSigns, eyeSignsOf, eyeContext, eyeView, EYE_MANOEUVRES } from '../src/vp/stations/eye-signs.ts';
+export { EYE_PRESETS, EYE_PRESET_GROUPS, EYE_STRUCTURES, EYE_LOOK_ALIKE, applyEyePreset } from '../src/vp/stations/eye-presets.ts';
+export { eyeSigns, eyeSignsOf, eyeContext, eyeView, eyeSignGroups, eyeSignature, EYE_MANOEUVRES } from '../src/vp/stations/eye-signs.ts';
 export { explainEye, EYE_TESTS } from '../src/vp/stations/eye-texts.ts';
 export { scene, sceneFindings, pursuitTarget } from '../src/vp/render/eye-scene.ts';
 export { chemistryState } from '../src/vp/physiology/chemistry.ts';

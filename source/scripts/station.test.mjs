@@ -273,6 +273,21 @@ console.log('\nThe eye station');
     const ahead = S.scene(gf, { gaze: 'primary', fixation: true, lightOn: 'none', ambient: 'room', cover: null }, 0).R, down = S.scene(gf, { gaze: 'down', fixation: true, lightOn: 'none', ambient: 'room', cover: null }, 0).R;
     ok('…in Graves’ disease the lid is drawn up, more so looking down (lid lag), and the globe stands forward', ahead.retractionMm > 0 && down.retractionMm > ahead.retractionMm && ahead.proptosisMm > 0, J({ ahead, down }));
   }
+  /* Predict and Identify offer the signs grouped by the test that shows them */
+  const offered = S.eyeSignGroups().flatMap((g) => g.signs);
+  ok('Predict and Identify offer every eye sign once, each beside the test that shows it', J([...offered].sort()) === J([...S.eyeSigns()].sort()) && new Set(offered).size === offered.length, J(S.eyeSignGroups().map((g) => [g.test, g.signs.length])));
+  ok('…and every sign a starting point brings is among them, so Identify can always be answered in full', S.EYE_PRESETS.every((p) => [...signs[p.id]].every((x) => offered.includes(x))), J(S.EYE_PRESETS.map((p) => [p.id, [...signs[p.id]].filter((x) => !offered.includes(x))]).filter(([, xs]) => xs.length)));
+  {
+    /* the side of each sign counts: a left and a right neuritis differ only in which head impulse is abnormal */
+    const sig = {};
+    for (const p of S.EYE_PRESETS) sig[p.id] = S.eyeSignature(signsOfPreset(p.id));
+    const same = [];
+    for (const a of S.EYE_PRESETS) for (const b of S.EYE_PRESETS) if (a.id < b.id && sig[a.id] === sig[b.id]) same.push([a.id, b.id].sort().join('='));
+    const declared = S.EYE_LOOK_ALIKE.map((g) => [...g.ids].sort().join('='));
+    ok('Identify can tell every starting point from health and from the others, except the pairs declared to look alike (each with why), which it counts as right',
+      J(same.sort()) === J(declared.sort()) && S.EYE_PRESETS.every((p) => sig[p.id] !== ''), J({ same, declared }));
+    ok('…a left neuritis and a right one differ by the side of the abnormal head impulse', sig['neuritis-l'] !== sig['neuritis-r-week'] && sig['neuritis-l'].includes('head-impulse-positive:L'), `${sig['neuritis-l']} | ${sig['neuritis-r-week']}`);
+  }
   ok('every starting point is in a group, once', J(S.EYE_PRESET_GROUPS.flatMap((g) => g.ids).sort()) === J(S.EYE_PRESETS.map((p) => p.id).sort()));
   ok('HINTS: the neuritis has an abnormal head impulse and no skew; the lateral medulla a normal head impulse and a skew',
     signs['neuritis-l'].has('head-impulse-positive') && !signs['neuritis-l'].has('skew-deviation') && !signs['lateral-medulla-l'].has('head-impulse-positive') && signs['lateral-medulla-l'].has('skew-deviation'));
