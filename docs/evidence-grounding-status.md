@@ -104,4 +104,8 @@ The test suite (`scripts/vp-model.test.mjs`) does three things:
 3. Pulmonary embolism and lung water (gaps 2–4), with the lung chapter.
 4. Age-dependent vagal tone, so resting heart rate and baroreflex sensitivity follow age (Monahan).
 5. The kidney's acid handling, if the original studies can be obtained.
-6. Pulmonary outflow inertance (gap 12, needs Shaver's hangout data; the ventricles' share is in), ventricular interdependence in tamponade (gap 13), then the rate dependence of systole (gaps 10–11): before the auscultation station (ADR-017 step 4).
+6. The heart–lung interaction, as one topic, in this order. Parked by the owner (2026-10-19) to build the auscultation station first.
+   1. The breath waveform. The branch `breath-waveform` has it, not merged: the muscle pressure rises through inspiration and decays in expiration, so inflow lasts Tobin's duty cycle and pleural pressure is lowest at end-inspiration. Its own tests pass. It moves five calibrated results just past their limits, through the heart's response to the changed pleural swing: hypothyroid pulse 58 (60–80), baroreflex sensitivity 21.2 (≤ 20), haemorrhage stroke volume −10 % (−12 to −30), central cyanosis and its COPD exception. Each needs its own look; none should be tuned back.
+   2. The abdominal pump (gap 16): the diaphragm's rise in abdominal pressure squeezing the splanchnic veins. Check against Körperich's IVC and SVC swings, then against Claessen's RV volumes.
+   3. Refit `systoleLengthGain` (gap 12) once the filling is right, and recheck gaps 12, 13 and 15.
+   4. Then pulmonary outflow inertance (gap 12, needs Shaver's hangout data), ventricular interdependence in tamponade (gap 13), and the rate dependence of systole (gaps 10–11).
