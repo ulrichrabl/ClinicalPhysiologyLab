@@ -606,7 +606,8 @@ console.log('\nHeart sounds timed by the circulation (ADR-017 step 3)');
     const from = run.sim.t * 1000;
     const rows = [], beats = new Map();
     for (let i = 0; i < seconds * 10; i++) {
-      run.advance(0.1); rows.push({ d: run.sim.dPpl, ra: run.sim.Pra });
+      run.advance(0.1); const r = run.resp.snapshot();
+      rows.push({ d: run.sim.dPpl, ra: run.sim.Pra, flow: r.flow, ppl: r.Ppl, bt: r.breathT, Ti: r.Ti, Te: r.Te });
       if (i % 100 === 99) for (const b of run.sim.beatLog) beats.set(b.t0, b);
     }
     for (const b of run.sim.beatLog) beats.set(b.t0, b);
@@ -615,6 +616,13 @@ console.log('\nHeart sounds timed by the circulation (ADR-017 step 3)');
   const mean = (xs, f) => xs.reduce((a, x) => a + f(x), 0) / Math.max(1, xs.length);
   const hb = breathe(healthyModel(), 240);
   const swing = (Math.max(...hb.rows.map((r) => r.d)) - Math.min(...hb.rows.map((r) => r.d))) / 0.7356;
+  /* Tobin 1983: in quiet breathing inspiration (inflow) takes 0.42 ± 0.03 of each breath; pleural pressure is lowest at its end. */
+  const inflow = hb.rows.filter((r) => r.flow > 0).length / hb.rows.length;
+  ok('air flows in for Tobin’s share of each breath (duty cycle 0.42 ± 0.03)', Math.abs(inflow - 0.42) <= 0.03, `${inflow.toFixed(2)}`);
+  const lowAt = (() => { const per = new Map(); let k = 0, prev = Infinity;
+    for (const r of hb.rows) { if (r.bt < prev) k++; prev = r.bt; const x = per.get(k); if (!x || r.ppl < x.ppl) per.set(k, r); }
+    const xs = [...per.values()].slice(1, -1).map((r) => (r.bt - r.Ti) / (r.Ti + r.Te)); return xs.reduce((a, x) => a + x, 0) / xs.length; })();
+  ok('…and pleural pressure is lowest at the end of inspiration (within a tenth of the breath)', Math.abs(lowAt) <= 0.1, `${(100 * lowAt).toFixed(0)} % of the breath from end-inspiration`);
   ok('quiet breathing swings pleural pressure by 2–4 cmH2O below its resting −5, and the heart feels it', swing >= 2 && swing <= 4, `${swing.toFixed(1)} cmH2O`);
   const raIn = mean(hb.rows.filter((r) => r.d < -1), (r) => r.ra), raEx = mean(hb.rows.filter((r) => r.d > -0.3), (r) => r.ra);
   ok('…the right atrial pressure (the JVP) falls in inspiration', raIn < raEx - 0.3, `${raIn.toFixed(1)} vs ${raEx.toFixed(1)} mmHg`);
@@ -1156,10 +1164,10 @@ console.log('\nHormones: thyroid, adrenal cortex and calcium');
     G.b.tsh < 0.1 && G.b.ft4 > 35 && G.snap.metrics.HRbeat > 100 && G.snap.metrics.CO > H.snap.metrics.CO * 1.3 && G.snap.resp.VO2 > H.snap.resp.VO2 * 1.4 && G.snap.metrics.SVR < H.snap.metrics.SVR * 0.8,
     `TSH ${f(G.b.tsh, 3)} fT4 ${f(G.b.ft4)} HR ${f(G.snap.metrics.HRbeat, 0)} CO ${f(G.snap.metrics.CO)} VO2 ${f(G.snap.resp.VO2, 0)} SVR ${f(G.snap.metrics.SVR, 0)}`);
   const Hy = B(chronic(90, { thyroidGland: 0.08 }));
-  ok('hypothyroidism: TSH high, T4 low, pulse 60–80, resistance up and output down, metabolic rate down 10–30 % (Klein & Danzi; Karmisholt 2010)', Hy.b.tsh > 20 && Hy.b.ft4 < 8 && Hy.snap.metrics.HRbeat >= 59.5 && Hy.snap.metrics.HRbeat <= 80 && Hy.snap.metrics.SVR > H.snap.metrics.SVR * 1.3 && Hy.snap.metrics.CO < H.snap.metrics.CO * 0.85 && Hy.snap.resp.VO2 > H.snap.resp.VO2 * 0.7 && Hy.snap.resp.VO2 < H.snap.resp.VO2 * 0.9,
-    `TSH ${f(Hy.b.tsh)} fT4 ${f(Hy.b.ft4)} HR ${f(Hy.snap.metrics.HRbeat, 0)} SVR ${f(Hy.snap.metrics.SVR, 0)} CO ${f(Hy.snap.metrics.CO)} VO2 ${f(Hy.snap.resp.VO2, 0)}`);
-  gap('…with cardiac output down 30–50 % as reported (Klein & Danzi)', Hy.snap.metrics.CO < H.snap.metrics.CO * 0.7,
-    `TSH ${f(Hy.b.tsh)} fT4 ${f(Hy.b.ft4)} HR ${f(Hy.snap.metrics.HRbeat, 0)} SVR ${f(Hy.snap.metrics.SVR, 0)} CO ${f(Hy.snap.metrics.CO)} VO2 ${f(Hy.snap.resp.VO2, 0)}`);
+  ok('hypothyroidism: TSH high, T4 low, pulse 60–80, resistance up and output down, metabolic rate down 10–30 % (Klein & Danzi; Karmisholt 2010)', Hy.b.tsh > 20 && Hy.b.ft4 < 8 && (Hy.snap.metricsBreath ?? Hy.snap.metrics).HRbeat >= 59.5 && (Hy.snap.metricsBreath ?? Hy.snap.metrics).HRbeat <= 80 && (Hy.snap.metricsBreath ?? Hy.snap.metrics).SVR > (H.snap.metricsBreath ?? H.snap.metrics).SVR * 1.3 && (Hy.snap.metricsBreath ?? Hy.snap.metrics).CO < (H.snap.metricsBreath ?? H.snap.metrics).CO * 0.85 && Hy.snap.resp.VO2 > H.snap.resp.VO2 * 0.7 && Hy.snap.resp.VO2 < H.snap.resp.VO2 * 0.9,
+    `TSH ${f(Hy.b.tsh)} fT4 ${f(Hy.b.ft4)} HR ${f((Hy.snap.metricsBreath ?? Hy.snap.metrics).HRbeat)} SVR ${f((Hy.snap.metricsBreath ?? Hy.snap.metrics).SVR, 0)} CO ${f((Hy.snap.metricsBreath ?? Hy.snap.metrics).CO)} VO2 ${f(Hy.snap.resp.VO2, 0)}`);
+  gap('…with cardiac output down 30–50 % as reported (Klein & Danzi)', (Hy.snap.metricsBreath ?? Hy.snap.metrics).CO < (H.snap.metricsBreath ?? H.snap.metrics).CO * 0.7,
+    `TSH ${f(Hy.b.tsh)} fT4 ${f(Hy.b.ft4)} HR ${f((Hy.snap.metricsBreath ?? Hy.snap.metrics).HRbeat)} SVR ${f((Hy.snap.metricsBreath ?? Hy.snap.metrics).SVR, 0)} CO ${f((Hy.snap.metricsBreath ?? Hy.snap.metrics).CO)} VO2 ${f(Hy.snap.resp.VO2, 0)}`);
   const Sub = B(chronic(120, { thyroidGland: 0.5 }));
   ok('a failing gland driven harder: subclinical hypothyroidism (TSH up, T4 still normal)', Sub.b.tsh > 4 && Sub.b.ft4 > 10, `TSH ${f(Sub.b.tsh)} fT4 ${f(Sub.b.ft4)}`);
   const T4 = B((m) => chronic(90, { thyroidGland: 0.02, thyroxineDose: 1.6 * m.patient.weightKg })(m));
@@ -1304,13 +1312,14 @@ console.log('\nThe circulation against human data');
     atr >= 95 && atr <= 112 && prop < H.sim.HReff - 5 && dbl >= 88 && dbl <= 97, `rest ${H.sim.HReff}, atropine ${atr}, propranolol ${prop}, both ${dbl}`);
   { // steady-state cardiovagal baroreflex slope across pressor and depressor resistance changes
     const m = healthyModel(), r = createCirculation(m); r.settle(40); const pts = [];
-    for (const k of [0.85, 1, 1.15]) { const mm = clone(m); mm.circulation.Rsys = m.circulation.Rsys * k; r.apply(mm); r.settleFast(30); pts.push([r.sim.metrics.Psys, 60000 / r.sim.metrics.HRbeat]); }
+    /* breath-averaged: since the respiratory pump single beats differ through each breath, and one beat's phase would decide the slope */
+    for (const k of [0.85, 1, 1.15]) { const mm = clone(m); mm.circulation.Rsys = m.circulation.Rsys * k; r.apply(mm); r.settleFast(30); const mb = r.sim.metricsBreath ?? r.sim.metrics; pts.push([mb.Psys, 60000 / mb.HRbeat]); }
     const slope = (pts[2][1] - pts[0][1]) / (pts[2][0] - pts[0][0]);
     ok('cardiovagal baroreflex sensitivity 8–20 ms/mmHg (Monahan: 19 young, 8.3 older men)', slope > 8 && slope < 20, `${slope.toFixed(1)} ms/mmHg`);
   }
   { // Johnson 2014: 1000 mL from ~6.4 L in three 5-minute stages; here 5.2 % of blood per stage
     const m = healthyModel(), r = createCirculation(m); r.settle(40);
-    const snap = () => ({ HR: r.sim.HReff, MAP: r.sim.metrics.Pmean, SV: r.sim.metrics.SV, CO: r.sim.metrics.CO, CVP: r.sim.metrics.CVPmean });
+    const snap = () => { const mb = r.sim.metricsBreath ?? r.sim.metrics; return { HR: r.sim.HReff, MAP: mb.Pmean, SV: mb.SV, CO: mb.CO, CVP: mb.CVPmean }; };   // breath-averaged
     const b = snap(); for (const k of [1, 2, 3]) { const mm = clone(m); mm.circulation.bloodVolume = m.circulation.bloodVolume * (1 - 0.052 * k); r.apply(mm); r.advance(300); }
     const e = snap(), pc = (k) => (e[k] / b[k] - 1) * 100, d = `HR ${pc('HR').toFixed(0)} % MAP ${pc('MAP').toFixed(1)} % SV ${pc('SV').toFixed(0)} % CO ${pc('CO').toFixed(0)} % CVP ${(e.CVP - b.CVP).toFixed(1)} mmHg (Johnson: +14, −2.4, −20, −11 %, −4.7)`;
     ok('haemorrhage of a sixth of the blood over 15 minutes: pressure held within 5 %, stroke volume down 12–30 %, output down 5–20 % (Johnson 2014)',

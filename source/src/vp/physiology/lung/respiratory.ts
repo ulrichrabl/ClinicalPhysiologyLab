@@ -637,14 +637,20 @@ export class Respiratory {
     }
     const insp = this.breathT < pat.Ti;
     this.phase = insp ? 'insp' : 'exp';
-    const Pmus = insp ? this.Pmax * Math.sin((Math.PI * this.breathT) / pat.Ti) : 0;
+    /* The inspiratory muscles' pressure rises through inspiration to its peak at its end, and relaxes over early expiration
+       (the waveform of Albanese 2016). So air flows in for the whole of Ti, as Tobin's duty cycle says, and pleural pressure is
+       lowest at end-inspiration. (A half-sine peaking mid-inspiration let the lungs empty again before Ti was over.) */
+    const t = this.breathT, Ti = pat.Ti, Te = pat.Te, tauM = Math.max(0.05, LUNG.pmusDecay * Te);
+    const Pmus = insp ? this.Pmax * (t * (Ttot - t)) / (Ti * Te)
+                      : (this.Pmax / (1 - Math.exp(-Te / tauM))) * (Math.exp(-(t - Ti) / tauM) - Math.exp(-Te / tauM));
     const R = insp ? m.Ri : m.Re;
     const tau = R * m.Crs;
     const Vinf = Pmus * m.Crs;                         // V measured above the relaxed FRC
     const Vn = Vinf + (this.V - Vinf) * Math.exp(-h / tau);
     this.flow = (Vn - this.V) / h;
     this.V = Vn;
-    if (insp) this.vtThis = Math.max(this.vtThis, this.V - this.vStart);
+    /* the volume can still rise briefly after Ti, while the muscles relax */
+    this.vtThis = Math.max(this.vtThis, this.V - this.vStart);
     this.Pmus = Pmus;
   }
   private Pmus = 0;
