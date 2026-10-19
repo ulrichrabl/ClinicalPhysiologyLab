@@ -81,7 +81,10 @@ export function createCirculation(m: PatientModel): CirculationRun {
 
   let pplMean = NaN;
   const couple = () => {
-    const mt = sim.metrics;
+    /* The lungs and the body see the circulation over a circulation time, not beat by beat: the mixed venous blood
+       reaching the lungs is pooled from many beats, and the beats differ through each breath (the respiratory pump).
+       They read the beats averaged over about a breath. */
+    const mt = sim.metricsBreath ?? sim.metrics;
     const out = bodyOut();
     resp.setInputs({
       CO: mt?.CO && mt.CO > 0.3 ? mt.CO : 5.2, Pla: mt?.PlaMean ?? 7, Ppa: mt?.PpaMean ?? 15,

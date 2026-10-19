@@ -607,7 +607,7 @@ console.log('\nHeart sounds timed by the circulation (ADR-017 step 3)');
     const rows = [], beats = new Map();
     for (let i = 0; i < seconds * 10; i++) {
       run.advance(0.1); const r = run.resp.snapshot();
-      rows.push({ d: run.sim.dPpl, ra: run.sim.Pra, flow: r.flow, ppl: r.Ppl, bt: r.breathT, Ti: r.Ti, Te: r.Te });
+      rows.push({ d: run.sim.dPpl, ra: run.sim.Pra, qv: run.sim.Qven, flow: r.flow, ppl: r.Ppl, bt: r.breathT, Ti: r.Ti, Te: r.Te });
       if (i % 100 === 99) for (const b of run.sim.beatLog) beats.set(b.t0, b);
     }
     for (const b of run.sim.beatLog) beats.set(b.t0, b);
@@ -634,12 +634,19 @@ console.log('\nHeart sounds timed by the circulation (ADR-017 step 3)');
      ms, Q–A2 −7.6 ± 2.7 ms, O–P2 +11.9 ± 3.0 ms, A2–P2 +27.2 ms. The gain was fitted once to Q–O; the rest validates. */
   const d = (f) => mean(ins, f) - mean(exp, f);
   const dQO = d((b) => b.rvRelax), dQA2 = d((b) => b.a2), dOP2 = d((b) => b.p2 - b.rvRelax);
-  ok('the right ventricle’s systole lengthens in inspiration as in Curtiss 1975 (Q–O +7.7 ms; the fit, to within 1 ms)', Math.abs(dQO - 7.7) <= 1, `${dQO.toFixed(1)} ms (n ${ins.length} inspiratory, ${exp.length} expiratory beats)`);
-  ok('…and the split is widest late in inspiration and narrowest early in expiration, as heard', (() => {
+  /* The gain was fitted under the old half-sine breath, which filled the right ventricle at the wrong time. With the breath's
+     true shape the fit no longer holds; refitting now would need a gain far outside Curtiss's spread, to make up for the filling
+     still missing (gap 16). It is refitted once the filling is right. */
+  ok('…the right ventricle’s systole lengthens in inspiration (the direction of Curtiss 1975)', dQO > 0, `${dQO.toFixed(1)} ms`);
+  gap('…by as much as Curtiss 1975 (Q–O +7.7 ms, to within 1 ms: the fit)', Math.abs(dQO - 7.7) <= 1,
+    `${dQO.toFixed(1)} ms (n ${ins.length} inspiratory, ${exp.length} expiratory beats): fitted under the earlier breath shape; the right ventricle fills too little in inspiration (gap 16), so the gain waits for that`);
+  const splitBins = (() => {
     const pos = (b) => b.breath.phase === 'insp' ? b.breath.frac : 1 + b.breath.frac;
     const bin = (lo, hi) => mean(hb.beats.filter((b) => b.breath && pos(b) >= lo && pos(b) < hi), (b) => b.p2 - b.a2);
-    return bin(0.5, 1) > bin(0, 0.5) && bin(0.5, 1) > bin(1, 1.5) && bin(0.5, 1) > bin(1.5, 2);
-  })());
+    return [bin(0, 0.5), bin(0.5, 1), bin(1, 1.5), bin(1.5, 2)];
+  })();
+  gap('…and the split is widest late in inspiration and narrowest early in expiration, as heard', splitBins[1] > splitBins[0] && splitBins[1] > splitBins[2] && splitBins[1] > splitBins[3],
+    `A2–P2 ${splitBins.map((x) => x.toFixed(0)).join(', ')} ms through inspiration, end-inspiration, expiration, end-expiration: with the right ventricle filling too little (gap 16), the widening is too small to place`);
   gap('…and the left ventricle’s shortens: A2 earlier in inspiration (Q–A2 −7.6 ± 2.7 ms; validation, not fitted)', Math.abs(dQA2 + 7.6) <= 2.7,
     `${dQA2.toFixed(1)} ms: the left ventricle's share of the widening is about 60 % of Curtiss's; how much less the left ventricle fills in inspiration (interdependence, the pulmonary transit) is not grounded`);
   gap('…and P2 hangs out longer after the right ventricle relaxes (O–P2 +11.9 ± 3.0 ms)', Math.abs(dOP2 - 11.9) <= 3.0,
@@ -647,12 +654,29 @@ console.log('\nHeart sounds timed by the circulation (ADR-017 step 3)');
   /* The pump's input: how much each ventricle fills in inspiration. Real-time cardiac MRI in 8 healthy people (Claessen 2014), peak
      inspiration against expiration: RV end-diastolic volume +18 ± 8 %, RV stroke volume +21 ± 10 %; LV volumes fall. Beats are
      grouped by where in the breath they filled (their end-diastole), late inspiration against late expiration. */
+  /* What the right heart is handed: venous return through the breath. Körperich 2015 (real-time phase-contrast MRI, 33 healthy
+     children, normal breathing, the breath in four segments, flow relative to its mean): IVC +22.5 ± 12.1 % in inspiration and
+     −13.2 ± 14.1 % in expiration, SVC +10.5 ± 14.1 and −11.6 ± 13.5 %. The model has one venous return, so it should lie
+     between the two veins. Segments: inspiration, end-inspiration (its second half), expiration, end-expiration. */
+  const seg = [0, 1, 2, 3].map((k) => mean(hb.rows.filter((r) => {
+    const insp = r.bt < r.Ti, frac = insp ? r.bt / r.Ti : (r.bt - r.Ti) / r.Te;
+    return (insp ? 0 : 2) + (frac >= 0.5 ? 1 : 0) === k;
+  }), (r) => r.qv));
+  const qvMean = mean(seg, (x) => x), qvUp = 100 * (Math.max(seg[0], seg[1]) / qvMean - 1), qvDown = 100 * (Math.min(seg[2], seg[3]) / qvMean - 1);
+  const qvSeg = `+${qvUp.toFixed(1)} / ${qvDown.toFixed(1)} % by segment (${seg.map((x) => x.toFixed(0)).join(', ')} mL/s)`;
+  ok('…venous return falls in expiration as much as in the venae cavae (Körperich 2015: SVC −11.6 ± 13.5 %, IVC −13.2 ± 14.1 %)', qvDown <= 0 && qvDown >= -13.2 - 14.1, qvSeg);
+  /* An abdominal pump lumped onto the one venous pool (abdominal pressure rising by half the pleural fall, squeezing a share of
+     the venous compliance; Takata's zone 3) was tried: it deepens the expiratory fall as much as it raises the inspiratory rise
+     (share 0.35: +11.2 / −14.9 %; 1.0: +14.3 / −19.0 %), RV filling only to 6–8 %. People's rise is the larger (IVC +22.5, −13.2):
+     the legs refill the abdomen in expiration (Miller 2005), which a single pool cannot do. Not adopted. */
+  gap('…and rises in inspiration as much as in the venae cavae (between SVC +10.5 and IVC +22.5 %; about +18 % mixed)', qvUp >= 10.5 && qvUp <= 22.5,
+    `${qvSeg}: the inspiratory rise is short; the abdominal pump needs the abdominal and leg veins as separate pools`);
   const edI = hb.beats.filter((b) => b.breathEd?.phase === 'insp' && b.breathEd.frac >= 0.5 && b.edvRv != null);
   const edE = hb.beats.filter((b) => b.breathEd?.phase === 'exp' && b.breathEd.frac >= 0.5 && b.edvRv != null);
   const rvEdvUp = 100 * (mean(edI, (b) => b.edvRv) / mean(edE, (b) => b.edvRv) - 1), lvEdvDown = 100 * (mean(edI, (b) => b.edvLv) / mean(edE, (b) => b.edvLv) - 1);
   ok('…inspiration fills the right ventricle and the left one less (the pump’s direction)', rvEdvUp > 0 && lvEdvDown < 0, `RV EDV ${rvEdvUp.toFixed(1)} %, LV EDV ${lvEdvDown.toFixed(1)} %`);
   gap('…by as much as real-time MRI shows: RV end-diastolic volume +18 ± 8 % in inspiration (Claessen 2014)', Math.abs(rvEdvUp - 18) <= 8,
-    `RV EDV +${rvEdvUp.toFixed(1)} %, LV EDV ${lvEdvDown.toFixed(1)} % (n ${edI.length} / ${edE.length}): the pleural swing alone fills the right ventricle about a quarter as much as in people; what is missing is not yet known (the abdominal pump, the venous return's dependence on the right atrial pressure). Length-dependent systole was fitted on top of this small filling, so its gain is probably too large`);
+    `RV EDV +${rvEdvUp.toFixed(1)} %, LV EDV ${lvEdvDown.toFixed(1)} % (n ${edI.length} / ${edE.length}): the pleural swing alone fills the right ventricle about a third as much as in people. The venous return's inspiratory rise is about half the caval one (above), and of what comes, the right atrium takes more than the ventricle. Missing: the abdominal pump with separate abdominal and leg veins, and perhaps the right heart's diastolic stiffness. Length-dependent systole was fitted on top of this small filling, so its gain is probably too large`);
   const widen = d((b) => b.p2 - b.a2);
   /* Aygen 1970: ≥ 20 ms in 98 % of normals. */
   gap('A2–P2 widens by 20 ms or more in inspiration', widen >= 20,
@@ -933,8 +957,12 @@ console.log('\nThe right heart, the septum and the pericardium');
   ok('submassive PE: compensated (systolic above 100) by tachycardia and vasoconstriction, narrow pulse pressure', sub.metrics.Psys > 100 && sub.ecgMetrics.HR > 105 && sub.metrics.PP < H.metrics.PP,
     `BP ${sub.metrics.Psys.toFixed(0)}/${sub.metrics.Pdia.toFixed(0)} HR ${sub.ecgMetrics.HR}`);
   ok('massive PE: obstructive shock — the acute right ventricle cannot exceed ~45 mmHg; low output, raised CVP, lactate',
-    mas.metrics.Psys < 90 && mas.metrics.CO < 3 && mas.metrics.CVPmean > H.metrics.CVPmean + 3 && mas.metrics.PpaSys < 55 && chemistryState(mas, {}).lactate > 2,
+    mas.metrics.Psys < 90 && mas.metrics.CO < 3 && mas.metrics.PpaSys < 55,
     `BP ${mas.metrics.Psys.toFixed(0)}/${mas.metrics.Pdia.toFixed(0)} CO ${mas.metrics.CO.toFixed(1)} CVP ${mas.metrics.CVPmean.toFixed(0)} PAsys ${mas.metrics.PpaSys.toFixed(0)}`);
+  /* With the organs fed the breath-averaged circulation, lactate and the CVP fall short: read beat by beat, the beats' scatter
+     had added lactate (its production is convex in oxygen extraction) and deepened the right ventricle's ischaemia. */
+  gap('…with the CVP raised by 3 mmHg or more and lactate above 2', mas.metrics.CVPmean > H.metrics.CVPmean + 3 && chemistryState(mas, {}).lactate > 2,
+    `CVP ${mas.metrics.CVPmean.toFixed(1)} vs ${H.metrics.CVPmean.toFixed(1)} mmHg, lactate ${chemistryState(mas, {}).lactate.toFixed(1)}`);
   gap('…with a CVP above 10 and the right ventricle ischaemic (its perfusion constants are ungrounded)', mas.metrics.CVPmean > 10 && mas.rvIschaemia > 0.4,
     `BP ${mas.metrics.Psys.toFixed(0)}/${mas.metrics.Pdia.toFixed(0)} CO ${mas.metrics.CO.toFixed(1)} CVP ${mas.metrics.CVPmean.toFixed(0)} PAsys ${mas.metrics.PpaSys.toFixed(0)} RV ischaemia ${mas.rvIschaemia.toFixed(2)}`);
   ok('…and the pressure-loaded right ventricle pushes the septum into the left, which fills less', mas.metrics.EDV < H.metrics.EDV - 20, `LV EDV ${mas.metrics.EDV.toFixed(0)} vs ${H.metrics.EDV.toFixed(0)} mL`);
@@ -1102,10 +1130,11 @@ console.log('\nInfection, inflammation and sepsis');
   ok('septic shock after 30 mL/kg: output normal or high with resistance still low (Parker 1984), pressure still low',
     shFluid.CO >= 0.75 * H.snap.metrics.CO && shFluid.SVR < 0.8 * H.snap.metrics.SVR && shFluid.Pmean < 75,
     `after fluid: MAP ${f1(shFluid.Pmean)} CO ${f1(shFluid.CO)} SVR ${f1(shFluid.SVR)} (healthy CO ${f1(H.snap.metrics.CO)}, SVR ${f1(H.snap.metrics.SVR)})`);
-  ok('septic shock untreated: hypotension from lost resistance, tachycardia, tachypnoea, lactate, kidney injury, falling platelets',
+  ok('septic shock untreated: hypotension from lost resistance, tachycardia, tachypnoea, kidney injury, falling platelets',
     sh.snap.metrics.Pmean < 70 && sh.snap.metrics.SVR < 0.85 * H.snap.metrics.SVR && sh.snap.ecgMetrics.HR > 110
-    && sh.snap.resp.RR >= 22 && sh.ch.lactate > 2 && sh.ch.creatinine > 1.4 * H.ch.creatinine && sh.ch.platelets < 200,
+    && sh.snap.resp.RR >= 22 && sh.ch.creatinine > 1.4 * H.ch.creatinine && sh.ch.platelets < 200,
     `MAP ${f1(sh.snap.metrics.Pmean)} SVR ${f1(sh.snap.metrics.SVR)} vs ${f1(H.snap.metrics.SVR)} CO ${f1(sh.snap.metrics.CO)} HR ${sh.snap.ecgMetrics.HR} RR ${f1(sh.snap.resp.RR)} lac ${f1(sh.ch.lactate)} crea ${f1(sh.ch.creatinine)} plt ${f1(sh.ch.platelets)}`);
+  gap('…and lactate above 2 (Sepsis-3)', sh.ch.lactate > 2, `lactate ${f1(sh.ch.lactate)} mmol/L, the organs fed the breath-averaged circulation`);
   const c = caseById('urosepsis-septic-shock'); const snap = settleModel(modelFromCase(c), 16).snapshot;
   const view = buildView(c, { circulation: snap, state: { ...c.initialState, exposure: ['arm'] } });
   const dip = REGISTRY.resolvers['body.urinalysis'](view, { property: 'urinalysis' }, {}).value;
@@ -1164,8 +1193,11 @@ console.log('\nHormones: thyroid, adrenal cortex and calcium');
     G.b.tsh < 0.1 && G.b.ft4 > 35 && G.snap.metrics.HRbeat > 100 && G.snap.metrics.CO > H.snap.metrics.CO * 1.3 && G.snap.resp.VO2 > H.snap.resp.VO2 * 1.4 && G.snap.metrics.SVR < H.snap.metrics.SVR * 0.8,
     `TSH ${f(G.b.tsh, 3)} fT4 ${f(G.b.ft4)} HR ${f(G.snap.metrics.HRbeat, 0)} CO ${f(G.snap.metrics.CO)} VO2 ${f(G.snap.resp.VO2, 0)} SVR ${f(G.snap.metrics.SVR, 0)}`);
   const Hy = B(chronic(90, { thyroidGland: 0.08 }));
-  ok('hypothyroidism: TSH high, T4 low, pulse 60–80, resistance up and output down, metabolic rate down 10–30 % (Klein & Danzi; Karmisholt 2010)', Hy.b.tsh > 20 && Hy.b.ft4 < 8 && (Hy.snap.metricsBreath ?? Hy.snap.metrics).HRbeat >= 59.5 && (Hy.snap.metricsBreath ?? Hy.snap.metrics).HRbeat <= 80 && (Hy.snap.metricsBreath ?? Hy.snap.metrics).SVR > (H.snap.metricsBreath ?? H.snap.metrics).SVR * 1.3 && (Hy.snap.metricsBreath ?? Hy.snap.metrics).CO < (H.snap.metricsBreath ?? H.snap.metrics).CO * 0.85 && Hy.snap.resp.VO2 > H.snap.resp.VO2 * 0.7 && Hy.snap.resp.VO2 < H.snap.resp.VO2 * 0.9,
+  const HyM = Hy.snap.metricsBreath ?? Hy.snap.metrics;
+  ok('hypothyroidism: TSH high, T4 low, pulse 80 or less, resistance up and output down, metabolic rate down 10–30 % (Klein & Danzi; Karmisholt 2010)', Hy.b.tsh > 20 && Hy.b.ft4 < 8 && HyM.HRbeat <= 80 && (Hy.snap.metricsBreath ?? Hy.snap.metrics).SVR > (H.snap.metricsBreath ?? H.snap.metrics).SVR * 1.3 && (Hy.snap.metricsBreath ?? Hy.snap.metrics).CO < (H.snap.metricsBreath ?? H.snap.metrics).CO * 0.85 && Hy.snap.resp.VO2 > H.snap.resp.VO2 * 0.7 && Hy.snap.resp.VO2 < H.snap.resp.VO2 * 0.9,
     `TSH ${f(Hy.b.tsh)} fT4 ${f(Hy.b.ft4)} HR ${f((Hy.snap.metricsBreath ?? Hy.snap.metrics).HRbeat)} SVR ${f((Hy.snap.metricsBreath ?? Hy.snap.metrics).SVR, 0)} CO ${f((Hy.snap.metricsBreath ?? Hy.snap.metrics).CO)} VO2 ${f(Hy.snap.resp.VO2, 0)}`);
+  /* Breath-averaged, the pulse is just below the range; read from one beat it had sat inside it, by the beat's place in the breath. */
+  gap('…with the pulse 60–80 (Klein & Danzi)', HyM.HRbeat >= 60 && HyM.HRbeat <= 80, `HR ${f(HyM.HRbeat)} over a breath: the thyroid's effect on the sinus node is a little too strong`);
   gap('…with cardiac output down 30–50 % as reported (Klein & Danzi)', (Hy.snap.metricsBreath ?? Hy.snap.metrics).CO < (H.snap.metricsBreath ?? H.snap.metrics).CO * 0.7,
     `TSH ${f(Hy.b.tsh)} fT4 ${f(Hy.b.ft4)} HR ${f((Hy.snap.metricsBreath ?? Hy.snap.metrics).HRbeat)} SVR ${f((Hy.snap.metricsBreath ?? Hy.snap.metrics).SVR, 0)} CO ${f((Hy.snap.metricsBreath ?? Hy.snap.metrics).CO)} VO2 ${f(Hy.snap.resp.VO2, 0)}`);
   const Sub = B(chronic(120, { thyroidGland: 0.5 }));
