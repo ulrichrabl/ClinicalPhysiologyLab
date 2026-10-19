@@ -1,0 +1,37 @@
+{
+  "schema": "vp.scenario/1",
+  "id": "vestibular-ed-course",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": {
+    "en": "Acute vertigo: the examination on the clock",
+    "de": "Akuter Schwindel: die Untersuchung unter der Uhr"
+  },
+  "caseId": "vestibular-neuritis-left",
+  "purpose": "ADR-018 step 1: checks the scenario layer on the case with a scripted course. The examination runs on the scenario's clock, the case's course applies at its minute underneath, and the scene moves on what was examined. Not yet offered to learners.",
+  "scene": {
+    "place": { "en": "Emergency department, cubicle 4", "de": "Notaufnahme, Box 4" },
+    "people": [
+      { "id": "nurse", "role": { "en": "Nurse", "de": "Pflegekraft" }, "present": true }
+    ],
+    "equipment": []
+  },
+  "machine": {
+    "start": "waiting",
+    "states": {
+      "waiting": {
+        "label": { "en": "The patient is ready", "de": "Die Patientin ist bereit" },
+        "enter": [
+          { "say": { "who": "nurse", "text": { "en": "Mrs Keller is ready for you.", "de": "Frau Keller ist so weit." } } }
+        ],
+        "next": [
+          { "when": { "did": "test.head-impulse" }, "to": "examined" }
+        ]
+      },
+      "examined": {
+        "label": { "en": "Head impulse done", "de": "Kopfimpulstest gemacht" },
+        "final": true
+      }
+    }
+  }
+}

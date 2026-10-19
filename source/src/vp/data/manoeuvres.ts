@@ -69,7 +69,8 @@ function lungManoeuvres([site, key, en, de, enPh, dePh, face, listed]: LungSite)
 }
 
 /* ---- oxygen: a device and the inspired fraction it gives ---------------------------------------------- */
-const OXYGEN: Array<[string, string, number, string, string, string[], string[]]> = [
+/** Also read by the interventions (ADR-018), so a scenario's oxygen is the same device and fraction as the encounter's. */
+export const OXYGEN: Array<[string, string, number, string, string, string[], string[]]> = [
   ['nasal-2', 'nasal cannula 2 L/min', 0.28, 'Oxygen: nasal cannula 2 L/min', 'Sauerstoff: Nasenbrille 2 l/min', ['nasal cannula', 'nasal specs', 'oxygen 2 litres', 'low flow oxygen'], ['nasenbrille', '2 liter sauerstoff', 'sauerstoff über nasenbrille']],
   ['venturi-28', 'Venturi mask 28 %', 0.28, 'Oxygen: Venturi mask 28 %', 'Sauerstoff: Venturi-Maske 28 %', ['venturi 28', '28 percent venturi', 'controlled oxygen'], ['venturi 28', 'venturimaske 28', 'kontrollierte sauerstoffgabe']],
   ['venturi-35', 'Venturi mask 35 %', 0.35, 'Oxygen: Venturi mask 35 %', 'Sauerstoff: Venturi-Maske 35 %', ['venturi 35', '35 percent venturi'], ['venturi 35', 'venturimaske 35']],

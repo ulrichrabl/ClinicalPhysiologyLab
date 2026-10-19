@@ -64,19 +64,32 @@ export class LivePatient {
   async settle(seconds: number, slice = 2): Promise<void> {
     this.busy = true;
     try {
-      for (const _ of this.run.courseSteps()) await new Promise((r) => setTimeout(r, 0));
-      /* In passes, as settleModel does: the lungs change the circulation and the circulation the lungs. */
-      const pass = async (s: number) => {
-        for (let done = 0; done < s; done += slice) {
-          this.run.advance(Math.min(slice, s - done));
-          await new Promise((r) => setTimeout(r, 0));
-        }
-      };
-      const s = seconds * 0.6;
-      await pass(s * 0.5); this.run.equilibrate();
-      await pass(s * 0.35); this.run.equilibrate();
-      await pass(s * 0.15);
+      for (const _ of this.settleSteps(seconds, slice)) await new Promise((r) => setTimeout(r, 0));
     } finally { this.busy = false; }
+    this.settled();
+  }
+
+  /** The same settling, at once: for a run that must be reproduced exactly (a scenario, ADR-018), and for tests.
+      It does the same arithmetic as `settle`, so both reach the same patient. */
+  settleNow(seconds: number, slice = 2): void {
+    for (const _ of this.settleSteps(seconds, slice)) { /* run to the end */ }
+    this.settled();
+  }
+
+  private *settleSteps(seconds: number, slice: number): Generator<void> {
+    yield* this.run.courseSteps();
+    /* In passes, as settleModel does: the lungs change the circulation and the circulation the lungs. */
+    const run = this.run;
+    function* pass(s: number): Generator<void> {
+      for (let done = 0; done < s; done += slice) { run.advance(Math.min(slice, s - done)); yield; }
+    }
+    const s = seconds * 0.6;
+    yield* pass(s * 0.5); run.equilibrate();
+    yield* pass(s * 0.35); run.equilibrate();
+    yield* pass(s * 0.15);
+  }
+
+  private settled(): void {
     this.snap = this.capture();
     this.chemistry = chemistryState(this.snap, this.model.chemistry) as unknown as Record<string, number>;
     this.emit();

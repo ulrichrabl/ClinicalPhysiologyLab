@@ -1,6 +1,6 @@
 # ADR-018 — Interventions, scenarios and guideline scoring: acting on a running patient
 
-Status: Accepted (owner, 2026-10-19; the answers to the open questions are below); nothing built yet  
+Status: Accepted (owner, 2026-10-19; the answers to the open questions are below); step 1 built (2026-10-19)  
 Date: 2026-10-19  
 Repository: ClinicalPhysiologyLab
 
@@ -200,6 +200,24 @@ One complete arrest, chosen because it is bounded: one algorithm, clear metrics,
    - asystole and PEA, with hypovolaemia, tamponade (which needs gap 13 first) and tension pneumothorax;
    - out-of-hospital arrest with an AED.
 7. **Anaesthesia,** in its own ADR (decision 9).
+
+## Step 1, as built
+
+Interventions, the scenario layer and the seeded replay, with no new physiology.
+
+- **Interventions** (`source/src/vp/data/interventions.ts`, types in `src/vp/scenario/types.ts`): a registry with what each needs (equipment, access, the patient's abilities), how long the hands are busy (fixed, or a range drawn from the run's chance), where that time comes from (`measured` or `placement`), and its effect:
+  - *continuous:* holds model inputs in a slot while it lasts; a new intervention in the same slot replaces the old; released, the inputs and the patient's state return to what they were. It may keep the holder's hands busy (compressions will).
+  - *instantaneous:* writes the model once, and may grant access (`iv`).
+  - *pharmacological* comes with step 4.
+
+  Interventions write only what the running models take as inputs (circulation, lungs, the heart's electrical model); the validator refuses the body's slow parameters, which would re-run the illness. The first entries are the oxygen devices, which share their ids and inspired fractions with the encounter's `give.oxygen.*` manoeuvres, and IV access (30–60 s, a placement).
+- **Scenarios** (`src/vp/scenarios/*.json`, `vp.scenario/1`): a case, a scene (place, people present or arriving, equipment present or arriving) and a scene state machine. States say lines (EN/DE) and schedule arrivals on entering; transitions wait on what was done (`did`), what is held (`holding`), time (`at`, `inStateFor`) or a value of the running model (`circulation.<metric>`, `resp.<key>`, `body.<key>`), combined with `all` and `any`.
+- **The run** (`src/vp/scenario/run.ts`, `ScenarioRun`): one clock in ticks of 0.1 s, the models' coupling interval. Each tick the models advance, due interventions take effect, due arrivals come, the case's course applies, and the scene moves on. Inputs (intervene, release, examine, order, each by a named person) land between ticks. Whoever acts must be present and free; an examination keeps the hands busy for its duration; an order takes no hands. The encounter (`Session`) runs on the same clock, so its events, findings and debrief inputs are the encounter's own.
+- **The case's course** applies at its minute on the scenario clock. Its `physiology` (circulation parameters), which the encounter declared but never applied, now reaches the running model in a scenario. An `unless` may name an intervention.
+- **Chance** (`src/vp/scenario/chance.ts`): one seed, named streams derived from the seed and the name alone, so a new use of chance never shifts an old one. The heart's own generator is seeded from it (`HeartElectrical.seedChance`). Every draw is recorded as an event.
+- **Replay:** `replay(def, { seed, caseDef, log })` rebuilds a run from its seed and inputs. A replay reproduces the scene, the events, the encounter, the model and every value of the patient exactly. `LivePatient.settleNow` settles synchronously with the same arithmetic as `settle`, so a run starts from the same patient every time.
+- **Checked on** two draft scenarios, not offered to learners: `copd-ed-oxygen` (oxygen held on the running lungs, a cannula of seeded duration, the tray arriving, the scene waiting for both) and `vestibular-ed-course` (the examination and the case's scripted course at 20 minutes on the scenario clock). Tests: `scripts/scenario.test.mjs` (`npm run test:scenario`), including that a scenario with no inputs runs the patient exactly as the patient runs alone.
+- **Not yet:** no screen. The app's encounter still applies oxygen itself (`breatheOxygen` in `app/app.ts`); it could use the intervention's inputs once a scenario screen exists.
 
 ## Decided by the owner (2026-10-19)
 

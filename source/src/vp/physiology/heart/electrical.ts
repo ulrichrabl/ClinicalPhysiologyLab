@@ -193,6 +193,9 @@ export class HeartElectrical {
 
   timeMs = 0;
   private rng = new Rng(10392042);
+  /** Draw this heart's chance (AF intervals, fibrillation, noise) from a given seed: a scenario's one seeded generator
+      (ADR-018 decision 5) hands every model its own stream. Without it the heart keeps its fixed seed. */
+  seedChance(seed: number): void { this.rng = new Rng(seed); }
   private kernels: Kernel[] = [];
   private plateaus: Plateau[] = [];
   private pending: Array<{ t: number; kind: 'conducted' | 'escape' | 'vt'; pr: number | null }> = [];

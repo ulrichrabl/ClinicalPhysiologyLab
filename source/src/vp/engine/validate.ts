@@ -13,6 +13,7 @@ import { BODY_OUTPUTS } from '../physiology/chemistry.ts';
 import { CHEMISTRY_DEFAULTS } from '../../models/chemistry/public-state.ts';
 import { VARIABLE_BY_ID, VARIABLE_BY_KEY } from '../physiology/models.ts';
 import type { MeasurementSpec } from '../model/types.ts';
+import { INTERVENTION_BY_ID } from '../data/interventions.ts';
 
 function checkMeasurement(m: MeasurementSpec | undefined, source: string, path: string, out: Issue[]): void {
   if (!m) { if (source !== 'case') out.push({ level: 'warning', path, message: 'model-backed but says nothing about what it measures' }); return; }
@@ -321,7 +322,7 @@ export function validateCase(c: CaseDef, cat: Catalog, reg: Registry): Issue[] {
     if (!cat.diagnoses[id]) out.push({ level: 'error', path: 'diagnosis', message: `unknown diagnosis ${id}` });
   }
   for (const ev of c.course ?? []) for (const id of ev.unless ?? []) {
-    if (!cat.manoeuvres[id] && !cat.investigations[id]) out.push({ level: 'error', path: `course@${ev.atMinutes}`, message: `unknown action ${id}` });
+    if (!cat.manoeuvres[id] && !cat.investigations[id] && !INTERVENTION_BY_ID[id]) out.push({ level: 'error', path: `course@${ev.atMinutes}`, message: `unknown action ${id}` });
   }
   return out;
 }
