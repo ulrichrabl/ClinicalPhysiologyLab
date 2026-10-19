@@ -41,7 +41,8 @@ export function pulseStripHeight(w: number): number { return Math.round(Math.max
 
 /** The last seconds of the circulation's beats: ECG, arterial pressure, right atrial pressure. */
 export function drawPulseStrip(g: CanvasRenderingContext2D, w: number, h: number, beats: BeatRecord[], from: number, to: number,
-  c: PulseColors, labels: { ecg: string; art: string; ven: string; mmHg: string }) {
+  c: PulseColors, labels: { ecg: string; art: string; ven: string; mmHg: string }, opts: { blind?: boolean } = {}) {
+  /* blind (Identify): no ECG, which the bedside does not have, and no named waves, since naming them is the task */
   g.fillStyle = c.surface; g.fillRect(0, 0, w, h);
   const pad = 40, x = (t: number) => pad + ((t - from) / (to - from)) * (w - pad - 8);
   const rows = { ecg: [8, h * 0.18], art: [h * 0.22, h * 0.36], ven: [h * 0.62, h * 0.33] } as const;
@@ -59,10 +60,11 @@ export function drawPulseStrip(g: CanvasRenderingContext2D, w: number, h: number
   const named: Array<{ k: string; x: number }> = [];
   for (const b of beats) {
     const S = b.samples;
-    line(g, S.map((s) => [x(b.t0 + s.t), rows.ecg[0] + rows.ecg[1] / 2 - ((s.ecg ?? 0) / eMax) * rows.ecg[1] * 0.45] as [number, number]), c.muted, 1);
+    if (!opts.blind) line(g, S.map((s) => [x(b.t0 + s.t), rows.ecg[0] + rows.ecg[1] / 2 - ((s.ecg ?? 0) / eMax) * rows.ecg[1] * 0.45] as [number, number]), c.muted, 1);
     line(g, S.map((s) => [x(b.t0 + s.t), yOf(rows.art, s.Pa, aLo, aHi)] as [number, number]), c.art, 1.8);
     line(g, S.map((s) => [x(b.t0 + s.t), yOf(rows.ven, s.Pra, vLo, vHi)] as [number, number]), c.ven, 1.8);
     /* this beat's venous waves, named where the model made them */
+    if (opts.blind) continue;
     const vw = venousWaves(S);
     g.font = font(700, 10); g.textAlign = 'center'; g.fillStyle = c.ven;
     for (const k of WAVES) {
@@ -82,7 +84,7 @@ export function drawPulseStrip(g: CanvasRenderingContext2D, w: number, h: number
   }
   g.restore();
   g.font = font(500, 10); g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillStyle = c.muted;
-  g.fillText(labels.ecg, 2, rows.ecg[0] + rows.ecg[1] / 2);
+  if (!opts.blind) g.fillText(labels.ecg, 2, rows.ecg[0] + rows.ecg[1] / 2);
   g.fillStyle = c.art; g.fillText(labels.art, 2, rows.art[0] + 10);
   g.fillStyle = c.muted; g.fillText(`${Math.round(aHi)}`, 2, rows.art[0] + 24); g.fillText(`${Math.round(aLo)}`, 2, rows.art[0] + rows.art[1] - 6);
   g.fillStyle = c.ven; g.fillText(labels.ven, 2, rows.ven[0] + 10);

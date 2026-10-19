@@ -31,3 +31,14 @@ export function pulseSignsOf(model: PatientModel, snap: Record<string, any>, che
   for (const m of PULSE_MANOEUVRES) for (const f of signsFoundBy(KNOWLEDGE, CATALOG, obs, m).found) where.set(f.sign, [...(where.get(f.sign) ?? []), m]);
   return { present: new Set(where.keys()), where };
 }
+
+/** The signs grouped by the manoeuvre that finds each first: how Predict and Identify offer them. */
+export function pulseSignGroups(): Array<{ test: string; signs: string[] }> {
+  const all = pulseSigns(), seen = new Set<string>();
+  return ['palpate.pulse.radial', 'palpate.pulse.carotid', 'measure.bp', 'inspect.jvp'].map((test) => {
+    const looked = new Set(signsTestLooksFor(KNOWLEDGE, CATALOG, test));
+    const signs = all.filter((x) => looked.has(x) && !seen.has(x));
+    signs.forEach((x) => seen.add(x));
+    return { test, signs };
+  }).filter((g) => g.signs.length);
+}
