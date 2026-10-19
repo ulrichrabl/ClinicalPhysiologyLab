@@ -248,7 +248,8 @@ A station pairs one test with the mechanism that writes it, on one clock. Read `
   - Explore lists the signs heard now and where.
   - "Predict first" asks which signs a heart will bring, and scores the answer once the circulation has settled.
   - Identify hides a heart among the starting points and a healthy one. The learner listens with full control of site, instrument, position and breathing, but sees no labels, measures, finding text or Wiggers diagram. They name the signs and the heart, and are scored hits, misses and over-calls, with where each sign is heard. Moderate mitral stenosis is left out (gap 17).
-- **Next (ADR-017 steps):** 5. links from the cards and the debrief.
+- **Links (step 5):** `openStation(which, onPatient)` in `app/app.ts`. Every `[data-open-station]` button goes through one delegated handler: on the debrief's "In a station" section, on an ECG result after commit, and on the cardiac auscultation cards. Stations take `StationOptions.patient` (the encounter's model and the patient's name, shown as a banner) and `backLabel`.
+- **Next:** gap 17 (the mitral stenosis rule), then a pulse and neck-vein station (the circulation's arterial and venous waveforms; pulsus paradoxus waits on gap 13).
 
 ## Problem reports
 

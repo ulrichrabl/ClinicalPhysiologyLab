@@ -69,6 +69,14 @@ const UI: Record<string, Record<Lang, string>> = {
   freeText: { en: 'A healthy adult on the physiology bench. Examine, record an ECG, open any chapter, change any variable.', de: 'Ein gesunder Erwachsener auf dem Physiologie-Tisch. Untersuchen, EKG schreiben, jedes Kapitel öffnen, jede Variable ändern.' },
   openFree: { en: 'Open the free patient', de: 'Freien Patienten öffnen' }, lab: { en: 'Physiology lab', de: 'Physiologielabor' },
   stationTag: { en: 'Station', de: 'Station' },
+  inStation: { en: 'In a station', de: 'In einer Station' },
+  inStationNote: { en: 'Your patient, with the mechanism beside the test: every instant of the tracing or the beat, and why it looks and sounds as it does.', de: 'Ihr Patient, mit dem Mechanismus neben dem Test: jeder Moment der Kurve oder des Schlags, und warum sie so aussehen und klingen.' },
+  stationEcgYours: { en: 'Your patient’s ECG', de: 'Das EKG Ihres Patienten' },
+  stationAuscYours: { en: 'Your patient’s heart sounds', de: 'Die Herztöne Ihres Patienten' },
+  stationShows: { en: 'shows', de: 'zeigt' }, stationNormal: { en: 'nothing abnormal', de: 'nichts Auffälliges' },
+  openInStation: { en: 'Open in the station', de: 'In der Station öffnen' },
+  openStationHealthy: { en: 'Open the station (a healthy heart)', de: 'Station öffnen (ein gesundes Herz)' },
+  backToDebrief: { en: 'Debrief', de: 'Nachbesprechung' }, backToEncounter: { en: 'Patient', de: 'Patient' },
   stationText: { en: 'One test and the physiology that writes it, side by side: the ECG with the conduction system and the cardiac vector at every instant of the beat.', de: 'Ein Test und die Physiologie, die ihn schreibt, nebeneinander: das EKG mit dem Reizleitungssystem und dem Herzvektor in jedem Moment des Herzschlags.' },
   openStation: { en: 'Open the station', de: 'Station öffnen' },
   stationAuscText: { en: 'The heart sounds and the mechanics that make them, side by side: the phonocardiogram with a Wiggers diagram of every beat, its pressures, valves and phases.', de: 'Die Herztöne und die Mechanik, die sie erzeugt, nebeneinander: das Phonokardiogramm mit einem Wiggers-Diagramm jedes Schlags, seinen Drücken, Klappen und Phasen.' },
@@ -157,6 +165,8 @@ import { installReport } from './report.ts';
 import { mountEcgStation, type StationHandle } from './station-ecg.ts';
 import { ECG_STATION, AUSCULTATION_STATION } from '../stations/station.ts';
 import { mountAuscultationStation } from './station-auscultation.ts';
+import { ecgSignsOf } from '../stations/ecg-signs.ts';
+import { auscSignsOf } from '../stations/auscultation-signs.ts';
 
 /* ---- feed ------------------------------------------------------------------------ */
 type FeedItem =
@@ -317,12 +327,33 @@ export function mount(root: HTMLElement) {
     ac.querySelector('button')!.onclick = () => openStation('auscultation');
     wl.appendChild(ac);
   };
-  const openStation = (which: 'ecg' | 'auscultation') => {
-    stopLive();
+  /* A station opens on a healthy heart from the Ward, or on the patient being examined (ADR-017 step 5). On a patient only
+     when the mechanism is no longer a spoiler: in the free lab, or once the learner has committed to a diagnosis. Back returns
+     to the screen it was opened from, with the encounter as it was. */
+  const openStation = (which: 'ecg' | 'auscultation', onPatient = false) => {
+    const from = (['encounter', 'debrief'] as const).find((x) => !$(`#${x}`).hidden) ?? 'ward';
+    const withPatient = onPatient && !!live && !!s && (free || committed);
+    if (from === 'ward') stopLive(); else live?.stop();
     show('station');
     const mount = which === 'ecg' ? mountEcgStation : mountAuscultationStation;
-    station = mount($('#station'), { lang, onLeave: () => { renderWard(); show('ward'); } });
+    station = mount($('#station'), {
+      lang,
+      ...(withPatient ? { patient: { model: structuredClone(live!.model), name: { en: base.patient.name, de: base.patient.name } } } : {}),
+      ...(from === 'debrief' ? { backLabel: UI.backToDebrief } : from === 'encounter' ? { backLabel: UI.backToEncounter } : {}),
+      onLeave: () => {
+        if (from === 'ward') { renderWard(); show('ward'); }
+        else if (from === 'debrief') show('debrief');
+        else { show('encounter'); live?.start(); renderEncounter(); }
+      },
+    });
   };
+  /* every "open in station" button, wherever it is drawn (cards, results, the debrief) */
+  root.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-open-station]');
+    if (!b) return;
+    if (!$('#card').hidden) showCard(null);
+    openStation(b.dataset.openStation as 'ecg' | 'auscultation', b.dataset.onPatient === '1');
+  });
 
   /* ---- the running patient ---------------------------------------------------------- */
   const syncView = () => {
@@ -649,7 +680,8 @@ export function mount(root: HTMLElement) {
         <div class="focus-tools"><button type="button" class="tog small" data-measure="${idx}" aria-pressed="false">${lang === 'de' ? 'Ausmessen: Zirkel, Lineal, Kästchen' : 'Measure: calipers, ruler, squares'}</button></div>
         <div class="measure-panel" data-measure-panel="${idx}" hidden></div>` : ''}
       <p class="focus-caption">${e.detail ? t('placementAsYou') : ''}${review.length ? `: ${esc(review.join('; '))}` : (e.detail ? `. ${t('placementOk')}` : '')}</p>
-      ${inBedside ? `<div class="focus-tools"><button type="button" class="ghost small" data-again>${t('recordAgain')}</button><button type="button" class="ghost small" data-to-tests>${t('openTests')}</button></div>` : physicsDetails(inv)}</article>`;
+      ${inBedside ? `<div class="focus-tools"><button type="button" class="ghost small" data-again>${t('recordAgain')}</button><button type="button" class="ghost small" data-to-tests>${t('openTests')}</button></div>` : physicsDetails(inv)}
+      ${free || committed ? `<div class="focus-tools"><button type="button" class="ghost small" data-open-station="ecg" data-on-patient="1">${t('openInStation')}</button></div>` : ''}</article>`;
   };
   const paintPapers = (box: HTMLElement) => {
     box.querySelectorAll<HTMLCanvasElement>('[data-paper-idx]').forEach((cv) => {
@@ -1087,6 +1119,7 @@ export function mount(root: HTMLElement) {
       ${card.presentations.length ? `<section><h3>${esc(t('abnormalFinding'))}</h3>${presentationsHtml(card.presentations, spoilers)}
         ${!spoilers && card.presentations.some((f) => f.conditions.length) ? `<p class="muted small">${esc(t('spoilerHidden'))}</p>` : ''}</section>` : ''}
       ${card.alsoShows.length ? `<section><h3>${esc(t('alsoShows'))}</h3>${signChips(card.alsoShows)}</section>` : ''}
+      ${card.animation?.startsWith('station:') ? `<section><button type="button" class="ghost" data-open-station="${card.animation.slice(8)}" data-on-patient="${spoilers ? 1 : 0}">${esc(t(spoilers ? 'openInStation' : 'openStationHealthy'))}</button></section>` : ''}
       ${card.pitfalls ? `<section><h3>${esc(t('pitfalls'))}</h3><ul>${list(card.pitfalls, lang).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
       ${s && !committed ? `<div class="card-actions">${m.paired ? `<button type="button" class="primary" data-card-act="${m.id}" data-side="R">${esc(t('doIt'))}: ${esc(t('right'))}</button><button type="button" class="primary" data-card-act="${m.id}" data-side="L">${esc(t('doIt'))}: ${esc(t('left'))}</button>` : `<button type="button" class="primary" data-card-act="${m.id}">${esc(t('doIt'))}</button>`}</div>` : ''}`;
   };
@@ -1270,6 +1303,16 @@ export function mount(root: HTMLElement) {
     </div></section>`;
   };
 
+  /* The patient in the stations: what each test shows on this patient, read from the knowledge tables, and a way in. */
+  const stationsHtml = () => {
+    if (!live) return '';
+    const sl = (x: string) => esc(labelOf(KNOWLEDGE, `sign:${x}`, lang));
+    const row = (which: 'ecg' | 'auscultation', title: string, present: Set<string>) => `<li><b>${esc(title)}</b> ${t('stationShows')}: ${present.size ? [...present].map(sl).join(', ') : `<span class="muted">${t('stationNormal')}</span>`}
+      <button type="button" class="ghost small" data-open-station="${which}" data-on-patient="1">${t('openInStation')}</button></li>`;
+    let ecg = new Set<string>(), ausc = new Set<string>();
+    try { ecg = ecgSignsOf(live.model, live.snap, live.chemistry).present; ausc = auscSignsOf(live.model, live.snap, live.chemistry).present; } catch { /* a model without a circulation */ }
+    return `<section><h2>${t('inStation')}</h2><p class="muted">${t('inStationNote')}</p><ul class="plain db-stations">${row('ecg', t('stationEcgYours'), ecg)}${row('auscultation', t('stationAuscYours'), ausc)}</ul></section>`;
+  };
   const renderDebrief = () => {
     if (!s || !debrief) return;
     const d = debrief, c = s.caseDef;
@@ -1301,6 +1344,7 @@ export function mount(root: HTMLElement) {
         seen.add(e.finding.property);
         return `<li><b>${esc(tr(CATALOG.properties[e.finding.property.replace(/\.(L|R)$/, '')].label, lang))}</b> — ${esc(e.finding.basis!)}</li>`;
       }).join('') || '<li class="muted">—</li>'}</ul></section>
+      ${stationsHtml()}
       <section><h2>${t('compare')}</h2><div class="two notes-compare"><div class="mine">${myNotes.trim() ? esc(myNotes).replace(/\n/g, '<br>') : '<span class="muted">—</span>'}</div><div class="auto">${notesHtml(autoNote(s, lang))}</div></div></section>`;
     $('#db-back').onclick = () => { stopLive(); renderWard(); show('ward'); };
     root.querySelectorAll<HTMLButtonElement>('#debrief [data-sign]').forEach((b) => b.onclick = () => { cardBack = []; cardNow = { kind: 'sign', id: b.dataset.sign! }; renderCard(); });

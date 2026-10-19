@@ -228,6 +228,11 @@ console.log('\nThe auscultation station (ADR-017 step 4)');
   gap('moderate mitral stenosis (mean gradient 5–10 mmHg) is heard: opening snap and mid-diastolic rumble', msmSigns.has('mid-diastolic-murmur') && msmSigns.has('opening-snap'),
     `${S.meanMitralGradient(msm.beats.at(-1)).toFixed(1)} mmHg, signs ${J([...msmSigns])}: the examination model hears mitral stenosis only above a valve resistance of 0.05 mmHg·s/mL, an ungrounded threshold; it should follow the gradient. Left out of Identify meanwhile`);
 
+  /* Links from the teaching cards (ADR-017 step 5): a test row's animation "station:<id>" names a station that exists. */
+  const links = Object.values(S.KNOWLEDGE.tests).filter((x) => x.animation?.startsWith('station:'));
+  ok('teaching cards link to stations that exist: every cardiac auscultation card to the auscultation station',
+    links.length >= 7 && links.every((x) => S.STATIONS.some((st) => `station:${st.id}` === x.animation)) && S.heartManoeuvres().every((m) => S.KNOWLEDGE.tests[m]?.animation === 'station:auscultation'), J(links.map((x) => x.id)));
+
   const groups = S.stationSettings(S.AUSCULTATION_STATION).map((g) => g.id);
   ok('the station’s settings are what the heart sounds measure (the haemodynamic model), with the rate and atrial rhythm that drive them', groups.includes('haemodynamics/valves') && groups.includes('driver/electrical.HR') && groups.includes('driver/electrical.atrial'), J(groups));
   ok('every starting point is in a group, once', J(S.AUSC_PRESET_GROUPS.flatMap((g) => g.ids).sort()) === J(S.AUSC_PRESETS.map((p) => p.id).sort()));

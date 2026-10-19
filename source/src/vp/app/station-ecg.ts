@@ -1,5 +1,5 @@
 import { LivePatient } from '../live/live-patient.ts';
-import { healthyModel, applyPreset } from '../physiology/state.ts';
+import { healthyModel, applyPreset, type PatientModel } from '../physiology/state.ts';
 import { getPath, setPath } from '../physiology/models.ts';
 import type { VariableDef } from '../physiology/types.ts';
 import { LEAD_NAMES, leadVectors, standardPlacement, recordLeads, type LeadName } from '../measurements/ecg.ts';
@@ -85,11 +85,16 @@ const secondsFor = (w: number) => (w < 600 ? 2.5 : 4);
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
 export interface StationHandle { stop(): void; setLang(l: Lang): void }
+/** How a station is opened: on a healthy heart (from the Ward), or on a patient the learner has examined (from a debrief, a
+    result, or the free lab), with where "back" returns to. */
+export interface StationOptions { lang: Lang; onLeave: () => void; patient?: { model: PatientModel; name: LocalizedText }; backLabel?: LocalizedText }
+export const patientBanner = (o: StationOptions, lang: Lang) => o.patient
+  ? `<p class="st-patient" role="note"><b>${tr(o.patient.name, lang).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!))}</b>: ${tr({ en: 'the patient you examined, as the model runs them. Reset to healthy to compare.', de: 'die Patientin oder der Patient, die Sie untersucht haben, wie das Modell sie laufen lässt. Auf gesund zurücksetzen zum Vergleich.' }, lang)}</p>` : '';
 
-export function mountEcgStation(host: HTMLElement, o: { lang: Lang; onLeave: () => void }): StationHandle {
+export function mountEcgStation(host: HTMLElement, o: StationOptions): StationHandle {
   let lang = o.lang;
   const t = (k: string) => tr(T[k], lang);
-  const live = new LivePatient(healthyModel());
+  const live = new LivePatient(o.patient?.model ?? healthyModel());
   let raf = 0, stopped = false, ready = false;
   let playing = !matchMedia('(prefers-reduced-motion: reduce)').matches;
   let slow = false;
@@ -116,10 +121,11 @@ export function mountEcgStation(host: HTMLElement, o: { lang: Lang; onLeave: () 
   const open = new Set<string>(['electrical/rhythm', 'electrical/conduction', 'driver/fluids.clamp-potassium']);
 
   const head = () => `<div class="st-head">
-        <button type="button" class="ghost" data-leave>← ${t('back')}</button>
+        <button type="button" class="ghost" data-leave>← ${o.backLabel ? tr(o.backLabel, lang) : t('back')}</button>
         <div class="st-title"><div class="eyebrow">${t('eyebrow')}</div><h1>${esc(tr(ECG_STATION.title, lang))}</h1><p class="lede">${esc(tr(ECG_STATION.summary, lang))}</p></div>
         <span class="seg st-mode" role="radiogroup" aria-label="${t('mode')}">${(['explore', 'identify'] as const).map((m) => `<button type="button" role="radio" aria-checked="${mode === m}" data-mode="${m}">${t(m)}</button>`).join('')}</span>
       </div>
+      ${patientBanner(o, lang)}
       ${ready ? '' : `<p class="muted" data-preparing>${t('preparing')}</p>`}`;
   const render = () => {
     if (mode === 'identify') { renderIdentify(); return; }
