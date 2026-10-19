@@ -1,6 +1,6 @@
 # ADR-018 — Interventions, scenarios and guideline scoring: acting on a running patient
 
-Status: Proposed (for the owner's decision; nothing built yet)  
+Status: Accepted (owner, 2026-10-19; the answers to the open questions are below); nothing built yet  
 Date: 2026-10-19  
 Repository: ClinicalPhysiologyLab
 
@@ -44,19 +44,19 @@ All learner-facing text is in English and German.
 
 ### 3. Guidelines are data, scored from the log
 
-The guideline lives in a versioned file, for example `guidelines/erc-2025-als.json`. Each rule cites its section and is checked against the action log and the model's state:
+The guideline is ERC 2025, with the German Resuscitation Council's (GRC) German text for German learners (owner). It lives in a versioned file, `guidelines/erc-2025-als.json`; another guideline (AHA) would be another file. Each rule cites its section and is checked against the action log and the model's state:
 
 - **Timing:** compressions started at once on recognising arrest (how many seconds count as "at once" is a placement, to be agreed); a rhythm check every 2 min; adrenaline every 3–5 min.
 - **Counts and order:** amiodarone 300 mg after the third shock and 150 mg after the fifth; adrenaline after the third shock in a shockable rhythm.
 - **Conditions:** shock only a shockable rhythm; no pulse check during clear asystole.
-- **Quality:** compression rate and depth, the fraction of time compressing, the longest pause, and pause before and after a shock under 5 s.
+- **Quality:** compression rate, the count per cycle (30:2), the fraction of time compressing, the longest pause, and the pause before and after a shock under 5 s. Depth is scored only for team members' compressions; a phone cannot measure the learner's (decision 7).
 
 **The grade is not the outcome.** The patient's course is the model's; the score is adherence to the guideline. The debrief shows both on one timeline: what the learner did, what the guideline asked, and what the patient did (rhythm, coronary perfusion pressure, EtCO₂). A learner can do everything right and the patient still die, as in life.
 
 ### 4. Practice and assessment
 
 - **Practice:** pause allowed, hints, and a mechanism pane beside the monitor. It shows coronary perfusion pressure, the flow the compressions make and why EtCO₂ follows it, like a station (ADR-017).
-- **Assessment:** real time, no pause, no hints, debrief at the end.
+- **Assessment:** real time, no pause, no hints, no teaching nudges (decision 6c), debrief at the end. Built after practice (owner: later, but probably good).
 
 ### 5. Reproducible runs
 
@@ -94,6 +94,8 @@ The myocardium's state during arrest is one variable. It falls without coronary 
 
 These are validated by running many simulated arrests with varied delays and comparing the survival curve. What a single shock does (first-shock termination with biphasic waveforms) still needs sourcing.
 
+**Teaching nudges (owner: chance is fine, nudged where it helps learning).** A scenario may carry an explicit nudge for practice, for example a run whose good performance reaches ROSC within the scenario's time, or a first shock that fails so the learner meets refractory VF. A nudge is a named scenario parameter, recorded with the run and stated in the debrief ("this run was set up so that…"). It is never silent, never used in assessment, and never in the population runs that validate the model.
+
 #### d. Drugs
 
 - **Adrenaline:** a one-compartment pharmacokinetic model acting on resistance (α) and contractility (β) through the existing adrenergic hooks. Validated by the coronary perfusion pressure rise after a dose (Paradis's patients); the PARAMEDIC2 trial's outcomes (more ROSC, little change in good neurological survival) are a population check, not a fit.
@@ -105,11 +107,25 @@ The rhythm returns through the electrical model and the existing circulation tak
 
 ### 7. The learner's hands
 
-- **Compressions:** tap or hold to the rhythm. The rate and pauses are measured, not chosen. Depth is a choice of "shallow / right / deep", or comes from pressure on devices that report it.
+- **Compressions:** tapped to the rhythm (owner). What the phone trains is the rate, the count (30 before two breaths) and the pauses, all measured from the taps. Depth cannot be measured on a phone, so the learner's own compressions are taken as adequately deep and depth is not scored for them.
 - **Ventilations:** a press per breath, with its duration.
-- **Everything else:** commands, by voice-like phrases as in the encounter ("check pulse", "charge 150 J", "adrenaline 1 mg IV"). Once the team arrives, the learner leads and gives orders; team members carry them out with their own time costs.
+- **Everything else:** commands, by voice-like phrases as in the encounter ("check pulse", "charge 150 J", "adrenaline 1 mg IV"), carried out by whoever they are given to (decision 8).
 
-### 8. Anaesthesia is a second ADR
+### 8. Leading the team is trained, from the first second
+
+The learner leads from the start (owner), and what a leader does is part of what is trained and scored:
+
+- **Calling for help:** who calls, and what they say (where, cardiac arrest, bring the defibrillator). A call that does not say where delays the team.
+- **Giving each task to someone:** compressions, airway and ventilation, the defibrillator, IV access and drugs, the time and the record. A task nobody has been given is not done. The learner can do one task with their own hands (compressions by tapping); while they do, they lead less well, as in life: commands come slower.
+- **Rotating the compressor** every 2 minutes, at the rhythm check.
+- **Closed-loop communication:** a team member repeats an order back; an ambiguous order (no dose, no route) is answered with a question, which costs time.
+- **The team members are agents** with their own time costs and their own quality. A compressor tires: rate and depth fall over the minutes (to be grounded on studies of rescuer fatigue). In practice, a member may make a scripted, labelled error for the learner to catch, such as not restarting compressions after a shock.
+
+How these are scored is taken from the ERC 2025 guidelines' text on teams and leadership (its ALS and education chapters); the specific rules are still to be sourced, and until then each is marked as a placement.
+
+The first scenario uses this directly. At first the learner and one nurse are alone: the learner decides who calls and who compresses, and taps compressions if they take them. When the arrest team arrives, the learner hands over compressions and assigns the roles.
+
+### 9. Anaesthesia is a second ADR
 
 The same three layers carry it. Interventions are drugs, the ventilator and airway devices; scenarios are an induction, a difficult airway, bronchospasm, anaphylaxis; the guideline files are the DAS and ESAIC algorithms. It also needs:
 
@@ -127,20 +143,21 @@ The same three layers carry it. Interventions are drugs, the ventilator and airw
 
 One complete arrest, chosen because it is bounded: one algorithm, clear metrics, and physiology that mostly exists.
 
-**Setting.** A 64-year-old man on a medical ward, two days after admission with chest pain, collapses while the learner is in the room. A bystander nurse is present and the arrest team is reachable by phone.
+**Setting.** A 64-year-old man on a medical ward, two days after admission with chest pain, collapses while the learner is in the room. One nurse is present and the arrest team is reachable by phone. The learner leads from the first second (decision 8).
 
 **Timeline of what the scene does (scripted):**
 
 | Time | Event |
 |---|---|
 | 0:00 | VF; the patient collapses and is unresponsive; agonal breathing for about 30 s |
-| call + 2:00 | the arrest team arrives with the defibrillator, bag-mask, airway kit and drugs |
+| call + 2:00 | the arrest team (two more people) arrives with the defibrillator, bag-mask, airway kit and drugs; only if the call said where |
 | on request | IV access takes 30–60 s; intubation 20–30 s (placements, to be checked against observed times) |
 
 **What the learner must do (ERC 2025):**
 
-1. **Safety and responsiveness:** call for help, open the airway, look, listen and feel for breathing for no more than 10 s.
-2. **Start CPR:** 30:2 at 100–120 compressions/min and 5–6 cm deep, with full recoil and as few pauses as possible.
+1. **Safety and responsiveness:** have help called (by whom, saying what), open the airway, look, listen and feel for breathing for no more than 10 s.
+2. **Start CPR:** decide who compresses; 30:2 at 100–120 compressions/min and 5–6 cm deep, with full recoil and as few pauses as possible.
+2b. **When the team arrives:** hand over, assign compressions, airway, defibrillator and drugs, and rotate the compressor every 2 min.
 3. **When the defibrillator arrives:**
    - pads on, compressions continued while it charges;
    - a pause of under 5 s for the shock (first biphasic shock at least 150 J), then compressions resumed at once;
@@ -161,7 +178,8 @@ One complete arrest, chosen because it is bounded: one algorithm, clear metrics,
 **The debrief shows:**
 
 - time to the first compression and to the first shock;
-- the compression fraction, rate, depth and longest pause;
+- the compression fraction, rate, count and longest pause (depth for team members only);
+- who was given which task, and when; tasks nobody was given;
 - shocks and drugs against the algorithm;
 - the patient's coronary perfusion pressure and EtCO₂ through the run, with each deviation marked where it happened.
 
@@ -176,19 +194,20 @@ One complete arrest, chosen because it is bounded: one algorithm, clear metrics,
 2. **The compression pump and positive-pressure ventilation** (decision 6a–b), validated against Ornato, Paradis and Falk.
 3. **The heart in arrest and the shock** (6c), validated against Larsen and Valenzuela.
 4. **Adrenaline and amiodarone** (6d).
-5. **The ward VF scenario, end to end,** with the ERC 2025 file, practice and assessment, and the debrief.
+5. **The ward VF scenario, end to end,** in practice mode: the ERC 2025 file, the team (decision 8), teaching nudges, and the debrief.
+5b. **Assessment mode** (decision 4).
 6. **Further arrests,** reusing the parts:
    - asystole and PEA, with hypovolaemia, tamponade (which needs gap 13 first) and tension pneumothorax;
    - out-of-hospital arrest with an AED.
-7. **Anaesthesia,** in its own ADR (decision 8).
+7. **Anaesthesia,** in its own ADR (decision 9).
 
-## Open questions for the owner
+## Decided by the owner (2026-10-19)
 
-1. **Which guideline:** ERC 2025 (with the German Resuscitation Council's translation), AHA 2025, or both as separate files?
-2. **The learner's role in the first scenario:** single rescuer, then team leader once the team arrives (as proposed), or team leader from the start?
-3. **Stochastic outcomes:** acceptable, if labelled and seeded? The alternative is a deterministic "ROSC at the third good shock", which is simpler but not grounded.
-4. **Compression input:** tapping to the rhythm (measures rate and pauses honestly, tiring on a phone), or choosing a quality level?
-5. **Assessment:** practice only, or a scored mode that could be used in teaching?
+1. **Guideline:** ERC 2025, with the GRC's German text (decision 3).
+2. **Role:** the learner leads from the start, and calling for help and giving tasks (who ventilates, who compresses) are trained too (decision 8).
+3. **Chance:** acceptable, for realism, nudged where it helps learning; nudges are explicit and stated (decision 6c).
+4. **Compressions:** tapped to the rhythm; rate and count are what the phone trains (decision 7).
+5. **Assessment:** later, after practice (decision 4, step 5b).
 
 ## Consequences
 
