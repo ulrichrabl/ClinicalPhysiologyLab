@@ -71,6 +71,7 @@ const UI: Record<string, Record<Lang, string>> = {
   stationTag: { en: 'Station', de: 'Station' },
   stationText: { en: 'One test and the physiology that writes it, side by side: the ECG with the conduction system and the cardiac vector at every instant of the beat.', de: 'Ein Test und die Physiologie, die ihn schreibt, nebeneinander: das EKG mit dem Reizleitungssystem und dem Herzvektor in jedem Moment des Herzschlags.' },
   openStation: { en: 'Open the station', de: 'Station öffnen' },
+  stationAuscText: { en: 'The heart sounds and the mechanics that make them, side by side: the phonocardiogram with a Wiggers diagram of every beat, its pressures, valves and phases.', de: 'Die Herztöne und die Mechanik, die sie erzeugt, nebeneinander: das Phonokardiogramm mit einem Wiggers-Diagramm jedes Schlags, seinen Drücken, Klappen und Phasen.' },
   preparing: { en: 'Bringing the patient to a steady state…', de: 'Der Patient erreicht einen stabilen Zustand…' },
   placeholder: { en: 'Ask or examine…', de: 'Fragen oder untersuchen…' }, send: { en: 'Go', de: 'Los' },
   feed: { en: 'Encounter', de: 'Verlauf' }, notes: { en: 'Notes', de: 'Notizen' }, mine: { en: 'My notes', de: 'Meine Notizen' },
@@ -154,7 +155,8 @@ const seedOf = (id: string) => [...id].reduce((a, ch) => (a * 31 + ch.charCodeAt
 import { FREE_CASE } from './free-case.ts';
 import { installReport } from './report.ts';
 import { mountEcgStation, type StationHandle } from './station-ecg.ts';
-import { ECG_STATION } from '../stations/station.ts';
+import { ECG_STATION, AUSCULTATION_STATION } from '../stations/station.ts';
+import { mountAuscultationStation } from './station-auscultation.ts';
 
 /* ---- feed ------------------------------------------------------------------------ */
 type FeedItem =
@@ -306,13 +308,20 @@ export function mount(root: HTMLElement) {
     sc.className = 'bedcard free';
     sc.innerHTML = `<span class="tag">${t('stationTag')}</span><h2>${esc(tr(ECG_STATION.title, lang))}</h2>
       <p class="bed-triage">${t('stationText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
-    sc.querySelector('button')!.onclick = () => openStation();
+    sc.querySelector('button')!.onclick = () => openStation('ecg');
     wl.appendChild(sc);
+    const ac = document.createElement('article');
+    ac.className = 'bedcard free';
+    ac.innerHTML = `<span class="tag">${t('stationTag')}</span><h2>${esc(tr(AUSCULTATION_STATION.title, lang))}</h2>
+      <p class="bed-triage">${t('stationAuscText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
+    ac.querySelector('button')!.onclick = () => openStation('auscultation');
+    wl.appendChild(ac);
   };
-  const openStation = () => {
+  const openStation = (which: 'ecg' | 'auscultation') => {
     stopLive();
     show('station');
-    station = mountEcgStation($('#station'), { lang, onLeave: () => { renderWard(); show('ward'); } });
+    const mount = which === 'ecg' ? mountEcgStation : mountAuscultationStation;
+    station = mount($('#station'), { lang, onLeave: () => { renderWard(); show('ward'); } });
   };
 
   /* ---- the running patient ---------------------------------------------------------- */

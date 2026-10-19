@@ -20,6 +20,18 @@ const FS = 500;
 
 export type Snapshot = Record<string, any>;
 
+/** How many recent beats a live patient keeps with their samples (about seven seconds at a resting rate). */
+const BEATS_KEPT = 10;
+
+/** One beat as the circulation recorded it. */
+export interface BeatRecord {
+  t0: number; dur: number;
+  samples: Array<Record<string, number>>;
+  events: Record<string, number | null>;
+  times: Record<string, number | null>;
+  log: Record<string, any>;
+}
+
 export class LivePatient {
   model: PatientModel;
   run: CirculationRun;
@@ -136,6 +148,11 @@ export class LivePatient {
   stop(): void { cancelAnimationFrame(this.raf); this.raf = 0; }
   get running(): boolean { return this.raf !== 0; }
 
+  /** The most recent complete beats, oldest first: each with its 2 ms samples, valve events and times, and where in the
+      breath it fell. Times are ms on the circulation's clock (a beat's samples run from its own start, t0). */
+  beats: BeatRecord[] = [];
+  private lastBeatT0 = NaN;
+
   on(fn: (p: LivePatient) => void): () => void { this.listeners.add(fn); return () => this.listeners.delete(fn); }
   private emit(): void { for (const fn of this.listeners) fn(this); }
 
@@ -152,6 +169,12 @@ export class LivePatient {
       this.total += v.X.length;
     }
     delete s.ecgLeads;
+    const entry = (s.beatLog as BeatRecord['log'][] | undefined)?.at(-1);
+    if (entry && s.beat && entry.t0 !== this.lastBeatT0) {
+      this.lastBeatT0 = entry.t0;
+      this.beats.push({ t0: entry.t0, dur: s.beat.dur, samples: s.beat.samples, events: s.beat.events, times: s.valveTimes, log: entry });
+      if (this.beats.length > BEATS_KEPT) this.beats.shift();
+    }
     s.electrical = this.run.heart.p;
     s.ecgDrive = this.run.heart.drive();
     s.resp = this.run.resp.snapshot();

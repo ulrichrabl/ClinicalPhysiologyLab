@@ -238,8 +238,11 @@ export class HeartElectrical {
   getMechanicalTriggers(): MechanicalTrigger[] { const t = this.triggers; this.triggers = []; return t; }
   peek() {
     const n = this.vcg.length;
+    /* just after the recorded dipole has been drained there is no new sample yet: the lead holds its last value, it does
+       not drop to zero */
+    if (n) this.lastLeadII = this.leadII(this.vcg[n - 3], this.vcg[n - 2], this.vcg[n - 1]);
     return {
-      ecgValue: n ? this.leadII(this.vcg[n - 3], this.vcg[n - 2], this.vcg[n - 1]) : 0,
+      ecgValue: this.lastLeadII,
       effectiveHR: this.metrics.HR, qrsAxis: this.metrics.qrsAxis, pathology: this.rhythmLabel(), metrics: { ...this.metrics },
     };
   }
@@ -252,6 +255,7 @@ export class HeartElectrical {
     this.vcg = [];
     return { X, Y, Z, fs: FS, t0 };
   }
+  private lastLeadII = 0;
   reset(): void { const p = this.p; Object.assign(this, new HeartElectrical()); this.p = p; }
 
   /** The time of the newest dipole sample produced (ms, the clock of `activations`). */

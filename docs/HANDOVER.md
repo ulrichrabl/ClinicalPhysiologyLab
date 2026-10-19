@@ -1,6 +1,6 @@
 # Handover: start here
 
-Last updated: 18 October 2026, with the ADR-017 step 1 PR (the ECG station). Before it, work was paused after PR #48 at the owner's request.
+Last updated: 19 October 2026, with the ADR-017 step 4 PR (the auscultation station, Explore). Earlier: 18 October 2026, with the ADR-017 step 1 PR (the ECG station). Before it, work was paused after PR #48 at the owner's request.
 
 **Where we paused.** Nothing is in flight; every PR is merged and live. Waiting on the owner (details in "Waiting for the owner" below):
 
@@ -233,7 +233,18 @@ A station pairs one test with the mechanism that writes it, on one clock. Read `
   - In the station, Explore lists the signs on the ECG now; "Predict first" asks which signs a pattern will bring and scores the answer; Identify hides a pattern, shows its 12-lead, and scores the signs and the mechanism named.
   - Tests in `scripts/station.test.mjs`: every pattern shows its signs and syndrome, a healthy heart none. One known gap: in right bundle branch block T in V1 should be inverted; the model's is slightly upright.
 - **Step 2b, ECG signs in the encounter:** the ECG result records its reading (`revealed`), through the learner's own electrode placement. The guided level names its signs after the result; the observe-only level offers them as chips; the debrief and "Your documentation" read them from the result (`signsInResult` in `engine/debrief.ts`). No case's expert reference lists an ECG sign yet; the stroke case's atrial fibrillation would be the first candidate, for the owner to decide.
-- **Next (ADR-017 steps):** 3. heart sounds timed from the circulation's valve events; 4. the auscultation station; 5. links from the cards and the debrief.
+- **The auscultation station (step 4, Explore):** a second Station card opens `app/station-auscultation.ts`.
+  - **Signal:** the phonocardiogram the examination model gives at the chosen site (site, bell or diaphragm, position, breathing), over the last few beats. Each beat is timed from its own valve events, under the ECG those beats produced, over the breath they fell in (`render/phono-strip.ts`). "Listen to this beat" plays the beat under the cursor.
+  - **Mechanism:** the beat at the cursor as a Wiggers diagram (`render/wiggers.ts`). It shows the pressures of the left or right heart, the ventricle's volume, the beat's ECG and PCG, valve events and phases, all from the circulation's own samples. The live patient keeps its recent beats with their samples (`LivePatient.beats`).
+  - **The timeline:** `stations/cardiac-cycle.ts` gives the phase and each valve's state (open, closed, leaking) at any instant, read from each side's own valve flows.
+  - **Starting points:** `stations/auscultation-presets.ts`. Each is a patient (a few haemodynamic parameters), named by the guideline category its circulation reaches; the tests check it (Bonow 2006, Zoghbi 2017, McDonagh 2021). Severe regurgitation is beyond the model's largest orifice, so those presets are moderate. Hypertension cannot be made to reach an S4 (the baroreflex holds the pressure), so the S4 is shown with severe aortic stenosis. After a change the station runs the circulation ahead for 20 s, so what is heard is the new steady state.
+  - **Explanations:** `stations/auscultation-texts.ts`, per phase and situation, EN/DE, drafts until a clinician reads them.
+  - **Model fixes made for it:**
+    - Mitral opening is the first opening after A2, not a flicker in diastasis.
+    - S1 is the closure that belongs to the beat, including one in the previous window.
+    - An event in a beat's last step keeps its time.
+    - Lead II no longer drops to zero after the dipole is drained.
+- **Next (ADR-017 steps):** Predict and Identify for the auscultation station; 5. links from the cards and the debrief.
 
 ## Problem reports
 

@@ -67,6 +67,16 @@ export const REFERENCES: Record<string, Reference> = Object.fromEntries([
   R({ id: 'aygen1970', authors: 'Aygen MM, Sirkis I, Wurzel M', title: 'Splitting of second heart sound in patients with aortic regurgitation',
     journal: 'Circulation', year: 1970, volume: '42', pages: '745–9', doi: '10.1161/01.cir.42.4.745', pmid: '11993314', verified: 'abstract',
     note: 'Abstract: in 57 normal subjects S2 was single or closely split in expiration, and inspiration widened A2–P2 by 20 ms or more in all but one (2 %).' }),
+  /* Severity categories the auscultation station's starting points are checked against (ADR-017 step 4). */
+  R({ id: 'bonow2006', authors: 'Bonow RO, Carabello BA, Chatterjee K, et al.', title: 'ACC/AHA 2006 guidelines for the management of patients with valvular heart disease',
+    journal: 'Circulation', year: 2006, volume: '114', pages: 'e84–231', doi: '10.1161/CIRCULATIONAHA.106.176857', pmid: '16880336', verified: 'record',
+    note: 'The severity grades as widely quoted. Aortic stenosis: moderate at a jet velocity of 3.0–4.0 m/s (peak gradient 36–64 mmHg by 4v²), severe above 4.0 m/s. Mitral stenosis by mean gradient: mild < 5, moderate 5–10, severe > 10 mmHg.' }),
+  R({ id: 'zoghbi2017', authors: 'Zoghbi WA, Adams D, Bonow RO, et al.', title: 'Recommendations for noninvasive evaluation of native valvular regurgitation',
+    journal: 'J Am Soc Echocardiogr', year: 2017, volume: '30', pages: '303–71', doi: '10.1016/j.echo.2017.01.007', pmid: '28314623', verified: 'record',
+    note: 'Regurgitant fraction as widely quoted: mild < 30 %, moderate 30–49 %, severe ≥ 50 % (aortic and mitral).' }),
+  R({ id: 'mcdonagh2021', authors: 'McDonagh TA, Metra M, Adamo M, et al.', title: '2021 ESC Guidelines for the diagnosis and treatment of acute and chronic heart failure',
+    journal: 'Eur Heart J', year: 2021, volume: '42', pages: '3599–3726', doi: '10.1093/eurheartj/ehab368', pmid: '34447992', verified: 'record',
+    note: 'Heart failure with reduced ejection fraction: LVEF ≤ 40 %, as universally quoted.' }),
   /* ECG reading thresholds (ADR-017 step 2): textbook standards, as the statements give them. */
   R({ id: 'thygesen2018', authors: 'Thygesen K, Alpert JS, Jaffe AS, et al.', title: 'Fourth Universal Definition of Myocardial Infarction (2018)',
     journal: 'Circulation', year: 2018, volume: '138', pages: 'e618–e651', doi: '10.1161/CIR.0000000000000617', pmid: '30571511', verified: 'record',
