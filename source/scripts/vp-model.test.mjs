@@ -636,6 +636,15 @@ console.log('\nHeart sounds timed by the circulation (ADR-017 step 3)');
     `${dQA2.toFixed(1)} ms: the left ventricle's share of the widening is about 60 % of Curtiss's; how much less the left ventricle fills in inspiration (interdependence, the pulmonary transit) is not grounded`);
   gap('…and P2 hangs out longer after the right ventricle relaxes (O–P2 +11.9 ± 3.0 ms)', Math.abs(dOP2 - 11.9) <= 3.0,
     `${dOP2.toFixed(1)} ms: the pulmonary "hangout" (the outflow's inertia, which keeps blood moving into the low-impedance lung after the pressures cross) is not modelled; measured hangout intervals are needed to ground it`);
+  /* The pump's input: how much each ventricle fills in inspiration. Real-time cardiac MRI in 8 healthy people (Claessen 2014), peak
+     inspiration against expiration: RV end-diastolic volume +18 ± 8 %, RV stroke volume +21 ± 10 %; LV volumes fall. Beats are
+     grouped by where in the breath they filled (their end-diastole), late inspiration against late expiration. */
+  const edI = hb.beats.filter((b) => b.breathEd?.phase === 'insp' && b.breathEd.frac >= 0.5 && b.edvRv != null);
+  const edE = hb.beats.filter((b) => b.breathEd?.phase === 'exp' && b.breathEd.frac >= 0.5 && b.edvRv != null);
+  const rvEdvUp = 100 * (mean(edI, (b) => b.edvRv) / mean(edE, (b) => b.edvRv) - 1), lvEdvDown = 100 * (mean(edI, (b) => b.edvLv) / mean(edE, (b) => b.edvLv) - 1);
+  ok('…inspiration fills the right ventricle and the left one less (the pump’s direction)', rvEdvUp > 0 && lvEdvDown < 0, `RV EDV ${rvEdvUp.toFixed(1)} %, LV EDV ${lvEdvDown.toFixed(1)} %`);
+  gap('…by as much as real-time MRI shows: RV end-diastolic volume +18 ± 8 % in inspiration (Claessen 2014)', Math.abs(rvEdvUp - 18) <= 8,
+    `RV EDV +${rvEdvUp.toFixed(1)} %, LV EDV ${lvEdvDown.toFixed(1)} % (n ${edI.length} / ${edE.length}): the pleural swing alone fills the right ventricle about a quarter as much as in people; what is missing is not yet known (the abdominal pump, the venous return's dependence on the right atrial pressure). Length-dependent systole was fitted on top of this small filling, so its gain is probably too large`);
   const widen = d((b) => b.p2 - b.a2);
   /* Aygen 1970: ≥ 20 ms in 98 % of normals. */
   gap('A2–P2 widens by 20 ms or more in inspiration', widen >= 20,
