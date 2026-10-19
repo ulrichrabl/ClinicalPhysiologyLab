@@ -53,6 +53,12 @@ export const CIRC = defineConstants('circulation', {
     derivation: 'As for the rise: the double-Hill shape of the normalised human elastance curve.' },
   systoleMin: { value: 0.45, unit: 's', status: 'ungrounded', means: 'Shortest heart period the activation curve is scaled to (systole stops shortening at fast rates).' },
   systoleMax: { value: 1.4, unit: 's', status: 'ungrounded', means: 'Longest heart period the activation curve is scaled to.' },
+  systoleLengthGain: { value: 0.35, unit: 'fraction per fraction', status: 'derived', refs: ['curtiss1975'],
+    means: 'How much later a ventricle relaxes on a beat it starts fuller than its recent average: the relaxation time constant stretches by this fraction for each fraction of extra end-diastolic volume.',
+    derivation: 'Fitted once to Curtiss 1975: with the respiratory pump running, a gain of 0.48 lengthens the healthy right ventricle\u2019s systole (Q\u2013O, QRS to the onset of the rapid fall of RV pressure) by 7.7 ms in inspiration, as measured (7.7 \u00b1 5.0 ms). Validated, not fitted: the left ventricle\u2019s Q\u2013A2 then shortens 6.9 ms (Curtiss: 7.6 \u00b1 2.7). The rest of the inspiratory widening (O\u2013P2, 11.9 ms) is the pulmonary hangout, not modelled. Weak grounding: one study of 7 volunteers, read as an abstract, and the model\u2019s Q\u2013O change scales roughly with the gain, so Curtiss\u2019s own spread (\u00b1 5.0 ms) allows about 0.12\u20130.58. Cross-check pending: whether the model\u2019s inspiratory change in ventricular size matches Lewis 1979 (echo, RV +0.3, LV \u22120.3 cm).' },
+  systoleLengthTau: { value: 30, unit: 's', status: 'assumed',
+    means: 'Time over which a ventricle\u2019s recent end-diastolic volume, the reference for length-dependent systole, is averaged.',
+    derivation: 'Several breaths long, so a breath\u2019s filling counts as a change, and short enough that a sustained new filling becomes the new reference within a minute or two. Not measured: the result is insensitive to it between 15 and 60 s (checked).' },
   atrialTmax: { value: 0.13, unit: 's', status: 'ungrounded', means: 'Duration scale of atrial contraction.' },
   atrialActivationScale: { value: 0.28, unit: '', status: 'ungrounded', means: 'Compression of the activation curve for the atria.' },
   /* --- systemic and pulmonary vessels ------------------------------------- */

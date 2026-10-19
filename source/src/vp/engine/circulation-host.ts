@@ -121,6 +121,8 @@ export function createCirculation(m: PatientModel): CirculationRun {
        over about two breaths. */
     pplMean = Number.isFinite(pplMean) ? pplMean + (r.Ppl - pplMean) * (1 - Math.exp(-COUPLE_S / PPL_MEAN_TAU_S)) : r.Ppl;
     sim.dPpl = (r.Ppl - pplMean) * CMH2O_TO_MMHG;
+    /* where in the breath the circulation now is, so each beat can say which phase its heart sounds fell in */
+    sim.breath = { t: r.breathT, Ti: r.Ti, Te: r.Te, at: sim.t };
     milieu.setInputs({
       MAP: mt?.Pmean ?? 93, CO: mt?.CO && mt.CO > 0.3 ? mt.CO : 5.2, CVP: mt?.CVPmean ?? 3.5, sympathetic: sim.sigmaS ?? 0.47,
       PaCO2: r.PaCO2, DO2: r.DO2 ?? 1000, VO2: r.VO2 ?? 250, SaO2: r.SaO2,
@@ -165,7 +167,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
       milieu.integrate(h / 3600);
     }
   };
-  const equilibrate = () => { couple(); resp.equilibrate(); sim.Rpul = model.circulation.Rpul * resp.rpulMult(); };
+  const equilibrate = () => { couple(); resp.equilibrate(); sim.Rpul = model.circulation.Rpul * resp.rpulMult(); sim.anchorSystole?.(); };
   /* The lungs change the circulation (PVR) and the circulation changes the lungs (output, pressures):
      settle in passes, bringing the slow respiratory states to steady state between them. */
   const settleFast = (seconds: number) => {

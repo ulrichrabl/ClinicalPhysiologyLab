@@ -36,6 +36,12 @@ export const REFERENCES: Record<string, Reference> = Object.fromEntries([
     note: 'The normal regressions on heart rate, as widely quoted: men LVET = 413 − 1.7·HR, PEP = 131 − 0.4·HR, QS2 = 546 − 2.1·HR (ms). The text itself not yet read here.' }),
   R({ id: 'spodick2003', authors: 'Spodick DH', title: 'Acute cardiac tamponade', journal: 'N Engl J Med', year: 2003, volume: '349', pages: '684–90',
     doi: '10.1056/NEJMra022643', pmid: '12917306', verified: 'record', note: 'Pulsus paradoxus, an inspiratory fall in systolic pressure of more than 10 mmHg, as the cardinal sign of tamponade, as quoted.' }),
+  R({ id: 'curtiss1975', authors: 'Curtiss EI, Matthews RG, Shaver JA', title: 'Mechanism of normal splitting of the second heart sound',
+    journal: 'Circulation', year: 1975, volume: '51', pages: '157–64', doi: '10.1161/01.cir.51.1.157', pmid: '1109314', verified: 'abstract',
+    note: 'Abstract (7 normal volunteers, catheter-tip micromanometers): inspiration widens A2–P2 by 27.2 ms; Q–A2 shortens 7.6 ± 2.7 ms; Q–O (QRS to the onset of the rapid fall of RV pressure, RV electromechanical systole) lengthens 7.7 ± 5.0 ms; O–P2 lengthens 11.9 ± 3.0 ms, attributed to the pulmonary bed and the inertia of the RV stroke mass.' }),
+  R({ id: 'murgo1984', authors: 'Murgo JP, Westerhof N', title: 'Input impedance of the pulmonary arterial system in normal man. Effects of respiration and comparison to systemic impedance',
+    journal: 'Circ Res', year: 1984, volume: '54', pages: '666–73', doi: '10.1161/01.res.54.6.666', pmid: '6733863', verified: 'abstract',
+    note: 'Abstract (10 normal subjects): quiet breathing changes neither pulmonary vascular resistance (77 ± 10 vs 80 ± 9 dyn·s/cm⁵, inspiration vs expiration) nor characteristic impedance (20 vs 20); respiratory changes in pulmonary pressure and flow come from the right ventricle.' }),
   /* Oxygen-induced hypercapnia in COPD: how much PaCO2 rises on high-concentration oxygen. */
   R({ id: 'robinson2000', authors: 'Robinson TD, Freiberg DB, Regnis JA, Young IH', title: 'The role of hypoventilation and ventilation-perfusion redistribution in oxygen-induced hypercapnia during acute exacerbations of chronic obstructive pulmonary disease',
     journal: 'Am J Respir Crit Care Med', year: 2000, volume: '161', pages: '1524–9', doi: '10.1164/ajrccm.161.5.9904119', pmid: '10806149', verified: 'abstract',
