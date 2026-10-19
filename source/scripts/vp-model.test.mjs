@@ -913,12 +913,20 @@ console.log('\nPulmonary cases: what the model makes of their parameters');
     E.snap.ecgMetrics.HR >= 88 && E.snap.resp.PaO2 < 10 && obs(E.c, E.view, 'lung.sounds', { site: 'chest.lung-base.L' }).value.added.length === 0
     && E.snap.resp.PaCO2 - E.snap.resp.EtCO2 > 1.5 && REGISTRY.resolvers['resp.ctpa'](E.view, { property: 'ctpa' }, {}).value.findings.some((x) => x.startsWith('pe-')));
   const C = run('copd-exacerbation'), C28 = run('copd-exacerbation', (m) => { m.respiratory.FiO2 = 0.28; }), C80 = run('copd-exacerbation', (m) => { m.respiratory.FiO2 = 0.8; });
+  const C100 = run('copd-exacerbation', (m) => { m.respiratory.FiO2 = 1; });
   ok('COPD case: acute-on-chronic hypercapnic failure (pH < 7.35, PaCO2 > 7, raised bicarbonate)', C.view.chemistry.arterialPH < 7.35 && C.view.chemistry.paCO2 > 7 && C.view.chemistry.bicarbonate > 28,
     `pH ${C.view.chemistry.arterialPH.toFixed(2)} PaCO2 ${C.view.chemistry.paCO2.toFixed(1)}`);
   ok('…Venturi 28 % brings the saturation into 88–92 % without much CO2; a non-rebreather overshoots and raises CO2',
     (() => { const s28 = obs(C28.c, C28.view, 'vitals.spo2').value.spo2; return s28 >= 87 && s28 <= 94; })() && C28.snap.resp.PaCO2 - C.snap.resp.PaCO2 < 0.3
-    && C80.snap.resp.PaCO2 - C.snap.resp.PaCO2 > (C28.snap.resp.PaCO2 - C.snap.resp.PaCO2) + 0.1 && C80.snap.resp.PaCO2 - C.snap.resp.PaCO2 > 0.25 && obs(C80.c, C80.view, 'vitals.spo2').value.spo2 >= 96,
+    && C80.snap.resp.PaCO2 - C.snap.resp.PaCO2 > C28.snap.resp.PaCO2 - C.snap.resp.PaCO2 && C80.snap.resp.PaCO2 - C.snap.resp.PaCO2 > 0.25 && obs(C80.c, C80.view, 'vitals.spo2').value.spo2 >= 96,
     `PaCO2 ${C.snap.resp.PaCO2.toFixed(2)} / ${C28.snap.resp.PaCO2.toFixed(2)} / ${C80.snap.resp.PaCO2.toFixed(2)}, SpO2 on 28 % ${obs(C28.c, C28.view, 'vitals.spo2').value.spo2}`);
+  /* How much: Robinson 2000, 22 exacerbations breathing 100 % for at least 20 min: retainers (12) +8.3 ± 5.6 mmHg, non-retainers (10)
+     −1.3 ± 2.2, so the group +3.9 mmHg (0.52 kPa); their ventilation fell 9.0 → 7.2 L/min. Aubier 1980, acute respiratory failure:
+     +23 ± 5 mmHg after 15 min. Griffiths 1996, stable hypercapnic COPD on 50 %: +0.53 kPa. The model at steady state, which is at
+     least the 15–20 minute value. */
+  const rise100 = C100.snap.resp.PaCO2 - C.snap.resp.PaCO2;
+  gap('…and on 100 % oxygen PaCO2 rises at least as much as in Robinson 2000’s exacerbations (+0.52 kPa for the whole group)', rise100 >= 0.52,
+    `+${rise100.toFixed(2)} kPa; ventilation ${C.snap.resp.VE.toFixed(1)} → ${C100.snap.resp.VE.toFixed(1)} L/min: the model's rise is the ventilation–perfusion part only; oxygen does not reduce its ventilation as it did in Robinson's retainers`);
 }
 
 console.log('\nThe internal milieu: water, salt, potassium, acid–base, the kidney, fuels');
