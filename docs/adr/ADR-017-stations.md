@@ -82,7 +82,7 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
 2. **ECG signs and the other two modes:** ECG observables and signs in the knowledge tables; Predict; Identify with the observe-only scoring. (Done; see decision 7.)
 2b. **ECG signs in the encounter:** named after an ECG result in the guided level, chips in the observe-only level, credited in the debrief. (Done.)
 3. **Heart sounds timed from valve events** (decision 6).
-4. **The auscultation station, Explore** (done; see decision 8). Predict and Identify follow, as for the ECG.
+4. **The auscultation station** (done; see decision 8): Explore, then Predict and Identify, scored on the knowledge tables' heart-sound signs as found by the standard cardiac auscultation manoeuvres.
 5. **Links:** teaching cards and the debrief open a station on the relevant patient.
 
 Further stations follow the same pattern where a test's signal and its mechanism are both in a model: the pulse wave and the arterial pressure, the eye movements and the vestibulo-ocular reflex, the pupils and the light reflex.
