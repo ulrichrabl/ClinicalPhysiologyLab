@@ -64,13 +64,25 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
 - **Signs are rows in `signs.json`** with standard thresholds (Thygesen 2018, Sokolow and Lyon 1949, the AHA/ACCF/HRS statements of 2009), two named predicates for leads that look at the same wall, and six syndromes (bundle branch blocks, pre-excitation, the second- and third-degree blocks).
 - **In the encounter (step 2b):** an investigation's result records the observables it reveals, as they were when it was taken (`revealed` on the result event). The ECG's reading is taken through the electrodes where the learner put them, so reversed arm leads read as inverted T in I and a moved axis, as on the tracing. After the result, the guided level names its signs and the observe-only level offers them to name; the debrief reads them from the result (`signsInResult`).
 
+### 8. How step 4 was built (added with it)
+
+- **The signal** is the heart-sounds finding at the chosen site and context, timed beat by beat. Each beat's sounds run from its own S1 to the next beat's S1, so the split moves with breathing and S1 with an irregular rhythm.
+- **The mechanism** is a Wiggers diagram of the beat at the cursor, drawn from the circulation's 2 ms samples. These now carry atrial activation, the right heart's valve flows and its volume. The live patient keeps its last ten beats.
+- **Phases come from flows, not times.** A valve is open while blood passes forward, leaking while blood passes back. Between the first and last diastolic flow the inflow valve counts as open, even while flow pauses. Each side is read from its own valves.
+- **Starting points are patients, named by what they reach.** Each is a few haemodynamic parameters on a healthy adult, named by the guideline category its circulation reaches by the guideline's own measure, and a test checks it.
+- **Event timing, fixed in the circulation:**
+  - mitral opening is the first opening after A2;
+  - S1 is the closure belonging to the beat;
+  - an event in a beat's last step keeps its time;
+  - lead II holds its value between drains.
+
 ## Steps
 
 1. **The ECG station, Explore** (this PR): the activation log in the electrical model, with tests; the station screen with settings, strip, ladder, cursor, conduction heart and explanations in EN and DE; a Stations card on the Ward.
 2. **ECG signs and the other two modes:** ECG observables and signs in the knowledge tables; Predict; Identify with the observe-only scoring. (Done; see decision 7.)
 2b. **ECG signs in the encounter:** named after an ECG result in the guided level, chips in the observe-only level, credited in the debrief. (Done.)
 3. **Heart sounds timed from valve events** (decision 6).
-4. **The auscultation station.**
+4. **The auscultation station, Explore** (done; see decision 8). Predict and Identify follow, as for the ECG.
 5. **Links:** teaching cards and the debrief open a station on the relevant patient.
 
 Further stations follow the same pattern where a test's signal and its mechanism are both in a model: the pulse wave and the arterial pressure, the eye movements and the vestibulo-ocular reflex, the pupils and the light reflex.

@@ -93,7 +93,7 @@ export class Circulation {
     this.prevEn = 0;
     this.beat = []; this.lastBeat = null; this.lastSample = -1;
     this.metrics = null;
-    this.events = { mvc: null, avo: null, avc: null, mvo: null, s1: null, tvc: null, pvo: null, pvc: null, tvo: null, m1: null };
+    this.events = { mvc: null, avo: null, avc: null, mvo: null, s1: null, tvc: null, tvcLast: null, pvo: null, pvc: null, tvo: null, m1: null };
     this.prevMitral = false; this.prevAortic = false;
     this.beatStartT = 0;
   }
@@ -523,14 +523,18 @@ export class Circulation {
     const tms = this.t * 1000;
     const idx = this.beat.length;
 
-    if (this.prevMitral && !this.mitralOpen) this.events.mvc = idx;
+    if (this.prevMitral && !this.mitralOpen) { this.events.mvc = idx; this.lastMitralClosureMs = tms; }
+    if (this.prevTricuspid && !this.tricuspidOpen) this.lastTricuspidClosureMs = tms;
     if (this.events.s1 == null && this.en > 0.03) this.events.s1 = idx;
     if (!this.prevAortic && this.aorticOpen) this.events.avo = idx;
     if (this.prevAortic && !this.aorticOpen) this.events.avc = idx;
-    if (!this.prevMitral && this.mitralOpen) this.events.mvo = idx;
+    /* the mitral valve opens once per beat, after the aortic valve has closed; if filling pauses in diastasis and the valve
+       flickers shut and open again, that is not its opening (which the opening snap and the E wave are timed from) */
+    if (!this.prevMitral && this.mitralOpen && this.events.mvo == null && this.events.avc != null) this.events.mvo = idx;
     /* The right heart's valves, for the second heart sound's two components and the first's tricuspid one. */
     /* (the first closure of the beat: a valve that flickers shut again at end-diastole is not the first heart sound) */
     if (this.prevTricuspid && !this.tricuspidOpen && this.events.tvc == null) this.events.tvc = idx;
+    if (this.prevTricuspid && !this.tricuspidOpen) this.events.tvcLast = idx;
     if (!this.prevPulmonic && this.pulmonicOpen && this.events.pvo == null) this.events.pvo = idx;
     if (this.prevPulmonic && !this.pulmonicOpen && this.events.pvc == null) { this.events.pvc = idx; this.breathAtP2 = this.breathPhase(); }
     if (!this.prevTricuspid && this.tricuspidOpen && this.events.tvo == null) this.events.tvo = idx;
@@ -545,6 +549,8 @@ export class Circulation {
         Qao: this.Qeject, Qmit: this.Qfill, Qsys: this.Qout,
         Ppa: this.Ppa, Pra: this.Pra, Prv: this.Prv,
         ecg: this.ecgValue, en: this.en, E: this.E,
+        /* for the auscultation station's Wiggers diagram: atrial activation, the right heart's valve flows and volume */
+        ea: this.ea, enRv: this.enRv, Qpv: this.Qpulv, Qtri: this.Qtri, Vrv: this.Vrv,
       });
     }
 
@@ -648,7 +654,9 @@ export class Circulation {
     const avg = this.metricsBreath ?? { ...this.metrics };
     for (const k in this.metrics) { const x = this.metrics[k]; if (typeof x === 'number' && Number.isFinite(x)) avg[k] = typeof avg[k] === 'number' && Number.isFinite(avg[k]) ? avg[k] + (x - avg[k]) * w : x; }
     this.metricsBreath = avg;
-    this.valveTimes = this.timesOf(b, this.events, dur);
+    /* the closures last seen before this beat began: a beat whose window holds no closure took its S1 from there */
+    this.valveTimes = this.timesOf(b, this.events, dur, { m: this.closureBeforeBeat?.m ?? null, t: this.closureBeforeBeat?.t ?? null });
+    this.closureBeforeBeat = { m: this.lastMitralClosureMs != null ? this.lastMitralClosureMs - this.t * 1000 : null, t: this.lastTricuspidClosureMs != null ? this.lastTricuspidClosureMs - this.t * 1000 : null };
     /* The recent beats, each with the pleural pressure it was made at: inspiration's beats and expiration's differ. */
     const n = Math.max(1, this.beatPplN || 0);
     /* A beat's window runs from its QRS to the next: its own ejection, then the diastole that fills the next beat. So
@@ -663,7 +671,7 @@ export class Circulation {
     if (this.beatLog.length > 40) this.beatLog.shift();
     this.beatPplSum = 0; this.beatPplN = 0;
     this.beat = [];
-    this.events = { mvc: null, avo: null, avc: null, mvo: null, s1: null, tvc: null, pvo: null, pvc: null, tvo: null, m1: null };
+    this.events = { mvc: null, avo: null, avc: null, mvo: null, s1: null, tvc: null, tvcLast: null, pvo: null, pvc: null, tvo: null, m1: null };
     this.beatStartT = this.t * 1000;
     if (this.baroEnabled) this.HReff = this.modulatedHR();
   }
@@ -672,8 +680,10 @@ export class Circulation {
      start of the beat (ventricular activation). These are the times the heart sounds happen at: S1 is mitral and
      tricuspid closure, S2 aortic (A2) and pulmonary (P2) closure; an opening snap is mitral opening; S3 falls at the end
      of rapid filling, S4 with the atrial kick. */
-  timesOf(b, ev, dur) {
-    const at = (i) => (i != null && b[i] ? b[i].t : null);
+  timesOf(b, ev, dur, before: { m: number | null; t: number | null } = { m: null, t: null }) {
+    /* An event's index is the sample about to be recorded; one in the last step of a beat, before that sample was pushed,
+       falls at the end of the beat. */
+    const at = (i) => (i == null ? null : b[i] ? b[i].t : b.length ? b[b.length - 1].t : null);
     const mvo = ev.mvo;
     let eIdx = null, ePeak = 0;
     if (mvo != null) for (let i = mvo; i < b.length && b[i].t < b[mvo].t + 250; i++) if (b[i].Qmit > ePeak) { ePeak = b[i].Qmit; eIdx = i; }
@@ -684,13 +694,17 @@ export class Circulation {
     for (let i = 0; i < b.length; i++) if (b[i].t >= Math.max(dur - 200, rapidEnd ?? 0) && b[i].Qmit > aPeak) { aPeak = b[i].Qmit; aIdx = i; }
     /* The end of the right ventricle's active systole, as Curtiss timed it (the "O" of Q–O): the onset of the rapid
        fall of its pressure, here where it has fallen a fifth of the way from its peak to its diastolic minimum. */
+    const s1Closure = (first, last) => (first != null && b[first] && (ev.avo == null || first < ev.avo) ? first : last ?? first);
     let ip = 0, lo = Infinity, rvRelax = null;
     for (let i = 0; i < b.length; i++) if (b[i].Prv > b[ip].Prv) ip = i;
     for (let i = ip; i < b.length; i++) lo = Math.min(lo, b[i].Prv);
     const th = b.length ? b[ip].Prv - 0.2 * (b[ip].Prv - lo) : 0;
     for (let i = ip + 1; i < b.length; i++) if (b[i].Prv <= th) { const f = (b[i - 1].Prv - th) / Math.max(1e-9, b[i - 1].Prv - b[i].Prv); rvRelax = b[i - 1].t + f * (b[i].t - b[i - 1].t); break; }
     return {
-      cycle: dur, m1: at(ev.m1 ?? ev.mvc), rvRelax, t1: at(ev.tvc), avo: at(ev.avo), a2: at(ev.avc), pvo: at(ev.pvo), p2: at(ev.pvc), mvo: at(mvo), tvo: at(ev.tvo),
+      /* S1 is the closure that belongs to this beat's contraction: one after its activation, before ejection begins, or else the
+         closure that ends this window's diastole (standing in for the one just before this beat, which beats repeat). Not a
+         flicker shut while filling pauses in diastasis. */
+      cycle: dur, m1: at(s1Closure(ev.m1, ev.mvc)) ?? (before.m != null && before.m > -300 ? before.m : null), rvRelax, t1: at(s1Closure(ev.tvc, ev.tvcLast ?? null)) ?? (before.t != null && before.t > -300 ? before.t : null), avo: at(ev.avo), a2: at(ev.avc), pvo: at(ev.pvo), p2: at(ev.pvc), mvo: at(mvo), tvo: at(ev.tvo),
       ePeak: at(eIdx), rapidEnd, aPeak: at(aIdx), eFlow: ePeak, aFlow: aPeak,
     };
   }

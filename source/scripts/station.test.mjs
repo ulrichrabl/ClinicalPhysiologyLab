@@ -166,5 +166,50 @@ console.log('\nECG signs in the encounter (ADR-017 step 2b)');
   ok('reversed arm electrodes: T in I turns negative and the axis moves, as on the tracing', std.t.I > 0 && rev.t.I < 0 && Math.abs(rev.axis - std.axis) > 20, `T in I ${std.t.I} → ${rev.t.I} mV, axis ${std.axis} → ${rev.axis}°`);
 }
 
+console.log('\nThe auscultation station (ADR-017 step 4)');
+{
+  /* Beats as the live patient records them: run the circulation, keep its beats with their samples. */
+  const beatsOf = async (preset) => {
+    const H = S.healthyModel();
+    const live = new S.LivePatient(preset ? S.applyAuscPreset(H, H.circulation, preset) : H);
+    await live.settle(24);
+    while (live.t < 12) live.advance(1 / 60);
+    return { live, beats: live.beats };
+  };
+  const { live, beats } = await beatsOf(null);
+  ok('the live patient keeps its recent beats, each with its samples and valve times', beats.length >= 5 && beats.every((b) => b.samples.length > 100 && b.times.a2 != null && b.log.t0 === b.t0), `${beats.length} beats`);
+  ok('…on one clock: each beat begins where the one before it ended', beats.slice(1).every((b, i) => Math.abs(b.t0 - (beats[i].t0 + beats[i].dur)) < 3));
+  ok('the ECG the beats carry has no drop-outs to zero', beats.every((b) => b.samples.filter((x) => x.t > 150 && x.ecg === 0).length === 0));
+  const b = beats.at(-1);
+  const segs = S.cycleSegments(b).map((x) => x.phase);
+  ok('a healthy beat runs through the cardiac cycle in order: isovolumic contraction, ejection, isovolumic relaxation, rapid filling, diastasis, atrial systole',
+    J(segs) === J(['iso-contraction', 'ejection', 'iso-relaxation', 'rapid-filling', 'diastasis', 'atrial-systole']), J(segs));
+  const vol = (ph) => { const xs = b.samples.filter((x) => S.cycleAt(b, x.t).phase === ph).map((x) => x.V); return Math.max(...xs) - Math.min(...xs); };
+  ok('…the isovolumic phases are isovolumic: the left ventricle’s volume changes by under 2 mL in each', vol('iso-contraction') < 2 && vol('iso-relaxation') < 2, `${vol('iso-contraction').toFixed(2)}, ${vol('iso-relaxation').toFixed(2)} mL`);
+  const ej = S.cycleSegments(b).find((x) => x.phase === 'ejection');
+  ok('…ejection is where the aortic valve passes blood, from aortic opening to A2', Math.abs(ej.from - b.times.avo) <= 4 && Math.abs(ej.to - b.times.a2) <= 4, `${ej.from}–${ej.to} vs AO ${b.times.avo} AC ${b.times.a2}`);
+  const ev = Object.fromEntries(S.valveEvents(b).map((e) => [e.id, e.t]));
+  ok('…its valve events in order: mitral closure, aortic opening, A2, P2, mitral opening', ev.MC < ev.AO && ev.AO < ev.AC && ev.AC < ev.PC && ev.PC < ev.MO, J(ev));
+
+  /* Each starting point is named by the severity its circulation reaches by the guidelines' own measure. */
+  for (const p of S.AUSC_PRESETS) {
+    const r = await beatsOf(p.id);
+    const m = r.live.snap.metricsBreath, last = r.beats.at(-1);
+    const v = { peakAorticGradient: m.aorticGradient, meanMitralGradient: S.meanMitralGradient(last), regurgFraction: m.regurgFraction * 100, ejectionFraction: m.EF }[p.check.measure];
+    ok(`starting point “${p.label.en}”: ${p.check.measure} ${p.check.range[0]}–${p.check.range[1]} (${p.check.refs.join(', ')})`, v >= p.check.range[0] && v <= p.check.range[1] && p.check.refs.every((x) => S.REFERENCES[x]), `${v.toFixed(1)}`);
+    const segs2 = S.cycleSegments(last).map((x) => x.phase);
+    ok(`…its beat still runs contraction, ejection, relaxation, filling, in that order`, segs2.indexOf('ejection') > segs2.indexOf('iso-contraction') && segs2.indexOf('iso-relaxation') > segs2.indexOf('ejection') && segs2.indexOf('rapid-filling') > segs2.indexOf('iso-relaxation'), J(segs2));
+    if (p.id === 'mr-moderate') ok('…mitral regurgitation: the mitral valve leaks in systole', last.samples.some((x) => S.cycleAt(last, x.t).phase === 'ejection' && S.cycleAt(last, x.t).valves.mitral === 'leaking'));
+    if (p.id === 'ar-moderate') ok('…aortic regurgitation: the aortic valve leaks in diastole, and the mitral valve shuts early', last.samples.some((x) => S.cycleAt(last, x.t).phase === 'diastasis' && S.cycleAt(last, x.t).valves.aortic === 'leaking') && last.times.m1 > last.dur / 2, `MC ${last.times.m1} of ${last.dur}`);
+    if (p.id === 'ms-severe') ok('…mitral stenosis: the mitral valve opens once, after A2 (not at a flicker in diastasis)', last.times.mvo > last.times.a2 && last.times.mvo < last.times.a2 + 200, `A2 ${last.times.a2} MO ${last.times.mvo}`);
+  }
+
+  const groups = S.stationSettings(S.AUSCULTATION_STATION).map((g) => g.id);
+  ok('the station’s settings are what the heart sounds measure (the haemodynamic model), with the rate and atrial rhythm that drive them', groups.includes('haemodynamics/valves') && groups.includes('driver/electrical.HR') && groups.includes('driver/electrical.atrial'), J(groups));
+  ok('every starting point is in a group, once', J(S.AUSC_PRESET_GROUPS.flatMap((g) => g.ids).sort()) === J(S.AUSC_PRESETS.map((p) => p.id).sort()));
+  const texts = S.allAuscTexts();
+  ok('every auscultation explanation exists in English and German, with its numbers filled in', texts.length > 40 && texts.every((x) => x.en && x.de && !/\$\{|undefined|NaN/.test(x.en + x.de)), `${texts.length} texts`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);

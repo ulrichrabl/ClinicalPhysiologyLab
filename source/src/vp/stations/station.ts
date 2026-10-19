@@ -49,7 +49,21 @@ export const ECG_STATION: StationDef = {
   ],
 };
 
-export const STATIONS: StationDef[] = [ECG_STATION];
+/* The auscultation station (ADR-017 step 4): the stethoscope, and the mechanics that make each sound. Its starting points
+   are haemodynamic (stations/auscultation-presets.ts), so `presets` is empty here. */
+export const AUSCULTATION_STATION: StationDef = {
+  id: 'auscultation', test: 'heart.sounds',
+  title: L('Auscultation station', 'Auskultations-Station'),
+  summary: L('The heart sounds and the mechanics that make them, on one clock. Change the valves and the ventricle; follow the cursor through the beat and hear each sound where its valve moves.',
+    'Die Herztöne und die Mechanik, die sie erzeugt, auf einer Uhr. Ändern Sie Klappen und Kammer; folgen Sie dem Cursor durch den Herzschlag und hören Sie jeden Ton dort, wo sich seine Klappe bewegt.'),
+  drivers: {
+    'electrical.HR': L('The rate sets how long each phase lasts: diastole shortens most as it rises.', 'Die Frequenz bestimmt, wie lange jede Phase dauert: Steigt sie, verkürzt sich vor allem die Diastole.'),
+    'electrical.atrial': L('Without atrial contraction (fibrillation) there is no atrial kick and no fourth heart sound.', 'Ohne Vorhofkontraktion (Flimmern) gibt es keinen Vorhofstoß und keinen vierten Herzton.'),
+  },
+  presets: [],
+};
+
+export const STATIONS: StationDef[] = [ECG_STATION, AUSCULTATION_STATION];
 
 export interface SettingGroup { id: string; label: LocalizedText; vars: VariableDef[]; why?: LocalizedText }
 

@@ -22,3 +22,10 @@ export { CASES } from '../src/vp/index.ts';
 export { startEncounter, order } from '../src/vp/engine/encounter.ts';
 export { signsShown, documentation, commit } from '../src/vp/engine/debrief.ts';
 export { modelFromCase } from '../src/vp/physiology/state.ts';
+/* the auscultation station (ADR-017 step 4) */
+export { LivePatient } from '../src/vp/live/live-patient.ts';
+export { AUSCULTATION_STATION } from '../src/vp/stations/station.ts';
+export { AUSC_PRESETS, AUSC_PRESET_GROUPS, applyAuscPreset } from '../src/vp/stations/auscultation-presets.ts';
+export { cycleAt, cycleSegments, valveEvents, meanMitralGradient, CYCLE_PHASES } from '../src/vp/stations/cardiac-cycle.ts';
+export { explainCycle, allAuscTexts, CYCLE_LABEL } from '../src/vp/stations/auscultation-texts.ts';
+export { REFERENCES } from '../src/vp/evidence/references.ts';
