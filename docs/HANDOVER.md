@@ -8,6 +8,7 @@ Last updated: 19 October 2026, with the pulse and neck-vein station's Predict an
 2. Rewrite the finding texts as observations rather than diagnoses, so the observe-only level is a real test for findings shown only as text?
 3. A hands-only inspection, so "look at the hands" works on a dressed patient?
 4. Which next: ADR-016 step 5 (draw the signs the views do not show yet), the Evidence ADR, or animations. The owner chose stations (ADR-017); step 1 is in review.
+5. Interactivity with the clock running (owner, 2026-10-19): cardiac arrest and later anaesthesia. ADR-018 (interventions, scenarios and guideline scoring) is proposed, with a first scenario (witnessed VF on the ward) and five open questions for the owner. Nothing is built until it is decided.
 
 This page is the entry point for anyone (or any agent) picking up the work. It covers:
 
