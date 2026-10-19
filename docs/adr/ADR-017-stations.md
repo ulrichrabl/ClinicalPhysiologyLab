@@ -100,7 +100,7 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
 
 6. **The eye station, Explore** (done; see decision 9): pupils and lids, the swinging light, eye movements and pursuit, the cover test, nystagmus, the head impulse and the visual fields, each beside the pathway it reads. The eye as a window on the body followed (jaundice, conjunctival pallor, thyroid eye signs): those tests need the body run through the illness, so the station runs it in the background whenever a body setting changes. Predict and Identify followed, over all eye signs, with the signs offered beside the test that shows each, and starting points the examination cannot tell apart counted as equivalent (with the reason).
 
-Further stations follow the same pattern where a test's signal and its mechanism are both in a model: the pulse wave and the arterial pressure.
+7. **The pulse and neck-vein station, Explore** (done): the arterial pulse and the jugular venous pressure, read from each beat's own pressures (`waves.ts`). The pulse rhythm and the venous waveform findings now come from those waves instead of a label or a parameter. Next: Predict and Identify.
 
 ## Consequences
 

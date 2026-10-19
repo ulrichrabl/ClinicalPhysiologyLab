@@ -6,6 +6,8 @@ import { defineConstants } from './constants.ts';
    sign usually appears. Thresholds not listed here are heuristics described where they are used. */
 
 export const EXAM = defineConstants('exam', {
+  pulseIrregularCv: { value: 0.1, unit: 'fraction', status: 'assumed', means: 'Beat-to-beat variation of the pulse interval (coefficient of variation over the last 12 beats) above which a finger feels the pulse irregular.',
+    derivation: 'Placed above the sinus arrhythmia of quiet breathing in the model (about 5 %) and well below atrial fibrillation (about 30 %). Not grounded on a study of palpation.' },
   msAudibleGradient: { value: 3, unit: 'mmHg', status: 'assumed', refs: ['bonow2006'], means: 'Mean diastolic gradient across a narrowed mitral valve at which its opening snap, loud S1 and rumble are heard.',
     derivation: 'Placed just above what a normal valve gives (the model’s healthy heart: 1.75 mmHg) and below the 5 mmHg at which Bonow grades stenosis moderate. No study of audibility against the gradient was found; the sounds of mild stenosis are often present, but faint and short.' },
   msModerateGradient: { value: 5, unit: 'mmHg', status: 'derived', refs: ['bonow2006'], means: 'Mean mitral gradient from which the rumble is graded louder (moderate stenosis).',

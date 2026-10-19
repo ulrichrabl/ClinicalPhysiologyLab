@@ -326,5 +326,45 @@ console.log('\nThe eye station');
   ok('saccadic pursuit falls behind the target and catches up in steps; smooth pursuit stays on it', lagS > 1 && lagS < 6, lagS.toFixed(2));
 }
 
+
+console.log('\nThe pulse and neck-vein station');
+{
+  const H = S.healthyModel();
+  const run = async (m) => { const lp = new S.LivePatient(m); await lp.settle(20); for (let i = 0; i < 100; i++) lp.advance(0.1); return lp; };
+  const healthy = await run(H);
+  const hs = S.pulseSignsOf(healthy.model, healthy.snap, healthy.chemistry);
+  ok('a healthy adult: a normal pulse and neck veins', hs.present.size === 0, J([...hs.present]));
+  const hv = healthy.snap.beatLog.slice(-8).map((b) => b.ven);
+  ok('in health each beat’s right atrial pressure has an a wave taller than its v, with x and y descents below both (the model’s own waves)',
+    hv.filter((v) => v.a != null && v.a > v.v && v.x < v.v && v.y < v.v).length >= 6, J(hv.map((v) => [v.a?.toFixed(1), v.x.toFixed(1), v.v.toFixed(1), v.y.toFixed(1)])));
+  const got = {};
+  for (const p of S.PULSE_PRESETS) {
+    const lp = await run(S.applyPulsePreset(H, H.circulation, p.id));
+    got[p.id] = { lp, signs: S.pulseSignsOf(lp.model, lp.snap, lp.chemistry).present };
+    ok(`${p.id}: brings ${p.signs.join(', ')}`, p.signs.every((x) => got[p.id].signs.has(x)), J([...got[p.id].signs]));
+  }
+  ok('every starting point is in a group, once', J(S.PULSE_PRESET_GROUPS.flatMap((g) => g.ids).sort()) === J(S.PULSE_PRESETS.map((p) => p.id).sort()));
+  ok('the irregular pulse of atrial fibrillation is felt from the beat intervals, not read from a label: sinus rhythm with breathing stays regular',
+    healthy.snap.beatLog.length >= 8 && !hs.present.has('irregularly-irregular-pulse') && got['af'].signs.has('irregularly-irregular-pulse'));
+  const up = (lp) => S.arterialWave(lp.beats.at(-1).samples).upstrokeMs;
+  ok('the arterial upstroke is slow in severe aortic stenosis (the circulation’s own wave)', up(got['as-severe'].lp) > 1.5 * up(healthy), `${up(got['as-severe'].lp).toFixed(0)} ms against ${up(healthy).toFixed(0)}`);
+  const trx = got['tr-severe'].lp.snap.beatLog.slice(-8).map((b) => b.ven);
+  gap('severe tricuspid regurgitation fills in the x descent (a systolic venous wave): the x trough no lower than the mean', trx.filter((v) => v.x >= v.mean).length >= 4,
+    `x ${trx.map((v) => v.x.toFixed(1)).join(',')} against mean ${trx.map((v) => v.mean.toFixed(1)).join(',')}: the model’s tricuspid leak is small (about 50 mL/s at its largest orifice) and the v wave grows only a little`);
+  const groups = S.stationSettings(S.PULSE_STATION).map((g) => g.id);
+  ok('the station’s settings are what the pulse and JVP measure (the haemodynamic model), with the rate and rhythm that drive them', groups.includes('haemodynamics/valves') && groups.includes('driver/electrical.avBlock'), J(groups));
+  ok('teaching cards of the pulse and JVP link to the station', ['palpate.pulse.radial', 'palpate.pulse.carotid', 'inspect.jvp'].every((m) => S.KNOWLEDGE.tests[m]?.animation === 'station:pulse'));
+  const txt = [];
+  for (const x of ['healthy', ...S.PULSE_PRESETS.map((p) => p.id)]) {
+    const lp = x === 'healthy' ? healthy : got[x].lp;
+    const c = S.caseWithModel(S.FREE_CASE, lp.model), view = S.buildView(c, { circulation: lp.snap, chemistry: lp.chemistry });
+    const o = (ref, ctx = {}) => S.observe(S.CATALOG, S.REGISTRY.resolvers, c, view, ref, ctx).value;
+    const mt = lp.snap.metricsBreath;
+    for (const sec of S.explainPulse({ pulse: o('pulse.radial.R'), jvp: o('jvp', { position: 'reclined-45' }), m: { sys: mt.Psys, dia: mt.Pdia, sv: mt.SV, gradient: mt.aorticGradient, regurgFraction: mt.regurgFraction, upstrokeMs: up(lp), cvp: mt.CVPmean },
+      rhythm: { atrial: lp.model.electrical.atrial, avBlock: lp.model.electrical.avBlock ?? 'none', ventricular: lp.model.electrical.ventricular ?? 'none' } })) txt.push(sec.title, ...sec.body);
+  }
+  ok('every pulse explanation exists in English and German, with its numbers filled in', txt.length > 40 && txt.every((x) => x.en && x.de && x.en !== x.de && !/\$\{|undefined|NaN/.test(x.en + x.de)), `${txt.length} texts`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);

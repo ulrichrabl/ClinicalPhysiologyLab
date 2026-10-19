@@ -484,6 +484,11 @@ canvas.st-mech { display: block; width: 100%; border-radius: 8px; }
 .st-lesions .st-var { margin: 4px 0; }
 .st-signal .st-listen .seg { flex-wrap: wrap; border-radius: 14px; }
 .st-chip-group { display: grid; gap: 4px; margin: 0 0 10px; }
+.st-pulse-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 30%); gap: 10px; align-items: start; }
+@media (max-width: 700px) { .st-pulse-row { grid-template-columns: minmax(0, 1fr); } }
+.st-neck { margin: 0; }
+canvas.st-neck-c, canvas.st-beat { display: block; width: 100%; border-radius: 8px; }
+.st-text h3 + p { margin-top: 0; }
 .st-lift { display: inline-flex; gap: 6px; align-items: center; min-height: 36px; font-size: .92rem; }
 .st-paper-wrap { overflow-x: auto; border-radius: 8px; }
 canvas.st-paper { display: block; }

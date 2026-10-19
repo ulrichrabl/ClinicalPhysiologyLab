@@ -74,6 +74,8 @@ const UI: Record<string, Record<Lang, string>> = {
   stationEcgYours: { en: 'Your patient’s ECG', de: 'Das EKG Ihres Patienten' },
   stationAuscYours: { en: 'Your patient’s heart sounds', de: 'Die Herztöne Ihres Patienten' },
   stationEyesYours: { en: 'Your patient’s eyes', de: 'Die Augen Ihres Patienten' },
+  stationPulseYours: { en: 'Your patient’s pulse and neck veins', de: 'Puls und Halsvenen Ihres Patienten' },
+  stationPulseText: { en: 'The pulse under the finger and the jugular vein in the neck, beside the pressures that make them: the aorta’s wave and the right atrium’s a, x, v and y, beat by beat.', de: 'Der Puls unter dem Finger und die Jugularvene am Hals, neben den Drücken, die sie erzeugen: die Welle der Aorta und a, x, v und y des rechten Vorhofs, Schlag für Schlag.' },
   stationEyesText: { en: 'The eye examination and the pathways it reads, side by side: pupils, movements, the cover test, nystagmus, the head impulse and the fields, with the reflex arc, the muscles and nerves, the labyrinths or the visual pathway.', de: 'Die Augenuntersuchung und die Bahnen, die sie prüft, nebeneinander: Pupillen, Motorik, Abdecktest, Nystagmus, Kopfimpuls und Gesichtsfeld, mit Reflexbogen, Muskeln und Nerven, Labyrinthen oder Sehbahn.' },
   stationShows: { en: 'shows', de: 'zeigt' }, stationNormal: { en: 'nothing abnormal', de: 'nichts Auffälliges' },
   openInStation: { en: 'Open in the station', de: 'In der Station öffnen' },
@@ -165,10 +167,12 @@ const seedOf = (id: string) => [...id].reduce((a, ch) => (a * 31 + ch.charCodeAt
 import { FREE_CASE } from './free-case.ts';
 import { installReport } from './report.ts';
 import { mountEcgStation, type StationHandle } from './station-ecg.ts';
-import { ECG_STATION, AUSCULTATION_STATION, EYE_STATION } from '../stations/station.ts';
-type StationId = 'ecg' | 'auscultation' | 'eyes';
+import { ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION } from '../stations/station.ts';
+type StationId = 'ecg' | 'auscultation' | 'eyes' | 'pulse';
 import { mountAuscultationStation } from './station-auscultation.ts';
 import { mountEyeStation } from './station-eyes.ts';
+import { mountPulseStation } from './station-pulse.ts';
+import { pulseSignsOf } from '../stations/pulse-signs.ts';
 import { eyeSignsOf } from '../stations/eye-signs.ts';
 import { ecgSignsOf } from '../stations/ecg-signs.ts';
 import { auscSignsOf } from '../stations/auscultation-signs.ts';
@@ -337,6 +341,12 @@ export function mount(root: HTMLElement) {
       <p class="bed-triage">${t('stationEyesText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
     ec.querySelector('button')!.onclick = () => openStation('eyes');
     wl.appendChild(ec);
+    const pc = document.createElement('article');
+    pc.className = 'bedcard free';
+    pc.innerHTML = `<span class="tag">${t('stationTag')}</span><h2>${esc(tr(PULSE_STATION.title, lang))}</h2>
+      <p class="bed-triage">${t('stationPulseText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
+    pc.querySelector('button')!.onclick = () => openStation('pulse');
+    wl.appendChild(pc);
   };
   /* A station opens on a healthy heart from the Ward, or on the patient being examined (ADR-017 step 5). On a patient only
      when the mechanism is no longer a spoiler: in the free lab, or once the learner has committed to a diagnosis. Back returns
@@ -346,7 +356,7 @@ export function mount(root: HTMLElement) {
     const withPatient = onPatient && !!live && !!s && (free || committed);
     if (from === 'ward') stopLive(); else live?.stop();
     show('station');
-    const mount = which === 'ecg' ? mountEcgStation : which === 'eyes' ? mountEyeStation : mountAuscultationStation;
+    const mount = which === 'ecg' ? mountEcgStation : which === 'eyes' ? mountEyeStation : which === 'pulse' ? mountPulseStation : mountAuscultationStation;
     station = mount($('#station'), {
       lang,
       ...(withPatient ? { patient: { model: structuredClone(live!.model), name: { en: base.patient.name, de: base.patient.name } } } : {}),
@@ -1325,10 +1335,10 @@ export function mount(root: HTMLElement) {
     const sl = (x: string) => esc(labelOf(KNOWLEDGE, `sign:${x}`, lang));
     const row = (which: StationId, title: string, present: Set<string>) => `<li><b>${esc(title)}</b> ${t('stationShows')}: ${present.size ? [...present].map(sl).join(', ') : `<span class="muted">${t('stationNormal')}</span>`}
       <button type="button" class="ghost small" data-open-station="${which}" data-on-patient="1">${t('openInStation')}</button></li>`;
-    let ecg = new Set<string>(), ausc = new Set<string>(), eyes = new Set<string>();
-    try { ecg = ecgSignsOf(live.model, live.snap, live.chemistry).present; ausc = auscSignsOf(live.model, live.snap, live.chemistry).present; } catch { /* a model without a circulation */ }
+    let ecg = new Set<string>(), ausc = new Set<string>(), eyes = new Set<string>(), pulse = new Set<string>();
+    try { ecg = ecgSignsOf(live.model, live.snap, live.chemistry).present; ausc = auscSignsOf(live.model, live.snap, live.chemistry).present; pulse = pulseSignsOf(live.model, live.snap, live.chemistry).present; } catch { /* a model without a circulation */ }
     try { eyes = eyeSignsOf(live.model, live.snap, live.chemistry).present; } catch { /* nothing to read */ }
-    return `<section><h2>${t('inStation')}</h2><p class="muted">${t('inStationNote')}</p><ul class="plain db-stations">${row('ecg', t('stationEcgYours'), ecg)}${row('auscultation', t('stationAuscYours'), ausc)}${row('eyes', t('stationEyesYours'), eyes)}</ul></section>`;
+    return `<section><h2>${t('inStation')}</h2><p class="muted">${t('inStationNote')}</p><ul class="plain db-stations">${row('ecg', t('stationEcgYours'), ecg)}${row('auscultation', t('stationAuscYours'), ausc)}${row('pulse', t('stationPulseYours'), pulse)}${row('eyes', t('stationEyesYours'), eyes)}</ul></section>`;
   };
   const renderDebrief = () => {
     if (!s || !debrief) return;

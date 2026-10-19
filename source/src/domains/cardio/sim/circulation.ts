@@ -18,6 +18,8 @@ export interface CirculationConfig {
   [key: string]: number | boolean;
 }
 
+import { venousWaves, arterialWave } from './waves.ts';
+
 export class Circulation {
   engine: EcgEngine | null = null;
   _pathParams: Record<string, number> = {};
@@ -669,7 +671,9 @@ export class Circulation {
        its ejection, and its P2, belong to. */
     const dPplBeat = (this.beatPplSum || 0) / n;
     /* t0: when the beat began (ms on the circulation's clock); breath: where in the breath its P2 fell. */
-    (this.beatLog ??= []).push({ ...this.valveTimes, Psys, dPpl: dPplBeat, fillPpl: this.lastBeatPpl ?? dPplBeat, t0: this.beatStartT, breath: this.breathAtP2 ?? null,
+    /* what the hand on the pulse and the eye on the neck veins take in from this beat (waves.ts) */
+    const ven = venousWaves(b), art = arterialWave(b);
+    (this.beatLog ??= []).push({ ...this.valveTimes, rr: dur, ven, art, Psys, dPpl: dPplBeat, fillPpl: this.lastBeatPpl ?? dPplBeat, t0: this.beatStartT, breath: this.breathAtP2 ?? null,
       edvLv: this.beatEdvPrev?.lv ?? null, edvRv: this.beatEdvPrev?.rv ?? null, breathEd: this.beatEdvPrev?.breath ?? null });
     this.breathAtP2 = null;
     this.lastBeatPpl = dPplBeat;
