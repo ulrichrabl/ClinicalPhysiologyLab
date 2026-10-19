@@ -76,6 +76,8 @@ The test suite (`scripts/vp-model.test.mjs`) does three things:
 
 ## Not grounded yet, and why
 
+- **Length-dependent systole** (`systoleLengthGain`, gap 12): fitted to one study, Curtiss 1975 (7 volunteers, abstract only, Q–O +7.7 ± 5.0 ms). Within that spread the gain could lie anywhere from about 0.12 to 0.58. The independent check still to do: does the model's inspiratory change in ventricular size match Lewis, Lewis & Gotsman 1979 (Eur J Cardiol 10:89, PMID 477705, abstract: 8 normals on echo, RV diameter +0.3 ± 0.1 cm, LV −0.3 ± 0.2 cm in inspiration, both linear with Q–P2 and A2–P2)? Comparing diameters with the model's volumes needs a stated shape assumption. If the filling is wrong, the gain is compensating for it, and the left ventricle's shortfall (gap 14) may come from the same place.
+
 - **Kidney:**
   - Acid handling (NH4⁺ production and capacity) and diuretic natriuresis. Sartorius 1949, Lemann 1966 and Wilcox 1983 exist only as scanned full text, which could not be read here.
   - Autoregulation shifts with ACE inhibitors and NSAIDs; the tubular-injury and CKD modifiers.
