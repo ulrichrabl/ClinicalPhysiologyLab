@@ -23,7 +23,14 @@ export const GAZE_TARGET: Record<string, { h: number; v: number }> = {
   primary: { h: 0, v: 0 }, left: { h: -30, v: 0 }, right: { h: 30, v: 0 }, up: { h: 0, v: 25 }, down: { h: 0, v: -25 },
 };
 
-export interface EyeState { h: number; v: number; torsion: number; pupilMm: number; ptosisMm: number }
+export interface EyeState {
+  h: number; v: number; torsion: number; pupilMm: number; ptosisMm: number;
+  /** The body in the eye: scleral yellow (0 none … 1 marked icterus), conjunctival pallor (0 … 1), the upper lid drawn up
+      (mm of sclera above the iris: retraction, and lid lag looking down), the globe pushed forward (mm, exophthalmos). */
+  icterus: number; pallor: number; retractionMm: number; proptosisMm: number;
+  /** The examiner draws the lower lid down to show its inner surface (0 … 1). */
+  lowerLidPull: number;
+}
 export interface Scene { head: number; L: EyeState; R: EyeState; fixing: Side; covered: Side | null }
 
 export interface SceneControls {
@@ -39,6 +46,8 @@ export interface SceneControls {
   pursuit?: number;
   /** The examiner holds the upper lids up (to see an eye behind a complete ptosis). */
   liftLids?: boolean;
+  /** The examiner draws the lower lids down to look at the conjunctivae (0 … 1). */
+  pullLowerLids?: number;
 }
 
 /** Static findings for a context, observed once and reused every frame. */
@@ -50,6 +59,9 @@ export interface SceneFindings {
   alignment: { verticalPD: number; higherEye?: Side };
   hit: Record<Side, { gain: number; saccade: string }>;
   pursuit: { quality: string };
+  sclera: { icterus: string };
+  conjunctiva: { pallor: string };
+  thyroid: { lidRetraction: boolean; lidLag: boolean; exophthalmos: boolean };
 }
 
 export function sceneFindings(cat: Catalog, reg: Registry, c: CaseDef, view: RuntimeView, k: SceneControls): SceneFindings {
@@ -63,10 +75,15 @@ export function sceneFindings(cat: Catalog, reg: Registry, c: CaseDef, view: Run
     alignment: o('eyes.alignment'),
     hit: { L: o('eye.head-impulse.L'), R: o('eye.head-impulse.R') },
     pursuit: o('eyes.pursuit') ?? { quality: 'smooth' },
+    sclera: o('eyes.sclera') ?? { icterus: 'none' },
+    conjunctiva: o('eyes.conjunctiva') ?? { pallor: 'none' },
+    thyroid: o('eyes.thyroid') ?? { lidRetraction: false, lidLag: false, exophthalmos: false },
   };
 }
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
+/** How strongly a graded finding is drawn. */
+const LEVEL: Record<string, number> = { none: 0, mild: 0.5, marked: 1 };
 const ease = (x: number) => 0.5 - 0.5 * Math.cos(Math.PI * clamp(x, 0, 1));
 
 /** Resting deviation of one eye in world coordinates (abducted = away from the nose). */
@@ -135,7 +152,16 @@ export function scene(f: SceneFindings, k: SceneControls, t: number): Scene {
     const d = deviation(f, S), lim = limits(f, S);
     const h = clamp(target.h + d.h - devF.h, lim.hMin, lim.hMax) + beat.h + hitOffset;
     const v = clamp(target.v + d.v - devF.v, lim.vMin, lim.vMax) + beat.v;
-    return { h, v, torsion: beat.torsion, pupilMm: f.pupil[S].sizeMm, ptosisMm: k.liftLids ? 0 : f.lid[S].ptosisMm };
+    /* Thyrotoxic lids: Müller's muscle holds the lid about 2 mm higher; looking down it lags behind the globe, so sclera
+       shows above the iris (von Graefe). The orbitopathy's swollen orbit pushes the globe forward, which shows as sclera
+       below the iris. Drawn sizes, from the finding: the finding itself is the model's. */
+    const th = f.thyroid ?? { lidRetraction: false, lidLag: false, exophthalmos: false };
+    const lag = th.lidLag ? 3 * clamp(-v / 25, 0, 1) : 0;
+    return {
+      h, v, torsion: beat.torsion, pupilMm: f.pupil[S].sizeMm, ptosisMm: k.liftLids ? 0 : f.lid[S].ptosisMm,
+      icterus: LEVEL[f.sclera?.icterus ?? 'none'] ?? 0, pallor: LEVEL[f.conjunctiva?.pallor ?? 'none'] ?? 0,
+      retractionMm: (th.lidRetraction ? 2 : 0) + lag, proptosisMm: th.exophthalmos ? 4 : 0, lowerLidPull: k.pullLowerLids ?? 0,
+    };
   };
   return { head, L: eye('L'), R: eye('R'), fixing, covered };
 }

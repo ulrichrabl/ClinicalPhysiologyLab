@@ -1,5 +1,5 @@
 import type { LocalizedText } from '../model/i18n.ts';
-import type { PatientModel } from '../physiology/state.ts';
+import { BODY_DEFAULTS, type PatientModel } from '../physiology/state.ts';
 
 /* ---------------------------------------------------------------------------
    Named starting points for the eye station.
@@ -20,10 +20,12 @@ export interface EyePreset {
   /** lesioned structures of the nervous-system graph */
   lesions?: string[];
   vestibular?: PatientModel['vestibular'];
+  /** body parameters laid over a healthy adult's, with how long the illness has acted (the body is run through it) */
+  body?: Partial<PatientModel['body']>;
   /** the textbook signs of this lesion (checked by the station tests) */
   signs: string[];
   /** where to look first */
-  look: 'pupils' | 'swinging' | 'movements' | 'cover' | 'nystagmus' | 'impulse' | 'fields';
+  look: 'pupils' | 'swinging' | 'movements' | 'cover' | 'nystagmus' | 'impulse' | 'fields' | 'sclera' | 'conjunctiva' | 'thyroid';
 }
 
 export const EYE_PRESETS: EyePreset[] = [
@@ -51,6 +53,17 @@ export const EYE_PRESETS: EyePreset[] = [
     lesions: ['R_optic_tract'], signs: ['homonymous-hemianopia'], look: 'fields' },
   { id: 'occipital-r', label: L('Occipital cortex, right', 'Okzipitalkortex rechts'),
     lesions: ['R_vis_cx'], signs: ['homonymous-hemianopia'], look: 'fields' },
+  /* the body in the eye: run through the illness for the time given */
+  { id: 'obstruction', label: L('Bile duct obstruction, two weeks', 'Gallengangsverschluss, zwei Wochen'),
+    body: { cholestasis: 0.9, courseHours: 24 * 14 }, signs: ['jaundice'], look: 'sclera' },
+  { id: 'haemolysis', label: L('Haemolytic anaemia, three weeks', 'Hämolytische Anämie, drei Wochen'),
+    body: { haemolysis: 3, courseHours: 24 * 21 }, signs: ['jaundice', 'conjunctival-pallor'], look: 'conjunctiva' },
+  { id: 'iron-deficiency', label: L('Slow colonic bleed, four months', 'Langsame Kolonblutung, vier Monate'),
+    body: { lowerGIBleed: 2, courseHours: 24 * 120 }, signs: ['conjunctival-pallor'], look: 'conjunctiva' },
+  { id: 'graves', label: L('Graves’ disease with orbitopathy, two months', 'Morbus Basedow mit Orbitopathie, zwei Monate'),
+    body: { thyroidStimulation: 0.8, orbitopathy: 0.6, courseHours: 24 * 60 }, signs: ['lid-retraction', 'lid-lag', 'exophthalmos'], look: 'thyroid' },
+  { id: 'thyroxine-excess', label: L('Too much levothyroxine, two months', 'Zu viel Levothyroxin, zwei Monate'),
+    body: { thyroxineDose: 300, courseHours: 24 * 60 }, signs: ['lid-retraction', 'lid-lag'], look: 'thyroid' },
 ];
 
 export const EYE_PRESET_GROUPS: Array<{ group: LocalizedText; ids: string[] }> = [
@@ -58,6 +71,7 @@ export const EYE_PRESET_GROUPS: Array<{ group: LocalizedText; ids: string[] }> =
   { group: L('Ocular motor nerves', 'Augenmuskelnerven'), ids: ['cn3-l', 'cn4-l', 'cn6-l'] },
   { group: L('Pupils', 'Pupillen'), ids: ['horner-l', 'optic-nerve-l'] },
   { group: L('Visual pathway', 'Sehbahn'), ids: ['chiasm', 'optic-tract-r', 'occipital-r'] },
+  { group: L('The body in the eye', 'Der Körper im Auge'), ids: ['obstruction', 'haemolysis', 'iron-deficiency', 'graves', 'thyroxine-excess'] },
 ];
 
 /** A healthy adult with this preset's lesion. */
@@ -66,7 +80,9 @@ export function applyEyePreset(m: PatientModel, id: string): PatientModel {
   const next = structuredClone(m);
   next.lesions = { nodes: [], complete: true };
   next.vestibular = { side: 'none', severity: 0.8, daysSinceOnset: 1 };
+  next.body = { ...BODY_DEFAULTS };
   if (!p) return next;
+  if (p.body) next.body = { ...BODY_DEFAULTS, ...p.body };
   if (p.lesions) next.lesions = { nodes: [...p.lesions], complete: true };
   if (p.vestibular) next.vestibular = { ...p.vestibular };
   return next;

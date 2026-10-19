@@ -24,6 +24,8 @@ export interface StationDef {
   test: string;
   /** the other observables of the same examination, when it reads several (the eye examination: pupils, movements, fields…) */
   alsoTests?: string[];
+  /** groups of a measured model that none of the station's observables depend on, with why they are left out */
+  leaveOut?: Record<string, LocalizedText>;
   title: LocalizedText;
   summary: LocalizedText;
   /** parameters of other models that a measured variable depends on: variable id → why */
@@ -69,11 +71,15 @@ export const AUSCULTATION_STATION: StationDef = {
    points are lesions (stations/eye-presets.ts), so `presets` is empty here. */
 export const EYE_STATION: StationDef = {
   id: 'eyes', test: 'eyes.nystagmus',
-  alsoTests: ['eye.pupil', 'eyes.swinging-light', 'eye.lid', 'eye.motility', 'eyes.alignment', 'eye.head-impulse', 'eyes.pursuit', 'eye.field'],
+  alsoTests: ['eye.pupil', 'eyes.swinging-light', 'eye.lid', 'eye.motility', 'eyes.alignment', 'eye.head-impulse', 'eyes.pursuit', 'eye.field',
+    'eyes.sclera', 'eyes.conjunctiva', 'eyes.thyroid'],
+  leaveOut: { 'endocrine/calcium': L('Calcium and bone do not reach the eye examination.', 'Calcium und Knochen erreichen die Augenuntersuchung nicht.') },
   title: L('Eye station', 'Augen-Station'),
-  summary: L('The eye examination and the pathways it reads: pupils, movements, alignment, nystagmus, the head impulse and the fields. Cut a nerve or a tract; watch the eyes and the pathway side by side.',
-    'Die Augenuntersuchung und die Bahnen, die sie prüft: Pupillen, Motorik, Stellung, Nystagmus, Kopfimpuls und Gesichtsfeld. Durchtrennen Sie einen Nerv oder eine Bahn; sehen Sie Augen und Bahn nebeneinander.'),
-  drivers: {},
+  summary: L('The eye examination and what it reads: pupils, movements, alignment, nystagmus, the head impulse and the fields; and the body in the eye: bilirubin in the sclera, haemoglobin in the conjunctiva, thyroid hormone in the lids. Cut a nerve or change the body; watch the eyes and the mechanism side by side.',
+    'Die Augenuntersuchung und was sie prüft: Pupillen, Motorik, Stellung, Nystagmus, Kopfimpuls und Gesichtsfeld; und der Körper im Auge: Bilirubin in der Sklera, Hämoglobin in der Konjunktiva, Schilddrüsenhormon in den Lidern. Durchtrennen Sie einen Nerv oder verändern Sie den Körper; sehen Sie Augen und Mechanismus nebeneinander.'),
+  drivers: {
+    'water.courseHours': L('Bilirubin, haemoglobin and thyroid hormone change over days to weeks: how long the illness has acted decides how far they have come.', 'Bilirubin, Hämoglobin und Schilddrüsenhormon ändern sich über Tage bis Wochen: Wie lange die Erkrankung wirkt, entscheidet, wie weit sie gekommen sind.'),
+  },
   presets: [],
 };
 
@@ -91,12 +97,14 @@ export function stationSettings(def: StationDef): SettingGroup[] {
     const groups = m.groups.length ? m.groups : [{ id: '', label: m.title }];
     for (const g of groups) {
       const vars = params.filter((v) => (v.group ?? '') === g.id || !g.id);
+      if (def.leaveOut?.[`${m.id}/${g.id}`]) continue;
       if (vars.length) out.push({ id: `${m.id}/${g.id}`, label: g.label, vars });
     }
   }
   for (const [id, why] of Object.entries(def.drivers)) {
     const v = VARIABLE_BY_ID[id];
-    if (v) out.push({ id: `driver/${id}`, label: v.label, vars: [v], why });
+    /* the group is named by the variable, without the explanation its label may carry in brackets (the reason says why) */
+    if (v) out.push({ id: `driver/${id}`, label: { en: v.label.en.split(' (')[0], de: v.label.de.split(' (')[0] }, vars: [v], why });
   }
   return out;
 }

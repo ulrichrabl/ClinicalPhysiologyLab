@@ -1,4 +1,5 @@
 import { healthyModel, type PatientModel } from '../physiology/state.ts';
+import { LivePatient } from '../live/live-patient.ts';
 import { getPath, setPath } from '../physiology/models.ts';
 import type { VariableDef } from '../physiology/types.ts';
 import { CATALOG } from '../data/catalog.ts';
@@ -9,7 +10,7 @@ import { tr, type LocalizedText } from '../model/i18n.ts';
 import { EYE_STATION, stationSettings } from '../stations/station.ts';
 import { EYE_PRESETS, EYE_PRESET_GROUPS, EYE_STRUCTURES, applyEyePreset } from '../stations/eye-presets.ts';
 import { eyeSignsOf, eyeView, eyeContext } from '../stations/eye-signs.ts';
-import { explainEye, EYE_TESTS, EYE_TEST_LABEL, type EyeTest } from '../stations/eye-texts.ts';
+import { explainEye, EYE_TESTS, EYE_TEST_LABEL, BODY_TESTS, type EyeTest } from '../stations/eye-texts.ts';
 import { sceneFindings, type SceneControls, type Scene } from '../render/eye-scene.ts';
 import { EyeView } from '../render/eye-view.ts';
 import { appearanceOf } from '../render/face-canvas.ts';
@@ -58,6 +59,10 @@ const T: Record<string, LocalizedText> = {
   complete: L('Complete lesion', 'Komplette Läsion'),
   side: L('Peripheral vestibular loss: side', 'Peripherer Vestibularisausfall: Seite'), none: L('None', 'Keine'),
   lift: L('Hold the lids up', 'Lider anheben'),
+  daylight: L('In daylight, the patient looking up: the sclera below the iris shows the colour best.', 'Bei Tageslicht, der Patient blickt nach oben: Die Sklera unter der Iris zeigt die Farbe am besten.'),
+  pullNote: L('Your thumb draws the lower lid down; the patient looks up.', 'Ihr Daumen zieht das Unterlid herab; der Patient blickt nach oben.'),
+  followDown: L('Follow my finger down', 'Meinem Finger nach unten folgen'),
+  running: L('The body is being run through the illness (days to weeks of it, in a few seconds)…', 'Der Körper wird durch die Erkrankung gerechnet (Tage bis Wochen davon, in wenigen Sekunden)…'),
 };
 const SIDE2: Side[] = ['L', 'R'];
 const GAZES: Gaze[] = ['primary', 'left', 'right', 'up', 'down'];
@@ -70,15 +75,28 @@ interface Controls {
   fixation: boolean; nysGaze: Gaze;
   impulse: { to: Side; at: number } | null;
   lift: boolean;
+  thyGaze: 'auto' | 'primary' | 'down';
 }
 
 export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHandle {
   let lang = o.lang;
   const t = (k: string) => tr(T[k], lang);
   let model: PatientModel = structuredClone(o.patient?.model ?? healthyModel());
+  /* The body runs its course here (bilirubin, haemoglobin and thyroid hormone take days to weeks); the neurological eye
+     needs none of it. Until the course has run once, the body's signs are not read. */
+  let live: LivePatient | null = null, bodyGen = 0;
+  const snapNow = () => (live ? live.snap as Record<string, any> : undefined);
+  const chemNow = () => live?.chemistry;
+  /** Run the body through the illness for the present model; the newest run wins. */
+  const runBody = () => {
+    const my = ++bodyGen;
+    live = null;
+    const lp = new LivePatient(model);
+    void lp.settle(8).then(() => { if (my !== bodyGen || stopped) return; live = lp; refresh(); });
+  };
   let ev = eyeView(model);
   let test: EyeTest = 'pupils';
-  const k: Controls = { light: 'alt', ambient: 'room', gaze: 'auto', cover: 'alt', coverGaze: 'primary', fixation: false, nysGaze: 'primary', impulse: null, lift: false };
+  const k: Controls = { light: 'alt', ambient: 'room', gaze: 'auto', cover: 'alt', coverGaze: 'primary', fixation: false, nysGaze: 'primary', impulse: null, lift: false, thyGaze: 'auto' };
   let t0 = performance.now();
   let view: EyeView | null = null;
   let trace: TracePoint[] = [];
@@ -108,6 +126,9 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
         return { ...b, impulse: ph < 1 ? { to: n % 2 ? 'R' : 'L', t: ph } : undefined };
       }
       case 'fields': return b;
+      case 'sclera': return { ...b, gaze: 'up' };
+      case 'conjunctiva': return { ...b, gaze: 'up', pullLowerLids: 1 };
+      case 'thyroid': return { ...b, gaze: k.thyGaze === 'auto' ? (Math.floor(el / 2.5) % 2 ? 'down' : 'primary') : k.thyGaze };
     }
   };
 
@@ -135,6 +156,9 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
         ${seg('data-ngaze', (['left', 'primary', 'right', 'up', 'down'] as Gaze[]).map((g) => [g, t(g)] as [string, string]), k.nysGaze, t('gaze'))}`;
       case 'impulse': return `<span class="st-row-buttons"><button type="button" class="ghost" data-hit="L">${t('turnL')}</button><button type="button" class="ghost" data-hit="R">${t('turnR')}</button></span>`;
       case 'fields': return `<span class="muted small">${t('fieldsNote')}</span>`;
+      case 'sclera': return `<span class="muted small">${t('daylight')}</span>`;
+      case 'conjunctiva': return `<span class="muted small">${t('pullNote')}</span>`;
+      case 'thyroid': return seg('data-tgaze', [['auto', t('auto')], ['primary', t('primary')], ['down', t('followDown')]], k.thyGaze, t('gaze'));
     }
   };
 
@@ -155,6 +179,7 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
             <div class="st-row"><div><h2 id="st-see-h">${t('see')}</h2><div class="muted small">${t('seeNote')}</div></div></div>
             <div class="st-tests" role="tablist" aria-label="${t('test')}">${EYE_TESTS.map((x) => `<button type="button" role="tab" class="tog" aria-selected="${x === test}" data-test="${x}">${esc(tr(EYE_TEST_LABEL[x], lang))}</button>`).join('')}</div>
             <div class="st-listen" data-test-controls>${testControls()}</div>
+            <p class="muted small" data-running role="status" ${BODY_TESTS.includes(test) && !snapNow() ? '' : 'hidden'}>${t('running')}</p>
             <div class="eyehost st-eyes" role="img" aria-label="${t('face')}"></div>
             <ul class="st-findings plain small" data-findings aria-live="polite"></ul>
             <div class="st-signs" data-signs aria-live="polite"></div>
@@ -212,12 +237,21 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
     });
   };
   const change = (next: PatientModel) => {
+    const bodyMoved = JSON.stringify(next.body) !== JSON.stringify(model.body);
     model = next;
-    ev = eyeView(model);
-    ctxCache = eyeContext(model);
+    if (bodyMoved) runBody();   // the course runs again; the body's signs return when it has
+    refresh();
+  };
+  const refresh = () => {
+    const snap = snapNow();
+    ev = eyeView(model, snap, chemNow());
+    ctxCache = eyeContext(model, snap, chemNow());
     view?.invalidate();
     renderFindings();
+    const run = host.querySelector<HTMLElement>('[data-running]');
+    if (run) run.hidden = !(BODY_TESTS.includes(test) && !snap);
   };
+  runBody();
 
   /* ---- the eyes and the pathway --------------------------------------------------------------------------------------- */
   const css = (n: string) => getComputedStyle(host).getPropertyValue(n).trim() || '#888';
@@ -237,7 +271,8 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
       if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
       const g = canvas.getContext('2d')!;
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
-      drawEyeMechanism(g, w, h, { test, s: ctxCache.s, lesions: new Set(model.lesions.nodes), controls: kk, scene: sc, trace, verticalPD: ctxCache.verticalPD, gain: ctxCache.gain, lang, colors });
+      drawEyeMechanism(g, w, h, { test, s: ctxCache.s, lesions: new Set(model.lesions.nodes), controls: kk, scene: sc, trace, verticalPD: ctxCache.verticalPD, gain: ctxCache.gain,
+        body: ctxCache.body, findings: ctxCache.findings, lang, colors });
     });
   };
 
@@ -269,6 +304,9 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
       case 'nystagmus': for (const g of ['left', 'primary', 'right'] as Gaze[]) out.push(line(null, o('eyes.nystagmus', { gaze: g, fixation: false }))); break;
       case 'impulse': for (const S of ['L', 'R'] as Side[]) out.push(line(null, o(`eye.head-impulse.${S}`, { headImpulseTo: S }))); break;
       case 'fields': for (const S of ['R', 'L'] as Side[]) out.push(line(null, o(`eye.field.${S}`))); break;
+      case 'sclera': if (snapNow()) out.push(line(tr(CATALOG.properties['eyes.sclera'].label, lang), o('eyes.sclera'))); break;
+      case 'conjunctiva': if (snapNow()) out.push(line(tr(CATALOG.properties['eyes.conjunctiva'].label, lang), o('eyes.conjunctiva'))); break;
+      case 'thyroid': if (snapNow()) out.push(line(null, o('eyes.thyroid'))); break;
     }
     return out;
   };
@@ -276,7 +314,8 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
     const box = host.querySelector<HTMLElement>('[data-findings]');
     if (!box) return;
     box.innerHTML = findingLines().map((x) => `<li>${x}</li>`).join('');
-    const r = eyeSignsOf(model);
+    const snap = snapNow();
+    const r = eyeSignsOf(model, snap, chemNow());
     const sb = host.querySelector<HTMLElement>('[data-signs]')!;
     sb.innerHTML = `<span class="muted small">${t('signsNow')}:</span> ${r.present.size
       ? [...r.present].map((x) => { const w = r.where.get(x) ?? []; return `<span class="sign" title="${esc(`${t('at')}: ${w.length ? w.map(manoeuvreLabel).join('; ') : t('compared')}`)}">${esc(signLabel(x))}</span>`; }).join('')
@@ -314,12 +353,13 @@ export function mountEyeStation(host: HTMLElement, o: StationOptions): StationHa
     on('data-cgaze', (v) => { k.coverGaze = v as Gaze; });
     on('data-fix', (v) => { k.fixation = v === '1'; });
     on('data-ngaze', (v) => { k.nysGaze = v as Gaze; });
+    on('data-tgaze', (v) => { k.thyGaze = v as Controls['thyGaze']; });
     const lb = box.querySelector<HTMLInputElement>('[data-lift]');
     if (lb) lb.onchange = () => { k.lift = lb.checked; };
     box.querySelectorAll<HTMLButtonElement>('[data-hit]').forEach((b) => b.onclick = () => { k.impulse = { to: b.dataset.hit as Side, at: performance.now() }; });
   };
 
-  const stop = () => { stopped = true; view?.stop(); };
+  const stop = () => { stopped = true; view?.stop(); bodyGen++; };
   render();
   return {
     stop,

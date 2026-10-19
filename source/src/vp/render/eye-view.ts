@@ -27,7 +27,7 @@ export class EyeView {
     let prev = performance.now();
     const frame = (now: number) => {
       const k = controls(now);
-      const key = `${k.gaze}|${k.fixation}|${k.lightOn}|${k.ambient}`;
+      const key = `${k.gaze}|${k.fixation}|${k.lightOn}|${k.ambient}|${this.gen}`;
       if (key !== lastKey || !this.findings) { this.findings = findingsFor(k); lastKey = key; }
       const sc = scene(this.findings, k, now / 1000);
       this.last = sc;
@@ -42,7 +42,8 @@ export class EyeView {
         const tau = e.pupilMm < this.pupil[S] ? 0.25 : 0.8;
         this.pupil[S] += (e.pupilMm - this.pupil[S]) * (1 - Math.exp(-dt / tau));
         const hippus = Math.sin(now / 1000 * 2.1 + (S === 'L' ? 0 : 1.3)) * 0.06;
-        st.eyes[S] = { h: e.h - sc.head, v: e.v, torsion: e.torsion, pupilMm: this.pupil[S] + hippus, ptosisMm: e.ptosisMm, closure: blink };
+        st.eyes[S] = { h: e.h - sc.head, v: e.v, torsion: e.torsion, pupilMm: this.pupil[S] + hippus, ptosisMm: e.ptosisMm, closure: blink,
+          icterus: e.icterus, pallor: e.pallor, retractionMm: e.retractionMm, proptosisMm: e.proptosisMm, lowerLidPull: e.lowerLidPull };
       }
       st.light = k.lightOn;
       st.dim = k.ambient === 'dim';
@@ -56,7 +57,8 @@ export class EyeView {
   }
 
   /** Forget cached findings (the patient changed). */
-  invalidate() { this.findings = null; }
+  invalidate() { this.findings = null; this.gen++; }
+  private gen = 0;
 
   stop() { cancelAnimationFrame(this.raf); }
 }

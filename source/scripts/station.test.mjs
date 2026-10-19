@@ -246,10 +246,32 @@ console.log('\nThe eye station');
   const H = S.healthyModel();
   ok('a healthy adult: no eye sign', S.eyeSignsOf(H).present.size === 0, J([...S.eyeSignsOf(H).present]));
   const signs = {};
+  /* a preset that changes the body is run through its illness first, as the station does */
+  const settled = {};
+  const signsOfPreset = (id) => {
+    const m = S.applyEyePreset(H, id), p = S.EYE_PRESETS.find((x) => x.id === id);
+    if (!p?.body) return S.eyeSignsOf(m);
+    settled[id] ??= S.settleModel(m, 8).snapshot;
+    return S.eyeSignsOf(m, settled[id], S.chemistryState(settled[id], m.chemistry));
+  };
   for (const p of S.EYE_PRESETS) {
-    const got = S.eyeSignsOf(S.applyEyePreset(H, p.id)).present;
+    const got = signsOfPreset(p.id).present;
     signs[p.id] = got;
     ok(`${p.id}: brings ${p.signs.join(', ')}`, p.signs.every((x) => got.has(x)), J([...got]));
+  }
+  ok('thyroxine excess retracts the lids but does not push the eyes forward: that needs the orbitopathy of Graves’ disease', !signs['thyroxine-excess'].has('exophthalmos') && signs['graves'].has('exophthalmos'));
+  ok('the neurological presets leave the body alone: no jaundice, pallor or thyroid sign', S.EYE_PRESETS.filter((p) => !p.body).every((p) => !['jaundice', 'conjunctival-pallor', 'lid-retraction', 'exophthalmos'].some((x) => signs[p.id].has(x))));
+  {
+    const m = S.applyEyePreset(H, 'obstruction'), snap = settled['obstruction'];
+    const { c, view } = S.eyeView(m, snap, S.chemistryState(snap, m.chemistry));
+    const f = S.sceneFindings(S.CATALOG, S.REGISTRY, c, view, { gaze: 'up', fixation: true, lightOn: 'none', ambient: 'room', cover: null, pullLowerLids: 1 });
+    const e = S.scene(f, { gaze: 'up', fixation: true, lightOn: 'none', ambient: 'room', cover: null, pullLowerLids: 1 }, 0).R;
+    ok('the eye close-up draws what the finding grades: yellow sclerae in obstructive jaundice, the lower lid drawn down', e.icterus > 0 && e.lowerLidPull === 1, J(e));
+    const g = S.applyEyePreset(H, 'graves'), gs = settled['graves'];
+    const gv = S.eyeView(g, gs, S.chemistryState(gs, g.chemistry));
+    const gf = S.sceneFindings(S.CATALOG, S.REGISTRY, gv.c, gv.view, { gaze: 'down', fixation: true, lightOn: 'none', ambient: 'room', cover: null });
+    const ahead = S.scene(gf, { gaze: 'primary', fixation: true, lightOn: 'none', ambient: 'room', cover: null }, 0).R, down = S.scene(gf, { gaze: 'down', fixation: true, lightOn: 'none', ambient: 'room', cover: null }, 0).R;
+    ok('…in Graves’ disease the lid is drawn up, more so looking down (lid lag), and the globe stands forward', ahead.retractionMm > 0 && down.retractionMm > ahead.retractionMm && ahead.proptosisMm > 0, J({ ahead, down }));
   }
   ok('every starting point is in a group, once', J(S.EYE_PRESET_GROUPS.flatMap((g) => g.ids).sort()) === J(S.EYE_PRESETS.map((p) => p.id).sort()));
   ok('HINTS: the neuritis has an abnormal head impulse and no skew; the lateral medulla a normal head impulse and a skew',
@@ -268,13 +290,14 @@ console.log('\nThe eye station');
   }
   ok('every structure the station lets you cut changes something: a pathway of the graph or an eye sign', !idle.length, J(idle));
   const groups = S.stationSettings(S.EYE_STATION).map((g) => g.id);
-  ok('the station’s settings are what the eye examination measures: the vestibular loss and the lesions', groups.includes('vor/periphery') && groups.includes('nervous-system/lesions'), J(groups));
+  ok('the station’s settings are what the eye examination measures: the vestibular loss, the lesions, the liver, the blood and the thyroid, with how long the illness has acted; not calcium and bone', ['vor/periphery', 'nervous-system/lesions', 'liver/liver', 'blood/loss', 'endocrine/thyroid', 'driver/water.courseHours'].every((x) => groups.includes(x)) && !groups.includes('endocrine/calcium'), J(groups));
   const txt = [];
   for (const id of ['', ...S.EYE_PRESETS.map((p) => p.id)]) {
-    const ctx = S.eyeContext(S.applyEyePreset(H, id));
+    const m = S.applyEyePreset(H, id), snap = settled[id];
+    const ctx = snap ? S.eyeContext(m, snap, S.chemistryState(snap, m.chemistry)) : S.eyeContext(m);
     for (const t of S.EYE_TESTS) { const e = S.explainEye(t, ctx); txt.push(e.title, ...e.body); }
   }
-  ok('teaching cards of the eye tests link to the eye station', S.EYE_MANOEUVRES.every((m) => S.KNOWLEDGE.tests[m]?.animation === 'station:eyes'));
+  ok('teaching cards of the eye tests, neurological and body, link to the eye station', S.EYE_MANOEUVRES.every((m) => S.KNOWLEDGE.tests[m]?.animation === 'station:eyes'));
   ok('every eye explanation exists in English and German, with its numbers filled in', txt.length > 150 && txt.every((x) => x.en && x.de && x.en !== x.de && !/\$\{|undefined|NaN/.test(x.en + x.de)), `${txt.length} texts`);
   /* the eye view's scene */
   const { c, view } = S.eyeView(S.applyEyePreset(H, 'cn3-l'));

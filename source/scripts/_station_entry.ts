@@ -37,3 +37,4 @@ export { EYE_PRESETS, EYE_PRESET_GROUPS, EYE_STRUCTURES, applyEyePreset } from '
 export { eyeSigns, eyeSignsOf, eyeContext, eyeView, EYE_MANOEUVRES } from '../src/vp/stations/eye-signs.ts';
 export { explainEye, EYE_TESTS } from '../src/vp/stations/eye-texts.ts';
 export { scene, sceneFindings, pursuitTarget } from '../src/vp/render/eye-scene.ts';
+export { chemistryState } from '../src/vp/physiology/chemistry.ts';

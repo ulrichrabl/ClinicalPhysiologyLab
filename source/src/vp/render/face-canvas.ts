@@ -27,7 +27,19 @@ export interface Appearance {
   skin: string; skinShade: string; hair: string; iris: IrisColour; seed: number; sex: 'F' | 'M'; age: number;
 }
 
-export interface EyeParams { h: number; v: number; torsion: number; pupilMm: number; ptosisMm: number; closure: number }
+export interface EyeParams {
+  h: number; v: number; torsion: number; pupilMm: number; ptosisMm: number; closure: number;
+  /** 0 white … 1 deep yellow sclera (icterus) */
+  icterus?: number;
+  /** palpebral conjunctiva: 0 red … 1 pale (anaemia); shown when the lower lid is drawn down */
+  pallor?: number;
+  /** upper lid drawn up above its normal place, mm (thyroid lid retraction and lag) */
+  retractionMm?: number;
+  /** globe pushed forward, mm (exophthalmos): the lids part around it */
+  proptosisMm?: number;
+  /** the examiner's thumb draws the lower lid down, 0 … 1 */
+  lowerLidPull?: number;
+}
 export interface FaceState {
   yaw: number;                                   // head rotation, degrees (+ = patient's right)
   eyes: Record<Side, EyeParams>;
@@ -281,9 +293,11 @@ export class FaceCanvas {
     const irisDy = -R * Math.sin(e.v * D2R);              // + = down on screen
     const close = Math.min(1, e.closure + extraClose);
     const ptosisPx = e.ptosisMm * 4.4;
-    // upper lid: follows the eye vertically, droops with ptosis, closes with closure
-    let upper = -20 + 0.75 * irisDy + ptosisPx;
-    const lowerBase = 21 + Math.max(0, 0.25 * irisDy);
+    const prop = (e.proptosisMm ?? 0) * 4.4;
+    // upper lid: follows the eye vertically, droops with ptosis, is drawn up by retraction, closes with closure
+    let upper = -20 + 0.75 * irisDy + ptosisPx - (e.retractionMm ?? 0) * 4.4 - 0.25 * prop;
+    /* a proptotic globe parts the lids; the examiner's thumb draws the lower lid down */
+    const lowerBase = 21 + Math.max(0, 0.25 * irisDy) + 0.5 * prop + 16 * (e.lowerLidPull ?? 0);
     upper = upper + (lowerBase - 4 - upper) * close;
     upper = Math.min(upper, lowerBase - 3);
     const lower = lowerBase - 4 * close;
@@ -313,6 +327,28 @@ export class FaceCanvas {
       const sc = g.createRadialGradient(f.cx, 0, 8, f.cx, 0, 72);
       sc.addColorStop(0, '#fbfaf6'); sc.addColorStop(0.6, '#f1ece4'); sc.addColorStop(1, '#d9c9c0');
       g.fillStyle = sc; g.fillRect(f.cx - 80, -60, 160, 120);
+      /* bilirubin bound in the sclera: a yellow that deepens toward the fornices, where the sclera is thickest under
+         the conjunctiva */
+      const ict = Math.max(0, Math.min(1, e.icterus ?? 0));
+      if (ict > 0) {
+        const y = g.createRadialGradient(f.cx, 0, 10, f.cx, 0, 74);
+        y.addColorStop(0, `rgba(222,186,40,${0.28 * ict})`); y.addColorStop(1, `rgba(200,160,20,${0.6 * ict})`);
+        g.fillStyle = y; g.fillRect(f.cx - 80, -60, 160, 120);
+      }
+      /* the inner surface of the drawn-down lower lid: capillary blood under a thin membrane, red; pale in anaemia */
+      const pull = Math.max(0, Math.min(1, e.lowerLidPull ?? 0));
+      if (pull > 0) {
+        const pal = Math.max(0, Math.min(1, e.pallor ?? 0));
+        const mix = (a: number[], b: number[]) => a.map((x, i) => Math.round(x + (b[i] - x) * pal));
+        const deep = mix([176, 52, 58], [226, 196, 190]), rim = mix([206, 96, 98], [240, 222, 216]);
+        const band = g.createLinearGradient(0, f.lower - 18 * pull, 0, f.lower);
+        band.addColorStop(0, `rgb(${rim.join(',')})`); band.addColorStop(1, `rgb(${deep.join(',')})`);
+        g.fillStyle = band;
+        g.beginPath(); g.moveTo(f.outer.x, f.outer.y);
+        g.quadraticCurveTo(f.cx - f.nasal * 8, 2 * (f.lower - 17 * pull) - (f.inner.y + f.outer.y) / 2, f.inner.x, f.inner.y);
+        g.quadraticCurveTo(f.cx - f.nasal * 8, 2 * f.lower - (f.inner.y + f.outer.y) / 2, f.outer.x, f.outer.y);
+        g.fill();
+      }
       // faint vessels near the canthi
       const rv = rng(this.ap.seed + (S === 'R' ? 3 : 5));
       g.strokeStyle = 'rgba(190,70,70,0.22)'; g.lineWidth = 0.8;
@@ -382,6 +418,12 @@ export class FaceCanvas {
       g.strokeStyle = rgba(this.ap.skinShade, 0.35); g.lineWidth = 3;
       g.beginPath(); g.moveTo(f.outer.x + f.nasal * 6, f.outer.y + 18);
       g.quadraticCurveTo(f.cx, f.lower + 20, f.inner.x - f.nasal * 6, f.inner.y + 14); g.stroke();
+      /* a lid drawn down shows a deeper fold of skin below it */
+      const pull2 = e.lowerLidPull ?? 0;
+      if (pull2 > 0.05) {
+        g.strokeStyle = rgba(this.ap.skinShade, 0.45 * pull2); g.lineWidth = 2.5;
+        g.beginPath(); g.moveTo(f.outer.x + f.nasal * 10, f.outer.y + 24); g.quadraticCurveTo(f.cx, f.lower + 26, f.inner.x - f.nasal * 10, f.inner.y + 20); g.stroke();
+      }
     }
   }
 

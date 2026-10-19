@@ -1,7 +1,8 @@
 import type { Side } from '../model/types.ts';
 import type { NeuroExamState } from '../models/neuro-exam.ts';
 import type { Scene, SceneControls } from './eye-scene.ts';
-import type { EyeTest } from '../stations/eye-texts.ts';
+import type { EyeTest, EyeBody } from '../stations/eye-texts.ts';
+import { EXAM } from '../evidence/exam.ts';
 import { withAlpha } from './station-strip.ts';
 
 /* ---------------------------------------------------------------------------
@@ -36,6 +37,9 @@ export interface MechanismInput {
   /** vertical deviation (prism dioptres, right eye higher positive) by gaze, for the cover test */
   verticalPD: { primary: number; up: number; down: number };
   gain: Record<Side, number>;
+  /** the body run through the illness (null while it runs) and the eye signs it gives */
+  body: EyeBody | null;
+  findings: { icterus: string; pallor: string; thyroid: { lidRetraction?: boolean; lidLag?: boolean; exophthalmos?: boolean } };
   lang: 'en' | 'de';
   colors: { fg: string; muted: string; accent: string; abn: string; line: string; surface: string; light: string };
 }
@@ -53,6 +57,9 @@ export function eyeMechanismHeight(test: EyeTest, w: number): number {
     case 'nystagmus': return 300;
     case 'impulse': return 280;
     case 'fields': return 380;
+    case 'sclera': return w < 520 ? 330 : 270;
+    case 'conjunctiva': return w < 520 ? 300 : 250;
+    case 'thyroid': return w < 520 ? 330 : 240;
   }
 }
 
@@ -97,6 +104,9 @@ export function drawEyeMechanism(g: CanvasRenderingContext2D, w: number, h: numb
     case 'nystagmus': vestibular(g, w, h, i); break;
     case 'impulse': impulse(g, w, h, i); break;
     case 'fields': fields(g, w, h, i); break;
+    case 'sclera': bilirubinPath(g, w, h, i); break;
+    case 'conjunctiva': haemoglobin(g, w, h, i); break;
+    case 'thyroid': orbit(g, w, h, i); break;
   }
 }
 
@@ -361,3 +371,155 @@ function fields(g: CanvasRenderingContext2D, w: number, h: number, i: MechanismI
   lab(T(i, 'occipital cortex', 'Sehrinde'), mid, yCx + 30, 'center');
   g.fillStyle = '#2a2a2a'; g.fillRect(10, h - 22, 12, 10); lab(T(i, 'field lost', 'Feld fehlt'), 26, h - 13, 'left');
 }
+
+/* ---- the body in the eye ------------------------------------------------------------------------------------------------ */
+function waiting(g: CanvasRenderingContext2D, w: number, h: number, i: MechanismInput): boolean {
+  if (i.body) return false;
+  text(g, T(i, 'The body is being run through the illness…', 'Der Körper wird durch die Erkrankung gerechnet…'), w / 2, h / 2, { size: 12, color: i.colors.muted, align: 'center' });
+  return true;
+}
+function box(g: CanvasRenderingContext2D, i: MechanismInput, x: number, y: number, bw: number, bh: number, title: string, sub: string, bad: boolean) {
+  g.fillStyle = bad ? withAlpha(i.colors.abn, 0.12) : withAlpha(i.colors.accent, 0.08);
+  g.strokeStyle = bad ? i.colors.abn : i.colors.line; g.lineWidth = bad ? 2 : 1.2;
+  g.beginPath(); g.roundRect(x, y, bw, bh, 8); g.fill(); g.stroke();
+  text(g, title, x + bw / 2, y + bh / 2 - 3, { size: 11, color: bad ? i.colors.abn : i.colors.fg, align: 'center', weight: 600 });
+  text(g, sub, x + bw / 2, y + bh / 2 + 12, { size: 10, color: i.colors.muted, align: 'center' });
+}
+function flow(g: CanvasRenderingContext2D, i: MechanismInput, x1: number, y1: number, x2: number, y2: number, width: number, bad: boolean) {
+  g.strokeStyle = bad ? i.colors.abn : i.colors.muted; g.fillStyle = g.strokeStyle; g.lineWidth = width;
+  g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); arrowHead(g, x1, y1, x2, y2, 6 + width);
+}
+/** A horizontal scale with zones and a marker, for a blood value against the thresholds the eye reads it by. */
+function scale(g: CanvasRenderingContext2D, i: MechanismInput, x: number, y: number, sw: number, lo: number, hi: number, value: number, marks: Array<[number, string]>, unit: string, badAbove: boolean) {
+  const X = (v: number) => x + (clamp(v, lo, hi) - lo) / (hi - lo) * sw;
+  g.fillStyle = i.colors.line; g.fillRect(x, y, sw, 8);
+  for (const [m, lab] of marks) {
+    g.strokeStyle = i.colors.fg; g.lineWidth = 1; g.beginPath(); g.moveTo(X(m), y - 4); g.lineTo(X(m), y + 12); g.stroke();
+    text(g, `${m} ${lab}`, X(m), y + 24, { size: 10, color: i.colors.muted, align: 'center' });
+  }
+  const bad = badAbove ? value >= marks[0][0] : value < marks[0][0];
+  g.fillStyle = bad ? i.colors.abn : i.colors.accent;
+  g.beginPath(); g.moveTo(X(value), y - 2); g.lineTo(X(value) - 7, y - 14); g.lineTo(X(value) + 7, y - 14); g.closePath(); g.fill();
+  text(g, `${Math.round(value)} ${unit}`, X(value), y - 18, { size: 11, color: bad ? i.colors.abn : i.colors.fg, align: 'center', weight: 700 });
+}
+
+function bilirubinPath(g: CanvasRenderingContext2D, w: number, h: number, i: MechanismInput) {
+  if (waiting(g, w, h, i)) return;
+  const b = i.body!, narrow = w < 520;
+  text(g, T(i, 'Where bilirubin comes from and where it goes', 'Woher Bilirubin kommt und wohin es geht'), w / 2, 16, { size: 11, color: i.colors.fg, align: 'center', weight: 600 });
+  const steps = [
+    { t: T(i, 'Red cells', 'Erythrozyten'), s: T(i, 'haem', 'Häm'), bad: b.haemolysis > 0.3 },
+    { t: T(i, 'Blood', 'Blut'), s: T(i, 'on albumin', 'an Albumin'), bad: false },
+    { t: T(i, 'Liver', 'Leber'), s: T(i, 'conjugates', 'konjugiert'), bad: b.liverFunction < 0.6 },
+    { t: T(i, 'Bile duct', 'Gallengang'), s: T(i, 'to the gut', 'zum Darm'), bad: b.cholestasis > 0.2 },
+  ];
+  const n = steps.length, gap = narrow ? 10 : 26, bw = Math.min(130, (w - 24 - gap * (n - 1)) / n), bh = 46;
+  const x0 = (w - (bw * n + gap * (n - 1))) / 2, y = 34;
+  steps.forEach((st, k) => {
+    const x = x0 + k * (bw + gap);
+    box(g, i, x, y, bw, bh, st.t, st.s, st.bad);
+    if (k < n - 1) flow(g, i, x + bw + 2, y + bh / 2, x + bw + gap - 2, y + bh / 2, k === 0 ? 2 + 2 * Math.min(2, b.haemolysis) : 2, k === 0 ? b.haemolysis > 0.3 : k === 2 ? b.cholestasis > 0.2 : false);
+  });
+  if (b.cholestasis > 0.2) text(g, T(i, 'blocked: conjugated bilirubin flows back into the blood', 'blockiert: konjugiertes Bilirubin fließt ins Blut zurück'), w / 2, y + bh + 16, { size: 10, color: i.colors.abn, align: 'center' });
+  else if (b.haemolysis > 0.3) text(g, T(i, `${n1(1 + b.haemolysis)} × the haem to clear`, `${de1(1 + b.haemolysis)} × so viel Häm zu klären`), w / 2, y + bh + 16, { size: 10, color: i.colors.abn, align: 'center' });
+  else if (b.liverFunction < 0.6) text(g, T(i, `the liver works at ×${n1(b.liverFunction)}`, `die Leber arbeitet mit ×${de1(b.liverFunction)}`), w / 2, y + bh + 16, { size: 10, color: i.colors.abn, align: 'center' });
+  // plasma bilirubin, split, against the thresholds the sclera shows it by
+  const sy = y + bh + 70, sx = 30, sw = w - 60, max = Math.max(200, b.bilirubin * 1.15);
+  const X = (v: number) => sx + v / max * sw;
+  const unc = Math.max(0, b.bilirubin - b.conjugated);
+  text(g, T(i, 'Plasma bilirubin, µmol/L', 'Bilirubin im Plasma, µmol/l'), sx, sy - 22, { size: 11, color: i.colors.fg, weight: 600 });
+  g.fillStyle = i.colors.line; g.fillRect(sx, sy, sw, 16);
+  g.fillStyle = '#d9a91e'; g.fillRect(sx, sy, X(unc) - sx, 16);
+  g.fillStyle = '#8a6a10'; g.fillRect(X(unc), sy, X(b.bilirubin) - X(unc), 16);
+  for (const [m, lab] of [[EXAM.icterusMild, T(i, 'visible in the sclera', 'in der Sklera sichtbar')], [EXAM.icterusMarked, T(i, 'obvious', 'offensichtlich')]] as Array<[number, string]>) {
+    g.strokeStyle = i.colors.fg; g.lineWidth = 1.2; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(X(m), sy - 6); g.lineTo(X(m), sy + 24); g.stroke(); g.setLineDash([]);
+    text(g, `${m} ${lab}`, X(m) + 3, sy + 36, { size: 10, color: i.colors.muted });
+  }
+  g.fillStyle = '#d9a91e'; g.fillRect(sx, h - 22, 12, 10); text(g, `${T(i, 'unconjugated', 'unkonjugiert')} ${Math.round(unc)}`, sx + 16, h - 13, { size: 10, color: i.colors.muted });
+  g.fillStyle = '#8a6a10'; g.fillRect(sx + 150, h - 22, 12, 10); text(g, `${T(i, 'conjugated', 'konjugiert')} ${Math.round(b.conjugated)}`, sx + 166, h - 13, { size: 10, color: i.colors.muted });
+}
+
+function haemoglobin(g: CanvasRenderingContext2D, w: number, h: number, i: MechanismInput) {
+  if (waiting(g, w, h, i)) return;
+  const b = i.body!, mid = w / 2;
+  text(g, T(i, 'The colour of the inner lower lid follows the haemoglobin', 'Die Farbe des inneren Unterlids folgt dem Hämoglobin'), mid, 16, { size: 11, color: i.colors.fg, align: 'center', weight: 600 });
+  // conjunctival colour along the haemoglobin scale, drawn with the eye view's own colours for none, mild and marked pallor
+  const sx = 30, sw = w - 60, lo = 40, hi = 170, y = 40;
+  const X = (v: number) => sx + (v - lo) / (hi - lo) * sw;
+  const col = (pal: number) => { const m = (a: number[], c: number[]) => a.map((x, k) => Math.round(x + (c[k] - x) * pal)); return `rgb(${m([176, 52, 58], [226, 196, 190]).join(',')})`; };
+  for (const [a, z, pal] of [[lo, EXAM.pallorMarked, 1], [EXAM.pallorMarked, EXAM.pallorMild, 0.5], [EXAM.pallorMild, hi, 0]] as Array<[number, number, number]>) {
+    g.fillStyle = col(pal); g.fillRect(X(a), y, X(z) - X(a), 26);
+  }
+  text(g, T(i, 'marked pallor', 'deutliche Blässe'), (X(lo) + X(EXAM.pallorMarked)) / 2, y + 17, { size: 10, color: '#5a3a36', align: 'center', weight: 600 });
+  text(g, T(i, 'pale', 'blass'), (X(EXAM.pallorMarked) + X(EXAM.pallorMild)) / 2, y + 17, { size: 10, color: '#5a3a36', align: 'center', weight: 600 });
+  text(g, T(i, 'red: normal colour', 'rot: normale Farbe'), (X(EXAM.pallorMild) + X(hi)) / 2, y + 17, { size: 10, color: '#fff', align: 'center', weight: 600 });
+  scale(g, i, sx, y + 62, sw, lo, hi, b.haemoglobin, [[EXAM.pallorMild, ''], [EXAM.pallorMarked, '']], 'g/L', false);
+  // the balance: made and lost
+  const by = y + 128;
+  /* made on the left of the line, lost on the right; on a phone one under the other */
+  const narrow = w < 520, mx = narrow ? 20 : mid - 10, lx = narrow ? 20 : mid + 10, ly = narrow ? by + 40 : by;
+  text(g, T(i, 'Made by the marrow', 'Gebildet vom Knochenmark'), mx, by, { size: 11, color: i.colors.fg, align: narrow ? 'left' : 'right', weight: 600 });
+  text(g, T(i, 'Lost or destroyed', 'Verloren oder abgebaut'), lx, ly, { size: 11, color: i.colors.fg, weight: 600 });
+  text(g, `${T(i, 'reticulocytes', 'Retikulozyten')} ${num(i, b.reticulocytes, 1)} % · MCV ${Math.round(b.mcv)} fL`, mx, by + 18, { size: 10, color: b.mcv < 80 ? i.colors.abn : i.colors.muted, align: narrow ? 'left' : 'right' });
+  const lost: string[] = [];
+  if (b.bleed > 0) lost.push(`${T(i, 'bleeding', 'Blutung')} ${num(i, b.bleed, 1)} mL/h`);
+  if (b.haemolysis > 0) lost.push(`${T(i, 'haemolysis', 'Hämolyse')} +${num(i, b.haemolysis, 1)} ×`);
+  text(g, lost.length ? lost.join(' · ') : T(i, 'old cells only (about 120 days)', 'nur alte Zellen (etwa 120 Tage)'), lx, ly + 18, { size: 10, color: lost.length ? i.colors.abn : i.colors.muted });
+  if (!narrow) { g.strokeStyle = i.colors.line; g.beginPath(); g.moveTo(mid, by - 12); g.lineTo(mid, by + 24); g.stroke(); }
+  if (b.mcv < 80) text(g, T(i, 'small cells: the iron has run out', 'kleine Zellen: das Eisen ist aufgebraucht'), mid, ly + 40, { size: 10, color: i.colors.abn, align: 'center' });
+}
+
+function orbit(g: CanvasRenderingContext2D, w: number, h: number, i: MechanismInput) {
+  if (waiting(g, w, h, i)) return;
+  const b = i.body!, th = i.findings.thyroid, narrow = w < 520;
+  text(g, T(i, 'The right eye from the side: the lid and the orbit', 'Das rechte Auge von der Seite: Lid und Orbita'), w / 2, 16, { size: 11, color: i.colors.fg, align: 'center', weight: 600 });
+  // profile: the patient faces right; the bony rim of the orbit is a fixed line, the globe sits behind it or stands forward
+  const cx = narrow ? w * 0.36 : w * 0.3, cy = 120, R = 46;
+  const prop = th.exophthalmos ? 4 : 0, px = prop * 6;
+  // orbit: bone above and below, fat behind
+  g.fillStyle = withAlpha(i.colors.muted, 0.15);
+  g.beginPath(); g.ellipse(cx - 30, cy, 80 + (b.orbitopathy > 0.3 ? 10 : 0), 62, 0, Math.PI * 0.5, Math.PI * 1.5); g.fill();
+  if (b.orbitopathy > 0.05) {
+    g.fillStyle = withAlpha(i.colors.abn, 0.12 + 0.25 * b.orbitopathy);
+    g.beginPath(); g.ellipse(cx - 40, cy, 54 + 20 * b.orbitopathy, 40 + 10 * b.orbitopathy, 0, 0, Math.PI * 2); g.fill();
+    text(g, T(i, 'swollen muscles and fat', 'geschwollene Muskeln und Fett'), Math.max(8, cx - 120), cy + 80, { size: 10, color: i.colors.abn });
+  }
+  g.strokeStyle = i.colors.fg; g.lineWidth = 3;
+  const rimX = cx + R * 0.55;
+  g.beginPath(); g.moveTo(rimX - 6, cy - 70); g.quadraticCurveTo(rimX + 8, cy - 58, rimX, cy - 44); g.stroke();
+  g.beginPath(); g.moveTo(rimX, cy + 44); g.quadraticCurveTo(rimX + 6, cy + 58, rimX - 8, cy + 70); g.stroke();
+  text(g, T(i, 'orbital rim', 'Orbitarand'), rimX + 14, cy - 60, { size: 10, color: i.colors.muted });
+  // globe
+  g.fillStyle = '#fbfbf8'; g.strokeStyle = i.colors.fg; g.lineWidth = 1.5;
+  g.beginPath(); g.arc(cx + px, cy, R, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.fillStyle = '#6b8a8f'; g.beginPath(); g.ellipse(cx + px + R - 4, cy - (i.scene?.R.v ?? 0) * 0.8, 5, 16, 0, 0, Math.PI * 2); g.fill();
+  if (px) { arrowHeadLine(g, i, cx + R + 4, cy + R + 8, cx + R + 4 + px, cy + R + 8); text(g, `+${prop} mm`, cx + R + 6 + px / 2, cy + R + 24, { size: 10, color: i.colors.abn, align: 'center' }); }
+  // upper lid, its edge at the top of the iris, or higher
+  const ret = i.scene?.R.retractionMm ?? 0;
+  const irisTop = cy - (i.scene?.R.v ?? 0) * 0.8 - 16;
+  const lidEdge = irisTop + 2 - ret * 5;
+  g.strokeStyle = '#a0603a'; g.lineWidth = 5;
+  g.beginPath(); g.moveTo(rimX - 4, cy - 46); g.quadraticCurveTo(cx + px + R + 10, cy - 40, cx + px + R + 2, lidEdge); g.stroke();
+  if (ret > 0.5) { g.fillStyle = i.colors.abn; text(g, T(i, 'sclera above the iris', 'Sklera über der Iris'), cx + px + R + 14, lidEdge + 2, { size: 10, color: i.colors.abn }); }
+  // Müller's muscle and its sympathetic drive
+  text(g, T(i, 'Müller’s muscle (sympathetic)', 'Müller-Muskel (sympathisch)'), rimX + 14, cy - 44, { size: 10, color: th.lidRetraction ? i.colors.abn : i.colors.muted });
+  // bars
+  const bx = narrow ? 20 : w * 0.58, bw = narrow ? w - 40 : w * 0.38, by = narrow ? cy + 100 : 50;
+  const bar = (y: number, label: string, v: number, max: number, cut: number, cutLab: string) => {
+    text(g, label, bx, y, { size: 11, color: i.colors.fg, weight: 600 });
+    g.fillStyle = i.colors.line; g.fillRect(bx, y + 8, bw, 10);
+    g.fillStyle = v >= cut ? i.colors.abn : i.colors.accent; g.fillRect(bx, y + 8, bw * clamp(v / max, 0, 1), 10);
+    const xc = bx + bw * cut / max;
+    g.strokeStyle = i.colors.fg; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(xc, y + 4); g.lineTo(xc, y + 22); g.stroke(); g.setLineDash([]);
+    text(g, cutLab, xc, y + 34, { size: 10, color: i.colors.muted, align: 'center' });
+  };
+  bar(by, `${T(i, 'Thyroid hormone action', 'Schilddrüsenhormonwirkung')} ×${num(i, b.thyroidEffect, 1)}`, b.thyroidEffect, 4, 1.8, T(i, 'lids retract', 'Lider ziehen sich zurück'));
+  bar(by + (narrow ? 50 : 64), `${T(i, 'Orbitopathy (Graves’)', 'Orbitopathie (Basedow)')} ${num(i, b.orbitopathy, 2)}`, b.orbitopathy, 1, 0.4, T(i, 'eye stands forward', 'Auge tritt vor'));
+  if (!narrow) text(g, `fT4 ${num(i, b.ft4, 1)} pmol/L · TSH ${num(i, b.tsh, 2)} mU/L`, bx, by + 130, { size: 10, color: i.colors.muted });
+}
+function arrowHeadLine(g: CanvasRenderingContext2D, i: MechanismInput, x1: number, y1: number, x2: number, y2: number) {
+  g.strokeStyle = i.colors.abn; g.fillStyle = i.colors.abn; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); arrowHead(g, x1, y1, x2, y2, 7);
+}
+const n1 = (x: number) => (Math.round(x * 10) / 10).toString();
+const de1 = (x: number) => n1(x).replace('.', ',');
