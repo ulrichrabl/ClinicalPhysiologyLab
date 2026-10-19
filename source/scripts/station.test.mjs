@@ -204,6 +204,30 @@ console.log('\nThe auscultation station (ADR-017 step 4)');
     if (p.id === 'ms-severe') ok('…mitral stenosis: the mitral valve opens once, after A2 (not at a flicker in diastasis)', last.times.mvo > last.times.a2 && last.times.mvo < last.times.a2 + 200, `A2 ${last.times.a2} MO ${last.times.mvo}`);
   }
 
+  /* Predict and Identify score the knowledge tables' signs, found by the standard cardiac auscultation manoeuvres. What each
+     heart should bring is the textbook's; where it is heard, the bedside's. */
+  ok('the station’s signs are the tables’ heart-sound signs, read by the cardiac auscultation manoeuvres',
+    S.auscSigns().length >= 8 && S.auscSigns().every((x) => S.KNOWLEDGE.signs[x]?.definition) && S.heartManoeuvres().length >= 5, J(S.auscSigns()));
+  const EXPECT = {
+    healthy: [], 'as-moderate': ['ejection-systolic-murmur'], 'as-severe': ['ejection-systolic-murmur', 'soft-a2', 'fourth-heart-sound'],
+    'ms-severe': ['opening-snap', 'mid-diastolic-murmur'], 'ar-moderate': ['early-diastolic-murmur'], 'mr-moderate': ['pansystolic-murmur'],
+    'dilated-failing': ['third-heart-sound'],
+  };
+  const signsAt = {};
+  for (const [pid, want] of Object.entries(EXPECT)) {
+    const r = await beatsOf(pid === 'healthy' ? null : pid);
+    const got = S.auscSignsOf(r.live.model, r.live.snap, r.live.chemistry);
+    signsAt[pid] = got;
+    ok(`${pid}: the stethoscope finds ${want.length ? want.join(', ') : 'no sign'}`, J([...got.present].sort()) === J([...want].sort()), J([...got.present]));
+  }
+  ok('…the mitral rumble with the bell at the apex, the patient on the left side', (signsAt['ms-severe'].where.get('mid-diastolic-murmur') ?? []).includes('auscultate.heart.apex-bell-left-lateral'));
+  ok('…the aortic regurgitation murmur at the left sternal edge, sitting forward in held expiration', (signsAt['ar-moderate'].where.get('early-diastolic-murmur') ?? []).includes('auscultate.heart.lse-sitting-forward'));
+  ok('…S3 and S4 with the bell at the apex only', J(signsAt['dilated-failing'].where.get('third-heart-sound')) === J(['auscultate.heart.apex-bell-left-lateral']) && J(signsAt['as-severe'].where.get('fourth-heart-sound')) === J(['auscultate.heart.apex-bell-left-lateral']));
+  const msm = await beatsOf('ms-moderate');
+  const msmSigns = S.auscSignsOf(msm.live.model, msm.live.snap, msm.live.chemistry).present;
+  gap('moderate mitral stenosis (mean gradient 5–10 mmHg) is heard: opening snap and mid-diastolic rumble', msmSigns.has('mid-diastolic-murmur') && msmSigns.has('opening-snap'),
+    `${S.meanMitralGradient(msm.beats.at(-1)).toFixed(1)} mmHg, signs ${J([...msmSigns])}: the examination model hears mitral stenosis only above a valve resistance of 0.05 mmHg·s/mL, an ungrounded threshold; it should follow the gradient. Left out of Identify meanwhile`);
+
   const groups = S.stationSettings(S.AUSCULTATION_STATION).map((g) => g.id);
   ok('the station’s settings are what the heart sounds measure (the haemodynamic model), with the rate and atrial rhythm that drive them', groups.includes('haemodynamics/valves') && groups.includes('driver/electrical.HR') && groups.includes('driver/electrical.atrial'), J(groups));
   ok('every starting point is in a group, once', J(S.AUSC_PRESET_GROUPS.flatMap((g) => g.ids).sort()) === J(S.AUSC_PRESETS.map((p) => p.id).sort()));

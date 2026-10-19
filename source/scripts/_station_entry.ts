@@ -29,3 +29,4 @@ export { AUSC_PRESETS, AUSC_PRESET_GROUPS, applyAuscPreset } from '../src/vp/sta
 export { cycleAt, cycleSegments, valveEvents, meanMitralGradient, CYCLE_PHASES } from '../src/vp/stations/cardiac-cycle.ts';
 export { explainCycle, allAuscTexts, CYCLE_LABEL } from '../src/vp/stations/auscultation-texts.ts';
 export { REFERENCES } from '../src/vp/evidence/references.ts';
+export { auscSigns, auscSignsOf, heartManoeuvres } from '../src/vp/stations/auscultation-signs.ts';
