@@ -6,6 +6,8 @@ import type { CaseDef } from '../model/types.ts';
 import { CIRCULATION_DEFAULTS, modelFromCase, type PatientModel } from '../physiology/state.ts';
 import { CIRC } from '../evidence/circulation.ts';
 import { INF } from '../evidence/inflammation.ts';
+import { CPR } from '../evidence/cpr.ts';
+import type { Compressor } from '../physiology/cpr/compressions.ts';
 const CMH2O_TO_MMHG = 0.7356;
 /** How quickly the circulation's reference for pleural pressure follows its mean (s): about two quiet breaths. */
 const PPL_MEAN_TAU_S = 8;
@@ -56,12 +58,18 @@ export interface CirculationRun {
   courseSteps: () => Generator<void>;
   /** Settle circulation and lungs (seconds) around the body as it is. */
   settleFast: (seconds: number) => void;
+  /** Chest compressions (ADR-018 step 2): the compressor whose pressure the chest feels from now on, or none. Its times
+      are on the circulation's clock (`sim.t`). */
+  setCompressor: (c: Compressor | null) => void;
 }
 
 export function createCirculation(m: PatientModel): CirculationRun {
   const heart = new HeartElectrical();
   const sim = new Circulation({ ...CIRCULATION_DEFAULTS, ...FIXED, baroEnabled: true });
   (sim as any).engine = heart;
+  /* How a compression's pressure spreads in the chest (evidence/cpr.ts); nothing acts until a compressor is set. */
+  sim.chestCardiacExtra = CPR.cardiacExtra;
+  sim.aortaChestShare = CPR.aortaInChest;
   /* The sinus node is driven by the autonomic state the baroreflex sets. */
   heart.rateSource = () => (sim.baroEnabled ? sim.modulatedHR() : sim.openLoopHR());
   let model = m;
@@ -227,8 +235,10 @@ export function createCirculation(m: PatientModel): CirculationRun {
 
   const settle = (seconds: number) => { course(); settleFast(seconds * 0.6); };
 
+  const setCompressor = (c: Compressor | null) => { sim.chest = c ? (t: number) => c.pressureAt(t) : null; if (!c) sim.Pchest = 0; };
+
   apply(m);
-  return { sim, heart, resp, body: milieu, apply, advance, equilibrate, settle, settleFast, course, courseSteps };
+  return { sim, heart, resp, body: milieu, apply, advance, equilibrate, settle, settleFast, course, courseSteps, setCompressor };
 }
 
 export interface SettledPatient {

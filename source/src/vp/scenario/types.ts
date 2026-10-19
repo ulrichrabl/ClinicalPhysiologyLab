@@ -28,6 +28,8 @@ export interface ContinuousEffect {
   state?: Partial<PatientState>;
   /** Whether it keeps the hands of whoever holds it busy (compressions do; an oxygen mask does not). */
   handsWhileHeld?: boolean;
+  /** A time-varying input the run drives while held: chest compressions (the learner's taps, or a team member's steady rate). */
+  driver?: 'compressions';
 }
 
 /** Done once: a shock, IV access. */
@@ -104,7 +106,9 @@ export type ScenarioInput =
   | { t: number; do: 'intervene'; id: string; by: string }
   | { t: number; do: 'release'; slot: string; by: string }
   | { t: number; do: 'examine'; manoeuvre: string; side?: Side; by: string }
-  | { t: number; do: 'order'; test: string; by: string };
+  | { t: number; do: 'order'; test: string; by: string }
+  /** One chest compression, tapped: `at` is when it began (seconds, at or after t, within the tick it was given in). */
+  | { t: number; do: 'compress'; at: number; by: string };
 
 /** What followed from the inputs, the scene, the course and chance. Reproduced exactly by a replay. */
 export type ScenarioEvent =

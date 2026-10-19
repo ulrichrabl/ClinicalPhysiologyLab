@@ -334,9 +334,13 @@ export class Circulation {
        chamber; it is negligible until the heart outgrows its reserve volume (tamponade, acute dilatation). */
     const Vheart = Vlv + Vrv + Vla + Vra + (this.pericardialFluid || 0);
     const Pperi = CIRC.periScale * (Math.exp(Math.min(8, (Vheart - this.periV0) / this.periVs)) - Math.exp(-this.periV0 / this.periVs));
-    const Plv = this.chamberP(Vlv + shift, av, this.effEmax, this.V0, this.pPassive(Vlv + shift)) + Pperi + (this.dPpl || 0);
+    /* Chest compressions (ADR-018 step 2). A compression raises the pressure inside the chest (Pchest, the intrathoracic
+       pressure rise): it acts on every intrathoracic compartment as the pleural pressure does (the thoracic pump). The
+       ventricles, squeezed between sternum and spine, feel a little more (the cardiac pump, chestCardiacExtra). */
+    const PcTh = this.Pchest || 0, Pc = PcTh * (1 + (this.chestCardiacExtra ?? 0));
+    const Plv = this.chamberP(Vlv + shift, av, this.effEmax, this.V0, this.pPassive(Vlv + shift)) + Pperi + (this.dPpl || 0) + Pc;
     // the right ventricle's filling pressure is set by its free wall; the septum it pushes over takes the left's room
-    const Prv = this.chamberP(Vrv, avr, this.EmaxRv, this.V0rv, this.pPassiveRv(Vrv)) + Pperi + (this.dPpl || 0);
+    const Prv = this.chamberP(Vrv, avr, this.EmaxRv, this.V0rv, this.pPassiveRv(Vrv)) + Pperi + (this.dPpl || 0) + Pc;
     const Ela = this.ElaMin + (this.ElaMax - this.ElaMin) * aa;
     const Era = this.EraMin + (this.EraMax - this.EraMin) * aa;
     /* The respiratory pump: the heart and the pulmonary vessels sit in the chest, the systemic arteries and veins
@@ -344,7 +348,7 @@ export class Circulation {
        intrathoracic pressure. Inspiration lowers it: the right atrium's pressure falls against the veins outside, more
        blood returns, the right ventricle fills and ejects for longer (P2 later); the left ventricle ejects against an
        aorta outside the chest, so its stroke falls a little (systolic pressure dips, A2 earlier). */
-    const dPpl = this.dPpl || 0;
+    const dPpl = (this.dPpl || 0) + PcTh;
     const Pla = Ela * (Vla - this.V0la) + Pperi + dPpl;
     const Pra = Era * (Vra - this.V0ra) + Pperi + dPpl;
     this.Pperi = Pperi;
@@ -355,7 +359,10 @@ export class Circulation {
        and clamping it there breaks the model in exactly the case that matters:
        severe haemorrhage, where the clamp cuts venous return to nothing and the
        whole circulation stops rather than settling into shock. */
-    const Psa = (Vsa - this.V0sa) / this.Csa;
+    /* The thoracic aorta is inside the chest: a compression raises its pressure directly, by the share of the arterial
+       compliance that lies there. (The breath's pleural swing does not yet reach it: that belongs to the heart–lung
+       chain, which is paused.) */
+    const Psa = (Vsa - this.V0sa) / this.Csa + PcTh * (this.aortaChestShare ?? 0);
     const Psv = (Vsv - this.effV0sv) / this.Csv;
     const Ppa = (Vpa - this.V0pa) / this.Cpa + dPpl;
     const Ppv = (Vpv - this.V0pv) / this.Cpv + dPpl;
@@ -463,6 +470,8 @@ export class Circulation {
 
     /* Reflex effectors are held constant across the RK4 sub-steps: they move on
        a timescale of seconds, the integrator on half-milliseconds. */
+    /* The compression pressure now: held over the integrator's sub-steps, as the reflexes are. */
+    this.Pchest = this.chest ? this.chest(this.t) : 0;
     this.effRsys = this.effectiveRsys();
     this.effV0sv = this.effectiveV0sv();
     this.effEmax = this.effectiveEmax();
@@ -553,6 +562,7 @@ export class Circulation {
         ecg: this.ecgValue, en: this.en, E: this.E,
         /* for the auscultation station's Wiggers diagram: atrial activation, the right heart's valve flows and volume */
         ea: this.ea, enRv: this.enRv, Qpv: this.Qpulv, Qtri: this.Qtri, Vrv: this.Vrv,
+        Pchest: this.Pchest || 0,
       });
     }
 
@@ -634,7 +644,19 @@ export class Circulation {
     const CO = SV * HRbeat / 1000;
     const Pes = this.events.avc != null && b[this.events.avc] ? b[this.events.avc].Pv : Psys;
 
+    /* During chest compressions (ADR-018 step 2): the coronary perfusion pressure, aortic minus right atrial pressure in the
+       relaxation phase between compressions (Paradis 1990), averaged over the relaxation phase and taken at its end (just
+       before the next compression). Null when no compression fell in this window. */
+    let cppSum = 0, cppN = 0, cppEndSum = 0, cppEndN = 0, relaxSum = 0, comp = 0;
+    for (let i = 0; i < b.length; i++) {
+      const s = b[i];
+      if ((s.Pchest ?? 0) > 0) { comp++; if (i > 0 && !((b[i - 1].Pchest ?? 0) > 0)) { cppEndSum += b[i - 1].Pa - b[i - 1].Pra; cppEndN++; } }
+      else { cppSum += s.Pa - s.Pra; relaxSum += s.Pa; cppN++; }
+    }
+    const cpr = comp > 0 && cppN > 0;
     this.metrics = {
+      CPP: cpr ? cppSum / cppN : null, CPPend: cpr && cppEndN ? cppEndSum / cppEndN : null, aortaRelax: cpr ? relaxSum / cppN : null,
+      compressionShare: b.length ? comp / b.length : 0,
       Psys, Pdia, Pmean, PP: Psys - Pdia,
       EDV, ESV, SV, SVtotal, regurgFraction,
       EF: EDV > 0 ? (SVtotal / EDV) * 100 : 0,
