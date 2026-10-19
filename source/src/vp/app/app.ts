@@ -553,7 +553,8 @@ export function mount(root: HTMLElement) {
   };
   const visualFor = (m: ManoeuvreDef, side: Side | undefined, findings: Finding[]) => {
     if (!s) return;
-    const eyeIds = ['inspect.eyes', 'inspect.eyes.dim', 'test.pupils.light', 'test.swinging-light', 'test.eye-movements', 'test.frenzel', 'test.head-impulse', 'test.cover'];
+    const eyeIds = ['inspect.eyes', 'inspect.eyes.dim', 'test.pupils.light', 'test.swinging-light', 'test.eye-movements', 'test.frenzel', 'test.head-impulse', 'test.cover',
+      'inspect.sclera', 'inspect.conjunctiva', 'inspect.thyroid-eyes'];
     if (eyeIds.includes(m.id)) {
       const b: SceneControls = { gaze: 'primary', fixation: true, lightOn: 'none', ambient: m.id === 'inspect.eyes.dim' ? 'dim' : 'room', cover: null };
       const gazes = ['primary', 'left', 'right', 'up', 'down'] as const;
@@ -567,6 +568,10 @@ export function mount(root: HTMLElement) {
           case 'test.frenzel': return { ...b, fixation: false, gaze: gazes[Math.floor(el / 3) % 5] };
           case 'test.head-impulse': return { ...b, impulse: el % 2.4 < 1 ? { to: side!, t: el % 2.4 } : undefined };
           case 'test.cover': return { ...b, cover: Math.floor(el / 1.6) % 2 ? 'L' : 'R' };
+          /* the body in the eye: the sclera looking up, the lower lid drawn down, the lids following a finger down */
+          case 'inspect.sclera': return { ...b, gaze: 'up' };
+          case 'inspect.conjunctiva': return { ...b, gaze: 'up', pullLowerLids: 1 };
+          case 'inspect.thyroid-eyes': return { ...b, gaze: Math.floor(el / 2.5) % 2 ? 'down' : 'primary' };
           default: return b;
         }
       };
@@ -1322,7 +1327,7 @@ export function mount(root: HTMLElement) {
       <button type="button" class="ghost small" data-open-station="${which}" data-on-patient="1">${t('openInStation')}</button></li>`;
     let ecg = new Set<string>(), ausc = new Set<string>(), eyes = new Set<string>();
     try { ecg = ecgSignsOf(live.model, live.snap, live.chemistry).present; ausc = auscSignsOf(live.model, live.snap, live.chemistry).present; } catch { /* a model without a circulation */ }
-    try { eyes = eyeSignsOf(live.model).present; } catch { /* nothing to read */ }
+    try { eyes = eyeSignsOf(live.model, live.snap, live.chemistry).present; } catch { /* nothing to read */ }
     return `<section><h2>${t('inStation')}</h2><p class="muted">${t('inStationNote')}</p><ul class="plain db-stations">${row('ecg', t('stationEcgYours'), ecg)}${row('auscultation', t('stationAuscYours'), ausc)}${row('eyes', t('stationEyesYours'), eyes)}</ul></section>`;
   };
   const renderDebrief = () => {

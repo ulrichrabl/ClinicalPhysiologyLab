@@ -98,7 +98,7 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
    - A station opens on the learner's own patient only in the free lab or after commit, so the mechanism is not a spoiler. Before that, the card's link opens a healthy heart.
    - Back returns to the encounter or debrief as it was; the encounter's patient is paused, not discarded.
 
-6. **The eye station, Explore** (done; see decision 9): pupils and lids, the swinging light, eye movements and pursuit, the cover test, nystagmus, the head impulse and the visual fields, each beside the pathway it reads. Next: the eye as a window on the body (jaundice, conjunctival pallor, thyroid eye signs), then Predict and Identify over all eye signs.
+6. **The eye station, Explore** (done; see decision 9): pupils and lids, the swinging light, eye movements and pursuit, the cover test, nystagmus, the head impulse and the visual fields, each beside the pathway it reads. The eye as a window on the body followed (jaundice, conjunctival pallor, thyroid eye signs): those tests need the body run through the illness, so the station runs it in the background whenever a body setting changes. Next: Predict and Identify over all eye signs.
 
 Further stations follow the same pattern where a test's signal and its mechanism are both in a model: the pulse wave and the arterial pressure.
 

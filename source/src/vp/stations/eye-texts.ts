@@ -1,6 +1,7 @@
 import type { LocalizedText } from '../model/i18n.ts';
 import type { Side } from '../model/types.ts';
 import type { NeuroExamState, NystagmusValue } from '../models/neuro-exam.ts';
+import { EXAM } from '../evidence/exam.ts';
 
 /* ---------------------------------------------------------------------------
    The eye station's explanations: for each test, what the pathway it reads
@@ -15,8 +16,10 @@ import type { NeuroExamState, NystagmusValue } from '../models/neuro-exam.ts';
 
 const L = (en: string, de: string): LocalizedText => ({ en, de });
 
-export type EyeTest = 'pupils' | 'swinging' | 'movements' | 'cover' | 'nystagmus' | 'impulse' | 'fields';
-export const EYE_TESTS: EyeTest[] = ['pupils', 'swinging', 'movements', 'cover', 'nystagmus', 'impulse', 'fields'];
+export type EyeTest = 'pupils' | 'swinging' | 'movements' | 'cover' | 'nystagmus' | 'impulse' | 'fields' | 'sclera' | 'conjunctiva' | 'thyroid';
+export const EYE_TESTS: EyeTest[] = ['pupils', 'swinging', 'movements', 'cover', 'nystagmus', 'impulse', 'fields', 'sclera', 'conjunctiva', 'thyroid'];
+/** The tests that read the body rather than the nervous system: they need the body run through the illness. */
+export const BODY_TESTS: EyeTest[] = ['sclera', 'conjunctiva', 'thyroid'];
 
 export const EYE_TEST_LABEL: Record<EyeTest, LocalizedText> = {
   pupils: L('Pupils and lids', 'Pupillen und Lider'),
@@ -26,6 +29,9 @@ export const EYE_TEST_LABEL: Record<EyeTest, LocalizedText> = {
   nystagmus: L('Nystagmus', 'Nystagmus'),
   impulse: L('Head impulse', 'Kopfimpuls'),
   fields: L('Visual fields', 'Gesichtsfeld'),
+  sclera: L('Sclerae', 'Skleren'),
+  conjunctiva: L('Conjunctivae', 'Konjunktiven'),
+  thyroid: L('Thyroid eye signs', 'Schilddrüsenaugenzeichen'),
 };
 
 /** The manoeuvres of the examination each test stands for (their findings are listed under the eyes). */
@@ -37,6 +43,9 @@ export const EYE_TEST_MANOEUVRES: Record<EyeTest, string[]> = {
   nystagmus: ['test.frenzel'],
   impulse: ['test.head-impulse'],
   fields: ['test.visual-fields'],
+  sclera: ['inspect.sclera'],
+  conjunctiva: ['inspect.conjunctiva'],
+  thyroid: ['inspect.thyroid-eyes'],
 };
 
 export interface EyeContext {
@@ -47,6 +56,16 @@ export interface EyeContext {
   dark: NystagmusValue;
   /** VOR gain for impulses toward each side */
   gain: Record<Side, number>;
+  /** the body run through the illness, when it has been (null: not yet) */
+  body: EyeBody | null;
+  /** the body's signs in the eye, as the examination grades them */
+  findings: { icterus: string; pallor: string; thyroid: { lidRetraction?: boolean; lidLag?: boolean; exophthalmos?: boolean } };
+}
+
+export interface EyeBody {
+  bilirubin: number; conjugated: number; haemoglobin: number; mcv: number; reticulocytes: number;
+  thyroidEffect: number; ft4: number; tsh: number;
+  haemolysis: number; liverFunction: number; cholestasis: number; bleed: number; orbitopathy: number;
 }
 
 export interface EyeText { title: LocalizedText; body: LocalizedText[] }
@@ -188,6 +207,54 @@ export function explainEye(test: EyeTest, c: EyeContext): EyeText {
       body.push(L('The model divides each field into a temporal and a nasal half: quadrant defects, macular sparing and central scotomas are not modelled.',
         'Das Modell teilt jedes Feld in eine temporale und eine nasale Hälfte: Quadrantenausfälle, Makulaaussparung und Zentralskotome sind nicht modelliert.'));
       return { title: L('Visual fields: where the pathway crosses', 'Gesichtsfeld: wo die Bahn kreuzt'), body };
+    }
+    case 'sclera': {
+      body.push(L(`Old red cells are broken down and their haem becomes bilirubin. It travels to the liver bound to albumin (unconjugated, not water-soluble), the liver conjugates it, and it leaves in the bile. When more is made than the liver can clear, or the liver cannot conjugate, or bile cannot leave, bilirubin rises in the blood and binds to the elastin of the sclera. It shows there from about ${EXAM.icterusMild} µmol/L, before the skin, best in daylight; it is obvious from about ${EXAM.icterusMarked}.`,
+        `Alte rote Blutkörperchen werden abgebaut, ihr Häm wird zu Bilirubin. Es gelangt an Albumin gebunden zur Leber (unkonjugiert, nicht wasserlöslich), die Leber konjugiert es, und es verlässt sie mit der Galle. Wird mehr gebildet, als die Leber klären kann, kann sie nicht konjugieren oder kann die Galle nicht abfließen, steigt das Bilirubin im Blut und bindet an das Elastin der Sklera. Dort wird es ab etwa ${EXAM.icterusMild} µmol/l sichtbar, vor der Haut, am besten bei Tageslicht; ab etwa ${EXAM.icterusMarked} ist es offensichtlich.`));
+      const b = c.body;
+      if (!b) { body.push(L('The body is being run through the illness…', 'Der Körper wird durch die Erkrankung gerechnet…')); return { title: L('Sclerae: where bilirubin shows first', 'Skleren: wo Bilirubin zuerst sichtbar wird'), body }; }
+      const unc = Math.max(0, b.bilirubin - b.conjugated);
+      body.push(L(`Here: bilirubin ${Math.round(b.bilirubin)} µmol/L, ${Math.round(b.conjugated)} of it conjugated. The sclerae are ${c.findings.icterus === 'none' ? 'white' : c.findings.icterus === 'mild' ? 'faintly yellow' : 'clearly yellow'}.`,
+        `Hier: Bilirubin ${Math.round(b.bilirubin)} µmol/l, davon ${Math.round(b.conjugated)} konjugiert. Die Skleren sind ${c.findings.icterus === 'none' ? 'weiß' : c.findings.icterus === 'mild' ? 'leicht gelb' : 'deutlich gelb'}.`));
+      if (b.cholestasis > 0.2 && b.conjugated > unc) body.push(L('Most of it is conjugated: the liver has done its work and the bile cannot leave (a stone or a tumour in the duct). Conjugated bilirubin is water-soluble, so it darkens the urine, and the stools turn pale without it.',
+        'Das meiste ist konjugiert: Die Leber hat ihre Arbeit getan, aber die Galle kann nicht abfließen (ein Stein oder ein Tumor im Gang). Konjugiertes Bilirubin ist wasserlöslich, es färbt den Urin dunkel, und der Stuhl wird ohne es hell.'));
+      else if (b.haemolysis > 0.3 && unc > b.conjugated) body.push(L('Most of it is unconjugated: red cells are being destroyed faster than the liver can conjugate their haem. It is bound to albumin, so the urine stays its colour (acholuric jaundice); the same breakdown makes the patient pale.',
+        'Das meiste ist unkonjugiert: Rote Blutkörperchen werden schneller zerstört, als die Leber ihr Häm konjugieren kann. Es ist an Albumin gebunden, daher bleibt der Urin hell (acholurischer Ikterus); derselbe Abbau macht den Patienten blass.'));
+      else if (b.liverFunction < 0.6) body.push(L('The liver itself is failing: it conjugates less, and bilirubin rises late, after the clotting and the albumin have already shown it.',
+        'Die Leber selbst versagt: Sie konjugiert weniger, und das Bilirubin steigt spät, nachdem Gerinnung und Albumin es schon gezeigt haben.'));
+      body.push(L('Physicians see jaundice with a sensitivity and specificity of only about 70 % (Hung 2000): a value near the threshold may be missed or called.',
+        'Ärztinnen und Ärzte erkennen einen Ikterus nur mit etwa 70 % Sensitivität und Spezifität (Hung 2000): Ein Wert nahe der Schwelle kann übersehen oder fälschlich gesehen werden.'));
+      return { title: L('Sclerae: where bilirubin shows first', 'Skleren: wo Bilirubin zuerst sichtbar wird'), body };
+    }
+    case 'conjunctiva': {
+      body.push(L(`Drawing the lower lid down shows its inner surface: capillary blood under a thin membrane, with no skin pigment over it. Its redness is the haemoglobin in that blood. Pallor is a fair sign below about ${EXAM.pallorMild} g/L and a strong one below ${EXAM.pallorMarked}; above that it is unreliable, and a normal colour does not exclude a mild anaemia.`,
+        `Zieht man das Unterlid herab, sieht man seine Innenseite: Kapillarblut unter einer dünnen Schleimhaut, ohne Hautpigment darüber. Ihre Röte ist das Hämoglobin in diesem Blut. Blässe ist unter etwa ${EXAM.pallorMild} g/l ein brauchbares, unter ${EXAM.pallorMarked} ein starkes Zeichen; darüber ist sie unzuverlässig, und eine normale Farbe schließt eine leichte Anämie nicht aus.`));
+      const b = c.body;
+      if (!b) { body.push(L('The body is being run through the illness…', 'Der Körper wird durch die Erkrankung gerechnet…')); return { title: L('Conjunctivae: the colour of the blood', 'Konjunktiven: die Farbe des Blutes'), body }; }
+      body.push(L(`Here: haemoglobin ${Math.round(b.haemoglobin)} g/L, mean cell volume ${Math.round(b.mcv)} fL, reticulocytes ${n1(b.reticulocytes)} %. The conjunctivae are ${c.findings.pallor === 'none' ? 'red' : c.findings.pallor === 'mild' ? 'pale' : 'very pale'}.`,
+        `Hier: Hämoglobin ${Math.round(b.haemoglobin)} g/l, mittleres Zellvolumen ${Math.round(b.mcv)} fl, Retikulozyten ${de1(b.reticulocytes)} %. Die Konjunktiven sind ${c.findings.pallor === 'none' ? 'rot' : c.findings.pallor === 'mild' ? 'blass' : 'sehr blass'}.`));
+      if (b.bleed > 0 && b.mcv < 82) body.push(L('A slow bleed: each millilitre of red cells takes a milligram of iron with it, and only a milligram or two a day is absorbed. When the stores are empty the marrow makes small, pale cells (a low mean cell volume).',
+        'Eine langsame Blutung: Jeder Milliliter Erythrozyten nimmt ein Milligramm Eisen mit, und nur ein bis zwei Milligramm am Tag werden aufgenommen. Sind die Speicher leer, bildet das Knochenmark kleine, blasse Zellen (ein niedriges mittleres Zellvolumen).'));
+      else if (b.haemolysis > 0.3) body.push(L('Red cells are destroyed early; the marrow answers with young cells (reticulocytes) but cannot keep up. The haem of the destroyed cells is the bilirubin in the sclerae: pale and yellow together.',
+        'Rote Blutkörperchen werden früh zerstört; das Knochenmark antwortet mit jungen Zellen (Retikulozyten), kommt aber nicht nach. Das Häm der zerstörten Zellen ist das Bilirubin in den Skleren: blass und gelb zugleich.'));
+      if (b.bleed > 20) body.push(L('After an acute bleed the haemoglobin is unchanged at first: blood is lost whole. It falls over hours as plasma refills the vessels, so the conjunctivae can look normal in a patient who has just lost a litre.',
+        'Nach einer akuten Blutung ist das Hämoglobin zunächst unverändert: Es geht Vollblut verloren. Es fällt erst über Stunden, wenn Plasma die Gefäße wieder auffüllt; die Konjunktiven können daher bei einem Patienten, der gerade einen Liter verloren hat, normal aussehen.'));
+      return { title: L('Conjunctivae: the colour of the blood', 'Konjunktiven: die Farbe des Blutes'), body };
+    }
+    case 'thyroid': {
+      body.push(L('Two different things, often together in Graves’ disease. Thyroid hormone raises sympathetic tone, which tightens Müller’s muscle in the upper lid: sclera shows above the iris (lid retraction), and the lid trails the eye looking down (lid lag). Any thyrotoxicosis does this, and it goes when the hormone falls. Exophthalmos is not hormonal: antibodies swell the muscles and fat behind the eye and push it forward. It happens only in Graves’ disease, and can come before, with, or after the thyrotoxicosis.',
+        'Zwei verschiedene Dinge, beim Morbus Basedow oft zusammen. Schilddrüsenhormon steigert den Sympathikotonus und spannt damit den Müller-Muskel im Oberlid: Über der Iris ist Sklera zu sehen (Lidretraktion), und das Lid bleibt beim Blick nach unten zurück (Graefe-Zeichen). Jede Thyreotoxikose tut das, und es verschwindet, wenn das Hormon fällt. Der Exophthalmus ist nicht hormonell: Antikörper lassen Muskeln und Fett hinter dem Auge anschwellen und schieben es nach vorn. Das gibt es nur beim Morbus Basedow, und es kann vor, mit oder nach der Thyreotoxikose kommen.'));
+      const b = c.body;
+      if (!b) { body.push(L('The body is being run through the illness…', 'Der Körper wird durch die Erkrankung gerechnet…')); return { title: L('Thyroid eye signs: the lid and the orbit', 'Schilddrüsenaugenzeichen: Lid und Orbita'), body }; }
+      const th = c.findings.thyroid;
+      body.push(L(`Here: free T4 ${n1(b.ft4)} pmol/L, thyroid hormone action ×${n1(b.thyroidEffect)} of normal (the lids retract from about ×1.8 in the model); orbitopathy ${n1(b.orbitopathy)}.`,
+        `Hier: freies T4 ${de1(b.ft4)} pmol/l, Schilddrüsenhormonwirkung ×${de1(b.thyroidEffect)} des Normalen (die Lider ziehen sich im Modell ab etwa ×1,8 zurück); Orbitopathie ${de1(b.orbitopathy)}.`));
+      if (th.lidRetraction && !th.exophthalmos) body.push(L('Lid retraction and lag without a protruding eye: the hormone, not the orbit. The stare looks like exophthalmos from the front; look from the side, or at the sclera below the iris, to tell them apart.',
+        'Lidretraktion und Graefe-Zeichen ohne hervortretendes Auge: das Hormon, nicht die Orbita. Von vorn wirkt der starre Blick wie ein Exophthalmus; von der Seite oder an der Sklera unter der Iris unterscheidet man sie.'));
+      if (th.exophthalmos) body.push(L('The eye stands forward: sclera shows below the iris too. That is the orbit, and treating the hormone does not reverse it.',
+        'Das Auge steht vor: Auch unter der Iris ist Sklera zu sehen. Das ist die Orbita, und die Behandlung des Hormons macht es nicht rückgängig.'));
+      if (!th.lidRetraction && !th.exophthalmos) body.push(L('Neither: the lids sit at the edge of the iris, follow it down, and the eyes do not protrude.', 'Keines von beiden: Die Lider liegen am Rand der Iris, folgen ihr nach unten, und die Augen treten nicht hervor.'));
+      return { title: L('Thyroid eye signs: the lid and the orbit', 'Schilddrüsenaugenzeichen: Lid und Orbita'), body };
     }
   }
 }

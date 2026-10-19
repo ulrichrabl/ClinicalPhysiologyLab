@@ -84,6 +84,8 @@ The test suite (`scripts/vp-model.test.mjs`) does three things:
   - Comitance: a vertical deviation counts as a skew deviation when it stays within 5 prism dioptres looking up and down (assumed). Brodsky 2006 calls skew "relatively comitant" and describes incomitant variants, so some real skews would be named a vertical tropia here.
   - A fixed dilated pupil needs 5.5 mm or more in room light (assumed; a third-nerve pupil is typically 6–7 mm).
   - Saccadic pursuit follows with a gain of 0.5 and catches up every 300 ms (assumed, for the drawing; the sign itself is the model's `pursuit` state).
+  - The body's signs are graded from the existing thresholds (icterus 40 and 85 µmol/L; pallor 100 and 70 g/L; lid retraction at thyroid hormone action ×1.8; exophthalmos at orbitopathy 0.4). How strongly they are drawn (scleral yellow, conjunctival colour, 2 mm of lid retraction, 3 mm of lid lag at full downgaze, 4 mm of proptosis) is illustration, not measurement. The lid-sign and orbitopathy cut-offs are inline in `models/body-exam.ts`, not in the registry.
+  - Noticed, not changed: hepatitis (`hepatitis` 0.7 for ten days) leaves bilirubin normal in the model, though acute hepatitis is often icteric.
   - The afferent pupillary pathway is on or off, so a partial optic nerve lesion gives the same defect as a complete one; the field model has a temporal and a nasal half per eye only; the fundus has no model.
 
 - **Kidney:**
