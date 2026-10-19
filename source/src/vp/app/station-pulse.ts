@@ -70,6 +70,8 @@ export function mountPulseStation(host: HTMLElement, o: StationOptions): Station
   let picked: number | null = null;   // t0 of the beat shown in detail
   let textKey = '', signsTick = 0, findTick = 0;
   let settleUntil = 0;
+  /** the JVP as the examination reads it (the label on the neck uses the same number as the finding) */
+  let jvpCm: number | null = null;
   const SETTLE_S = 20, SETTLE_SPEED = 8;
   const settings = stationSettings(PULSE_STATION);
   const open = new Set<string>(['haemodynamics/valves']);
@@ -153,7 +155,7 @@ export function mountPulseStation(host: HTMLElement, o: StationOptions): Station
   const change = (next: ReturnType<typeof healthyModel>, rerenderControls: boolean) => {
     live.setModel(next);
     settleUntil = live.t + SETTLE_S; live.speed = SETTLE_SPEED; note(t('settling'));
-    playing = true; frozen = null; picked = null; textKey = ''; signsTick = 0; findTick = 0;
+    playing = true; frozen = null; picked = null; textKey = ''; signsTick = 0; findTick = 0; jvpCm = null;
     if (rerenderControls) renderControls();
     syncPlay();
   };
@@ -200,6 +202,7 @@ export function mountPulseStation(host: HTMLElement, o: StationOptions): Station
       [tr(CATALOG.manoeuvres['palpate.pulse.carotid'].label, lang), finding('pulse.carotid.R')],
       [tr(CATALOG.manoeuvres['inspect.jvp'].label, lang), finding('jvp', { position: 'reclined-45' })],
     ];
+    jvpCm = typeof rows[2][1].value?.heightCm === 'number' ? rows[2][1].value.heightCm : null;
     box.innerHTML = rows.map(([lab, r]) => `<li>${r.normal ? '' : '<b class="abn" aria-label="abnormal">●</b> '}<b>${esc(lab)}</b>: ${esc(r.text)}</li>`).join('');
   };
   const renderSigns = () => {
@@ -238,8 +241,9 @@ export function mountPulseStation(host: HTMLElement, o: StationOptions): Station
     const nw = neck.clientWidth, nh = neckHeight(nw);
     /* the neck follows the right atrium now; paused, it shows the mean of the beat in detail */
     const beat = (picked != null ? bs.find((b) => b.t0 === picked) : null) ?? bs.at(-1)!;
-    const praMean = beat.samples.reduce((a, s) => a + s.Pra, 0) / beat.samples.length;
-    const pra = playing ? (live.snap.Pra as number) : praMean;
+    const beatMean = beat.samples.reduce((a, s) => a + s.Pra, 0) / beat.samples.length;
+    const praMean = !playing || jvpCm == null ? beatMean : (jvpCm + 5) / 1.36;
+    const pra = playing ? (live.snap.Pra as number) : beatMean;
     drawNeck(sizeCanvas(neck, nh).g, nw, nh, pra, praMean, colors, { angle: t('angle'), above: t('above'), notSeen: t('notSeen'), ear: t('ear'), cm: t('cm'), ra: t('raShort') });
     const bw = bc.clientWidth, bh = beatHeight(bw);
     drawBeat(sizeCanvas(bc, bh).g, bw, bh, beat, colors, { aorta: t('aorta'), lv: t('lv'), ra: t('ra'), rv: t('rv'), atria: t('atria'), ms: t('mmHg'), ev: Object.fromEntries(Object.entries(EV).map(([k, v]) => [k, tr(v, lang)])) });
