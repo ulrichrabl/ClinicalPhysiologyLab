@@ -276,6 +276,11 @@ export class Circulation {
     this.edvBreathRv = this.edvBreathRv == null ? this.s[S_VRV] : this.edvBreathRv + (this.s[S_VRV] - this.edvBreathRv) * wb;
     this.stretchLv = lv.stretch; this.stretchRv = rv.stretch;
     this.normLv = this.actPeak(lv.stretch); this.normRv = this.actPeak(rv.stretch);
+    /* What the beat starts with, for the beat log: each ventricle's end-diastolic volume, and where in the breath it filled.
+       A new beat starts in the same step that closes the previous one's log entry, before it; so the entry being closed
+       takes the volumes captured at its own start (beatEdvPrev). */
+    this.beatEdvPrev = this.beatEdv ?? null;
+    this.beatEdv = { lv: this.s[S_VLV], rv: this.s[S_VRV], breath: this.breathPhase() };
   }
 
   /* Peak value of the un-normalised double-Hill curve, for scaling. */
@@ -651,7 +656,8 @@ export class Circulation {
        its ejection, and its P2, belong to. */
     const dPplBeat = (this.beatPplSum || 0) / n;
     /* t0: when the beat began (ms on the circulation's clock); breath: where in the breath its P2 fell. */
-    (this.beatLog ??= []).push({ ...this.valveTimes, Psys, dPpl: dPplBeat, fillPpl: this.lastBeatPpl ?? dPplBeat, t0: this.beatStartT, breath: this.breathAtP2 ?? null });
+    (this.beatLog ??= []).push({ ...this.valveTimes, Psys, dPpl: dPplBeat, fillPpl: this.lastBeatPpl ?? dPplBeat, t0: this.beatStartT, breath: this.breathAtP2 ?? null,
+      edvLv: this.beatEdvPrev?.lv ?? null, edvRv: this.beatEdvPrev?.rv ?? null, breathEd: this.beatEdvPrev?.breath ?? null });
     this.breathAtP2 = null;
     this.lastBeatPpl = dPplBeat;
     if (this.beatLog.length > 40) this.beatLog.shift();
