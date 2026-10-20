@@ -194,7 +194,7 @@ One complete arrest, chosen because it is bounded: one algorithm, clear metrics,
 2. **The compression pump and positive-pressure ventilation** (decision 6a–b), validated against Ornato, Paradis and Falk.
 3. **The heart in arrest and the shock** (6c), validated against Larsen and Valenzuela.
 4. **Adrenaline and amiodarone** (6d). Built: see "Step 4, as built".
-5. **The ward VF scenario, end to end,** in practice mode: the ERC 2025 file, the team (decision 8), teaching nudges, and the debrief. Part 1 (the file, scoring and the debrief) is built: see "Step 5, part 1, as built".
+5. **The ward VF scenario, end to end,** in practice mode: the ERC 2025 file, the team (decision 8), teaching nudges, and the debrief. Part 1 (the file, scoring and the debrief) and part 2 (the team, and the scene) are built: see "Step 5, part 1, as built" and "part 2".
 5b. **Assessment mode** (decision 4).
 6. **Further arrests,** reusing the parts:
    - asystole and PEA, with hypovolaemia, tamponade (which needs gap 13 first) and tension pneumothorax;
@@ -386,6 +386,59 @@ Step 5 is built in parts: (1) the guideline file, scoring and the debrief; (2) t
   - capnography rules;
   - the team (part 2);
   - Larsen's survival slopes (the brain is not modelled).
+
+## Step 5, part 2, as built: the team, and the scene
+
+**Owner (2026-10-20): "zero animations, it's just a wall of text".** This part brings the team and makes the arrest something seen:
+- the scene (below) is the first part of "What to build it from";
+- the debrief became mostly visual.
+
+- **Calling the arrest team** (a `call` input, `ScenarioRun.call`): whoever is free calls, and the call takes their hands for 15 s.
+  - **What it says** is chosen by the learner: where, "cardiac arrest, adult", bring the defibrillator.
+  - **When the team comes:** the scene's team (a doctor and a second nurse) arrives 2 min after the call with the trolley (defibrillator, cannulas, drugs); 90 s later if the call did not say where.
+  - **Fetching the trolley instead:** `fetch.trolley` sends someone for it; they leave and come back in 60 s.
+  - **Placements:** all these times, in `scene.team` and in the intervention.
+- **Giving tasks** (an `assign` input; `ScenarioRun.roles`). The four tasks are compressions, the airway, the defibrillator, and the line and drugs. One task per pair of hands: taking one gives up the last.
+  - **Compressions and the airway** begin at once. Whoever had them lets go, and letting go clears the task.
+  - **On the screen,** the defibrillator's and the drugs' buttons go to whoever has that task. If nobody has it, the leader does it with free hands, or is told "nobody has this task: give it to someone" (decision 8).
+  - **Replay:** an input made inside another (a task given starts its intervention) is not logged on its own, so a replay applies it once.
+- **Structured communication** (the ERC's term; "closed-loop" is not in its text):
+  - each order and its read-back are logged and spoken in a bubble over the person ("Doctor, take compressions." / "Compressions: I've got it.");
+  - a team member says what they start and finish ("Put the defibrillator pads on: on it." / "…: done.");
+  - the call is spoken as it was made.
+
+  Ambiguous orders, and the question they draw, are not built: the buttons cannot be ambiguous.
+- **Scored** (three rules, all placements, with their notes):
+  - **The call:** the arrest team called within 30 s of the collapse, saying where.
+  - **Tasks:** each task held within 60 s of its becoming possible.
+  - **Rotation:** the compressor changed about every 2 min (± 30 s) once a second person could take over. The ERC BLS wording is still to be checked.
+
+  The debrief groups all rules into team, compressions, airway, defibrillation and drugs.
+- **The scene** (`render/arrest-scene.ts`), seen from the patient's right, drawn each frame from the run:
+  - **The patient:** the bedside figure itself. He sits up while he talks and lies flat in the 1.4 s after his heart fibrillates. He turns grey after 20 s without a circulation. His chest is bared once compressions start.
+  - **The bag-valve mask:** the figure's own mask, now without strap or tubing for a bag.
+  - **The team** stand behind the trolley in their scrub colours, without faces, so they do not compete with the patient:
+    - the compressor's arms come straight down onto the lower half of the sternum and sink with the compression pressure the circulation feels;
+    - whoever has the airway stands at the head, sealing the mask with one hand and squeezing the bag with the other as the airway pressure rises;
+    - the defibrillator stands at the foot end with lead II on its screen and a charge light; the pad sits below the right clavicle with its cable;
+    - the cannula is in the forearm, with a drip on a pole.
+  - **Placement:** the figure's own landmarks place hands, pads and cannula; the mask's point on the face was measured on the lying figure.
+  - **Checked** at close-up: the sealing hand on the mask, the bag at the head, the hands on the lower sternum.
+- **The debrief, less text:**
+  - a ring with the rules met;
+  - the outcome and the measures;
+  - the timeline;
+  - five compact cards with one line per rule. Why it matters and its source open on a tap.
+- **Layout:** the scene sits above the monitor on a desk, on top on a tablet, and after the hands on a phone, so that monitor, feedback and pad still fit one phone screen while compressing.
+- **Tests:**
+  - `scenario.test.mjs`: the call, a late team without "where", fetching, tasks, letting go, and replay.
+  - `debrief.test.mjs`: no call, a call without where, a late call, one compressor throughout, and the drugs given to nobody.
+- **Not yet:**
+  - the compressor tiring (depth is not modelled);
+  - scripted team errors to catch;
+  - the leader slower while compressing (decision 8);
+  - the 4 H's and 4 T's;
+  - placing hands and pads by dragging (the chest view, `render/thorax.ts`).
 
 ## A first practice screen (draft, after step 2)
 

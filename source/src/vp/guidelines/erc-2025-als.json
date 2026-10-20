@@ -1,7 +1,7 @@
 {
   "schema": "vp.guideline/1",
   "id": "erc-2025-als",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": {
     "en": "ERC 2025: adult advanced life support",
     "de": "ERC 2025: Erweiterte lebensrettende Maßnahmen bei Erwachsenen"
@@ -30,6 +30,70 @@
   },
   "rules": [
     {
+      "id": "call-team",
+      "group": "team",
+      "title": {
+        "en": "Arrest team called at once, saying where",
+        "de": "Reanimationsteam sofort gerufen, mit Ortsangabe"
+      },
+      "why": {
+        "en": "The defibrillator and the drugs come with the team. A call that does not say where sends them looking.",
+        "de": "Defibrillator und Medikamente kommen mit dem Team. Ein Ruf ohne Ortsangabe schickt es auf die Suche."
+      },
+      "section": "ALS: in-hospital cardiac arrest (call the resuscitation team; the team's response)",
+      "basis": "placement",
+      "note": "The guideline asks for help to be called at once on recognising an arrest; 30 s from the collapse (time to check for breathing and say it) is ours. Saying where is scored because the scene delays a team that was not told (decision 8).",
+      "unit": "s",
+      "check": {
+        "kind": "call",
+        "within": 30,
+        "must": [
+          "where"
+        ]
+      }
+    },
+    {
+      "id": "tasks",
+      "group": "team",
+      "title": {
+        "en": "Every task given to someone",
+        "de": "Jede Aufgabe an jemanden vergeben"
+      },
+      "why": {
+        "en": "Compressions, the airway, the defibrillator and the drugs each need a pair of hands; a task nobody has been given is not done.",
+        "de": "Kompressionen, Atemweg, Defibrillator und Medikamente brauchen je ein Paar Hände; eine Aufgabe, die niemand bekommen hat, wird nicht erledigt."
+      },
+      "section": "Education: team competencies (\"team leadership, task allocation, structured communication, and handovers\")",
+      "basis": "placement",
+      "note": "The guideline names task allocation as a team competency without a time; each task within 60 s of its becoming possible (compressions and airway from the collapse, defibrillator and drugs from their arrival) is ours.",
+      "unit": "",
+      "check": {
+        "kind": "roles",
+        "within": 60
+      }
+    },
+    {
+      "id": "rotation",
+      "group": "team",
+      "title": {
+        "en": "Compressor changed about every 2 minutes",
+        "de": "Drückende Person etwa alle 2 Minuten gewechselt"
+      },
+      "why": {
+        "en": "Compressions get shallower within a couple of minutes, and the rescuer does not notice. Change at the rhythm check, so the change costs no extra pause.",
+        "de": "Kompressionen werden innerhalb weniger Minuten flacher, ohne dass es der Helfer merkt. Beim Rhythmuscheck wechseln, dann kostet der Wechsel keine zusätzliche Pause."
+      },
+      "section": "BLS: high quality chest compressions (change the person compressing about every 2 min)",
+      "basis": "placement",
+      "note": "Every 2 min with 30 s tolerance, from when a second person could take over. The wording in the ERC 2025 BLS text is still to be checked; the model does not yet tire a compressor (its depth is not modelled).",
+      "unit": "",
+      "check": {
+        "kind": "rotation",
+        "every": 120,
+        "tolerance": 30
+      }
+    },
+    {
       "id": "start-compressions",
       "title": {
         "en": "Compressions started at once",
@@ -46,7 +110,8 @@
       "check": {
         "kind": "first-compression",
         "within": 15
-      }
+      },
+      "group": "compressions"
     },
     {
       "id": "rate",
@@ -66,7 +131,8 @@
         "measure": "rate",
         "min": 100,
         "max": 120
-      }
+      },
+      "group": "compressions"
     },
     {
       "id": "fraction",
@@ -86,7 +152,8 @@
         "kind": "measure",
         "measure": "fraction",
         "min": 80
-      }
+      },
+      "group": "compressions"
     },
     {
       "id": "longest-pause",
@@ -106,7 +173,8 @@
         "measure": "longestPause",
         "max": 10
       },
-      "note": "Not in the ERC 2025 text read: it asks for as few interruptions as possible and sets under 5 s for defibrillation and for intubation, but no limit for the pause for two breaths. 10 s is the limit taught in earlier guidelines and courses (an assumption)."
+      "note": "Not in the ERC 2025 text read: it asks for as few interruptions as possible and sets under 5 s for defibrillation and for intubation, but no limit for the pause for two breaths. 10 s is the limit taught in earlier guidelines and courses (an assumption).",
+      "group": "compressions"
     },
     {
       "id": "thirty-two",
@@ -126,7 +194,8 @@
         "kind": "cycle",
         "min": 27,
         "max": 33
-      }
+      },
+      "group": "airway"
     },
     {
       "id": "breath",
@@ -146,7 +215,8 @@
         "kind": "breath",
         "min": 0.6,
         "max": 1.5
-      }
+      },
+      "group": "airway"
     },
     {
       "id": "rhythm-checks",
@@ -167,7 +237,8 @@
         "every": 120,
         "tolerance": 20,
         "firstWithin": 30
-      }
+      },
+      "group": "defibrillation"
     },
     {
       "id": "peri-shock",
@@ -186,7 +257,8 @@
       "check": {
         "kind": "peri-shock",
         "max": 5
-      }
+      },
+      "group": "defibrillation"
     },
     {
       "id": "shock-safety",
@@ -208,7 +280,8 @@
           "shock-while-ventilating",
           "shock-non-shockable"
         ]
-      }
+      },
+      "group": "defibrillation"
     },
     {
       "id": "adrenaline-first",
@@ -229,7 +302,8 @@
         "drug": "adrenaline",
         "mg": 1,
         "afterShock": 3
-      }
+      },
+      "group": "drugs"
     },
     {
       "id": "adrenaline-repeat",
@@ -249,7 +323,8 @@
         "drug": "adrenaline",
         "min": 180,
         "max": 300
-      }
+      },
+      "group": "drugs"
     },
     {
       "id": "amiodarone-300",
@@ -270,7 +345,8 @@
         "mg": 300,
         "afterShock": 3
       },
-      "note": "Counted over all shocks for VF, whether the VF persisted or came back (the guideline: \"irrespective of whether the shockable rhythms are sequential (refractory) or intermittent (recurrent)\")."
+      "note": "Counted over all shocks for VF, whether the VF persisted or came back (the guideline: \"irrespective of whether the shockable rhythms are sequential (refractory) or intermittent (recurrent)\").",
+      "group": "drugs"
     },
     {
       "id": "amiodarone-150",
@@ -290,7 +366,8 @@
         "drug": "amiodarone",
         "mg": 150,
         "afterShock": 5
-      }
+      },
+      "group": "drugs"
     }
   ]
 }

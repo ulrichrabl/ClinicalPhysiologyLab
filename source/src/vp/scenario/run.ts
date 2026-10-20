@@ -8,6 +8,7 @@ import { startEncounter, perform, order, advanceCourse, abilities, type Session,
 import { buildView } from '../engine/view.ts';
 import { INTERVENTION_BY_ID } from '../data/interventions.ts';
 import { Chance } from './chance.ts';
+import { TEAM_ROLES, type CallContent, type TeamRole } from './types.ts';
 import { Compressor } from '../physiology/cpr/compressions.ts';
 import { CPR } from '../evidence/cpr.ts';
 import { LUNG } from '../evidence/lung.ts';
@@ -162,10 +163,15 @@ export class ScenarioRun {
     else if (e.do === 'compress') this.compress(e.at, e.by);
     else if (e.do === 'ventilate') this.ventilate(e.at, e.seconds, e.by);
     else if (e.do === 'bag') this.bag(e.phase, e.at, e.by);
+    else if (e.do === 'call') this.call(e.says, e.by);
+    else if (e.do === 'assign') this.assign(e.role, e.to);
     else this.order(e.test, e.by);
   }
 
-  private note(e: ScenarioInput): void { this.log.push(e); }
+  /** Inputs made inside another input (a task given starts the intervention it implies) are part of it, not inputs of their own. */
+  private nested = 0;
+  private note(e: ScenarioInput): void { if (!this.nested) this.log.push(e); }
+  private within<T>(fn: () => T): T { this.nested++; try { return fn(); } finally { this.nested--; } }
 
   /** Why an actor cannot act now, if they cannot. */
   private unable(by: string): string | undefined {
@@ -228,6 +234,7 @@ export class ScenarioRun {
     this.undo(h);
     this.held.delete(slot);
     this.events.push({ t: this.t, kind: 'release', slot, by, id: h.id });
+    this.dropRole(slot, h.by);
     return true;
   }
 
@@ -356,6 +363,59 @@ export class ScenarioRun {
     return !!b;
   }
 
+  /** Who holds each task (ADR-018 decision 8). Compressions and the airway are also held as interventions. */
+  readonly roles: Record<TeamRole, string | null> = { compressions: null, airway: null, defibrillator: null, drugs: null };
+  /** The arrest team has been called. */
+  called = false;
+
+  /** Call the arrest team (ADR-018 step 5): the caller's hands are busy for the call; the team comes after the scene's
+      time, later if the call did not say where. */
+  call(says: CallContent[], by = 'learner'): boolean {
+    if (!this.actors[by]) throw new Error(`no one called ${by} in scenario ${this.def.id}`);
+    this.note({ t: this.t, do: 'call', says: [...says], by });
+    const team = this.def.scene.team;
+    if (!team) return this.blocked('call', by, 'no-team');
+    if (this.called) return this.blocked('call', by, 'already-called');
+    const why = this.unable(by);
+    if (why) return this.blocked('call', by, why);
+    this.called = true;
+    this.actors[by].busyUntil = this.tick + Math.round(team.callSeconds / TICK_S);
+    const after = team.afterSeconds + (says.includes('where') ? 0 : team.lateWithoutWhere);
+    const at = this.tick + Math.round(after / TICK_S);
+    this.arrivals.push({ at, people: team.people, equipment: team.equipment });
+    this.events.push({ t: this.t, kind: 'call', by, says: [...says], arriveAt: at / 10 });
+    return true;
+  }
+
+  /** Give a task to someone present (the leader assigns it; ADR-018 decision 8). Compressions and the airway begin at once:
+      whoever had them lets go. Returns false if they cannot take it now. */
+  assign(role: TeamRole, to: string): boolean {
+    if (!this.actors[to]) throw new Error(`no one called ${to} in scenario ${this.def.id}`);
+    this.note({ t: this.t, do: 'assign', role, to });
+    if (!this.actors[to].present) return this.blocked(`role:${role}`, to, 'absent');
+    /* one task per pair of hands: whatever else they held is given up */
+    for (const r of TEAM_ROLES) if (r !== role && this.roles[r] === to) { this.roles[r] = null; this.events.push({ t: this.t, kind: 'assigned', role: r, to: null }); }
+    const slot = role === 'compressions' ? 'compressions' : role === 'airway' ? 'ventilation' : null;
+    const ok = this.within(() => {
+      if (!slot) { const mine = this.actors[to].hands; if (mine) this.release(mine, to); return true; }
+      const h = this.held.get(slot);
+      if (h && h.by === to) return true;   // already doing it
+      const mine = this.actors[to].hands;
+      if (mine) this.release(mine, to);
+      return this.intervene(role === 'compressions' ? 'cpr.compressions' : 'vent.bag', to);
+    });
+    if (!ok) return false;
+    this.roles[role] = to;
+    this.events.push({ t: this.t, kind: 'assigned', role, to });
+    return true;
+  }
+
+  /** Whoever let go of the compressions or the bag no longer has that task. */
+  private dropRole(slot: string, who: string): void {
+    const role: TeamRole | null = slot === 'compressions' ? 'compressions' : slot === 'ventilation' ? 'airway' : null;
+    if (role && this.roles[role] === who) { this.roles[role] = null; this.events.push({ t: this.t, kind: 'assigned', role, to: null }); }
+  }
+
   /** The lungs' clock at scenario time `at`. */
   private respTime(at: number): number { return this.live.run.resp.t + (at - this.t); }
 
@@ -391,6 +451,7 @@ export class ScenarioRun {
         /* taking over: whoever held it lets go, and their hands are free */
         if (this.actors[old.by]?.hands === e.slot) this.actors[old.by].hands = undefined;
         this.undo(old); this.held.delete(e.slot); this.events.push({ t: this.t, kind: 'release', slot: e.slot, by: old.by, id: old.id });
+        this.dropRole(e.slot, old.by);
       }
       const before: Record<string, number | string> = {};
       for (const path of Object.keys(e.inputs)) before[path] = getPath(this.live.model, path);
@@ -414,6 +475,12 @@ export class ScenarioRun {
       }
       if (e.defib === 'charge') this.charged = true;
       if (e.defib === 'shock') this.shock(p.by);
+      if (e.fetch) {
+        /* away for the errand, back with what was fetched */
+        this.actors[p.by].present = false;
+        this.arrivals.push({ at: this.tick + Math.round(e.fetch.seconds / TICK_S), people: [p.by], equipment: e.fetch.equipment });
+        this.events.push({ t: this.t, kind: 'leave', people: [p.by] });
+      }
       if (e.assess === 'rhythm') this.events.push({ t: this.t, kind: 'assessed', what: 'rhythm', rhythm: this.rhythm(), by: p.by });
       if (e.dose) { this.live.run.drugs.give(e.dose.drug, e.dose.mg); this.events.push({ t: this.t, kind: 'dose', drug: e.dose.drug, mg: e.dose.mg, by: p.by }); }
       if (e.state) this.setState(e.state);

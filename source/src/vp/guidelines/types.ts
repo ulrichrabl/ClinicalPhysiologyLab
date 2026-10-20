@@ -35,6 +35,13 @@ export type Check =
   | { kind: 'dose-interval'; drug: DrugId; min: number; max: number }
   /** None of these hazards. */
   | { kind: 'no-hazard'; codes: string[] }
+  /** The arrest team called within `within` s of the collapse, the call saying each of `must` (ADR-018 decision 8). */
+  | { kind: 'call'; within: number; must: string[] }
+  /** Each task held by someone within `within` s of its becoming possible (compressions and the airway from the collapse,
+      the defibrillator and the drugs from their arrival). */
+  | { kind: 'roles'; within: number }
+  /** The person compressing changes at least every `every` + `tolerance` s, once two people could share it. */
+  | { kind: 'rotation'; every: number; tolerance: number }
   /** Each breath the learner gives lasts this long, by its median. */
   | { kind: 'breath'; min: number; max: number };
 
@@ -49,6 +56,8 @@ export interface GuidelineRule {
   basis: Basis;
   /** What a placement rests on, or what in the guideline was read. */
   note?: string;
+  /** Which part of the resuscitation it belongs to, for the debrief. */
+  group: 'team' | 'compressions' | 'airway' | 'defibrillation' | 'drugs';
   /** Unit of the value reported (s, /min, %, mg). */
   unit?: string;
   check: Check;

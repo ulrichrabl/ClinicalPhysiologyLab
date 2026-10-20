@@ -347,6 +347,8 @@ export function oxygenSvg(c: HeadCtx, chestPt: Pt): string {
     const mask = [[9.4, 9.7], [8.4, 12.4], [5.6, 14.6], [1.6, 15.0], [-2.0, 13.4], [-3.6, 10.6], [-3.2, 8.4], [0.0, 7.4], [4.0, 7.2], [7.4, 8.2]].map(([a, b]) => H(a, b));
     out.push(`<path d="${closedPath(mask)}" fill="#e6f3f0" fill-opacity=".55" stroke="${tubeLine}" stroke-width="${f(0.3 * u)}"/>`);
     out.push(`<path d="${openPath([H(4.6, 13.6), H(2.0, 14.4), H(-0.8, 13.6)])}" fill="none" stroke="#ffffff" stroke-width="${f(0.35 * u)}" opacity=".8"/>`);
+    /* A bag-valve mask is held on by hand (ADR-018 step 5): no strap, no tubing; the bag is drawn by whoever holds it. */
+    if (/bag/.test(dev)) return `<g class="oxygen" pointer-events="none">${out.join('')}</g>`;
     out.push(`<path d="${openPath([H(5.6, 7.6), H(7.2, 1.0), H(7.4, -6.0), H(6.2, -10.4)])}" fill="none" stroke="#7d9b95" stroke-width="${f(0.35 * u)}"/>`);
     const base = H(-2.2, 12.6);
     line(drop(base), 1.1);

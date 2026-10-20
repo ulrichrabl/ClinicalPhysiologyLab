@@ -1,14 +1,14 @@
 {
   "schema": "vp.scenario/1",
   "id": "arrest-practice",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "status": "draft",
   "title": {
     "en": "Practice: cardiac arrest",
     "de": "Übung: Herz-Kreislauf-Stillstand"
   },
   "caseId": "free-patient",
-  "purpose": "A practice screen after ADR-018 step 4: a healthy man whose heart fibrillates a few seconds in; the nurse goes for the arrest trolley and is back a minute later with the defibrillator, a cannula and the drugs, so the learner starts alone. A bag-mask on the wall. Compressions, breaths, shocks, IV access, adrenaline and amiodarone. For the owner to try.",
+  "purpose": "A practice arrest after ADR-018 step 5 part 2: a healthy man whose heart fibrillates a few seconds in, with one nurse in the room. The learner leads: has the arrest team called (it comes 2 min after the call, with the trolley: defibrillator, cannulas, drugs; 90 s later if the call does not say where), or sends the nurse for the trolley (back in 60 s), and gives the tasks. The team's times are placements: the ADR's 2 min, a call of 15 s, a delay of 90 s for a call without a place.",
   "scene": {
     "place": {
       "en": "A side room on the ward",
@@ -22,6 +22,22 @@
           "de": "Pflegekraft"
         },
         "present": true
+      },
+      {
+        "id": "doctor",
+        "role": {
+          "en": "Doctor (arrest team)",
+          "de": "Ärztin (Reanimationsteam)"
+        },
+        "present": false
+      },
+      {
+        "id": "nurse2",
+        "role": {
+          "en": "Nurse (arrest team)",
+          "de": "Pflegekraft (Reanimationsteam)"
+        },
+        "present": false
       }
     ],
     "equipment": [
@@ -57,7 +73,21 @@
         },
         "present": false
       }
-    ]
+    ],
+    "team": {
+      "people": [
+        "doctor",
+        "nurse2"
+      ],
+      "equipment": [
+        "defibrillator",
+        "cannula-kit",
+        "drugs"
+      ],
+      "afterSeconds": 120,
+      "lateWithoutWhere": 90,
+      "callSeconds": 15
+    }
   },
   "machine": {
     "start": "talking",
@@ -105,29 +135,9 @@
             "say": {
               "who": "nurse",
               "text": {
-                "en": "He’s collapsed! He isn’t responding. I’ll get the arrest trolley.",
-                "de": "Er ist zusammengebrochen! Er reagiert nicht. Ich hole den Notfallwagen."
+                "en": "He’s collapsed! He isn’t responding. What shall I do?",
+                "de": "Er ist zusammengebrochen! Er reagiert nicht. Was soll ich tun?"
               }
-            }
-          },
-          {
-            "leave": {
-              "people": [
-                "nurse"
-              ]
-            }
-          },
-          {
-            "arrive": {
-              "people": [
-                "nurse"
-              ],
-              "equipment": [
-                "defibrillator",
-                "cannula-kit",
-                "drugs"
-              ],
-              "afterSeconds": 60
             }
           }
         ],
