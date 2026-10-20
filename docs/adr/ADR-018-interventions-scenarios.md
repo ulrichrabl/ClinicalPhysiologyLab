@@ -350,10 +350,10 @@ Step 2 is built in two parts: 2a the compression pump (here), 2b ventilation, ap
 
 Asked for by the owner (2026-10-20) before step 3, to try the hands on a running patient. `app/practice-arrest.ts`, opened from the Ward:
 - **The run:** a `ScenarioRun` of `scenarios/arrest-practice.json` on the free patient. The scene fibrillates his heart 4 s in (`SceneDo.change`, a scripted change to the model, validated like an intervention's).
-- **Hands:** compressions are tapped (or the space bar); the bag is taken and each press gives a 1 s breath. One pair of hands cannot do both.
+- **Hands:** compressions are tapped (or the space bar); the bag is taken and each press gives a breath as long as it is held (since 2026-10-20; from the keyboard a standard 1 s breath). One pair of hands cannot do both.
 - **The nurse:** compresses, takes the bag or gives two breaths when told.
 - **What is shown:** the circulation's own samples and numbers, the patient's breathing (breathing, gasping, not breathing), the learner's rate, count and hands-off time, two minutes of coronary perfusion pressure and end-tidal CO₂ with a short explanation, and a log.
-- **Not yet:** the duration of a press as the breath's (decision 7), the debrief and scoring (step 5), the defibrillator and the drugs (steps 3–4).
+- **Not yet:** the debrief and scoring (step 5).
 
 **Owner (2026-10-20): the buttons are a stand-in.** Later the arrest gets a real patient and animated tools, as the examination and the stations have, because where and how things are done is part of what is learned:
 - **The patient figure** in the arrest: collapsed, on the floor or the bed, with the rescuers.
@@ -363,6 +363,35 @@ Asked for by the owner (2026-10-20) before step 3, to try the hands on a running
 - **IV access as a procedure:** placing a venflon, with its steps and its time, before drugs can be given (step 4).
 
 For now the screen stays as it is, to get the circuit right: physiology, scene, inputs and replay.
+
+**What to build it from** (looked at 2026-10-20; agreed with the owner as its own topic, after step 5 or before it if the owner prefers):
+- **The patient:** the bedside figure (`render/patient-figure.ts`, `figure-*.ts`; read `studio/figure/BRIEF.md` first). It is anatomical, built from the patient and the model's findings, posed by joint angles with smooth transitions, and seen from three sides, from above when lying. The collapse is a pose change to `supine` at the scene's VF; the bag-mask goes on the face like the oxygen mask does.
+- **Where the hands go:** the chest views (`render/thorax.ts`): the same body, with landmarks and positions in chest-frame cm, where the ECG electrodes are already dragged on. Hands on the lower half of the sternum, the pads (right infraclavicular and apical), later the cannula on the forearm, are placed the same way. A wrong place is logged; any effect on the compressions waits for grounding.
+- **The mechanism:** the stations' signal-and-mechanism pattern (`render/wiggers.ts`, `conduction-heart.ts`) for a diagram of the thoracic pump and coronary filling, in place of the trend alone.
+- **Checking it:** the figure loop (`sh studio/figure/run.sh`, `shoot.py zoom`), with close-ups for the owner before any claim.
+
+## The open questions of the practice screen and step 4, settled (2026-10-20)
+
+The owner handed these over ("tackle those"); each is decided here, with its reason, and can be revisited.
+
+1. **Tapping on a phone: keep it, with the layout reworked.** Checked on an emulated phone (390 × 844, touch):
+   - **The taps:** each counts, the rate reads the true interval, and the page does not zoom (`touch-action: manipulation`).
+   - **What was wrong:** while compressing, neither the monitor nor the rate was on screen. The introduction filled the first screen, and the feedback sat below the pad.
+   - **On phones now:** the monitor comes first and is compact (its note hidden; the canvas keeps it as its label), and the rate, count, hands-off and last-breath tiles sit above the pad, on desktop too. Starting compressions brings the monitor to the top. Monitor, feedback and the 140 px pad then fit one screen.
+   - **Left as it is:** the app-wide floating Report button overlaps the pad's corner.
+2. **The arterial line: switchable, on while practising.**
+   - **Why it stays on:** the pressure and the coronary perfusion pressure are what the practice screen teaches with (Paradis's 15 mmHg).
+   - **Why it can be switched off:** a ward patient has no arterial line. The switch sits in the monitor and is remembered on the device. Without the line, the arterial trace and numbers and the coronary perfusion trend are hidden, and the monitor says that end-tidal CO₂ is the guide to the compressions.
+   - **Assessment mode** (step 5b) will start with it off.
+3. **A breath's press duration counts** (decision 7).
+   - **How:** a press squeezes the bag at a standard breath's pressure for as long as it is held (`Ventilator.squeeze` and `release`). The volume follows from the lungs' own inspiratory time constant, so a quick squeeze gives less (about 0.39 L for 0.3 s against 0.5 L for 1 s), and holding past a second adds little. A squeeze is cut at 3 s.
+   - **What the learner sees:** the last breath's duration and volume, marked when outside 0.6–1.5 s (ERC: about 1 s each).
+   - **In the run:** a `bag` input (squeeze and release) and a `breath` event; replay is exact.
+   - **Also fixed:** putting the mask on takes 5 s, and the screen now says so ("Putting the mask on…") rather than offering a breath that is refused.
+4. **Adrenaline's gain: keep the fit to the first dose** (step 4).
+   - **Why not leave it an assumption:** a fit to a measured human response, with its protocol difference stated, is better grounded than a number with no measurement behind it.
+   - **Why the first dose:** fitting Paradis's own several-dose protocol is impossible under the ceiling of gap 20, and tuning towards it would hide that gap in a drug constant.
+   - **What would change it:** when gap 20 is addressed (how vascular tone fails in a long arrest), refit, and gaps 29, 30 and 32 should be rechecked.
 
 ## Decided by the owner (2026-10-19)
 

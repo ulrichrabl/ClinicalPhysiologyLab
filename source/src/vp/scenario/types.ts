@@ -121,7 +121,9 @@ export type ScenarioInput =
   /** One chest compression, tapped: `at` is when it began (seconds, at or after t, within the tick it was given in). */
   | { t: number; do: 'compress'; at: number; by: string }
   /** One breath given by whoever holds the ventilation: when it began, and how long the bag was squeezed (s). */
-  | { t: number; do: 'ventilate'; at: number; seconds: number; by: string };
+  | { t: number; do: 'ventilate'; at: number; seconds: number; by: string }
+  /** The bag squeezed by hand and let go (the learner's press and release): the breath lasts as long as it is held. */
+  | { t: number; do: 'bag'; phase: 'squeeze' | 'release'; at: number; by: string };
 
 /** What followed from the inputs, the scene, the course and chance. Reproduced exactly by a replay. */
 export type ScenarioEvent =
@@ -142,6 +144,8 @@ export type ScenarioEvent =
   /** Something done that is unsafe or against the rules (a shock with hands on the patient, a shock of a rhythm that is not
       shockable), recorded for the debrief and never blocked, as in the encounter. */
   | { t: number; kind: 'hazard'; code: string; by: string }
+  /** A held squeeze let go: how long it lasted and the volume it sent towards the lungs (L). */
+  | { t: number; kind: 'breath'; by: string; seconds: number; volume: number }
   /** A dose given into the vein (ADR-018 step 4). */
   | { t: number; kind: 'dose'; drug: DrugId; mg: number; by: string }
   /** Ventricular fibrillation comes back after a shock had ended it. */

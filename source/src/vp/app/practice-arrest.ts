@@ -32,6 +32,10 @@ const T: Record<string, LocalizedText> = {
   pause: L('Pause', 'Anhalten'), resume: L('Resume', 'Weiter'), restart: L('Start again', 'Neu beginnen'),
   monitor: L('Monitor', 'Monitor'), monitorNote: L('ECG lead II, arterial pressure (an arterial line, for teaching: on the ward you would not have one), the pressure of the compressions in the chest, and airway pressure.',
     'EKG Ableitung II, arterieller Druck (eine arterielle Kanüle, zum Lernen: auf Station hätten Sie keine), der Druck der Kompressionen im Thorax und der Atemwegsdruck.'),
+  monitorNoteWard: L('ECG lead II, the pressure of the compressions in the chest, and airway pressure. No arterial line, as on the ward: end-tidal CO₂ is your guide to the compressions.',
+    'EKG Ableitung II, der Druck der Kompressionen im Thorax und der Atemwegsdruck. Keine arterielle Kanüle, wie auf Station: das endtidale CO₂ zeigt Ihnen, wie gut Sie drücken.'),
+  aline: L('Arterial line', 'Arterielle Kanüle'), on: L('on', 'an'), off: L('off', 'aus'),
+  lastBreath: L('Last breath', 'Letzte Beatmung'), breathHint: L('Hold to squeeze the bag; let go to end the breath. Aim for about a second.', 'Gedrückt halten, um den Beutel zu drücken; loslassen beendet die Beatmung. Etwa eine Sekunde.'),
   ecg: L('ECG II', 'EKG II'), art: L('Artery', 'Arterie'), chest: L('Chest', 'Thorax'), paw: L('Airway', 'Atemweg'),
   abp: L('Arterial', 'Arteriell'), cpp: L('Coronary perfusion', 'Koronarer Perfusionsdruck'), etco2: L('End-tidal CO₂', 'Endtidales CO₂'), time: L('Time', 'Zeit'),
   hands: L('Your hands', 'Ihre Hände'),
@@ -63,6 +67,7 @@ const T: Record<string, LocalizedText> = {
   iv: L('IV cannula', 'Venenzugang legen'), adr: L('Adrenaline 1 mg', 'Adrenalin 1 mg'), amio300: L('Amiodarone 300 mg', 'Amiodaron 300 mg'), amio150: L('Amiodarone 150 mg', 'Amiodaron 150 mg'),
   logIv: L('has a line in', 'hat einen Venenzugang gelegt'), logDose: L('gives {drug} {mg} mg IV', 'gibt {drug} {mg} mg i.v.'),
   nameAdr: L('adrenaline', 'Adrenalin'), nameAmio: L('amiodarone', 'Amiodaron'),
+  reasons_not_ventilating: L('you are not holding the bag', 'Sie halten den Beutel nicht'), fitting: L('Putting the mask on…', 'Maske wird aufgesetzt…'),
   reasons_access_iv: L('no IV access yet', 'noch kein Venenzugang'), reasons_access_pads: L('the pads are not on', 'die Elektroden kleben noch nicht'),
   defib: L('Defibrillator', 'Defibrillator'), dNotHere: L('on its way', 'unterwegs'), dNoPads: L('here, pads not on', 'da, Elektroden nicht aufgeklebt'), dPads: L('pads on', 'Elektroden aufgeklebt'),
   dCharging: L('charging…', 'lädt…'), dCharged: L('charged: 150 J', 'geladen: 150 J'),
@@ -97,6 +102,12 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   /* the learner's compressions, for the feedback */
   let taps: number[] = [];
   let sinceBreaths = 0;
+  /* the arterial line: shown while practising (for teaching), switchable; remembered on this device */
+  let aline = true;
+  try { aline = localStorage.getItem('cpl.arrest.aline') !== 'off'; } catch { /* storage may be unavailable */ }
+  /* the squeeze in progress (wall-clock start), and the learner's last breath */
+  let squeezeAt: number | null = null, squeezeTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastBreath: { seconds: number; volume: number } | null = null;
   let seenEvents = 0;
   const log: Array<{ t: number; who: string; text: string; fromEvent?: boolean }> = [];
   let lastBreathing = '';
@@ -106,7 +117,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const start = () => {
     host.innerHTML = `${head()}<p class="muted" data-preparing>${t('preparing')}</p>`;
     wire();
-    run = null; buf = []; paw = []; trend = []; taps = []; sinceBreaths = 0; seenEvents = 0; log.length = 0; curArr = null; idx = 0; lastBreathing = '';
+    run = null; buf = []; paw = []; trend = []; taps = []; sinceBreaths = 0; lastBreath = null; squeezeAt = null; seenEvents = 0; log.length = 0; curArr = null; idx = 0; lastBreathing = '';
     setTimeout(() => {
       if (stopped) return;
       /* a fresh seed each time: chance (gasping, the heart's noise) differs from run to run, as in life */
@@ -127,19 +138,21 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       <p class="ar-draft muted small" role="note">${t('draft')}</p>
       <div class="ar-grid">
         <section class="panel ar-monitor" aria-labelledby="ar-mon-h">
-          <div class="st-row"><div><h2 id="ar-mon-h">${t('monitor')}</h2><div class="muted small">${t('monitorNote')}</div></div></div>
-          <canvas class="ar-strip" aria-label="${t('monitorNote')}"></canvas>
+          <div class="st-row"><div><h2 id="ar-mon-h">${t('monitor')}</h2><div class="muted small ar-mon-note">${t(aline ? 'monitorNote' : 'monitorNoteWard')}</div></div>
+            <button type="button" class="ghost small" data-aline aria-pressed="${aline}">${t('aline')}: ${t(aline ? 'on' : 'off')}</button></div>
+          <canvas class="ar-strip" aria-label="${t(aline ? 'monitorNote' : 'monitorNoteWard')}"></canvas>
           <dl class="ar-nums" data-nums></dl>
           <p class="ar-breathing" data-breathing role="status"></p>
         </section>
         <section class="panel ar-hands" aria-labelledby="ar-hands-h">
           <h2 id="ar-hands-h">${t('hands')}</h2>
           <div class="ar-row"><button type="button" class="primary" data-cpr></button><button type="button" class="ghost" data-bag></button></div>
-          <button type="button" class="ar-pad" data-push aria-describedby="ar-push-hint">${t('push')}</button>
-          <p id="ar-push-hint" class="muted small">${t('pushHint')}</p>
-          <button type="button" class="ghost ar-breath" data-breath>${t('breath')}</button>
           <dl class="ar-feedback" data-feedback></dl>
           <p class="muted small">${t('target')}</p>
+          <button type="button" class="ar-pad" data-push aria-describedby="ar-push-hint">${t('push')}</button>
+          <p id="ar-push-hint" class="muted small">${t('pushHint')}</p>
+          <button type="button" class="ghost ar-breath" data-breath aria-describedby="ar-breath-hint">${t('breath')}</button>
+          <p id="ar-breath-hint" class="muted small">${t('breathHint')}</p>
           <h3>${t('defib')} <span class="muted small" data-defib-state></span></h3>
           <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-d="pads">${t('pads')}</button><button type="button" class="ghost small" data-d="charge">${t('charge')}</button>
             <button type="button" class="primary small ar-shock" data-d="shock">${t('shockNow')}</button></div>
@@ -155,7 +168,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
           <h2 id="ar-why-h">${t('why')}</h2>
           <div class="muted small">${t('trend')}</div>
           <canvas class="ar-trend" aria-label="${t('trend')}"></canvas>
-          <p class="ar-legend small"><span class="ar-key cpp"></span>${t('cpp')} (mmHg) <span class="ar-key co2"></span>${t('etco2')} (mmHg) <span class="muted">· 15 mmHg: Paradis</span></p>
+          <p class="ar-legend small">${aline ? `<span class="ar-key cpp"></span>${t('cpp')} (mmHg) ` : ''}<span class="ar-key co2"></span>${t('etco2')} (mmHg)${aline ? ' <span class="muted">· 15 mmHg: Paradis</span>' : ''}</p>
           <p>${t('whyCpp')}</p><p>${t('whyCo2')}</p>
         </section>
         <section class="panel ar-log" aria-labelledby="ar-log-h">
@@ -170,6 +183,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   /* ---- inputs ---------------------------------------------------------------------------------- */
   const note = (x: string) => { const n = host.querySelector<HTMLElement>('[data-note]'); if (n) n.textContent = x; };
   const held = (slot: string) => run?.held.get(slot);
+  const phone = () => { try { return window.matchMedia('(max-width: 600px)').matches; } catch { return false; } };
   const learnerHolds = (slot: string) => held(slot)?.by === 'learner';
   /** An input lands at the run's current tick: bring the run up to now first. */
   const now = () => { if (!run) return 0; run.advanceTo(Math.floor(runT() / TICK_S) * TICK_S); return run.t; };
@@ -213,10 +227,35 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       (e.target as HTMLButtonElement).textContent = paused ? t('resume') : t('pause');
     };
     if (!run) return;
-    host.querySelector<HTMLButtonElement>('[data-cpr]')!.onclick = () => act(() => (learnerHolds('compressions') ? run!.release('compressions') : run!.intervene('cpr.compressions')));
+    host.querySelector<HTMLButtonElement>('[data-aline]')!.onclick = () => {
+      aline = !aline;
+      try { localStorage.setItem('cpl.arrest.aline', aline ? 'on' : 'off'); } catch { /* not remembered */ }
+      render();
+    };
+    host.querySelector<HTMLButtonElement>('[data-cpr]')!.onclick = () => {
+      const starting = !learnerHolds('compressions');
+      act(() => (learnerHolds('compressions') ? run!.release('compressions') : run!.intervene('cpr.compressions')));
+      /* on a phone, bring the monitor to the top: it, your rate and the pad then fit on one screen */
+      if (starting && phone()) host.querySelector('.ar-monitor')?.scrollIntoView({ block: 'start' });
+    };
     host.querySelector<HTMLButtonElement>('[data-bag]')!.onclick = () => act(() => (learnerHolds('ventilation') ? run!.release('ventilation') : run!.intervene('vent.bag')));
     host.querySelector<HTMLButtonElement>('[data-push]')!.addEventListener('pointerdown', (e) => { e.preventDefault(); push(); });
-    host.querySelector<HTMLButtonElement>('[data-breath]')!.onclick = () => act(() => breath('learner'));
+    /* a breath lasts as long as the button is held (decision 7); from the keyboard, a standard one-second breath */
+    const br = host.querySelector<HTMLButtonElement>('[data-breath]')!;
+    const letGo = () => {
+      if (squeezeAt == null || !run) return;
+      squeezeAt = null; if (squeezeTimer) { clearTimeout(squeezeTimer); squeezeTimer = null; }
+      br.classList.remove('held');
+      now();
+      run.bag('release', run.t);
+    };
+    br.addEventListener('pointerdown', (e) => {
+      if (!run || paused || squeezeAt != null) return;
+      e.preventDefault();
+      act(() => { const ok = run!.bag('squeeze', now()); if (ok) { squeezeAt = runT(); br.classList.add('held'); sinceBreaths = 0; squeezeTimer = setTimeout(letGo, 3000); } return ok; });
+    });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) br.addEventListener(ev, letGo);
+    br.onclick = (e) => { if ((e as MouseEvent).detail === 0) act(() => breath('learner')); };
     /* pads, charging and the shock go to whoever has free hands, the learner first */
     const free = () => (['learner', 'nurse'] as const).find((x) => { const a = run!.actors[x]; return a && a.present && !a.hands && a.busyUntil <= run!.tick; });
     host.querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) => b.onclick = () => {
@@ -287,16 +326,16 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const drawStrip = () => {
     const c = host.querySelector<HTMLCanvasElement>('.ar-strip');
     if (!c || !run) return;
-    const h = Math.round(Math.max(240, Math.min(340, c.clientWidth * 0.42)));
+    const h = Math.round(Math.max(phone() ? 170 : 240, Math.min(340, c.clientWidth * 0.42)));
     const { g, w } = sizeCanvas(c, h);
     const fg = css('--trace'), muted = css('--muted'), line = css('--grid'), art = '#c0392b', acc = css('--accent');
     g.fillStyle = css('--surface'); g.fillRect(0, 0, w, h);
     const pad = 46, tNow = (run.live.run.sim as any).t as number, from = tNow - WINDOW_S;
     const x = (T: number) => pad + ((T - from) / WINDOW_S) * (w - pad - 8);
     const rows: Array<{ key: string; label: string; top: number; hgt: number; lo: number; hi: number; color: string; get: (s: Sample) => number; unit?: string }> = [
-      { key: 'ecg', label: t('ecg'), top: 6, hgt: h * 0.24, lo: -1.2, hi: 1.6, color: fg, get: (s) => s.ecg },
-      { key: 'art', label: t('art'), top: h * 0.30, hgt: h * 0.36, lo: 0, hi: Math.max(80, ...buf.map((s) => s.Pa)) + 5, color: art, get: (s) => s.Pa, unit: 'mmHg' },
-      { key: 'chest', label: t('chest'), top: h * 0.70, hgt: h * 0.13, lo: 0, hi: 60, color: acc, get: (s) => s.Pchest },
+      { key: 'ecg', label: t('ecg'), top: 6, hgt: h * (aline ? 0.24 : 0.5), lo: -1.2, hi: 1.6, color: fg, get: (s) => s.ecg },
+      ...(aline ? [{ key: 'art', label: t('art'), top: h * 0.30, hgt: h * 0.36, lo: 0, hi: Math.max(80, ...buf.map((s) => s.Pa)) + 5, color: art, get: (s: Sample) => s.Pa, unit: 'mmHg' }] : []),
+      { key: 'chest', label: t('chest'), top: h * (aline ? 0.70 : 0.60), hgt: h * (aline ? 0.13 : 0.2), lo: 0, hi: 60, color: acc, get: (s) => s.Pchest },
     ];
     g.font = '500 10px "JetBrains Mono", ui-monospace, monospace'; g.textBaseline = 'middle';
     for (const r of rows) {
@@ -337,7 +376,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       for (const p of trend) { const v = get(p); if (v == null) { on = false; continue; } if (!on) { g.moveTo(x(p.T), y(v)); on = true; } else g.lineTo(x(p.T), y(v)); }
       g.stroke();
     };
-    series((p) => p.cpp, '#c0392b');
+    if (aline) series((p) => p.cpp, '#c0392b');
     series((p) => p.co2, '#3f6fb5');
 
   };
@@ -350,8 +389,8 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     const breaths = (r.givenRate ?? 0) > 0 || (r.RR ?? 0) > 0;
     const nums = host.querySelector<HTMLElement>('[data-nums]');
     if (nums) nums.innerHTML = `
-      <div><dt>${t('abp')}</dt><dd>${Number.isFinite(sys) ? `${Math.round(sys)}/${Math.round(dia)}` : '—'} <span class="muted small">mmHg</span></dd></div>
-      <div><dt>${t('cpp')}</dt><dd>${m.CPP != null ? Math.round(m.CPP) : '—'} <span class="muted small">mmHg</span></dd></div>
+      ${aline ? `<div><dt>${t('abp')}</dt><dd>${Number.isFinite(sys) ? `${Math.round(sys)}/${Math.round(dia)}` : '—'} <span class="muted small">mmHg</span></dd></div>
+      <div><dt>${t('cpp')}</dt><dd>${m.CPP != null ? Math.round(m.CPP) : '—'} <span class="muted small">mmHg</span></dd></div>` : ''}
       <div><dt>${t('etco2')}</dt><dd>${breaths ? Math.round((r.EtCO2 ?? 0) * MMHG) : '—'} <span class="muted small">mmHg</span></dd></div>
       <div><dt>${t('time')}</dt><dd>${fmtT(run.t)}</dd></div>`;
     const w = runT();
@@ -362,10 +401,13 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     if (fb) fb.innerHTML = `
       <div><dt>${t('rate')}</dt><dd class="${rate != null && (rate < 100 || rate > 120) ? 'abn' : ''}">${rate != null ? Math.round(rate) : '—'} <span class="muted small">${t('perMin')}</span></dd></div>
       <div><dt>${t('count')}</dt><dd class="${sinceBreaths > 30 ? 'abn' : ''}">${sinceBreaths}<span class="muted small">/30</span></dd></div>
-      <div><dt>${t('handsOff')}</dt><dd class="${off != null && off > 10 ? 'abn' : ''}">${off != null && off > 1.5 ? off.toFixed(0) : '—'} <span class="muted small">${t('s')}</span></dd></div>`;
+      <div><dt>${t('handsOff')}</dt><dd class="${off != null && off > 10 ? 'abn' : ''}">${off != null && off > 1.5 ? off.toFixed(0) : '—'} <span class="muted small">${t('s')}</span></dd></div>
+      <div><dt>${t('lastBreath')}</dt><dd class="${lastBreath && (lastBreath.seconds < 0.6 || lastBreath.seconds > 1.5) ? 'abn' : ''}">${lastBreath ? `${lastBreath.seconds.toFixed(1)} <span class="muted small">${t('s')}</span> · ${Math.round(lastBreath.volume * 1000)} <span class="muted small">mL</span>` : '—'}</dd></div>`;
     const cpr = host.querySelector<HTMLButtonElement>('[data-cpr]'), bag = host.querySelector<HTMLButtonElement>('[data-bag]');
     if (cpr) cpr.textContent = learnerHolds('compressions') ? t('stopCpr') : t('startCpr');
-    if (bag) bag.textContent = learnerHolds('ventilation') ? t('dropBag') : t('takeBag');
+    /* the mask takes a few seconds to put on: say so, rather than offer a breath that cannot be given yet */
+    const fitting = run.events.some((e: any) => e.kind === 'begin' && e.id === 'vent.bag' && e.by === 'learner' && e.until > run!.t);
+    if (bag) { bag.textContent = fitting ? t('fitting') : learnerHolds('ventilation') ? t('dropBag') : t('takeBag'); bag.disabled = fitting; }
     const pad = host.querySelector<HTMLButtonElement>('[data-push]'); if (pad) pad.disabled = !learnerHolds('compressions');
     const br = host.querySelector<HTMLButtonElement>('[data-breath]'); if (br) br.disabled = !learnerHolds('ventilation');
     const ds = host.querySelector<HTMLElement>('[data-defib-state]');
@@ -408,6 +450,10 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     for (; seenEvents < ev.length; seenEvents++) {
       const e = ev[seenEvents] as any;
       if (e.kind === 'say') log.push({ t: e.t, who: who(e.who), text: tr(e.text, lang), fromEvent: true });
+      else if (e.kind === 'breath') {
+        if (e.by === 'learner') lastBreath = { seconds: e.seconds, volume: e.volume };
+        log.push({ fromEvent: true, t: e.t, who: who(e.by), text: `${t('logBreath')} (${e.seconds.toFixed(1)} ${t('s')}, ${Math.round(e.volume * 1000)} mL)` });
+      }
       else if (e.kind === 'dose') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: t('logDose').replace('{drug}', t(e.drug === 'adrenaline' ? 'nameAdr' : 'nameAmio')).replace('{mg}', String(e.mg)) });
       else if (e.kind === 'done' && e.id !== 'defib.shock' && !e.id.startsWith('drug.')) log.push({ fromEvent: true, t: e.t, who: who(e.by), text: e.id === 'defib.pads' ? t('logPads') : e.id === 'defib.charge' ? t('logCharged') : e.id === 'access.iv' ? t('logIv') : tr(e.id === 'cpr.compressions' ? L('starts compressions', 'beginnt mit den Kompressionen') : e.id === 'vent.bag' ? L('has the bag on the face', 'hat die Maske aufgesetzt') : L(e.id, e.id), lang) });
       else if (e.kind === 'arrive' && e.equipment.includes('defibrillator')) log.push({ fromEvent: true, t: e.t, who: who('nurse'), text: t('logArrive') });
