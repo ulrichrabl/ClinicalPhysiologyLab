@@ -670,8 +670,10 @@ export class Respiratory {
     const g = this.givenVentilation(VD);
     return this.solve(this.VEdrive, { store: this.PtCO2, centre: this.spontaneousShare(), given: { VE: g.VE, VA: g.VA } });
   }
-  /** The share of its drive the centre still turns into breaths. */
-  private spontaneousShare(): number { return this.centre * this.VEdrive >= 0.3 ? this.centre : 0; }
+  /** The share of its drive the centre still turns into breaths. A centre less than half working does not breathe at a
+      fraction of its depth: it gasps (a patient who gasps) or stops. Without this, the low brain perfusion of CPR let a
+      failed centre, driven hard by the CO2 that builds up, take shallow breaths at full rate. The half is a placement. */
+  private spontaneousShare(): number { return this.centre >= 0.5 && this.centre * this.VEdrive >= 0.3 ? this.centre : 0; }
 
   /** Advance by `seconds`: breathing, and the slower drift of gases, drive and lung water toward their targets. */
   advance(seconds: number): void {

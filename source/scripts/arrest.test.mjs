@@ -104,6 +104,16 @@ console.log('\nBreathing stops when the brain loses its blood supply');
   ok('…until the gasping is over', !rg2.gasping && rg2.RR === 0, `RR ${rg2.RR.toFixed(1)}`);
 }
 
+{
+  /* During CPR the brain is perfused a little; a failed centre does not start breathing again on that. */
+  const { run, m } = healthyRun();
+  toVf(run, m); run.advance(40);
+  const c = new S.Compressor(S.CPR.itpManual); c.steady(110, run.sim.t); run.setCompressor(c);
+  run.advance(120);
+  const r = snapR(run);
+  ok('during two minutes of compressions a patient who does not gasp does not breathe either', r.RR === 0 && r.VE === 0, `RR ${r.RR.toFixed(1)}, centre ${r.centre.toFixed(2)}`);
+}
+
 console.log('\nApnoea with a circulation (Stock 1989): the CO2 store');
 {
   /* Anaesthetised (no drive, metabolism a sixth lower), on oxygen, ventilated to a normal PaCO2, then the tube clamped. */
