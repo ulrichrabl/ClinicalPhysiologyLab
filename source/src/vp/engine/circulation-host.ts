@@ -9,6 +9,7 @@ import { INF } from '../evidence/inflammation.ts';
 import { CPR } from '../evidence/cpr.ts';
 import type { Compressor } from '../physiology/cpr/compressions.ts';
 import type { Ventilator } from '../physiology/lung/ventilation.ts';
+import { MyocardialState } from '../physiology/heart/arrest.ts';
 const CMH2O_TO_MMHG = 0.7356;
 /** How quickly the circulation's reference for pleural pressure follows its mean (s): about two quiet breaths. */
 const PPL_MEAN_TAU_S = 8;
@@ -64,6 +65,10 @@ export interface CirculationRun {
   setCompressor: (c: Compressor | null) => void;
   /** Breaths given at the airway (ADR-018 step 2b), or none. Its times are on the lungs' clock (`resp.t`). */
   setVentilator: (v: Ventilator | null) => void;
+  /** The myocardium's state in an arrest (ADR-018 step 3): 1 while perfused. */
+  arrest: MyocardialState;
+  /** The coronary perfusion pressure the myocardium is getting now (mmHg, smoothed; between compressions in CPR). */
+  coronaryPerfusion: () => number;
 }
 
 export function createCirculation(m: PatientModel): CirculationRun {
@@ -93,6 +98,11 @@ export function createCirculation(m: PatientModel): CirculationRun {
   let pplMean = NaN;
   /* The pressure perfusing the brainstem, aortic minus right atrial, over a few seconds (ADR-018 step 2b). */
   let brainP = NaN;
+  /* The coronary perfusion pressure (ADR-018 step 3): aortic minus right atrial pressure, over a few seconds, read only
+     between compressions, where the coronary arteries fill (Paradis 1990). */
+  let coronaryP = NaN;
+  const arrest = new MyocardialState();
+  const arrested = () => heart.p.ventricular === 'vf' || heart.p.ventricular === 'asystole';
   const BRAIN_TAU_S = 3;
   const couple = () => {
     /* The lungs and the body see the circulation over a circulation time, not beat by beat: the mixed venous blood
@@ -102,6 +112,9 @@ export function createCirculation(m: PatientModel): CirculationRun {
     const out = bodyOut();
     const perf = (sim.Part ?? 93) - (sim.Pra ?? 4);
     brainP = Number.isFinite(brainP) ? brainP + (perf - brainP) * (1 - Math.exp(-COUPLE_S / BRAIN_TAU_S)) : perf;
+    if (!((sim.Pchest ?? 0) > 0)) coronaryP = Number.isFinite(coronaryP) ? coronaryP + (perf - coronaryP) * (1 - Math.exp(-COUPLE_S / BRAIN_TAU_S)) : perf;
+    if (sim.t > 2) arrest.step(COUPLE_S, coronaryP, arrested());
+    heart.vfScale = arrest.vfScale();
     resp.setInputs({
       /* The lungs receive what the heart (or the compressions) pump: in an arrest very little. Before the first beat is
          measured, the normal output. */
@@ -114,7 +127,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
        Angiotensin II and vasopressin constrict arterioles and capacitance veins. */
     sim.Rsys = model.circulation.Rsys * (CIRC.viscosityFixed + (1 - CIRC.viscosityFixed) * Math.min(CIRC.viscosityCap, out.Hb / CIRC.viscosityHbRef)) * milieu.rsysMult();
     sim.V0sv = model.circulation.V0sv * milieu.v0svMult();
-    sim.Emax = model.circulation.Emax * milieu.contractility();
+    sim.Emax = model.circulation.Emax * milieu.contractility() * arrest.contractility();
     /* Septic vessels respond poorly to sympathetic drive as well. */
     const vp = milieu.vasoplegia();
     const ar = milieu.adrenergicResponse();
@@ -134,7 +147,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
       const target = Math.max(0, Math.min(CIRC.rvIschaemiaMax, (CIRC.rvPerfusionRatio - ratio) / CIRC.rvPerfusionSpan));
       sim.rvIschaemia = (sim.rvIschaemia ?? 0) + (target - (sim.rvIschaemia ?? 0)) * (1 - Math.exp(-COUPLE_S / CIRC.rvIschaemiaTau));
     }
-    sim.EmaxRv = model.circulation.EmaxRv * (1 - (sim.rvIschaemia ?? 0));
+    sim.EmaxRv = model.circulation.EmaxRv * (1 - (sim.rvIschaemia ?? 0)) * arrest.contractility();
     sim.chemoDrive = Math.min(1.5, resp.chemoDrive() + milieu.adrenergic());
     const r = resp.snapshot();
     /* The breath's pleural pressure acts on the heart and lung vessels (cmH2O to mmHg), as it swings about its own mean.
@@ -171,10 +184,10 @@ export function createCirculation(m: PatientModel): CirculationRun {
     if (!!sim.baroEnabled !== !!c.baroEnabled) sim.toggleBaro();
     resp.setParams(next.respiratory, body());
     sim.Rpul = c.Rpul * resp.rpulMult();
-    sim.EmaxRv = c.EmaxRv * (1 - (sim.rvIschaemia ?? 0));
+    sim.EmaxRv = c.EmaxRv * (1 - (sim.rvIschaemia ?? 0)) * arrest.contractility();
     sim.Rsys = c.Rsys * milieu.rsysMult();
     sim.V0sv = c.V0sv * milieu.v0svMult();
-    sim.Emax = c.Emax * milieu.contractility();
+    sim.Emax = c.Emax * milieu.contractility() * arrest.contractility();
     sim.gR = c.gR * (1 - INF.reflexResistanceLoss * milieu.vasoplegia()) * milieu.adrenergicResponse(); sim.gV = c.gV * (1 - INF.reflexVenousLoss * milieu.vasoplegia()) * milieu.adrenergicResponse();
     const bv = milieu.bloodVolume();
     if (Math.abs(bv - sim.bloodVolume) > 0.5) sim.setBloodVolume(Math.max(1500, bv));
@@ -250,9 +263,10 @@ export function createCirculation(m: PatientModel): CirculationRun {
 
   const setCompressor = (c: Compressor | null) => { sim.chest = c ? (t: number) => c.pressureAt(t) : null; if (!c) sim.Pchest = 0; };
   const setVentilator = (v: Ventilator | null) => { resp.ventilator = v; };
+  const coronaryPerfusion = () => coronaryP;
 
   apply(m);
-  return { sim, heart, resp, body: milieu, apply, advance, equilibrate, settle, settleFast, course, courseSteps, setCompressor, setVentilator };
+  return { sim, heart, resp, body: milieu, apply, advance, equilibrate, settle, settleFast, course, courseSteps, setCompressor, setVentilator, arrest, coronaryPerfusion };
 }
 
 export interface SettledPatient {

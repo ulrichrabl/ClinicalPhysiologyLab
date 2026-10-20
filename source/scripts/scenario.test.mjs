@@ -244,9 +244,66 @@ console.log('\nThe practice arrest (a scene that changes the model)');
   ok('four seconds in, the scene fibrillates his heart (a scripted change to the model), and the nurse calls it', r.scene === 'arrest' && r.live.model.electrical.ventricular === 'vf' && kinds(r, 'say').some((e) => e.who === 'nurse'));
   r.advanceTo(40);
   ok('…and with no one acting, he has no output', r.live.snap.metrics.CO < 0.1);
+  r.advanceTo(65);
+  ok('the nurse went for the trolley at the collapse, so the learner was alone for a minute', r.actors.nurse.present && kinds(r, 'leave').some((e) => e.t === 4 && e.people.includes('nurse')) && kinds(r, 'arrive').some((e) => e.t === 64 && e.people.includes('nurse') && e.equipment.includes('defibrillator')));
   const bad = structuredClone(P);
   bad.machine.states.arrest.enter[0].change[0].path = 'body.sodiumIntake';
   ok('the validator refuses a scene change to the body’s slow parameters', errors(S.validateScenario(bad, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).some((i) => /not a model input/.test(i.message)));
+}
+
+console.log('\nThe defibrillator (ADR-018 step 3)');
+{
+  const P = structuredClone(scenarioOf('arrest-practice'));
+  P.scene.equipment.find((e) => e.id === 'defibrillator').present = true;
+  P.machine.states.arrest.enter = P.machine.states.arrest.enter.filter((d) => !('leave' in d) && !('arrive' in d));   // the nurse stays, the trolley is here
+  const r = start(P, 21, S.FREE_CASE);
+  r.advanceTo(5);
+  ok('shocking needs pads first', !r.intervene('defib.shock') && kinds(r, 'blocked').at(-1)?.reason === 'access:pads');
+  ok('the learner puts the pads on', r.intervene('defib.pads'));
+  r.advanceTo(30);
+  ok('…and charges', r.access.has('pads') && r.intervene('defib.charge'));
+  r.advanceTo(40);
+  ok('once charged, a shock is delivered, its outcome drawn from the seed', r.charged && r.intervene('defib.shock') && kinds(r, 'shock').at(-1)?.joules === 150 && kinds(r, 'chance').some((e) => e.stream === 'shock'));
+  const out = kinds(r, 'shock').at(-1).outcome;
+  ok('…and the rhythm follows the outcome', (out === 'organised' && r.rhythm() === 'organised') || (out === 'asystole' && r.rhythm() === 'asystole') || (out === 'not-terminated' && r.rhythm() === 'vf'), `${out}, rhythm ${r.rhythm()}`);
+  ok('a shock without charging does nothing', r.intervene('defib.shock') && kinds(r, 'shock').at(-1)?.outcome === 'no-effect' && kinds(r, 'shock').at(-1)?.joules === 0);
+  const R = S.replay(P, { seed: 21, caseDef: S.FREE_CASE, log: r.log, until: r.t });
+  ok('a run with shocks replays exactly, outcome and all', fingerprint(R) === fingerprint(r));
+
+  /* Safety: a shock with someone compressing, and a shock of a rhythm that is not shockable, are recorded as hazards. */
+  const h = start(P, 22, S.FREE_CASE);
+  h.advanceTo(5); h.intervene('defib.pads', 'nurse'); h.intervene('cpr.compressions');
+  h.advanceTo(30); h.intervene('defib.charge', 'nurse'); h.advanceTo(40); h.intervene('defib.shock', 'nurse');
+  ok('a shock while someone is compressing is given, and recorded as a hazard', kinds(h, 'hazard').some((e) => e.code === 'shock-while-compressing' && e.by === 'learner'));
+  /* A beating heart (the scene's arrest never comes): a shock does nothing to it, and is a hazard. */
+  const B = structuredClone(P);
+  B.machine.states.talking.next = [{ when: { at: 1199 }, to: 'arrest' }];
+  const n = start(B, 23, S.FREE_CASE);
+  n.intervene('defib.pads'); n.advanceTo(25); n.intervene('defib.charge'); n.advanceTo(35);
+  n.intervene('defib.shock');
+  ok('shocking a rhythm that is not shockable (a beating heart) does nothing to it, and is recorded as a hazard',
+    kinds(n, 'hazard').some((e) => e.code === 'shock-non-shockable') && n.rhythm() === 'organised' && kinds(n, 'shock').at(-1)?.outcome === 'no-effect');
+
+  /* Over many seeds, the first shock's outcomes follow the measured odds (termination 86.8 %), and VF comes back in most. */
+  let term = 0, refib = 0, n2 = 0;
+  for (let seed = 100; seed < 260; seed++) {
+    const c = new S.Chance(seed);
+    const uT = c.uniform('shock'); c.uniform('shock-rhythm');
+    const uF = c.uniform('refibrillation');
+    if (uT < S.ARREST.shockTermination) { term++; if (uF < S.ARREST.refibrillationChance) refib++; }
+    n2++;
+  }
+  ok('over many seeds, shocks end VF as often as in Stiell’s trial (86.8 %, within 6 %), and VF comes back after most of them (van Alem: 79 %, within 8 %)',
+    Math.abs(term / n2 - 0.868) < 0.06 && Math.abs(refib / term - 0.79) < 0.08, `${(term / n2 * 100).toFixed(0)} %, ${(refib / term * 100).toFixed(0)} %`);
+  /* VF comes back in a run, when drawn to. */
+  let seen = null;
+  for (let seed = 300; seed < 340 && !seen; seed++) {
+    const q = start(P, seed, S.FREE_CASE);
+    q.advanceTo(5); q.intervene('defib.pads'); q.advanceTo(30); q.intervene('defib.charge'); q.advanceTo(40); q.intervene('defib.shock');
+    const o = kinds(q, 'shock').at(-1).outcome, planned = kinds(q, 'chance').find((e) => e.stream === 'refibrillation');
+    if (o !== 'not-terminated' && planned) { q.advanceTo(40 + 240); seen = { q, planned }; }
+  }
+  ok('after a terminating shock, VF comes back at the time drawn for it', !!seen && kinds(seen.q, 'refibrillation').length >= 1 && seen.q.rhythm() === 'vf', seen ? seen.planned.use : 'no seed with a terminating shock and a recurrence');
 }
 
 console.log('\nThe case’s course on the scenario’s clock');

@@ -74,6 +74,34 @@ export const INTERVENTIONS: InterventionDef[] = [
     timing: { status: 'placement', note: 'ADR-018: 20–30 s, to be checked against observed times.' },
     effect: { kind: 'instantaneous', airway: 'tube' },
   },
+  /* The defibrillator (ADR-018 step 3): pads on, charge while compressions go on, everyone clear, shock. */
+  {
+    id: 'defib.pads',
+    label: { en: 'Put the defibrillator pads on', de: 'Defibrillator-Elektroden aufkleben' },
+    phrases: { en: ['pads on', 'put the pads on', 'attach the defibrillator', 'defib pads'], de: ['pads kleben', 'elektroden aufkleben', 'defi anschließen', 'klebeelektroden'] },
+    needs: { equipment: ['defibrillator'] },
+    duration: { min: 10, max: 20 },
+    timing: { status: 'placement', note: 'Exposing the chest, peeling and placing two pads; not measured.' },
+    effect: { kind: 'instantaneous', grants: ['pads'] },
+  },
+  {
+    id: 'defib.charge',
+    label: { en: 'Charge the defibrillator', de: 'Defibrillator laden' },
+    phrases: { en: ['charge', 'charge to 150', 'charge the defibrillator', 'charging'], de: ['laden', 'auf 150 laden', 'defi laden', 'laden bitte'] },
+    needs: { equipment: ['defibrillator'], access: ['pads'] },
+    duration: { seconds: 7 },
+    timing: { status: 'placement', note: 'Charge time of a manual defibrillator to 150–200 J: device specifications quote under 10 s; not measured here.' },
+    effect: { kind: 'instantaneous', defib: 'charge' },
+  },
+  {
+    id: 'defib.shock',
+    label: { en: 'Shock', de: 'Schock abgeben' },
+    phrases: { en: ['shock', 'shock now', 'deliver the shock', 'everyone clear', 'stand clear'], de: ['schock', 'schock abgeben', 'alle weg', 'weg vom patienten'] },
+    needs: { equipment: ['defibrillator'], access: ['pads'] },
+    duration: { seconds: 0 },
+    timing: { status: 'placement', note: 'Pressing the button; the pause it needs is what the learner makes of it.' },
+    effect: { kind: 'instantaneous', defib: 'shock' },
+  },
 ];
 
 export const INTERVENTION_BY_ID: Record<string, InterventionDef> = Object.fromEntries(INTERVENTIONS.map((x) => [x.id, x]));

@@ -242,7 +242,7 @@ const ELECTRICAL: ModelDef = {
   variables: [
     param('electrical', 'rhythm', { key: 'circulation.HR', symbol: 'HR_0', label: L('Intrinsic sinus rate (before autonomic tone)', 'Eigenfrequenz des Sinusknotens (ohne autonomen Tonus)'), unit: '/min', min: 25, max: 180, step: 1 }),
     E('rhythm', 'atrial', 'atria', L('Atrial rhythm', 'Vorhofrhythmus'), { control: 'enum', options: opt([['sinus', 'sinus', 'Sinus'], ['af', 'fibrillation', 'Flimmern'], ['flutter', 'flutter', 'Flattern']]) }),
-    E('rhythm', 'ventricular', 'ventricles', L('Ventricular rhythm taking over', 'Ventrikulärer Rhythmus'), { control: 'enum', options: opt([['none', 'none', 'keiner'], ['vt', 'ventricular tachycardia', 'ventrikuläre Tachykardie'], ['vf', 'ventricular fibrillation', 'Kammerflimmern']]) }),
+    E('rhythm', 'ventricular', 'ventricles', L('Ventricular rhythm taking over', 'Ventrikulärer Rhythmus'), { control: 'enum', options: opt([['none', 'none', 'keiner'], ['vt', 'ventricular tachycardia', 'ventrikuläre Tachykardie'], ['vf', 'ventricular fibrillation', 'Kammerflimmern'], ['asystole', 'asystole', 'Asystolie']]) }),
     E('conduction', 'av', 'c_{AV}', L('AV-nodal conduction', 'AV-Überleitung'), { unit: '0–1', min: 0.2, max: 1.2, step: 0.05, digits: 2 }),
     E('conduction', 'avBlock', 'block', L('AV block pattern', 'AV-Block-Muster'), { control: 'enum', options: opt([['none', 'none', 'keiner'], ['wenckebach', 'Wenckebach (Mobitz I)', 'Wenckebach (Mobitz I)'], ['mobitz2', 'Mobitz II', 'Mobitz II'], ['complete', 'complete', 'komplett']]) }),
     E('conduction', 'lbb', 'c_{LBB}', L('Left bundle branch conduction', 'Leitung linker Tawara-Schenkel'), { unit: '0–1', min: 0, max: 1, step: 0.05, digits: 2 }),

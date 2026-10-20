@@ -85,7 +85,7 @@ const UI: Record<string, Record<Lang, string>> = {
   openStation: { en: 'Open the station', de: 'Station öffnen' },
   practiceTag: { en: 'Practice · draft', de: 'Übung · Entwurf' },
   practiceArrestTitle: { en: 'Cardiac arrest', de: 'Herz-Kreislauf-Stillstand' },
-  practiceArrestText: { en: 'A man collapses in front of you. Compressions and breaths with your own hands, the clock running. No defibrillator or drugs yet.', de: 'Ein Mann bricht vor Ihnen zusammen. Kompressionen und Beatmung mit eigenen Händen, die Uhr läuft. Noch kein Defibrillator und keine Medikamente.' },
+  practiceArrestText: { en: 'A man collapses in front of you. Compressions, breaths and the defibrillator, the clock running. No drugs yet.', de: 'Ein Mann bricht vor Ihnen zusammen. Kompressionen, Beatmung und Defibrillator, die Uhr läuft. Noch keine Medikamente.' },
   openPractice: { en: 'Start', de: 'Beginnen' },
   stationAuscText: { en: 'The heart sounds and the mechanics that make them, side by side: the phonocardiogram with a Wiggers diagram of every beat, its pressures, valves and phases.', de: 'Die Herztöne und die Mechanik, die sie erzeugt, nebeneinander: das Phonokardiogramm mit einem Wiggers-Diagramm jedes Schlags, seinen Drücken, Klappen und Phasen.' },
   preparing: { en: 'Bringing the patient to a steady state…', de: 'Der Patient erreicht einen stabilen Zustand…' },

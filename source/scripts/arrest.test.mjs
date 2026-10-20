@@ -207,5 +207,94 @@ console.log('\nWhat reaches the lungs');
   ok('a mask on an airway that is not open: nothing reaches the lungs', closed.givenVolume === 0 && closed.EtCO2 === 0);
 }
 
+/* ---- ADR-018 step 3: the heart in an arrest and the shock --------------------------------------------------------------- */
+console.log('\nThe myocardium in an arrest');
+const leadII = (v) => Array.from({ length: v.X.length }, (_, i) => 0.235 * v.X[i] + 1.066 * v.Y[i] - 0.132 * v.Z[i]);
+const ppMean = (xs) => { const pp = []; for (let i = 0; i + 500 <= xs.length; i += 500) { const w = xs.slice(i, i + 500); pp.push(Math.max(...w) - Math.min(...w)); } return pp.reduce((a, x) => a + x, 0) / pp.length; };
+/* A heart in VF for `untreated` seconds, then optionally `cpr` seconds of manual compressions; returns the run, its model and M. */
+const arrestFor = (untreated, cpr = 0) => {
+  const { run, m } = healthyRun();
+  toVf(run, m); run.advance(untreated);
+  if (cpr) { const c = new S.Compressor(S.CPR.itpManual); c.steady(110, run.sim.t); run.setCompressor(c); run.advance(cpr); run.setCompressor(null); }
+  return { run, m, M: run.arrest.M };
+};
+/* Force the organised rhythm a terminating shock gives, and read the pressure `after` seconds later. */
+const organise = (run, m, after) => { run.apply({ ...m, electrical: { ...m.electrical, ventricular: 'none' } }); run.advance(after); return run.sim.metrics; };
+{
+  const { run } = healthyRun();
+  ok('a perfused heart keeps its state: nothing changes outside an arrest', run.arrest.M === 1 && run.arrest.contractility() === 1 && run.heart.vfScale === 1);
+  const a10 = arrestFor(600);
+  ok('ten minutes of VF without compressions run the myocardium down to where an organised rhythm barely makes a pulse (the placement)', Math.abs(a10.M - 0.12) < 0.015, `M ${a10.M.toFixed(3)}`);
+  /* The VF waveform's amplitude wanders slowly by itself, so each is the mean over a minute, read in 10 s pieces. */
+  const minute = (run) => { run.sim.snapshot(); const xs = []; for (let k = 0; k < 6; k++) { run.advance(10); xs.push(ppMean(leadII(run.sim.snapshot().ecgLeads))); } return xs.reduce((a, x) => a + x, 0) / xs.length; };
+  const ppFresh = minute(arrestFor(5).run), ppLate = minute(arrestFor(270).run);
+  ok('VF on lead II is coarse at first and finer after 5 minutes (each the mean over a minute)', ppLate < 0.8 * ppFresh, `${ppFresh.toFixed(2)} mV fresh, ${ppLate.toFixed(2)} mV at 5 min`);
+  gap('validated: …and around 5 minutes is as coarse as in Weaver’s patients at the crew’s arrival (0.55 ± 0.25 mV)', Math.abs(ppLate - 0.55) <= 0.25,
+    `${ppLate.toFixed(2)} mV (fresh ${ppFresh.toFixed(2)}). The model’s VF is finer than people’s from the start: the size of the VF dipole is an inline constant of the ECG model, never grounded; arrest.vfFineScale only sets how far it falls.`);
+}
+
+console.log('\nWhat a shock leads to, by how long the heart has fibrillated');
+{
+  const early = arrestFor(120);
+  const bpEarly = organise(early.run, early.m, 30);
+  ok('the electrical phase: two minutes in, an organised rhythm after a shock is very likely and perfuses within 30 s', early.run.arrest.organisedChance() > 0.85 && bpEarly.Psys > 90, `chance ${(arrestFor(120).run.arrest.organisedChance() * 100).toFixed(0)} %, BP ${bpEarly.Psys.toFixed(0)}/${bpEarly.Pdia.toFixed(0)}`);
+  const long = arrestFor(780);
+  const pOrg = long.run.arrest.organisedChance();
+  const bp30 = organise(long.run, long.m, 30);
+  ok('thirteen minutes in, an organised rhythm is less likely, and at first it makes little pressure (pulseless electrical activity, systolic under 50)', pOrg < 0.45 && bp30.Psys < 50, `chance ${(pOrg * 100).toFixed(0)} %, BP at 30 s ${bp30.Psys.toFixed(0)}/${bp30.Pdia.toFixed(0)}`);
+  long.run.advance(150);
+  ok('validated: …and perfuses within a few minutes of the shock, as in Pierce 2015 (ROSC a median 136 s after the shock)', long.run.sim.metrics.Psys > 70, `BP at 3 min ${long.run.sim.metrics.Psys.toFixed(0)}`);
+  gap('validated: a pulseless organised rhythm after a long arrest can persist without drugs (pulseless electrical activity is common late, Levine 1997)', false,
+    'In the model an organised heart always perfuses itself back: its own coronary perfusion restores it. What makes PEA persist in people (the ischaemic, acidotic, stunned myocardium; vasoplegia) is not modelled; adrenaline and its effect are step 4.');
+}
+
+console.log('\nCompressions before the shock (Wik 2003; Cobb 1999)');
+{
+  /* First-shock outcome: P(terminated) × P(organised | state). Late: immediate shock at 14 min against 3 min of
+     compressions first, shock at 16 min (Wik: collapse to arrival about 12 min, arrival to shock 1.9 against 3.8 min). */
+  const p = (M) => S.ARREST.shockTermination * Math.pow(M, S.ARREST.organisedExponent);
+  const odds = (x) => x / (1 - x);
+  const lateNow = p(arrestFor(840).M), lateCpr = p(arrestFor(780, 180).M);
+  const orLate = odds(lateCpr) / odds(lateNow);
+  ok('validated: when help comes late, compressions first make an organised rhythm after the first shock likelier, within Wik’s confidence interval for ROSC (OR 2.22, 1.06–4.63)', orLate >= 1.06 && orLate <= 4.63,
+    `${(lateNow * 100).toFixed(0)} % against ${(lateCpr * 100).toFixed(0)} %, OR ${orLate.toFixed(2)}`);
+  const earlyNow = p(arrestFor(300).M), earlyCpr = p(arrestFor(240, 180).M);
+  const orEarly = odds(earlyCpr) / odds(earlyNow);
+  ok('validated: when help comes early, compressions first make little difference (Wik: no difference with response ≤ 5 min; Cobb: 59 % against 61 % admitted alive)', orEarly > 0.6 && orEarly < 1.67,
+    `${(earlyNow * 100).toFixed(0)} % against ${(earlyCpr * 100).toFixed(0)} %, OR ${orEarly.toFixed(2)}`);
+}
+
+console.log('\nCoronary perfusion pressure and a return of circulation (Paradis 1990)');
+{
+  /* Weak compressions: a third of the intrathoracic pressure, coronary perfusion pressure under 15 mmHg. */
+  const { run, m } = healthyRun();
+  toVf(run, m); run.advance(300);
+  const c = new S.Compressor(S.CPR.itpManual * 0.5); c.steady(110, run.sim.t); run.setCompressor(c);
+  run.advance(600);
+  const cpp = run.sim.metrics.CPP, M = run.arrest.M, pOrg = run.arrest.organisedChance();
+  run.setCompressor(null);
+  const bp = organise(run, m, 30);
+  gap('validated: with a coronary perfusion pressure that never reaches 15 mmHg, no organised rhythm perfuses (Paradis: no ROSC below a maximal 15)', cpp >= 15 || bp.Psys < 50,
+    `CPP ${cpp?.toFixed(1)} mmHg, M ${M.toFixed(2)}, chance of an organised rhythm ${(pOrg * 100).toFixed(0)} %, systolic 30 s after ${bp.Psys.toFixed(0)}. The myocardium gains from any coronary perfusion above 0 (Paradis’s other finding: none regained a circulation from an initial pressure below 0); a coronary zero-flow pressure above 0 in an arrest is plausible but not grounded here, and an organised heart perfuses itself back (above).`);
+}
+
+console.log('\nThe return of a circulation (Falk 1988)');
+{
+  /* Ventilated by tube, 4 minutes of VF with compressions, then an organised rhythm: end-tidal CO2 through the next 4 minutes. */
+  const { run, m } = healthyRun();
+  const v = new S.Ventilator('tube'); v.steady(10, run.resp.t); run.setVentilator(v);
+  run.advance(60); toVf(run, m); run.advance(60);
+  const c = new S.Compressor(S.CPR.itpManual); c.steady(110, run.sim.t); run.setCompressor(c); run.advance(180); run.setCompressor(null);
+  const during = snapR(run).EtCO2 * MMHG;
+  run.apply({ ...m, electrical: { ...m.electrical, ventricular: 'none' } });
+  let peak = 0, peakAt = 0;
+  for (let t = 1; t <= 90; t++) { run.advance(1); const e = snapR(run).EtCO2 * MMHG; if (e > peak) { peak = e; peakAt = t; } }
+  run.advance(150);
+  const settled = snapR(run).EtCO2 * MMHG;
+  ok('validated: at the return of a circulation end-tidal CO2 rises steeply, overshoots and settles (Falk: 1.3 → 3.7 % within about 30 s, then 2.4 % at 4 min)', peak > during * 1.3 && peak > settled * 1.1,
+    `${during.toFixed(1)} mmHg during CPR, peak ${peak.toFixed(1)} at ${peakAt} s, ${settled.toFixed(1)} at 4 min`);
+  gap('validated: …with the peak within about 30 s (Falk; within 30 s of that)', peakAt <= 60, `peak at ${peakAt} s`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);

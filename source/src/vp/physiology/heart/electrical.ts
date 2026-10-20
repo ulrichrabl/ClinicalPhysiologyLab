@@ -40,8 +40,8 @@ export interface ElectricalParams {
   rbb: number;
   /** Accessory pathway (pre-excitation), 0 or 1. */
   accessory: number;
-  /** A ventricular rhythm that takes over. */
-  ventricular: 'none' | 'vt' | 'vf';
+  /** A ventricular rhythm that takes over; asystole is no electrical activity at all (ADR-018 step 3). */
+  ventricular: 'none' | 'vt' | 'vf' | 'asystole';
   /** Ventricular and atrial mass or size, 1 normal. */
   lvMass: number;
   rvMass: number;
@@ -214,6 +214,9 @@ export class HeartElectrical {
   activations: Activation[] = [];
   private vfPhase: number[] = [0, 2.1, 4.2, 1.3];
   private vfAmp: Vec3 = [0.5, 0.4, 0.45];
+  /** How coarse the fibrillation is, 0–1: set from outside by the myocardium's state in an arrest (coarse at first, fine
+      as the muscle runs out of energy). 1 leaves the fibrillation as it always was. */
+  vfScale = 1;
   metrics: ElectricalMetrics = { HR: 72, PR: 160, QRS: 90, QT: 390, QTc: 427, qrsAxis: 55, pAxis: 60, tAxis: 45, RR: 833, conducted: true };
 
   /* ---- configuration ------------------------------------------------------------------- */
@@ -306,7 +309,7 @@ export class HeartElectrical {
   /** Decide activations due before `end`. */
   private schedule(end: number): void {
     const p = this.p;
-    if (p.ventricular === 'vf') { this.metrics = { ...this.metrics, HR: 0, PR: null, conducted: false }; return; }
+    if (p.ventricular === 'vf' || p.ventricular === 'asystole') { this.metrics = { ...this.metrics, HR: 0, PR: null, conducted: false }; return; }
     if (p.ventricular === 'vt') {
       while (this.nextVentricularMs <= end) {
         this.queue(this.nextVentricularMs, 'vt', null);
@@ -564,14 +567,14 @@ export class HeartElectrical {
       x += pl.v[0] * g; y += pl.v[1] * g; z += pl.v[2] * g;
     }
     const s = t / 1000;
-    if (this.p.atrial === 'af' && this.p.ventricular !== 'vf') {
+    if (this.p.atrial === 'af' && this.p.ventricular !== 'vf' && this.p.ventricular !== 'asystole') {
       /* Fibrillatory waves: several wavelets at 5–8 Hz drifting in phase; largest toward V1. */
       let f = 0;
       const freqs = [5.3, 6.1, 6.9, 7.6];
       for (let i = 0; i < 4; i++) { this.afPhase[i] += (this.rng.next() - 0.5) * 0.02; f += Math.sin(2 * Math.PI * freqs[i] * s + this.afPhase[i]) * (0.022 + 0.008 * Math.sin(0.7 * s + i)); }
       x += -0.35 * f; y += 0.45 * f; z += -0.85 * f;
     }
-    if (this.p.atrial === 'flutter' && this.p.ventricular !== 'vf') {
+    if (this.p.atrial === 'flutter' && this.p.ventricular !== 'vf' && this.p.ventricular !== 'asystole') {
       /* Re-entry round the tricuspid annulus at 300/min: a sawtooth, negative in the inferior leads. */
       const ph = (s * 5) % 1;
       const saw = ph < 0.8 ? 1 - ph / 0.8 * 2 : -1 + ((ph - 0.8) / 0.2) * 2;
@@ -588,7 +591,8 @@ export class HeartElectrical {
         a += w * Math.cos(i * 1.3 + 0.2 * s); b += w * Math.sin(i * 0.9 + 0.3 * s); c += w * Math.cos(i * 2.1 - 0.25 * s);
       }
       for (let i = 0; i < 3; i++) this.vfAmp[i] = Math.max(0.15, Math.min(0.7, this.vfAmp[i] + (this.rng.next() - 0.5) * 0.004));
-      x += 0.3 * a * this.vfAmp[0]; y += 0.3 * b * this.vfAmp[1]; z += 0.3 * c * this.vfAmp[2];
+      const k = 0.3 * this.vfScale;
+      x += k * a * this.vfAmp[0]; y += k * b * this.vfAmp[1]; z += k * c * this.vfAmp[2];
     }
     // the body is not still: slow baseline wander (breathing) and a little noise
     const wander = 0.018 * Math.sin(2 * Math.PI * 0.24 * s);

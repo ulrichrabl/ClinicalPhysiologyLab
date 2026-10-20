@@ -11,3 +11,6 @@ export { healthyModel } from '../src/vp/physiology/state.ts';
 /* ADR-018 step 2b: breathing in arrest and given breaths */
 export { Ventilator } from '../src/vp/physiology/lung/ventilation.ts';
 export { LUNG } from '../src/vp/evidence/lung.ts';
+/* ADR-018 step 3: the heart in an arrest and the shock */
+export { MyocardialState } from '../src/vp/physiology/heart/arrest.ts';
+export { ARREST } from '../src/vp/evidence/arrest.ts';
