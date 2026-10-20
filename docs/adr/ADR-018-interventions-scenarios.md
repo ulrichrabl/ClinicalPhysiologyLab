@@ -284,6 +284,15 @@ Asked for by the owner (2026-10-20) before step 3, to try the hands on a running
 - **What is shown:** the circulation's own samples and numbers, the patient's breathing (breathing, gasping, not breathing), the learner's rate, count and hands-off time, two minutes of coronary perfusion pressure and end-tidal CO₂ with a short explanation, and a log.
 - **Not yet:** the duration of a press as the breath's (decision 7), the debrief and scoring (step 5), the defibrillator and the drugs (steps 3–4).
 
+**Owner (2026-10-20): the buttons are a stand-in.** Later the arrest gets a real patient and animated tools, as the examination and the stations have, because where and how things are done is part of what is learned:
+- **The patient figure** in the arrest: collapsed, on the floor or the bed, with the rescuers.
+- **Hand position for compressions:** the learner places the hands, and a wrong place is scored and weakens the compressions (the model would then need a placement factor, grounded where data allow).
+- **The airway and the bag:** head tilt and chin lift, the mask grip and seal (the leak would follow from it), the chest rising.
+- **Pads** placed on the chest (step 3).
+- **IV access as a procedure:** placing a venflon, with its steps and its time, before drugs can be given (step 4).
+
+For now the screen stays as it is, to get the circuit right: physiology, scene, inputs and replay.
+
 ## Decided by the owner (2026-10-19)
 
 1. **Guideline:** ERC 2025, with the GRC's German text (decision 3).
