@@ -44,6 +44,8 @@ export interface InstantEffect {
   airway?: AirwayRoute;
   /** The defibrillator (ADR-018 step 3): charge it, or deliver the charged shock. */
   defib?: 'charge' | 'shock';
+  /** A look at the patient that is recorded with what it showed (ADR-018 step 5): the rhythm on the defibrillator. */
+  assess?: 'rhythm';
   /** A dose into the vein (ADR-018 step 4); the drug model carries it in and lets it act. */
   dose?: { drug: DrugId; mg: number };
   state?: Partial<PatientState>;
@@ -146,6 +148,8 @@ export type ScenarioEvent =
   | { t: number; kind: 'hazard'; code: string; by: string }
   /** A held squeeze let go: how long it lasted and the volume it sent towards the lungs (L). */
   | { t: number; kind: 'breath'; by: string; seconds: number; volume: number }
+  /** A rhythm check (ADR-018 step 5): the rhythm it showed. */
+  | { t: number; kind: 'assessed'; what: 'rhythm'; rhythm: string; by: string }
   /** A dose given into the vein (ADR-018 step 4). */
   | { t: number; kind: 'dose'; drug: DrugId; mg: number; by: string }
   /** Ventricular fibrillation comes back after a shock had ended it. */

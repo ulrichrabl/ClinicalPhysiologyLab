@@ -1,0 +1,296 @@
+{
+  "schema": "vp.guideline/1",
+  "id": "erc-2025-als",
+  "version": "1.0.0",
+  "title": {
+    "en": "ERC 2025: adult advanced life support",
+    "de": "ERC 2025: Erweiterte lebensrettende Maßnahmen bei Erwachsenen"
+  },
+  "source": {
+    "citation": "Soar J, Böttiger BW, Carli P, et al. European Resuscitation Council Guidelines 2025 Adult Advanced Life Support. Resuscitation 2025;215 Suppl 1:110769.",
+    "doi": "10.1016/j.resuscitation.2025.110769",
+    "verified": "full-text",
+    "note": "Read in full (2026-10-20) from a redistributed copy of the published PDF (certifico.com), through a fetch that quotes in pieces: near-verbatim, to be checked against the publisher's PDF when it can be opened. Compression rate and depth, 30:2 and the breath's duration are in the BLS chapter (Smyth et al., 110771), read the same way. The German texts are ours, in the GRC's terms where known; the GRC's own German text (Reanimation 2025 – Leitlinien kompakt) could be read only up to its BLS chapter."
+  },
+  "definitions": {
+    "pauseGap": {
+      "value": 2,
+      "unit": "s",
+      "basis": "placement",
+      "means": "A gap between compression onsets longer than this is a pause.",
+      "note": "Studies of compression fraction count a pause from about 1.5–2 s without a compression; the guideline gives no definition. At 100/min compressions are 0.6 s apart."
+    },
+    "pulseSystolic": {
+      "value": 50,
+      "unit": "mmHg",
+      "basis": "placement",
+      "means": "An organised rhythm with a systolic pressure below this has no palpable pulse: CPR is needed (pulseless electrical activity).",
+      "note": "A carotid pulse is felt from a systolic pressure of roughly 40–60 mmHg (bedside teaching, not well measured); the model's own step-3 placement put the pulse's end near 45."
+    }
+  },
+  "rules": [
+    {
+      "id": "start-compressions",
+      "title": {
+        "en": "Compressions started at once",
+        "de": "Sofort mit den Thoraxkompressionen begonnen"
+      },
+      "why": {
+        "en": "Every second without compressions is a second without blood to the heart and brain. Recognising an arrest takes no more than 10 s.",
+        "de": "Jede Sekunde ohne Kompressionen ist eine Sekunde ohne Blut für Herz und Gehirn. Das Erkennen eines Kreislaufstillstands dauert höchstens 10 s."
+      },
+      "section": "BLS: recognition of cardiac arrest; high quality chest compressions",
+      "basis": "placement",
+      "note": "The guideline says to start compressions as soon as the arrest is recognised and to take no more than 10 s to check breathing; 15 s from the collapse allows for the check and the first push.",
+      "unit": "s",
+      "check": {
+        "kind": "first-compression",
+        "within": 15
+      }
+    },
+    {
+      "id": "rate",
+      "title": {
+        "en": "Compression rate 100–120/min",
+        "de": "Kompressionsfrequenz 100–120/min"
+      },
+      "why": {
+        "en": "Slower gives less flow; faster leaves too little time for the heart to fill.",
+        "de": "Langsamer bringt weniger Fluss, schneller lässt dem Herzen zu wenig Zeit zum Füllen."
+      },
+      "section": "BLS: high quality chest compressions (\"Compress the chest at a rate of 100–120 min⁻¹ with as few interruptions as possible.\")",
+      "basis": "guideline",
+      "unit": "/min",
+      "check": {
+        "kind": "measure",
+        "measure": "rate",
+        "min": 100,
+        "max": 120
+      }
+    },
+    {
+      "id": "fraction",
+      "title": {
+        "en": "Few interruptions: compressing at least 80 % of the time",
+        "de": "Wenige Unterbrechungen: mindestens 80 % der Zeit Kompressionen"
+      },
+      "why": {
+        "en": "Coronary perfusion pressure builds over several compressions and is gone within seconds of stopping.",
+        "de": "Der koronare Perfusionsdruck baut sich über mehrere Kompressionen auf und ist Sekunden nach dem Aufhören weg."
+      },
+      "section": "BLS: high quality chest compressions (\"with as few interruptions as possible\")",
+      "basis": "placement",
+      "note": "The guideline asks for as few interruptions as possible without giving a fraction; 80 % is the target used by resuscitation quality programmes (an assumption, to be sourced).",
+      "unit": "%",
+      "check": {
+        "kind": "measure",
+        "measure": "fraction",
+        "min": 80
+      }
+    },
+    {
+      "id": "longest-pause",
+      "title": {
+        "en": "No pause longer than 10 s",
+        "de": "Keine Pause länger als 10 s"
+      },
+      "why": {
+        "en": "Every pause lets the pressure that fills the heart's own arteries fall within seconds. The guideline allows under 5 s for a shock and for intubation; two breaths take a few seconds more.",
+        "de": "Jede Pause lässt den Druck, der die Herzkranzgefäße füllt, innerhalb von Sekunden fallen. Die Leitlinie erlaubt unter 5 s für einen Schock und für die Intubation; zwei Beatmungen brauchen ein paar Sekunden mehr."
+      },
+      "section": "BLS: high quality chest compressions; ALS: defibrillation strategy, airway and ventilation",
+      "basis": "placement",
+      "unit": "s",
+      "check": {
+        "kind": "measure",
+        "measure": "longestPause",
+        "max": 10
+      },
+      "note": "Not in the ERC 2025 text read: it asks for as few interruptions as possible and sets under 5 s for defibrillation and for intubation, but no limit for the pause for two breaths. 10 s is the limit taught in earlier guidelines and courses (an assumption)."
+    },
+    {
+      "id": "thirty-two",
+      "title": {
+        "en": "30 compressions, then 2 breaths",
+        "de": "30 Kompressionen, dann 2 Beatmungen"
+      },
+      "why": {
+        "en": "Before the airway is secured, compressions and breaths alternate 30:2.",
+        "de": "Solange der Atemweg nicht gesichert ist, wechseln Kompressionen und Beatmungen im Verhältnis 30:2."
+      },
+      "section": "BLS: rescue breaths (\"alternate 30 chest compressions with 2 rescue breaths\")",
+      "basis": "guideline",
+      "note": "Scored by the median count of the cycles ended by breaths, 27–33 (the tolerance is ours).",
+      "unit": "",
+      "check": {
+        "kind": "cycle",
+        "min": 27,
+        "max": 33
+      }
+    },
+    {
+      "id": "breath",
+      "title": {
+        "en": "Each breath over about 1 s",
+        "de": "Jede Beatmung über etwa 1 s"
+      },
+      "why": {
+        "en": "A quick squeeze gives less air and more of it into the stomach; a long one costs compression time.",
+        "de": "Ein kurzer Druck bringt weniger Luft und mehr davon in den Magen; ein langer kostet Kompressionszeit."
+      },
+      "section": "ALS: airway and ventilation (\"Give each inspiratory breath over 1 s to achieve a visible chest movement.\")",
+      "basis": "placement",
+      "note": "The guideline: each breath over 1 s. Scored by the median of the learner's breaths, 0.6–1.5 s (the tolerance is ours).",
+      "unit": "s",
+      "check": {
+        "kind": "breath",
+        "min": 0.6,
+        "max": 1.5
+      }
+    },
+    {
+      "id": "rhythm-checks",
+      "title": {
+        "en": "Rhythm checked every 2 minutes",
+        "de": "Rhythmus alle 2 Minuten beurteilt"
+      },
+      "why": {
+        "en": "The rhythm decides between a shock and more compressions; checking more often only costs compression time.",
+        "de": "Der Rhythmus entscheidet zwischen Schock und weiteren Kompressionen; häufiger zu schauen kostet nur Kompressionszeit."
+      },
+      "section": "ALS: defibrillation, energy levels and number of shocks (\"Use single shocks followed by a 2-minute cycle of chest compressions.\")",
+      "basis": "placement",
+      "note": "The guideline's 2 min, with a tolerance of 20 s either way and the first check within 30 s of the pads going on (ours). A shock counts as a check.",
+      "unit": "",
+      "check": {
+        "kind": "rhythm-checks",
+        "every": 120,
+        "tolerance": 20,
+        "firstWithin": 30
+      }
+    },
+    {
+      "id": "peri-shock",
+      "title": {
+        "en": "Interruption for a shock under 5 s",
+        "de": "Unterbrechung für den Schock unter 5 s"
+      },
+      "why": {
+        "en": "Charge while compressions go on; stop only to shock, then compress at once. The whole interruption, before and after the shock together, should be under 5 s.",
+        "de": "Laden, während weiter komprimiert wird; nur für den Schock unterbrechen, dann sofort weiterdrücken. Die ganze Unterbrechung, vor und nach dem Schock zusammen, soll unter 5 s liegen."
+      },
+      "section": "ALS: defibrillation strategy (\"aiming for an interruption in chest compressions of less than 5 s\"; continue compressions during charging; resume immediately after the shock)",
+      "basis": "guideline",
+      "note": "One limit for the whole interruption, not one before and one after.",
+      "unit": "s",
+      "check": {
+        "kind": "peri-shock",
+        "max": 5
+      }
+    },
+    {
+      "id": "shock-safety",
+      "title": {
+        "en": "No shock with hands on the patient, and none for a rhythm that is not shockable",
+        "de": "Kein Schock mit Händen am Patienten und keiner bei nicht schockbarem Rhythmus"
+      },
+      "why": {
+        "en": "A shock through a rescuer injures them; a shock of asystole or a beating heart does nothing good.",
+        "de": "Ein Schock durch einen Helfer verletzt ihn; ein Schock bei Asystolie oder schlagendem Herzen nützt nichts."
+      },
+      "section": "ALS: defibrillation (safe delivery; shockable rhythms)",
+      "basis": "guideline",
+      "unit": "",
+      "check": {
+        "kind": "no-hazard",
+        "codes": [
+          "shock-while-compressing",
+          "shock-while-ventilating",
+          "shock-non-shockable"
+        ]
+      }
+    },
+    {
+      "id": "adrenaline-first",
+      "title": {
+        "en": "Adrenaline 1 mg after the third shock",
+        "de": "Adrenalin 1 mg nach dem dritten Schock"
+      },
+      "why": {
+        "en": "In a shockable rhythm adrenaline comes after the third shock, not before: early shocks matter more.",
+        "de": "Bei schockbarem Rhythmus kommt Adrenalin nach dem dritten Schock, nicht vorher: die frühen Schocks zählen mehr."
+      },
+      "section": "ALS: medication and fluids, vasopressor drugs (\"Give adrenaline 1 mg after the third shock for adult patients in cardiac arrest with a shockable rhythm.\")",
+      "basis": "guideline",
+      "note": "Scored as given after the third shock and before the fourth; a dose given before the third shock in a shockable rhythm counts as early.",
+      "unit": "",
+      "check": {
+        "kind": "dose-after-shock",
+        "drug": "adrenaline",
+        "mg": 1,
+        "afterShock": 3
+      }
+    },
+    {
+      "id": "adrenaline-repeat",
+      "title": {
+        "en": "Adrenaline repeated every 3–5 minutes",
+        "de": "Adrenalin alle 3–5 Minuten wiederholt"
+      },
+      "why": {
+        "en": "Its effect on the arterioles wears off within minutes (half-life about 2.6 min in arrest).",
+        "de": "Die Wirkung auf die Arteriolen lässt innerhalb von Minuten nach (Halbwertszeit im Stillstand etwa 2,6 min)."
+      },
+      "section": "ALS: medication and fluids, vasopressor drugs (\"Repeat adrenaline 1 mg every 3–5 min whilst ALS continues.\")",
+      "basis": "guideline",
+      "unit": "",
+      "check": {
+        "kind": "dose-interval",
+        "drug": "adrenaline",
+        "min": 180,
+        "max": 300
+      }
+    },
+    {
+      "id": "amiodarone-300",
+      "title": {
+        "en": "Amiodarone 300 mg after the third shock",
+        "de": "Amiodaron 300 mg nach dem dritten Schock"
+      },
+      "why": {
+        "en": "For VF that persists after three shocks.",
+        "de": "Bei Kammerflimmern, das nach drei Schocks fortbesteht."
+      },
+      "section": "ALS: antiarrhythmic drugs (\"Give amiodarone 300 mg IV … who are in VF/pVT after three shocks have been administered.\")",
+      "basis": "guideline",
+      "unit": "",
+      "check": {
+        "kind": "dose-after-shock",
+        "drug": "amiodarone",
+        "mg": 300,
+        "afterShock": 3
+      },
+      "note": "Counted over all shocks for VF, whether the VF persisted or came back (the guideline: \"irrespective of whether the shockable rhythms are sequential (refractory) or intermittent (recurrent)\")."
+    },
+    {
+      "id": "amiodarone-150",
+      "title": {
+        "en": "Amiodarone 150 mg after the fifth shock",
+        "de": "Amiodaron 150 mg nach dem fünften Schock"
+      },
+      "why": {
+        "en": "A further dose for VF that persists after five shocks.",
+        "de": "Eine weitere Dosis bei Kammerflimmern, das nach fünf Schocks fortbesteht."
+      },
+      "section": "ALS: antiarrhythmic drugs (\"Give a further dose of amiodarone 150 mg IV … after five shocks\"; sequential or intermittent VF alike)",
+      "basis": "guideline",
+      "unit": "",
+      "check": {
+        "kind": "dose-after-shock",
+        "drug": "amiodarone",
+        "mg": 150,
+        "afterShock": 5
+      }
+    }
+  ]
+}

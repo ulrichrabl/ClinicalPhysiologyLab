@@ -245,7 +245,7 @@ console.log('\nWhat a shock leads to, by how long the heart has fibrillated');
   long.run.advance(150);
   ok('validated: …and perfuses within a few minutes of the shock, as in Pierce 2015 (ROSC a median 136 s after the shock)', long.run.sim.metrics.Psys > 70, `BP at 3 min ${long.run.sim.metrics.Psys.toFixed(0)}`);
   gap('validated: a pulseless organised rhythm after a long arrest can persist without drugs (pulseless electrical activity is common late, Levine 1997)', false,
-    'In the model an organised heart always perfuses itself back: its own coronary perfusion restores it. What makes PEA persist in people (the ischaemic, acidotic, stunned myocardium; vasoplegia) is not modelled; adrenaline and its effect are step 4.');
+    'In the model an organised heart always perfuses itself back: its own coronary perfusion restores it. What makes PEA persist in people (the ischaemic, acidotic, stunned myocardium; vasoplegia) is not modelled; adrenaline (step 4) acts on the arterioles only, and its β effects on a weak organised heart are not modelled.');
 }
 
 console.log('\nCompressions before the shock (Wik 2003; Cobb 1999)');

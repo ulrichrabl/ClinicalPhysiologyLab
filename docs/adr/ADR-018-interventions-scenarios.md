@@ -194,7 +194,7 @@ One complete arrest, chosen because it is bounded: one algorithm, clear metrics,
 2. **The compression pump and positive-pressure ventilation** (decision 6a–b), validated against Ornato, Paradis and Falk.
 3. **The heart in arrest and the shock** (6c), validated against Larsen and Valenzuela.
 4. **Adrenaline and amiodarone** (6d). Built: see "Step 4, as built".
-5. **The ward VF scenario, end to end,** in practice mode: the ERC 2025 file, the team (decision 8), teaching nudges, and the debrief.
+5. **The ward VF scenario, end to end,** in practice mode: the ERC 2025 file, the team (decision 8), teaching nudges, and the debrief. Part 1 (the file, scoring and the debrief) is built: see "Step 5, part 1, as built".
 5b. **Assessment mode** (decision 4).
 6. **Further arrests,** reusing the parts:
    - asystole and PEA, with hypovolaemia, tamponade (which needs gap 13 first) and tension pneumothorax;
@@ -346,6 +346,47 @@ Step 2 is built in two parts: 2a the compression pump (here), 2b ventilation, ap
 - **Gap 26** (no persistent PEA) is not changed by this step: without β effects adrenaline does nothing to a weak organised heart that the model's own perfusion does not already do.
 - **Observation:** with adrenaline the forward flow under compressions falls (0.45 → 0.13 L/min) while the pressures rise. The model's brain perfusion is a pressure (arterial minus right atrial), so this does not reach it. Whether flow to the brain falls in people is debated (and is part of why PARAMEDIC2 found more survivors with severe brain injury).
 
+## Step 5, part 1, as built: the guideline file and the debrief
+
+Step 5 is built in parts: (1) the guideline file, scoring and the debrief; (2) the team (calling for help, the arrest team arriving, giving tasks, structured communication); (3) the teaching nudges. Then 5b, assessment.
+
+- **The guideline file** (`src/vp/guidelines/erc-2025-als.json`, schema `vp.guideline/1`):
+  - **Read in full (2026-10-20):** the ERC 2025 ALS chapter, with the BLS and Education chapters, from a redistributed copy of the published PDF, through a fetch that quotes in pieces. The quotes are near-verbatim and should be checked against the publisher's PDF when it can be opened.
+  - **Each rule** cites its section (most quote the sentence) and says whose its number is: the guideline's, or a placement of ours, with a note.
+  - **Definitions:** a pause is a gap between compression onsets over 2 s; a pulse needs a systolic of 50 mmHg. Both are placements.
+  - **Validated** by `guidelines/validate.ts`: both languages, a note for every placement, known checks and drugs.
+- **What the ERC text changed** against the numbers first read from the UK guideline:
+  - **The shock:** one limit for the whole interruption ("less than 5 s"), not 5 s before and 5 s after.
+  - **No 10 s limit** for the pause for two breaths was found. That rule stays as a placement, and so does the 80 % compression fraction (the guideline asks for "as few interruptions as possible").
+  - **Confirmed:** the 2-minute cycles; adrenaline after the third shock, then every 3–5 min; amiodarone 300 mg after three shocks and 150 mg after five, whether the VF persists or recurs; 100–120/min and 30:2 (BLS); each breath over 1 s; 10/min with continuous compressions after an airway.
+  - **Not found:** "closed-loop communication"; the guideline speaks of "structured communication", task allocation and leadership (for part 2).
+- **What a run records for it** (`ScenarioRun`):
+  - every compression's onset (tapped, or at a team member's steady 110/min);
+  - a once-a-second trace (rhythm, arterial pressure, coronary perfusion pressure, end-tidal CO₂).
+
+  The new `check.rhythm` intervention records the rhythm it showed. A replay scores the same.
+- **The scorer** (`guidelines/score.ts`) reads only the record:
+  - **When CPR was needed:** VF, VT, asystole, or an organised rhythm without a pulse.
+  - **The compressions:** the pauses, each with what it was for (breaths, a shock, a rhythm check), the compression fraction, the rate, the cycles of 30:2, and the interruption for each shock.
+  - **Against the algorithm:** rhythm checks (a shock counts as one), the drugs counted over shocks for VF, and hazards.
+  - **Each rule** gives met, missed or did not apply, with the times where it went wrong.
+- **The debrief** (`app/arrest-debrief.ts`), from "Finish and debrief", or by itself at the scene's end:
+  - the patient's outcome, stated and not scored;
+  - the measures;
+  - one timeline: rhythm band, compressions with pauses over 10 s, shocks, doses and checks, coronary perfusion pressure and end-tidal CO₂, and the misses numbered as in the rule list;
+  - the rules with why each matters, its section and, for placements, "our threshold".
+
+  "Back to the patient" resumes a run that has not ended.
+- **Tests** (`scripts/debrief.test.mjs`, `npm run test:debrief`):
+  - **Scripted records:** an ideal performance meets every rule that applies. The poor ones the ADR names miss where they went wrong: a first compression 36 s late; 14 s pauses for breaths (longest pause and fraction); 80/min (the rate only). Also: 2 s plus 2 s around a shock (the whole interruption), a missing rhythm check, early adrenaline, a late repeat, no amiodarone, and an unsafe shock.
+  - **On the clock:** a run through the practice scene records its compressions and trace, reads back its scripted rate and 30:2, and scores the same on replay.
+- **Not yet:**
+  - adrenaline as soon as possible in a non-shockable rhythm;
+  - continuous compressions after an airway;
+  - capnography rules;
+  - the team (part 2);
+  - Larsen's survival slopes (the brain is not modelled).
+
 ## A first practice screen (draft, after step 2)
 
 Asked for by the owner (2026-10-20) before step 3, to try the hands on a running patient. `app/practice-arrest.ts`, opened from the Ward:
@@ -410,7 +451,7 @@ The owner handed these over ("tackle those"); each is decided here, with its rea
 
 ## References
 
-- Soar J, Böttiger BW, Carli P, et al. European Resuscitation Council Guidelines 2025 Adult Advanced Life Support. *Resuscitation* 2025;215 Suppl 1:110769. [doi:10.1016/j.resuscitation.2025.110769](https://doi.org/10.1016/j.resuscitation.2025.110769). Its numbers here (shock energy, adrenaline and amiodarone timing, pauses under 5 s, ventilation at 10/min, EtCO₂ use) were read from the Resuscitation Council UK's 2025 ALS guideline, which follows it; check them against the ERC text before the guideline file is written.
+- Soar J, Böttiger BW, Carli P, et al. European Resuscitation Council Guidelines 2025 Adult Advanced Life Support. *Resuscitation* 2025;215 Suppl 1:110769. [doi:10.1016/j.resuscitation.2025.110769](https://doi.org/10.1016/j.resuscitation.2025.110769). Its numbers were first read from the Resuscitation Council UK's 2025 ALS guideline, which follows it, and then checked against the ERC text itself (2026-10-20, a redistributed copy of the published PDF; see "Step 5, part 1, as built" for what changed). Compression rate and depth, 30:2 and rescue breaths are in the companion BLS chapter: Smyth MA, van Goor S, et al. European Resuscitation Council Guidelines 2025 Adult Basic Life Support. *Resuscitation* 2025;215 Suppl 1:110771. [doi:10.1016/j.resuscitation.2025.110771](https://doi.org/10.1016/j.resuscitation.2025.110771).
 - Smyth MA, van Goor S, Hansen CM, et al. European Resuscitation Council Guidelines 2025 Adult Basic Life Support. *Resuscitation* 2025;215 Suppl 1:110771. [doi:10.1016/j.resuscitation.2025.110771](https://doi.org/10.1016/j.resuscitation.2025.110771). The compression rate and depth (100–120/min, 5–6 cm, 30:2) are those of earlier editions; still to be confirmed in the 2025 text.
 - Paradis NA, Martin GB, Rivers EP, et al. Coronary perfusion pressure and the return of spontaneous circulation in human cardiopulmonary resuscitation. *JAMA* 1990;263:1106–13. PMID 2386557.
 - Ornato JP, Gonzalez ER, Garnett AR, et al. Effect of cardiopulmonary resuscitation compression rate on end-tidal carbon dioxide concentration and arterial pressure in man. *Crit Care Med* 1988;16:241–5. [doi:10.1097/00003246-198803000-00007](https://doi.org/10.1097/00003246-198803000-00007).
