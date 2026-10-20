@@ -1,0 +1,44 @@
+{
+  "schema": "vp.scenario/1",
+  "id": "copd-ed-oxygen",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": {
+    "en": "Breathless with COPD: oxygen and a line",
+    "de": "Atemnot bei COPD: Sauerstoff und ein Zugang"
+  },
+  "caseId": "copd-exacerbation",
+  "purpose": "ADR-018 step 1: checks the scenario layer on an existing case. Oxygen is held on the running lungs, IV access takes a seeded time, the cannula tray arrives, and the scene moves on what was done. Not yet offered to learners.",
+  "scene": {
+    "place": { "en": "Emergency department, bay 7", "de": "Notaufnahme, Box 7" },
+    "people": [
+      { "id": "nurse", "role": { "en": "Nurse", "de": "Pflegekraft" }, "present": true }
+    ],
+    "equipment": [
+      { "id": "oxygen", "label": { "en": "Wall oxygen with masks and cannulae", "de": "Wandsauerstoff mit Masken und Nasenbrillen" }, "present": true },
+      { "id": "cannula-kit", "label": { "en": "Cannula tray", "de": "Tablett für den Venenzugang" }, "present": false }
+    ]
+  },
+  "machine": {
+    "start": "arrival",
+    "states": {
+      "arrival": {
+        "label": { "en": "Arrival", "de": "Ankunft" },
+        "enter": [
+          { "say": { "who": "nurse", "text": { "en": "Mr Schmid has just come in by ambulance. I'll fetch a cannula tray.", "de": "Herr Schmid ist gerade mit dem Rettungsdienst gekommen. Ich hole ein Tablett für den Zugang." } } },
+          { "arrive": { "equipment": ["cannula-kit"], "afterSeconds": 60 } }
+        ],
+        "next": [
+          { "when": { "all": [{ "holding": "oxygen" }, { "did": "access.iv" }] }, "to": "ready" }
+        ]
+      },
+      "ready": {
+        "label": { "en": "Oxygen on, line in", "de": "Sauerstoff läuft, Zugang liegt" },
+        "enter": [
+          { "say": { "who": "nurse", "text": { "en": "Oxygen is on and the line is in. What next?", "de": "Der Sauerstoff läuft und der Zugang liegt. Wie geht es weiter?" } } }
+        ],
+        "final": true
+      }
+    }
+  }
+}

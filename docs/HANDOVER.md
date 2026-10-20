@@ -1,14 +1,14 @@
 # Handover: start here
 
-Last updated: 19 October 2026, with the pulse and neck-vein station's Predict and Identify (the station is complete). Before it: gap 17 closed, and the eye station completed. Before it: the eye station (Explore). Before it: the ADR-017 step 4 PR (the auscultation station, Explore). Earlier: 18 October 2026, with the ADR-017 step 1 PR (the ECG station). Before it, work was paused after PR #48 at the owner's request.
+Last updated: 19 October 2026, with ADR-018 step 1 (interventions, the scenario layer, seeded replay). Before it: the pulse and neck-vein station's Predict and Identify (the station is complete). Before it: gap 17 closed, and the eye station completed. Before it: the eye station (Explore). Before it: the ADR-017 step 4 PR (the auscultation station, Explore). Earlier: 18 October 2026, with the ADR-017 step 1 PR (the ECG station). Before it, work was paused after PR #48 at the owner's request.
 
-**Where we paused.** Nothing is in flight; every PR is merged and live. Waiting on the owner (details in "Waiting for the owner" below):
+**Where we paused.** The ADR-018 step 1 PR is in review; everything before it is merged and live. Waiting on the owner (details in "Waiting for the owner" below):
 
 1. Four case texts the model contradicts: change the text, or fix the model?
 2. Rewrite the finding texts as observations rather than diagnoses, so the observe-only level is a real test for findings shown only as text?
 3. A hands-only inspection, so "look at the hands" works on a dressed patient?
 4. Which next: ADR-016 step 5 (draw the signs the views do not show yet), the Evidence ADR, or animations. The owner chose stations (ADR-017); step 1 is in review.
-5. Interactivity with the clock running (owner, 2026-10-19): cardiac arrest and later anaesthesia. ADR-018 (interventions, scenarios and guideline scoring) is accepted with the owner's answers: ERC 2025 with the GRC's German text; the learner leads from the first second, and calling for help and giving tasks are trained; chance outcomes, seeded, with explicit teaching nudges; compressions tapped to the rhythm (rate and count trained, depth not); assessment mode after practice. Next: its step 1 (interventions and the scenario layer, with seeded replay).
+5. Interactivity with the clock running (owner, 2026-10-19): cardiac arrest and later anaesthesia. ADR-018 (interventions, scenarios and guideline scoring) is accepted with the owner's answers: ERC 2025 with the GRC's German text; the learner leads from the first second, and calling for help and giving tasks are trained; chance outcomes, seeded, with explicit teaching nudges; compressions tapped to the rhythm (rate and count trained, depth not); assessment mode after practice. Step 1 (interventions and the scenario layer, with seeded replay) is built, with no screen yet; see "Interventions and scenarios (ADR-018)" below. Next: step 2, the compression pump and positive-pressure ventilation, validated against Ornato, Paradis and Falk.
 
 This page is the entry point for anyone (or any agent) picking up the work. It covers:
 
@@ -32,6 +32,7 @@ All commands run from `source/`.
 |---|---|
 | Everything (typecheck, all test suites, smoke test, builds) | `npm run verify` |
 | The virtual-patient suite only (catalog, cases, models, evidence, cards) | `node scripts/vp-model.test.mjs` (a few minutes) |
+| Interventions and scenarios (ADR-018) | `npm run test:scenario` (about a minute and a half) |
 | Build the app page | `node scripts/build-vp-demo.mjs` → `dist/encounter.html` (fragment) and `dist/lab.html` (standalone) |
 | Serve `dist/` locally | `PORT=8123 node scripts/serve.mjs` |
 
@@ -87,6 +88,7 @@ Notes:
 | ADR-016 step 4: expert references and the debrief in signs (#47); the observe-only level, with misses and over-calls scored (#48) | "Tests, signs and the knowledge graph" below |
 | ADR-017 step 1: the ECG station, Explore. One test and its mechanism on one clock: strip (two chosen leads) and conduction ladder, a cursor through the beat, the heart and the cardiac vector in both planes at the cursor, explanations in EN/DE; settings derived from what the 12-lead measures. The electrical model logs its activations for it | "Stations (ADR-017)" below |
 | The eye station, Explore: the whole eye examination with the pathway each test reads; skew deviation told from a nerve palsy by comitance | "Stations (ADR-017)" below |
+| ADR-018 step 1: interventions acting on the running model, scenarios (a case in a scene with a state machine), one clock in 0.1 s ticks, one seeded generator, exact replay from seed and inputs | "Interventions and scenarios (ADR-018)" below |
 
 ## Open lists
 
@@ -280,6 +282,19 @@ A station pairs one test with the mechanism that writes it, on one clock. Read `
   - **Not modelled:** the c wave, and the respiratory signs (Kussmaul's sign, pulsus paradoxus), which wait on gap 13. Gap 18: the model's tricuspid regurgitation is too small to fill in the x descent.
   - **Predict and Identify,** as at the other stations. The signs are offered beside the manoeuvre that finds each one (`pulseSignGroups`). Identify gives what the bedside gives: the pulse and the neck at 45°, with no ECG, no named waves, no findings and no beat in detail. A test checks that every starting point can be told from health and from the others by its signs.
 - **Next:** open for the owner. The heart–lung chain (gaps 16, 12, 13, 15) is parked; with it would come pulsus paradoxus and Kussmaul's sign at this station.
+
+## Interventions and scenarios (ADR-018)
+
+Read `docs/adr/ADR-018-interventions-scenarios.md`, especially "Step 1, as built".
+
+- **Code:** `src/vp/scenario/` (types, `run.ts`, `chance.ts`, `validate.ts`), the registry `src/vp/data/interventions.ts`, scenarios in `src/vp/scenarios/*.json` (exported as `SCENARIOS` from `src/vp/index.ts`). Not to be confused with `src/scenarios/`, which belongs to the older runtime (`src/main.js`).
+- **One clock:** `ScenarioRun` advances in ticks of 0.1 s; inputs land between ticks; the encounter's `Session` runs on the same clock. Drive it with `advanceTo(seconds)`, never with the live patient's own frame loop, or a run cannot be replayed.
+- **One seed:** every source of chance draws a named stream from `Chance`; the heart is seeded from it. Add a new use of chance as a new stream name.
+- **Replay:** `replay(def, { seed, caseDef, log })`. The test checks that a replay reproduces everything exactly; keep it that way (no `Math.random`, `Date` or wall-clock time in a run).
+- **Interventions** write only circulation, lung and electrical inputs (the validator refuses the body's slow parameters). Times that are judgements are marked `placement`.
+- **Course physiology:** a case's `course[].change.physiology` is applied to the running model in a scenario. The encounter alone still does not apply it.
+- **The two scenarios are drafts** for checking the layer (`copd-ed-oxygen`, `vestibular-ed-course`); there is no scenario screen yet.
+- **Next, step 2:** the compression pump and positive-pressure ventilation (ADR-018 decision 6a–b): a continuous intervention whose inputs are a chest pressure and an airway pressure, new inputs to the circulation and lungs, validated against Ornato 1988, Paradis 1990 and Falk 1988, with a test that the inputs at rest change nothing.
 
 ## Problem reports
 

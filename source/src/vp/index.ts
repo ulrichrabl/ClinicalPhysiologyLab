@@ -61,3 +61,16 @@ import type { CaseDef } from './model/types.ts';
 
 /** Cases are JSON documents; the validator, not the type system, vouches for them. */
 export const CASES: CaseDef[] = [vestibularNeuritisLeft, exertionalSyncopeAs, acuteStrokeLeftMca, footDropRightL5, pneumoniaRll, peAfterFlight, copdExacerbation, akiHyperkalaemia, diabeticKetoacidosis, hyponatraemiaThiazide, urosepsis, ugib, cirrhosis, ida, graves, addisonian, hypercalcaemia] as unknown as CaseDef[];
+
+/* Interventions and scenarios (ADR-018). */
+export type * from './scenario/types.ts';
+export { INTERVENTIONS, INTERVENTION_BY_ID } from './data/interventions.ts';
+export { ScenarioRun, replay, TICK_S, type RunOptions } from './scenario/run.ts';
+export { Chance } from './scenario/chance.ts';
+export { validateInterventions, validateScenario } from './scenario/validate.ts';
+import copdEdOxygen from './scenarios/copd-ed-oxygen.json';
+import vestibularEdCourse from './scenarios/vestibular-ed-course.json';
+import type { ScenarioDef } from './scenario/types.ts';
+
+/** Scenarios are JSON documents, like cases; the validator vouches for them. All drafts for now. */
+export const SCENARIOS: ScenarioDef[] = [copdEdOxygen, vestibularEdCourse] as unknown as ScenarioDef[];
