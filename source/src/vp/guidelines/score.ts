@@ -199,6 +199,53 @@ function judge(k: Check, c: Ctx): Judged {
       const hz = c.run.events.filter((e) => e.kind === 'hazard' && k.codes.includes(e.code));
       return { status: hz.length ? 'missed' : 'met', value: hz.length, at: hz.map((e) => e.t) };
     }
+    case 'call': {
+      if (c.onset == null) return NA;
+      const call = c.run.events.find((e): e is Extract<ScenarioEvent, { kind: 'call' }> => e.kind === 'call');
+      if (!call) return { status: 'missed', at: [r1(c.onset + k.within)] };
+      const late = call.t - c.onset > k.within, short = k.must.filter((x) => !(call.says as string[]).includes(x));
+      return { status: late || short.length ? 'missed' : 'met', value: r1(Math.max(0, call.t - c.onset)), at: late || short.length ? [call.t] : [] };
+    }
+    case 'roles': {
+      if (c.onset == null) return NA;
+      const ev = c.run.events;
+      const arrived = (kit: string) => ev.find((e) => e.kind === 'arrive' && e.equipment.includes(kit))?.t;
+      /* when each task became possible, and when someone first held it (given, or simply done) */
+      const first = (role: string, ids: string[]) => ev.find((e) => (e.kind === 'assigned' && e.role === role && e.to) || (e.kind === 'done' && ids.includes(e.id)))?.t;
+      const tasks: Array<[number | undefined, number | undefined]> = [
+        [c.onset, first('compressions', ['cpr.compressions'])],
+        [c.onset, first('airway', ['vent.bag'])],
+        [arrived('defibrillator'), first('defibrillator', ['defib.pads'])],
+        [arrived('drugs'), first('drugs', ['access.iv'])],
+      ];
+      const at: number[] = [];
+      let n = 0;
+      for (const [from, held] of tasks) {
+        if (from == null || !needAt(c, from)) continue;
+        n++;
+        if (held == null || held - Math.max(from, c.onset) > k.within) at.push(r1(Math.max(from, c.onset) + k.within));
+      }
+      if (!n) return NA;
+      return { status: at.length ? 'missed' : 'met', value: n - at.length, at };
+    }
+    case 'rotation': {
+      const comps = [...c.run.compressions].sort((a, b) => a.at - b.at);
+      /* from when a second person had done something: someone could have taken over */
+      const actors = new Map<string, number>();
+      for (const e of c.run.events) { const who = (e as any).by ?? (e.kind === 'assigned' ? e.to : null); if (who && !actors.has(who)) actors.set(who, e.t); }
+      for (const x of comps) if (!actors.has(x.by)) actors.set(x.by, x.at);
+      const times = [...actors.values()].sort((a, b) => a - b);
+      if (times.length < 2 || !comps.length) return NA;
+      const from = times[1], limit = k.every + k.tolerance, at: number[] = [];
+      let i = 0;
+      while (i < comps.length) {
+        let j = i; while (j + 1 < comps.length && comps[j + 1].by === comps[i].by) j++;
+        const start = Math.max(comps[i].at, from), stop = j + 1 < comps.length ? comps[j + 1].at : comps[j].at;
+        for (let due = start + limit; due < stop; due += limit) if (needAt(c, due)) at.push(r1(due));
+        i = j + 1;
+      }
+      return { status: at.length ? 'missed' : 'met', at };
+    }
     case 'breath': {
       const v = median(c.measures.breaths);
       if (v == null) return NA;

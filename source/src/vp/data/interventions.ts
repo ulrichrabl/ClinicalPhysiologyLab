@@ -102,6 +102,15 @@ export const INTERVENTIONS: InterventionDef[] = [
     timing: { status: 'placement', note: 'Pressing the button; the pause it needs is what the learner makes of it.' },
     effect: { kind: 'instantaneous', defib: 'shock' },
   },
+  /* Going for the arrest trolley (ADR-018 step 5): whoever goes is away for the errand and comes back with it. */
+  {
+    id: 'fetch.trolley',
+    label: { en: 'Fetch the arrest trolley', de: 'Notfallwagen holen' },
+    phrases: { en: ['get the arrest trolley', 'fetch the crash trolley', 'get the defibrillator', 'bring the trolley'], de: ['notfallwagen holen', 'reawagen holen', 'defi holen', 'hol den notfallwagen'] },
+    duration: { seconds: 0 },
+    timing: { status: 'placement', note: 'Away 60 s: the trolley within a ward’s reach (a placement; hospitals set their own standard).' },
+    effect: { kind: 'instantaneous', fetch: { equipment: ['defibrillator', 'cannula-kit', 'drugs'], seconds: 60 } },
+  },
   /* The rhythm check (ADR-018 step 5): compressions paused, the rhythm read off the defibrillator. Whoever is free looks;
      the pause is whatever the hands on the chest make of it. */
   {

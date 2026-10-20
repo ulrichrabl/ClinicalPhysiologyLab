@@ -7,6 +7,10 @@ import ercAls2025 from '../guidelines/erc-2025-als.json';
 import type { GuidelineDef } from '../guidelines/types.ts';
 import { scoreRun } from '../guidelines/score.ts';
 import { debriefHtml, drawDebrief } from './arrest-debrief.ts';
+import { INTERVENTION_BY_ID } from '../data/interventions.ts';
+import { TEAM_ROLES, type CallContent, type TeamRole } from '../scenario/types.ts';
+import { collapsePose, patientLayer, sceneSvg, SCENE_VIEWBOX, type ScenePerson, type SceneTask } from '../render/arrest-scene.ts';
+import { figureLookFor } from '../render/patient-figure.ts';
 import type { Lang } from './diagrams.ts';
 import type { StationHandle, StationOptions } from './station-ecg.ts';
 
@@ -48,6 +52,20 @@ const T: Record<string, LocalizedText> = {
   takeBag: L('Take the bag', 'Beutel nehmen'), dropBag: L('Put the bag down', 'Beutel ablegen'), breath: L('Give a breath', 'Beatmen'),
   rate: L('Rate', 'Frequenz'), count: L('Count', 'Zählung'), handsOff: L('Hands off', 'Pause'), perMin: L('/min', '/min'), s: L('s', 's'),
   target: L('aim: 100–120/min, 30 then 2 breaths, pauses under 10 s', 'Ziel: 100–120/min, 30 dann 2 Beatmungen, Pausen unter 10 s'),
+  team: L('The team', 'Das Team'), teamHint: L('You lead. Give each task to someone; a task nobody has is not done.', 'Sie leiten. Geben Sie jede Aufgabe jemandem; eine Aufgabe, die niemand hat, wird nicht erledigt.'),
+  call: L('Call the arrest team', 'Reanimationsteam alarmieren'), sayWhere: L('say where (ward, room)', 'Ort nennen (Station, Zimmer)'), sayArrest: L('say “cardiac arrest, adult”', '„Herz-Kreislauf-Stillstand, Erwachsener“ sagen'), sayDefib: L('ask for the defibrillator', 'Defibrillator anfordern'),
+  callBy: L('{name} calls', '{name} ruft an'), fetch: L('{name}: fetch the trolley', '{name}: Notfallwagen holen'), called: L('team called, due at {t}', 'Team alarmiert, erwartet um {t}'),
+  cmdHandsOff: L('Hands off!', 'Hände weg!'), resumeCpr: L('Resume compressions', 'Kompressionen fortsetzen'),
+  roleCompressions: L('compressions', 'Kompressionen'), roleAirway: L('airway', 'Atemweg'), roleDefibrillator: L('defibrillator', 'Defibrillator'), roleDrugs: L('line & drugs', 'Zugang & Medikamente'),
+  give: L('give', 'Aufgabe'), sAway: L('away', 'weg'), sFree: L('no task', 'ohne Aufgabe'), sBusy: L('busy', 'beschäftigt'), sCalling: L('on the phone', 'telefoniert'),
+  noTask: L('nobody has this task: give it to someone', 'niemand hat diese Aufgabe: geben Sie sie jemandem'),
+  order: L('{name}, take {task}.', '{name}, übernehmen Sie {task}.'), ack: L('{task}: I’ve got it.', '{task}: übernehme ich.'),
+  onIt: L('{label}: on it.', '{label}: mache ich.'), doneIt: L('{label}: done.', '{label}: erledigt.'),
+  callText: L('Cardiac arrest{adult}{where}{defib}.', 'Herz-Kreislauf-Stillstand{adult}{where}{defib}.'), callAdult: L(', adult', ', Erwachsener'), callWhere: L(', ward 3, room 12', ', Station 3, Zimmer 12'), callDefib: L(', bring the defibrillator', ', bitte Defibrillator mitbringen'),
+  callVague: L('We need help here!', 'Wir brauchen hier Hilfe!'), teamArrive: L('the arrest team is here', 'das Reanimationsteam ist da'),
+  doctorName: L('Doctor', 'Ärztin'), nurse2Name: L('Nurse 2', 'Pflegekraft 2'),
+  scene: L('The patient and the team', 'Patient und Team'),
+  getTrolley: L('I’ll get the trolley.', 'Ich hole den Notfallwagen.'),
   nurse: L('The nurse', 'Die Pflegekraft'),
   nCpr: L('Take over compressions', 'Kompressionen übernehmen'), nBag: L('Take the bag', 'Beutel nehmen'), nTwo: L('Two breaths', 'Zwei Beatmungen'), nStop: L('Stop what you are doing', 'Aufhören'),
   busy: L('busy', 'beschäftigt'), free: L('free', 'frei'),
@@ -99,6 +117,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const def = arrestPractice as unknown as ScenarioDef;
   let run: ScenarioRun | null = null;
   let raf = 0, stopped = false, paused = false, debrief = false;
+  let lastCompressor: string | null = null, teamSig = '';
   const guideline = ercAls2025 as unknown as GuidelineDef;
   let wall0 = 0, pausedAt = 0, pausedTotal = 0, pauseWall = 0;
   /* the monitor's samples: the circulation's own (2 ms), read as they are produced */
@@ -116,7 +135,8 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   let squeezeAt: number | null = null, squeezeTimer: ReturnType<typeof setTimeout> | null = null;
   let lastBreath: { seconds: number; volume: number } | null = null;
   let seenEvents = 0;
-  const log: Array<{ t: number; who: string; text: string; fromEvent?: boolean }> = [];
+  /* the log; `whoId` and `speech` put what someone said in a bubble over them in the scene */
+  const log: Array<{ t: number; who: string; text: string; fromEvent?: boolean; whoId?: string; speech?: string }> = [];
   let lastBreathing = '';
 
   const runT = () => (paused ? pausedAt : (performance.now() - wall0 - pausedTotal) / 1000);
@@ -124,7 +144,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const start = () => {
     host.innerHTML = `${head()}<p class="muted" data-preparing>${t('preparing')}</p>`;
     wire();
-    run = null; debrief = false; buf = []; paw = []; trend = []; taps = []; sinceBreaths = 0; lastBreath = null; squeezeAt = null; seenEvents = 0; log.length = 0; curArr = null; idx = 0; lastBreathing = '';
+    run = null; debrief = false; lastCompressor = null; teamSig = ''; sceneCache = null; buf = []; paw = []; trend = []; taps = []; sinceBreaths = 0; lastBreath = null; squeezeAt = null; seenEvents = 0; log.length = 0; curArr = null; idx = 0; lastBreathing = '';
     setTimeout(() => {
       if (stopped) return;
       /* a fresh seed each time: chance (gasping, the heart's noise) differs from run to run, as in life */
@@ -144,6 +164,9 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     host.innerHTML = `${head()}
       <p class="ar-draft muted small" role="note">${t('draft')}</p>
       <div class="ar-grid">
+        <section class="panel ar-scene" aria-label="${t('scene')}">
+          <svg class="ar-scene-svg" viewBox="${SCENE_VIEWBOX}" role="img" aria-label="${t('scene')}"></svg>
+        </section>
         <section class="panel ar-monitor" aria-labelledby="ar-mon-h">
           <div class="st-row"><div><h2 id="ar-mon-h">${t('monitor')}</h2><div class="muted small ar-mon-note">${t(aline ? 'monitorNote' : 'monitorNoteWard')}</div></div>
             <button type="button" class="ghost small" data-aline aria-pressed="${aline}">${t('aline')}: ${t(aline ? 'on' : 'off')}</button></div>
@@ -166,9 +189,18 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
           <h3>${t('drugs')} <span class="muted small" data-drug-state></span></h3>
           <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-g="access.iv">${t('iv')}</button><button type="button" class="ghost small" data-g="drug.adrenaline">${t('adr')}</button>
             <button type="button" class="ghost small" data-g="drug.amiodarone.300">${t('amio300')}</button><button type="button" class="ghost small" data-g="drug.amiodarone.150">${t('amio150')}</button></div>
-          <h3>${t('nurse')} <span class="muted small" data-nurse-state></span></h3>
-          <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-n="cpr">${t('nCpr')}</button><button type="button" class="ghost small" data-n="bag">${t('nBag')}</button>
-            <button type="button" class="ghost small" data-n="two">${t('nTwo')}</button><button type="button" class="ghost small" data-n="stop">${t('nStop')}</button></div>
+          <h3>${t('team')}</h3>
+          <p class="muted small">${t('teamHint')}</p>
+          <div class="ar-call" data-call>
+            <div class="small"><b>${t('call')}</b> <span class="muted" data-call-state></span></div>
+            <label class="small"><input type="checkbox" data-say="where"> ${t('sayWhere')}</label>
+            <label class="small"><input type="checkbox" data-say="arrest"> ${t('sayArrest')}</label>
+            <label class="small"><input type="checkbox" data-say="defibrillator"> ${t('sayDefib')}</label>
+            <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-callby="learner">${t('callBy').replace('{name}', t('you'))}</button><button type="button" class="ghost small" data-callby="nurse">${t('callBy').replace('{name}', t('nurseName'))}</button>
+              <button type="button" class="ghost small" data-fetch>${t('fetch').replace('{name}', t('nurseName'))}</button></div>
+          </div>
+          <div class="ar-row"><button type="button" class="ghost small" data-handsoff>${t('cmdHandsOff')}</button><button type="button" class="ghost small" data-resume>${t('resumeCpr')}</button></div>
+          <div class="ar-team" data-team></div>
           <span class="st-note" role="status" data-note></span>
         </section>
         <section class="panel ar-why" aria-labelledby="ar-why-h">
@@ -260,11 +292,11 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     };
     host.querySelector<HTMLButtonElement>('[data-cpr]')!.onclick = () => {
       const starting = !learnerHolds('compressions');
-      act(() => (learnerHolds('compressions') ? run!.release('compressions') : run!.intervene('cpr.compressions')));
+      act(() => (learnerHolds('compressions') ? run!.release('compressions') : run!.assign('compressions', 'learner')));
       /* on a phone, bring the monitor to the top: it, your rate and the pad then fit on one screen */
       if (starting && phone()) host.querySelector('.ar-monitor')?.scrollIntoView({ block: 'start' });
     };
-    host.querySelector<HTMLButtonElement>('[data-bag]')!.onclick = () => act(() => (learnerHolds('ventilation') ? run!.release('ventilation') : run!.intervene('vent.bag')));
+    host.querySelector<HTMLButtonElement>('[data-bag]')!.onclick = () => act(() => (learnerHolds('ventilation') ? run!.release('ventilation') : run!.assign('airway', 'learner')));
     host.querySelector<HTMLButtonElement>('[data-push]')!.addEventListener('pointerdown', (e) => { e.preventDefault(); push(); });
     /* a breath lasts as long as the button is held (decision 7); from the keyboard, a standard one-second breath */
     const br = host.querySelector<HTMLButtonElement>('[data-breath]')!;
@@ -282,38 +314,54 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     });
     for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) br.addEventListener(ev, letGo);
     br.onclick = (e) => { if ((e as MouseEvent).detail === 0) act(() => breath('learner')); };
-    /* pads, charging and the shock go to whoever has free hands, the learner first */
-    const free = () => (['learner', 'nurse'] as const).find((x) => { const a = run!.actors[x]; return a && a.present && !a.hands && a.busyUntil <= run!.tick; });
-    host.querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) => b.onclick = () => {
+    /* The defibrillator's and the drugs' actions go to whoever has that task (ADR-018 decision 8). Nobody has it: the
+       leader does it with free hands, or is told to give it to someone. */
+    const doer = (role: TeamRole): string | null => {
+      const h = run!.roles[role];
+      if (h && run!.actors[h]?.present) return h;
+      const me = run!.actors.learner;
+      return !me.hands && me.busyUntil <= run!.tick ? 'learner' : null;
+    };
+    const viaRole = (role: TeamRole, id: string) => {
       if (!run || paused) return;
       now();
-      const who = free();
-      if (!who) { note(`${t('blocked')}: ${t('noFree')}`); return; }
-      const id = b.dataset.d === 'pads' ? 'defib.pads' : b.dataset.d === 'charge' ? 'defib.charge' : b.dataset.d === 'check' ? 'check.rhythm' : 'defib.shock';
-      act(() => run!.intervene(id, who));
+      const w = doer(role);
+      if (!w) { note(`${t('blocked')}: ${t('noTask')}`); return; }
+      act(() => run!.intervene(id, w));
+    };
+    host.querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) => b.onclick = () => viaRole('defibrillator', b.dataset.d === 'pads' ? 'defib.pads' : b.dataset.d === 'charge' ? 'defib.charge' : b.dataset.d === 'check' ? 'check.rhythm' : 'defib.shock'));
+    host.querySelectorAll<HTMLButtonElement>('[data-g]').forEach((b) => b.onclick = () => viaRole('drugs', b.dataset.g!));
+    /* calling the team, saying what the boxes say */
+    host.querySelectorAll<HTMLButtonElement>('[data-callby]').forEach((b) => b.onclick = () => {
+      const says = Array.from(host.querySelectorAll<HTMLInputElement>('[data-say]')).filter((x) => x.checked).map((x) => x.dataset.say as CallContent);
+      act(() => run!.call(says, b.dataset.callby!));
     });
-    /* the line and the drugs go to whoever has free hands too */
-    host.querySelectorAll<HTMLButtonElement>('[data-g]').forEach((b) => b.onclick = () => {
-      if (!run || paused) return;
-      now();
-      const who = free();
-      if (!who) { note(`${t('blocked')}: ${t('noFree')}`); return; }
-      act(() => run!.intervene(b.dataset.g!, who));
+    host.querySelector<HTMLButtonElement>('[data-fetch]')!.onclick = () => act(() => run!.intervene('fetch.trolley', 'nurse'));
+    /* hands off for a check or a shock, and on again, by whoever was compressing */
+    host.querySelector<HTMLButtonElement>('[data-handsoff]')!.onclick = () => act(() => {
+      const h = run!.held.get('compressions');
+      if (!h) return true;
+      lastCompressor = h.by;
+      return run!.release('compressions', h.by);
     });
-    host.querySelectorAll<HTMLButtonElement>('[data-n]').forEach((b) => b.onclick = () => {
-      const k = b.dataset.n!;
-      if (k === 'cpr') act(() => run!.intervene('cpr.compressions', 'nurse'));
-      else if (k === 'bag') act(() => run!.intervene('vent.bag', 'nurse'));
-      else if (k === 'stop') act(() => { const h = [...run!.held.entries()].find(([, x]) => x.by === 'nurse'); return h ? run!.release(h[0], 'nurse') : true; });
-      else act(() => {
-        /* two breaths, a second and a half apart */
-        if (!breath('nurse')) return false;
-        const at = run!.t + 1.5;
-        const second = () => { if (!run || stopped) return; if (run.t + 1e-9 < at) { now(); if (run.t + 1e-9 < at) { setTimeout(second, 50); return; } } breath('nurse'); };
-        setTimeout(second, 1500);
-        return true;
-      });
-    });
+    host.querySelector<HTMLButtonElement>('[data-resume]')!.onclick = () => act(() => run!.assign('compressions', lastCompressor && run!.actors[lastCompressor]?.present ? lastCompressor : 'learner'));
+    /* the team's cards: give a task, or (for whoever has the bag) two breaths */
+    host.querySelector<HTMLElement>('[data-team]')!.onclick = (ev) => {
+      const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('button');
+      if (!b || !run || paused) return;
+      if (b.dataset.assign) { const [role, to] = b.dataset.assign.split(':'); act(() => run!.assign(role as TeamRole, to)); }
+      else if (b.dataset.two) {
+        const w = b.dataset.two;
+        act(() => {
+          /* two breaths, a second and a half apart */
+          if (!breath(w)) return false;
+          const at = run!.t + 1.5;
+          const second = () => { if (!run || stopped) return; if (run.t + 1e-9 < at) { now(); if (run.t + 1e-9 < at) { setTimeout(second, 50); return; } } breath(w); };
+          setTimeout(second, 1500);
+          return true;
+        });
+      }
+    };
   };
 
   /* ---- reading the model ------------------------------------------------------------------------ */
@@ -453,11 +501,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       gs.textContent = parts.join(' · ');
       host.querySelectorAll<HTMLButtonElement>('[data-g]').forEach((b) => { b.disabled = !here || (b.dataset.g === 'access.iv' ? line : !line); });
     }
-    const ns = host.querySelector<HTMLElement>('[data-nurse-state]');
-    if (ns) {
-      const h = [...run.held.entries()].find(([, x]) => x.by === 'nurse');
-      ns.textContent = !run.actors.nurse?.present ? t('away') : h ? t(h[0] === 'compressions' ? 'nDoingCpr' : 'nDoingBag') : run.actors.nurse.busyUntil > run.tick ? t('busy') : t('free');
-    }
+    renderTeam();
     /* what the patient's breathing is: the learner should see gasping for what it is */
     const state = r.gasping ? 'gasp' : (r.RR ?? 0) - (r.givenRate ?? 0) > 0.5 ? 'normal' : 'none';
     if (state !== lastBreathing) {
@@ -468,7 +512,76 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     const bs = host.querySelector<HTMLElement>('[data-breathing]');
     if (bs) { bs.innerHTML = `<span class="muted">${t('breathing')}:</span> <b class="${state === 'normal' ? '' : 'abn'}">${t(state === 'gasp' ? 'bGasping' : state === 'normal' ? 'bNormal' : 'bNone')}</b>`; }
   };
-  const who = (x: string) => (x === 'learner' ? t('you') : x === 'nurse' ? t('nurseName') : x === 'patient' ? t('patient') : x);
+  const who = (x: string) => (x === 'learner' ? t('you') : x === 'nurse' ? t('nurseName') : x === 'doctor' ? t('doctorName') : x === 'nurse2' ? t('nurse2Name') : x === 'patient' ? t('patient') : x);
+  const roleName = (r: TeamRole) => t(`role${r[0].toUpperCase()}${r.slice(1)}`);
+  const label = (id: string) => (INTERVENTION_BY_ID[id] ? tr(INTERVENTION_BY_ID[id].label, lang) : id);
+  /* ---- the team ------------------------------------------------------------------------------- */
+  const PEOPLE = ['learner', 'nurse', 'doctor', 'nurse2'];
+  const taskOf = (id: string): SceneTask => {
+    if (!run) return 'idle';
+    const a = run.actors[id];
+    const h = [...run.held.entries()].find(([, x]) => x.by === id)?.[0];
+    if (h === 'compressions') return 'compressions';
+    if (h === 'ventilation') return 'airway';
+    const call = run.events.find((e) => e.kind === 'call' && e.by === id);
+    if (call && a.busyUntil > run.tick && run.t - call.t < 20) return 'calling';
+    for (const r of TEAM_ROLES) if (run.roles[r] === id && (r === 'defibrillator' || r === 'drugs')) return r;
+    return 'idle';
+  };
+  const renderTeam = () => {
+    if (!run) return;
+    const r = run;
+    const cs = host.querySelector<HTMLElement>('[data-call-state]');
+    const call = r.events.find((e) => e.kind === 'call') as { arriveAt: number } | undefined;
+    if (cs) cs.textContent = call ? t('called').replace('{t}', fmtT(call.arriveAt)) : '';
+    host.querySelectorAll<HTMLButtonElement>('[data-callby]').forEach((b) => { b.disabled = r.called || !r.actors[b.dataset.callby!]?.present; });
+    const fb = host.querySelector<HTMLButtonElement>('[data-fetch]'); if (fb) fb.disabled = r.equipment.has('defibrillator') || !r.actors.nurse?.present;
+    const sig = JSON.stringify([PEOPLE.map((p) => [r.actors[p]?.present, taskOf(p), r.actors[p]?.busyUntil > r.tick]), r.roles, lang]);
+    if (sig === teamSig) return;
+    teamSig = sig;
+    const box = host.querySelector<HTMLElement>('[data-team]');
+    if (!box) return;
+    box.innerHTML = PEOPLE.filter((p) => r.actors[p]).map((p) => {
+      const a = r.actors[p];
+      const mine = TEAM_ROLES.filter((x) => r.roles[x] === p);
+      const state = !a.present ? t('sAway') : taskOf(p) === 'calling' ? t('sCalling') : mine.length ? mine.map(roleName).join(', ') : a.busyUntil > r.tick ? t('sBusy') : t('sFree');
+      const buttons = !a.present ? '' : TEAM_ROLES.map((x) => `<button type="button" class="ghost small${r.roles[x] === p ? ' on' : ''}" data-assign="${x}:${p}" aria-pressed="${r.roles[x] === p}">${roleName(x)}</button>`).join('')
+        + (p !== 'learner' && r.roles.airway === p ? `<button type="button" class="ghost small" data-two="${p}">${t('nTwo')}</button>` : '');
+      return `<div class="ar-person ${a.present ? '' : 'away'}" data-person="${p}"><span class="ar-dot" style="background:${LOOK[p].scrub}"></span><b>${who(p)}</b> <span class="muted small">${state}</span>${buttons ? `<div class="ar-row ar-wrap">${buttons}</div>` : ''}</div>`;
+    }).join('');
+  };
+
+  /* ---- the scene ------------------------------------------------------------------------------ */
+  const LOOK: Record<string, { scrub: string; skin: string; hair: string }> = {
+    learner: { scrub: '#2f6f78', skin: '#e8c4a8', hair: '#5a4632' }, nurse: { scrub: '#8fbcd8', skin: '#c99872', hair: '#2b2118' },
+    doctor: { scrub: '#7fb89d', skin: '#f0cfb4', hair: '#b58a52' }, nurse2: { scrub: '#b4a2d4', skin: '#8d5a3c', hair: '#151010' },
+  };
+  let sceneCache: { key: string; layer: ReturnType<typeof patientLayer> } | null = null;
+  const drawScene = () => {
+    const svg = host.querySelector<SVGSVGElement>('.ar-scene-svg');
+    if (!svg || !run) return;
+    const r = run;
+    const onset = (r.events.find((e) => e.kind === 'scene' && e.state === 'arrest') as { t: number } | undefined)?.t;
+    const u = onset == null ? 0 : Math.min(1, (r.t - onset) / 1.4);
+    const pose = collapsePose(u < 1 ? 0.5 - 0.5 * Math.cos(Math.PI * u) : 1);
+    const last = r.trace.at(-1);
+    const pulse = last && last.rhythm === 'organised' && last.Psys >= 50;
+    const grey = onset != null && r.t - onset > 20 && !pulse;
+    const bagging = r.held.has('ventilation') && r.did.has('vent.bag');
+    const bare = r.compressions.length > 0 || r.access.has('pads');
+    const key = `${u.toFixed(2)}|${grey}|${bagging}|${bare}`;
+    if (!sceneCache || sceneCache.key !== key) {
+      const look = figureLookFor(FREE_CASE.patient, { exposure: bare ? ['chest'] : [], oxygen: bagging ? { device: 'bag-valve mask', fio2: 1 } : undefined }, 7, { colour: grey ? 'grey' : 'normal' });
+      sceneCache = { key, layer: patientLayer(pose, look) };
+    }
+    const sim = r.live.run.sim as any, resp = r.live.snap.resp as any;
+    const recent = (id: string) => [...log].reverse().find((x) => x.whoId === id && r.t - x.t < 3 && x.speech);
+    const people: ScenePerson[] = PEOPLE.filter((p) => r.actors[p]?.present).map((p) => ({ id: p, label: who(p), task: taskOf(p), ...LOOK[p], you: p === 'learner', says: recent(p)?.speech }));
+    const ecg = buf.slice(-600).filter((_, i) => i % 8 === 0).map((x) => x.ecg);
+    svg.innerHTML = sceneSvg({ pose, look: null as any, people, press: Math.min(1, (sim.Pchest ?? 0) / 23), squeeze: Math.min(1, Math.max(0, (resp?.Paw ?? 0) / 18)),
+      pads: r.access.has('pads'), defibrillator: r.equipment.has('defibrillator'), charged: r.charged, line: r.access.has('iv'), ecg }, sceneCache.layer);
+  };
+
   const renderEvents = (all = false) => {
     if (!run) return;
     if (all) { seenEvents = 0; for (let i = log.length - 1; i >= 0; i--) if (log[i].fromEvent) log.splice(i, 1); }
@@ -482,9 +595,29 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       }
       else if (e.kind === 'assessed') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: `${t('logCheck')}: ${t(e.rhythm === 'vf' ? 'rVf' : e.rhythm === 'vt' ? 'rVt' : e.rhythm === 'asystole' ? 'rAsystole' : 'rOrganised')}` });
       else if (e.kind === 'dose') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: t('logDose').replace('{drug}', t(e.drug === 'adrenaline' ? 'nameAdr' : 'nameAmio')).replace('{mg}', String(e.mg)) });
-      else if (e.kind === 'done' && e.id !== 'defib.shock' && e.id !== 'check.rhythm' && !e.id.startsWith('drug.')) log.push({ fromEvent: true, t: e.t, who: who(e.by), text: e.id === 'defib.pads' ? t('logPads') : e.id === 'defib.charge' ? t('logCharged') : e.id === 'access.iv' ? t('logIv') : tr(e.id === 'cpr.compressions' ? L('starts compressions', 'beginnt mit den Kompressionen') : e.id === 'vent.bag' ? L('has the bag on the face', 'hat die Maske aufgesetzt') : L(e.id, e.id), lang) });
-      else if (e.kind === 'arrive' && e.equipment.includes('defibrillator')) log.push({ fromEvent: true, t: e.t, who: who('nurse'), text: t('logArrive') });
-      else if (e.kind === 'leave') log.push({ fromEvent: true, t: e.t, who: who(e.people[0]), text: t('logLeave') });
+      else if (e.kind === 'assigned' && e.to && e.to !== 'learner') {
+        /* structured communication: the order, and the read-back */
+        const task = roleName(e.role);
+        log.push({ fromEvent: true, t: e.t, who: who('learner'), whoId: 'learner', text: `“${t('order').replace('{name}', who(e.to)).replace('{task}', task)}”`, speech: t('order').replace('{name}', who(e.to)).replace('{task}', task) });
+        log.push({ fromEvent: true, t: e.t + 0.01, who: who(e.to), whoId: e.to, text: `“${t('ack').replace('{task}', task)}”`, speech: t('ack').replace('{task}', task[0].toUpperCase() + task.slice(1)) });
+      }
+      else if (e.kind === 'call') {
+        const says: string[] = e.says;
+        const text = !says.length ? t('callVague') : t('callText').replace('{adult}', says.includes('arrest') ? t('callAdult') : '').replace('{where}', says.includes('where') ? t('callWhere') : '').replace('{defib}', says.includes('defibrillator') ? t('callDefib') : '');
+        log.push({ fromEvent: true, t: e.t, who: who(e.by), whoId: e.by, text: `☎ “${text}”`, speech: text });
+      }
+      else if (e.kind === 'begin' && e.by !== 'learner' && !['cpr.compressions', 'vent.bag', 'fetch.trolley'].includes(e.id)) {
+        const x = t('onIt').replace('{label}', label(e.id));
+        log.push({ fromEvent: true, t: e.t, who: who(e.by), whoId: e.by, text: `“${x}”`, speech: x });
+      }
+      else if (e.kind === 'done' && e.by !== 'learner' && !['cpr.compressions', 'vent.bag', 'fetch.trolley', 'defib.shock', 'check.rhythm'].includes(e.id) && !e.id.startsWith('drug.')) {
+        const x = t('doneIt').replace('{label}', label(e.id));
+        log.push({ fromEvent: true, t: e.t, who: who(e.by), whoId: e.by, text: `“${x}”`, speech: x });
+      }
+      else if (e.kind === 'arrive' && e.people.includes('doctor')) log.push({ fromEvent: true, t: e.t, who: who('doctor'), whoId: 'doctor', text: t('teamArrive') });
+      else if (e.kind === 'done' && e.id !== 'defib.shock' && e.id !== 'check.rhythm' && e.id !== 'fetch.trolley' && !e.id.startsWith('drug.')) log.push({ fromEvent: true, t: e.t, who: who(e.by), text: e.id === 'defib.pads' ? t('logPads') : e.id === 'defib.charge' ? t('logCharged') : e.id === 'access.iv' ? t('logIv') : tr(e.id === 'cpr.compressions' ? L('starts compressions', 'beginnt mit den Kompressionen') : e.id === 'vent.bag' ? L('has the bag on the face', 'hat die Maske aufgesetzt') : L(e.id, e.id), lang) });
+      else if (e.kind === 'arrive' && e.equipment.includes('defibrillator')) log.push({ fromEvent: true, t: e.t, who: who(e.people[0] ?? 'nurse'), text: t('logArrive') });
+      else if (e.kind === 'leave') log.push({ fromEvent: true, t: e.t, who: who(e.people[0]), whoId: e.people[0], text: t('logLeave'), speech: t('getTrolley') });
       else if (e.kind === 'shock') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: `${t('logShock')}: ${t(e.joules === 0 ? 'oUncharged' : e.outcome === 'no-effect' ? 'oNone' : e.outcome === 'not-terminated' ? 'oStill' : e.outcome === 'organised' ? 'oOrg' : 'oAsys')}` });
       else if (e.kind === 'refibrillation') log.push({ fromEvent: true, t: e.t, who: t('patient'), text: t('logRefib') });
       else if (e.kind === 'hazard') log.push({ fromEvent: true, t: e.t, who: `⚠ ${t('hazard')}`, text: t(e.code === 'shock-while-compressing' ? 'hzComp' : e.code === 'shock-while-ventilating' ? 'hzVent' : 'hzNon') });
@@ -503,6 +636,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     /* the scene's end: the debrief opens by itself */
     if (run.over) { if (!paused) { pausedAt = runT(); pauseWall = performance.now(); paused = true; } openDebrief(); return; }
     drawStrip();
+    if (tick % 2 === 0) drawScene();
     if (tick++ % 6 === 0) { renderNumbers(); renderEvents(); drawTrend(); }
   };
 

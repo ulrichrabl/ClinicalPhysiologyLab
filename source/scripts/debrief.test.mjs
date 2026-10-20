@@ -33,7 +33,7 @@ console.log('\nThe guideline file');
 /* A man in VF from `onset` to the end; compressions at `rate` from `from`, in cycles of 30 with a pause of `pause` s for
    two breaths (the nurse's), stopping around each shock for `around` s before and after; shocks every 2 min from 75 s. */
 const END = 600, ONSET = 4;
-const record = ({ from = 6, rate = 110, pause = 3, around = 1, shocks = [75, 195, 315, 435, 555], doses = [], extraGaps = [], padsAt = 70, hazards = [] } = {}) => {
+const record = ({ from = 6, rate = 110, pause = 3, around = 1, shocks = [75, 195, 315, 435, 555], doses = [], extraGaps = [], padsAt = 70, hazards = [], call = ['where', 'arrest', 'defibrillator'], callAt = 10, rotate = true } = {}) => {
   const comps = [], breaths = [];
   let t = from, n = 0;
   while (t < END) {
@@ -41,7 +41,15 @@ const record = ({ from = 6, rate = 110, pause = 3, around = 1, shocks = [75, 195
     comps.push(Math.round(t * 1000) / 1000); n++; t += 60 / rate;
     if (n === 30) { breaths.push(t + 0.2, t + 0.2 + pause / 2); t += pause; n = 0; }
   }
+  /* the compressor changes at each shock (every 2 min), the learner and the doctor taking turns */
+  const byAt = (at) => !rotate ? 'learner' : shocks.filter((s) => s < at).length % 2 ? 'doctor' : 'learner';
   const events = [
+    ...(call ? [{ t: callAt, kind: 'call', by: 'nurse', says: call, arriveAt: callAt + 120 }] : []),
+    { t: 5, kind: 'assigned', role: 'compressions', to: 'learner' },
+    { t: 20, kind: 'assigned', role: 'airway', to: 'nurse' },
+    { t: 64, kind: 'arrive', people: ['doctor', 'nurse2'], equipment: ['defibrillator', 'cannula-kit', 'drugs'] },
+    { t: 66, kind: 'assigned', role: 'defibrillator', to: 'nurse2' },
+    { t: 67, kind: 'assigned', role: 'drugs', to: 'doctor' },
     { t: padsAt, kind: 'done', id: 'defib.pads', by: 'nurse' },
     ...shocks.map((s) => ({ t: s, kind: 'shock', by: 'nurse', rhythm: 'vf', outcome: 'not-terminated', joules: 150 })),
     ...breaths.map((b) => ({ t: b, kind: 'breath', by: 'nurse', seconds: 1, volume: 0.5 })),
@@ -49,7 +57,7 @@ const record = ({ from = 6, rate = 110, pause = 3, around = 1, shocks = [75, 195
     ...hazards.map(([at, code]) => ({ t: at, kind: 'hazard', code, by: 'nurse' })),
   ].sort((a, b) => a.t - b.t);
   const trace = Array.from({ length: END }, (_, i) => ({ t: i + 1, rhythm: i + 1 <= ONSET ? 'organised' : 'vf', Psys: i + 1 <= ONSET ? 120 : 32, Pdia: 20, CPP: 15, EtCO2: 20 }));
-  return { t: END, log: [], events, compressions: comps.map((at) => ({ at, by: 'learner' })), trace };
+  return { t: END, log: [], events, compressions: comps.map((at) => ({ at, by: byAt(at) })), trace };
 };
 const DOSES = [[330, 'adrenaline', 1], [340, 'amiodarone', 300], [540, 'adrenaline', 1], [570, 'amiodarone', 150]];
 
@@ -81,6 +89,22 @@ console.log('\nThe poor performances the ADR names');
   const slow = S.scoreRun(G, record({ rate: 80, doses: DOSES }));
   ok('slow compressions (80/min) miss the rate, and nothing else about the cycles', rule(slow, 'rate').status === 'missed' && Math.abs(rule(slow, 'rate').value - 80) <= 1 && rule(slow, 'thirty-two').status === 'met',
     J(statuses(slow)));
+}
+
+console.log('\nThe team');
+{
+  const none = S.scoreRun(G, record({ call: null, doses: DOSES }));
+  ok('no call for the arrest team is missed, marked 30 s after the collapse', rule(none, 'call-team').status === 'missed' && rule(none, 'call-team').at[0] === ONSET + 30, J(rule(none, 'call-team')));
+  const vague = S.scoreRun(G, record({ call: ['arrest'], doses: DOSES }));
+  ok('a call in time that does not say where is missed, at the call', rule(vague, 'call-team').status === 'missed' && rule(vague, 'call-team').at[0] === 10);
+  const late = S.scoreRun(G, record({ callAt: 60, doses: DOSES }));
+  ok('a call 56 s after the collapse is late', rule(late, 'call-team').status === 'missed' && rule(late, 'call-team').value === 56);
+  const tired = S.scoreRun(G, record({ rotate: false, doses: DOSES }));
+  ok('one person compressing throughout misses the change every 2 min, marked each time it fell due', rule(tired, 'rotation').status === 'missed' && rule(tired, 'rotation').at.length >= 3 && rule(tired, 'rotation').at[0] === 10 + 150, J(rule(tired, 'rotation')));
+  const r = record({ doses: DOSES });
+  r.events = r.events.filter((e) => !(e.kind === 'assigned' && e.role === 'drugs'));
+  const noDrugs = S.scoreRun(G, r);
+  ok('the drugs given to nobody, though they came at 64 s: the task is missed a minute after they came', rule(noDrugs, 'tasks').status === 'missed' && rule(noDrugs, 'tasks').at[0] === 64 + 60, J(rule(noDrugs, 'tasks')));
 }
 
 console.log('\nShocks, rhythm checks and drugs against the algorithm');

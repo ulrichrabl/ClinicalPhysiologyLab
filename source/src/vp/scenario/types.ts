@@ -46,6 +46,8 @@ export interface InstantEffect {
   defib?: 'charge' | 'shock';
   /** A look at the patient that is recorded with what it showed (ADR-018 step 5): the rhythm on the defibrillator. */
   assess?: 'rhythm';
+  /** Someone goes for equipment and comes back with it (ADR-018 step 5): the arrest trolley. */
+  fetch?: { equipment: string[]; seconds: number };
   /** A dose into the vein (ADR-018 step 4); the drug model carries it in and lets it act. */
   dose?: { drug: DrugId; mg: number };
   state?: Partial<PatientState>;
@@ -107,7 +109,12 @@ export interface ScenarioDef {
   caseId: string;
   /** For authors: what the scenario is for. */
   purpose: string;
-  scene: { place: LocalizedText; people: ScenePerson[]; equipment: SceneEquipment[] };
+  scene: {
+    place: LocalizedText; people: ScenePerson[]; equipment: SceneEquipment[];
+    /** Who comes when the arrest team is called (ADR-018 step 5, decision 8), what they bring, and when: a call that
+        does not say where delays them. */
+    team?: { people: string[]; equipment: string[]; afterSeconds: number; lateWithoutWhere: number; callSeconds: number };
+  };
   /** The parts that are not physiology: who arrives, what is said, when the scene moves on. */
   machine: { start: string; states: Record<string, SceneState> };
 }
@@ -125,7 +132,17 @@ export type ScenarioInput =
   /** One breath given by whoever holds the ventilation: when it began, and how long the bag was squeezed (s). */
   | { t: number; do: 'ventilate'; at: number; seconds: number; by: string }
   /** The bag squeezed by hand and let go (the learner's press and release): the breath lasts as long as it is held. */
-  | { t: number; do: 'bag'; phase: 'squeeze' | 'release'; at: number; by: string };
+  | { t: number; do: 'bag'; phase: 'squeeze' | 'release'; at: number; by: string }
+  /** The arrest team called by whoever is free (ADR-018 step 5), saying what the call says. */
+  | { t: number; do: 'call'; says: CallContent[]; by: string }
+  /** A task given to someone (ADR-018 decision 8): compressions, the airway, the defibrillator, the drugs. */
+  | { t: number; do: 'assign'; role: TeamRole; to: string };
+
+/** What a call for the arrest team says: where, that it is a cardiac arrest, that the defibrillator is needed. */
+export type CallContent = 'where' | 'arrest' | 'defibrillator';
+/** The tasks of a resuscitation team (ERC 2025: task allocation). */
+export type TeamRole = 'compressions' | 'airway' | 'defibrillator' | 'drugs';
+export const TEAM_ROLES: TeamRole[] = ['compressions', 'airway', 'defibrillator', 'drugs'];
 
 /** What followed from the inputs, the scene, the course and chance. Reproduced exactly by a replay. */
 export type ScenarioEvent =
@@ -148,6 +165,10 @@ export type ScenarioEvent =
   | { t: number; kind: 'hazard'; code: string; by: string }
   /** A held squeeze let go: how long it lasted and the volume it sent towards the lungs (L). */
   | { t: number; kind: 'breath'; by: string; seconds: number; volume: number }
+  /** The arrest team called: what was said, and when they will come. */
+  | { t: number; kind: 'call'; by: string; says: CallContent[]; arriveAt: number }
+  /** A task given to someone (or taken from them: to null). */
+  | { t: number; kind: 'assigned'; role: TeamRole; to: string | null }
   /** A rhythm check (ADR-018 step 5): the rhythm it showed. */
   | { t: number; kind: 'assessed'; what: 'rhythm'; rhythm: string; by: string }
   /** A dose given into the vein (ADR-018 step 4). */

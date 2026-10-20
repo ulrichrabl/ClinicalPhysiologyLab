@@ -263,11 +263,37 @@ console.log('\nThe practice arrest (a scene that changes the model)');
   ok('four seconds in, the scene fibrillates his heart (a scripted change to the model), and the nurse calls it', r.scene === 'arrest' && r.live.model.electrical.ventricular === 'vf' && kinds(r, 'say').some((e) => e.who === 'nurse'));
   r.advanceTo(40);
   ok('…and with no one acting, he has no output', r.live.snap.metrics.CO < 0.1);
-  r.advanceTo(65);
-  ok('the nurse went for the trolley at the collapse, so the learner was alone for a minute', r.actors.nurse.present && kinds(r, 'leave').some((e) => e.t === 4 && e.people.includes('nurse')) && kinds(r, 'arrive').some((e) => e.t === 64 && e.people.includes('nurse') && e.equipment.includes('defibrillator')));
+  ok('the nurse stays and asks what to do; nothing else comes unless the learner sends for it', r.actors.nurse.present && !kinds(r, 'leave').length && !r.equipment.has('defibrillator'));
   const bad = structuredClone(P);
   bad.machine.states.arrest.enter[0].change[0].path = 'body.sodiumIntake';
   ok('the validator refuses a scene change to the body’s slow parameters', errors(S.validateScenario(bad, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).some((i) => /not a model input/.test(i.message)));
+}
+
+console.log('\nThe team (ADR-018 step 5, decision 8)');
+{
+  const P = scenarioOf('arrest-practice');
+  const r = start(P, 61, S.FREE_CASE);
+  r.advanceTo(6);
+  ok('the nurse calls the arrest team, saying where: her hands are busy for the call', r.call(['where', 'arrest', 'defibrillator'], 'nurse') && r.actors.nurse.busyUntil === r.tick + 150 && kinds(r, 'call')[0]?.arriveAt === 126);
+  ok('a second call is refused', !r.call(['where'], 'learner') && kinds(r, 'blocked').at(-1)?.reason === 'already-called');
+  ok('the learner gives himself the compressions: he holds them, and the task is his', r.assign('compressions', 'learner') && (r.advanceTo(9), r.held.get('compressions')?.by === 'learner' && r.roles.compressions === 'learner'));
+  r.advanceTo(30);
+  ok('the nurse takes the airway: the bag goes on', r.assign('airway', 'nurse') && (r.advanceTo(36), r.held.get('ventilation')?.by === 'nurse'));
+  r.advanceTo(126.1);
+  ok('two minutes after the call the doctor and a second nurse arrive with the trolley', r.actors.doctor.present && r.actors.nurse2.present && ['defibrillator', 'cannula-kit', 'drugs'].every((e) => r.equipment.has(e)));
+  ok('the doctor takes over the compressions: the learner’s hands are free and the task is hers', r.assign('compressions', 'doctor') && (r.advanceTo(129), r.held.get('compressions')?.by === 'doctor' && !r.actors.learner.hands && r.roles.compressions === 'doctor'));
+  ok('the second nurse takes the defibrillator, and puts the pads on', r.assign('defibrillator', 'nurse2') && r.intervene('defib.pads', 'nurse2'));
+  r.advanceTo(150);
+  ok('when the nurse puts the bag down, the airway is nobody’s', r.release('ventilation', 'nurse') && r.roles.airway === null);
+  const R = S.replay(P, { seed: 61, caseDef: S.FREE_CASE, log: r.log, until: r.t });
+  ok('a run with a call and tasks replays exactly', fingerprint(R) === fingerprint(r) && J(R.roles) === J(r.roles));
+
+  const vague = start(P, 62, S.FREE_CASE);
+  vague.advanceTo(6); vague.call(['arrest'], 'nurse');
+  ok('a call that does not say where brings the team 90 s later', kinds(vague, 'call')[0]?.arriveAt === 6 + 120 + 90);
+  const fetch = start(P, 63, S.FREE_CASE);
+  fetch.advanceTo(6);
+  ok('the nurse can be sent for the trolley: she goes, and is back in a minute with it', fetch.intervene('fetch.trolley', 'nurse') && !fetch.actors.nurse.present && (fetch.advanceTo(66.1), fetch.actors.nurse.present && fetch.equipment.has('defibrillator')));
 }
 
 console.log('\nThe defibrillator (ADR-018 step 3)');

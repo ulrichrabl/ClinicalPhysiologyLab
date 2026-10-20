@@ -6,7 +6,7 @@ import type { GuidelineDef } from './types.ts';
 /* Checks for a guideline file (ADR-018 decision 3): every rule says where it comes from, every text is in English and German,
    and every number that is ours (a placement) says what it rests on. */
 
-const KINDS = ['first-compression', 'measure', 'cycle', 'peri-shock', 'rhythm-checks', 'dose-after-shock', 'dose-interval', 'no-hazard', 'breath'];
+const KINDS = ['call', 'roles', 'rotation', 'first-compression', 'measure', 'cycle', 'peri-shock', 'rhythm-checks', 'dose-after-shock', 'dose-interval', 'no-hazard', 'breath'];
 
 export function validateGuideline(g: GuidelineDef): Issue[] {
   const out: Issue[] = [];
@@ -26,12 +26,13 @@ export function validateGuideline(g: GuidelineDef): Issue[] {
     seen.add(r.id);
     text(r.title, `${rp}.title`); text(r.why, `${rp}.why`);
     if (!r.section?.trim()) out.push({ level: 'error', path: rp, message: 'cites no section' });
+    if (!['team', 'compressions', 'airway', 'defibrillation', 'drugs'].includes(r.group)) out.push({ level: 'error', path: rp, message: `unknown group ${r.group}` });
     if (r.basis !== 'guideline' && r.basis !== 'placement') out.push({ level: 'error', path: rp, message: `unknown basis ${r.basis}` });
     if (r.basis === 'placement' && !r.note?.trim()) out.push({ level: 'error', path: rp, message: 'a placement without a note' });
     if (!KINDS.includes(r.check?.kind)) { out.push({ level: 'error', path: rp, message: `unknown check ${r.check?.kind}` }); continue; }
     const c = r.check as any;
     if ((c.kind === 'dose-after-shock' || c.kind === 'dose-interval') && !DRUG_IDS.includes(c.drug)) out.push({ level: 'error', path: rp, message: `no drug ${c.drug}` });
-    for (const [k, v] of Object.entries(c)) if (k !== 'kind' && k !== 'drug' && k !== 'measure' && k !== 'codes' && !(typeof v === 'number' && Number.isFinite(v))) out.push({ level: 'error', path: rp, message: `${k} is not a number` });
+    for (const [k, v] of Object.entries(c)) if (k !== 'kind' && k !== 'drug' && k !== 'measure' && k !== 'codes' && k !== 'must' && !(typeof v === 'number' && Number.isFinite(v))) out.push({ level: 'error', path: rp, message: `${k} is not a number` });
     if ((c.min != null && c.max != null && c.min > c.max) || (c.kind === 'dose-interval' && c.min > c.max)) out.push({ level: 'error', path: rp, message: 'min above max' });
   }
   return out;

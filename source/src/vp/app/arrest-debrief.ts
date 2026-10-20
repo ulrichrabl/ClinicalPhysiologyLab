@@ -30,7 +30,8 @@ const T: Record<string, LocalizedText> = {
   kRhythm: L('Rhythm', 'Rhythmus'), kCpr: L('Compressions (red: pauses over 10 s)', 'Kompressionen (rot: Pausen über 10 s)'), kEvents: L('Shocks ⚡, adrenaline A, amiodarone Am, rhythm checks R', 'Schocks ⚡, Adrenalin A, Amiodaron Am, Rhythmuskontrollen R'),
   kLines: L('Coronary perfusion pressure (red) and end-tidal CO₂ (blue), mmHg', 'Koronarer Perfusionsdruck (rot) und endtidales CO₂ (blau), mmHg'),
   kMissed: L('Numbered: where a rule was missed', 'Nummeriert: wo eine Regel verfehlt wurde'),
-  rules: L('The guideline', 'Die Leitlinie'),
+  rules: L('The guideline', 'Die Leitlinie'), ringNote: L('rules of the guideline met, of those that applied in this run; tap a rule for why it matters and its source', 'erfüllte Regeln der Leitlinie, von denen, die in diesem Durchgang zutrafen; tippen Sie auf eine Regel für Begründung und Quelle'),
+  gTeam: L('Team', 'Team'), gCompressions: L('Compressions', 'Kompressionen'), gAirway: L('Airway', 'Atemweg'), gDefib: L('Defibrillation', 'Defibrillation'), gDrugs: L('Drugs', 'Medikamente'),
   met: L('met', 'erfüllt'), missed: L('missed', 'verfehlt'), na: L('did not apply', 'nicht zutreffend'),
   ours: L('our threshold', 'unsere Schwelle'), oursHint: L('The guideline gives no number here, or we added a tolerance; the note says what it rests on.', 'Die Leitlinie nennt hier keine Zahl, oder wir haben eine Toleranz ergänzt; die Anmerkung sagt, worauf sie beruht.'),
   source: L('Source', 'Quelle'), back: L('Back to the patient', 'Zurück zum Patienten'), again: L('Start again', 'Neu beginnen'),
@@ -59,23 +60,35 @@ export function debriefHtml(rep: GuidelineReport, g: GuidelineDef, run: DebriefR
   const m = rep.measures;
   const tile = (label: string, v: string, sub = '') => `<div><dt>${label}</dt><dd>${v}</dd>${sub ? `<div class="muted small">${sub}</div>` : ''}</div>`;
   const missedIds = rep.rules.filter((r) => r.status === 'missed').map((r) => r.id);
-  const rows = g.rules.map((rule) => {
+  /* each rule on one line in its group's card; why it matters, and its source, open on a tap */
+  const line = (rule: GuidelineDef['rules'][number]) => {
     const res = rep.rules.find((r) => r.id === rule.id)!;
     const n = missedIds.indexOf(rule.id) + 1;
     const mark = res.status === 'met' ? '✓' : res.status === 'missed' ? `${n}` : '–';
-    const value = res.value != null && rule.unit ? ` · <span class="ar-db-val">${res.value}${rule.unit === '%' ? ' %' : rule.unit === '/min' ? '/min' : ` ${rule.unit}`}</span>` : '';
-    const at = res.at.length ? ` · <span class="muted">${res.at.slice(0, 4).map(fmtClock).join(', ')}${res.at.length > 4 ? ' …' : ''}</span>` : '';
-    return `<li class="ar-db-rule ${res.status}">
-      <span class="ar-db-mark" aria-label="${t(res.status === 'met' ? 'met' : res.status === 'missed' ? 'missed' : 'na')}">${mark}</span>
-      <div><b>${esc(tr(rule.title, lang))}</b> <span class="muted small">${t(res.status === 'met' ? 'met' : res.status === 'missed' ? 'missed' : 'na')}</span>${value}${at}
-        ${rule.basis === 'placement' ? ` <span class="ar-db-ours" title="${esc(t('oursHint'))}">${t('ours')}</span>` : ''}
-        <div class="muted small">${esc(tr(rule.why, lang))}</div>
-        <details class="small"><summary class="muted">${esc(rule.section)}</summary>${rule.note ? `<p class="muted">${esc(rule.note)}</p>` : ''}</details></div></li>`;
+    const value = res.value != null && rule.unit ? `<span class="ar-db-val">${res.value}${rule.unit === '%' ? ' %' : rule.unit === '/min' ? '/min' : ` ${rule.unit}`}</span>` : '';
+    return `<li class="ar-db-rule ${res.status}"><details><summary>
+        <span class="ar-db-mark" aria-label="${t(res.status === 'met' ? 'met' : res.status === 'missed' ? 'missed' : 'na')}">${mark}</span>
+        <span class="ar-db-title">${esc(tr(rule.title, lang))}</span>${value}${rule.basis === 'placement' ? `<span class="ar-db-ours" title="${esc(t('oursHint'))}">${t('ours')}</span>` : ''}</summary>
+        <div class="small"><p>${esc(tr(rule.why, lang))}</p>${res.at.length ? `<p class="muted">${res.at.slice(0, 6).map(fmtClock).join(', ')}${res.at.length > 6 ? ' …' : ''}</p>` : ''}<p class="muted">${esc(rule.section)}${rule.note ? ` · ${esc(rule.note)}` : ''}</p></div></details></li>`;
+  };
+  const GROUPS: Array<[GuidelineDef['rules'][number]['group'], string]> = [['team', 'gTeam'], ['compressions', 'gCompressions'], ['airway', 'gAirway'], ['defibrillation', 'gDefib'], ['drugs', 'gDrugs']];
+  const cards = GROUPS.map(([gid, key]) => {
+    const rules = g.rules.filter((r) => r.group === gid);
+    if (!rules.length) return '';
+    const res = rules.map((r) => rep.rules.find((x) => x.id === r.id)!);
+    const met = res.filter((r) => r.status === 'met').length, applied = res.filter((r) => r.status !== 'not-applicable').length;
+    return `<section class="ar-db-card ${res.some((r) => r.status === 'missed') ? 'has-miss' : ''}"><h4>${t(key)} <span class="muted small">${applied ? `${met}/${applied}` : t('na')}</span></h4><ul class="ar-db-rules">${rules.map(line).join('')}</ul></section>`;
   }).join('');
+  /* the score: rules met of those that applied, as a ring */
+  const applied = rep.rules.filter((r) => r.status !== 'not-applicable'), metN = applied.filter((r) => r.status === 'met').length;
+  const share = applied.length ? metN / applied.length : 0, R = 30, C = 2 * Math.PI * R;
+  const ring = `<svg class="ar-db-ring" viewBox="0 0 80 80" role="img" aria-label="${metN} / ${applied.length}"><circle cx="40" cy="40" r="${R}" fill="none" stroke="var(--sunk)" stroke-width="9"/>`
+    + `<circle cx="40" cy="40" r="${R}" fill="none" stroke="var(--accent)" stroke-width="9" stroke-linecap="round" stroke-dasharray="${(share * C).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 40 40)"/>`
+    + `<text x="40" y="44" text-anchor="middle" font-size="17" font-weight="700" fill="var(--fg)">${metN}/${applied.length}</text></svg>`;
   return `<section class="panel ar-debrief" aria-labelledby="ar-db-h">
       <div class="st-row"><div><h2 id="ar-db-h">${t('title')}</h2><p class="muted small">${t('lede')}</p></div>
         <span class="ar-head-buttons">${opts.canReturn ? `<button type="button" class="ghost" data-db-back>${t('back')}</button>` : ''}<button type="button" class="primary" data-db-again>${t('again')}</button></span></div>
-      <p class="ar-db-outcome"><b>${outcome}</b></p>
+      <div class="ar-db-top">${ring}<div><p class="ar-db-outcome"><b>${outcome}</b></p><p class="muted small">${t('ringNote')}</p></div></div>
       <h3>${t('measures')}</h3>
       <dl class="ar-nums">
         ${tile(t('mFirst'), m.firstCompression != null ? `${m.firstCompression} s` : '—', t('after'))}
@@ -89,7 +102,7 @@ export function debriefHtml(rep: GuidelineReport, g: GuidelineDef, run: DebriefR
       <canvas class="ar-db-timeline" aria-label="${t('timeline')}"></canvas>
       <p class="ar-legend small muted">${t('kRhythm')} · ${t('kCpr')} · ${t('kEvents')} · ${t('kLines')} · ${t('kMissed')}</p>
       <h3>${t('rules')}</h3>
-      <ol class="ar-db-rules">${rows}</ol>
+      <div class="ar-db-cards">${cards}</div>
       <p class="muted small">${t('source')}: ${esc(g.source.citation)}${g.source.doi ? ` doi:${esc(g.source.doi)}` : ''}</p>
       <p class="muted small">${t('draft')}</p>
     </section>`;
