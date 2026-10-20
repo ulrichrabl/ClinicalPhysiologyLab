@@ -10,6 +10,8 @@ import { INTERVENTION_BY_ID } from '../data/interventions.ts';
 import { Chance } from './chance.ts';
 import { Compressor } from '../physiology/cpr/compressions.ts';
 import { CPR } from '../evidence/cpr.ts';
+import { LUNG } from '../evidence/lung.ts';
+import { Ventilator, type AirwayRoute } from '../physiology/lung/ventilation.ts';
 import type { InterventionDef, ScenarioDef, ScenarioEvent, ScenarioInput, SceneWhen } from './types.ts';
 
 /* ===========================================================================
@@ -81,12 +83,18 @@ export class ScenarioRun {
     this.chance = new Chance(opts.seed);
     this.live = new LivePatient(modelFromCase(opts.caseDef));
     this.live.run.heart.seedChance(this.chance.seedFor('heart'));
+    /* Whether this patient gasps if the brain loses its blood supply, and for how long (Clark 1992, Bobrow 2008). Drawn now,
+       so it does not depend on when, or whether, the arrest comes. */
+    const g = this.chance.uniform('gasp');
+    const gaspFor = g < LUNG.gaspChanceVf ? -Math.log(1 - this.chance.uniform('gasp-duration')) * LUNG.gaspMeanSeconds : 0;
+    this.live.run.resp.gaspFor = gaspFor;
     this.live.settleNow(opts.settleSeconds ?? 20);
     const caseDef = opts.caseDef;
     this.session = startEncounter(opts.catalog ?? CATALOG, opts.registry ?? REGISTRY, caseDef, buildView(caseDef, { circulation: this.live.snap, chemistry: this.live.chemistry }));
     for (const p of def.scene.people) this.actors[p.id] = { present: p.present, busyUntil: 0 };
     for (const e of def.scene.equipment) if (e.present) this.equipment.add(e.id);
     this.sync();
+    this.events.push({ t: 0, kind: 'chance', stream: 'gasp', value: g, use: gaspFor > 0 ? `gasps for ${gaspFor.toFixed(0)} s if the brain loses its blood supply` : 'does not gasp' });
     this.enter(def.machine.start);
   }
 
@@ -134,6 +142,7 @@ export class ScenarioRun {
     else if (e.do === 'release') this.release(e.slot, e.by);
     else if (e.do === 'examine') this.examine(e.manoeuvre, e.side, e.by);
     else if (e.do === 'compress') this.compress(e.at, e.by);
+    else if (e.do === 'ventilate') this.ventilate(e.at, e.seconds, e.by);
     else this.order(e.test, e.by);
   }
 
@@ -247,11 +256,39 @@ export class ScenarioRun {
 
   /** The compressor driving the chest while compressions are held. */
   compressor: Compressor | null = null;
+  /** The bag (or later the ventilator) while ventilation is held. */
+  ventilator: Ventilator | null = null;
+  /** The patient's airway: a mask until a device is in. */
+  airway: AirwayRoute = 'mask';
+
+  /** One breath given by whoever holds the ventilation, beginning at `at` seconds (now or within this tick). */
+  ventilate(at: number, seconds = LUNG.bagInspiration, by = 'learner'): boolean {
+    if (!this.actors[by]) throw new Error(`no one called ${by} in scenario ${this.def.id}`);
+    if (!(at >= this.t - 1e-9 && at < this.t + TICK_S + 1e-9)) throw new Error(`a breath at ${at} s given at ${this.t} s`);
+    this.note({ t: this.t, do: 'ventilate', at, seconds, by });
+    const h = this.held.get('ventilation');
+    if (!h || h.by !== by || !this.ventilator) return this.blocked('ventilate', by, 'not-ventilating');
+    this.ventilator.give(this.respTime(at), LUNG.bagVolume, Math.max(0.2, seconds));
+    return true;
+  }
+
+  /** The lungs' clock at scenario time `at`. */
+  private respTime(at: number): number { return this.live.run.resp.t + (at - this.t); }
 
   /** The circulation's clock at scenario time `at` (the two advance together, tick by tick). */
   private simTime(at: number): number { return this.live.run.sim.t + (at - this.t); }
 
-  private drive(driver: 'compressions', by: string, on: boolean): void {
+  private drive(driver: 'compressions' | 'ventilation', by: string, on: boolean): void {
+    if (driver === 'ventilation') {
+      if (!on) { this.ventilator = null; this.live.run.setVentilator(null); return; }
+      const v = new Ventilator(this.airway);
+      /* Through an airway device a team member gives breaths at a steady 10/min (ERC: continuous compressions, 10 breaths a
+         minute); with a mask, breaths only when told (the `ventilate` input), in the pauses of 30:2. The learner gives their own. */
+      if (by !== 'learner' && this.airway !== 'mask') v.steady(10, this.respTime(this.t));
+      this.ventilator = v;
+      this.live.run.setVentilator(v);
+      return;
+    }
     if (!on) { this.compressor = null; this.live.run.setCompressor(null); return; }
     const c = new Compressor(CPR.itpManual);
     /* A team member keeps a steady rate from now; the learner's compressions are their own taps. */
@@ -266,7 +303,11 @@ export class ScenarioRun {
     const x = this.interventions[p.id], e = x.effect;
     if (e.kind === 'continuous') {
       const old = this.held.get(e.slot);
-      if (old) { this.undo(old); this.held.delete(e.slot); this.events.push({ t: this.t, kind: 'release', slot: e.slot, by: p.by, id: old.id }); }
+      if (old) {
+        /* taking over: whoever held it lets go, and their hands are free */
+        if (this.actors[old.by]?.hands === e.slot) this.actors[old.by].hands = undefined;
+        this.undo(old); this.held.delete(e.slot); this.events.push({ t: this.t, kind: 'release', slot: e.slot, by: old.by, id: old.id });
+      }
       const before: Record<string, number | string> = {};
       for (const path of Object.keys(e.inputs)) before[path] = getPath(this.live.model, path);
       const stateBefore = Object.fromEntries(Object.keys(e.state ?? {}).map((k) => [k, (this.session.state as any)[k]])) as Partial<PatientState>;
@@ -278,6 +319,15 @@ export class ScenarioRun {
     } else {
       if (e.change?.length) this.writeModel(e.change.map((w) => [w.path, w.add != null ? Number(getPath(this.live.model, w.path)) + w.add : w.set!]));
       for (const g of e.grants ?? []) this.access.add(g);
+      if (e.airway) {
+        this.airway = e.airway;
+        if (this.ventilator) {
+          this.ventilator.route = e.airway;
+          /* a team member already ventilating goes over to 10/min once the airway device is in */
+          const h = this.held.get('ventilation');
+          if (h && h.by !== 'learner' && e.airway !== 'mask') this.ventilator.steady(10, this.respTime(this.t));
+        }
+      }
       if (e.state) this.setState(e.state);
     }
     this.did.add(p.id);

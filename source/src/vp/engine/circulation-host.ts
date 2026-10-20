@@ -8,6 +8,7 @@ import { CIRC } from '../evidence/circulation.ts';
 import { INF } from '../evidence/inflammation.ts';
 import { CPR } from '../evidence/cpr.ts';
 import type { Compressor } from '../physiology/cpr/compressions.ts';
+import type { Ventilator } from '../physiology/lung/ventilation.ts';
 const CMH2O_TO_MMHG = 0.7356;
 /** How quickly the circulation's reference for pleural pressure follows its mean (s): about two quiet breaths. */
 const PPL_MEAN_TAU_S = 8;
@@ -61,6 +62,8 @@ export interface CirculationRun {
   /** Chest compressions (ADR-018 step 2): the compressor whose pressure the chest feels from now on, or none. Its times
       are on the circulation's clock (`sim.t`). */
   setCompressor: (c: Compressor | null) => void;
+  /** Breaths given at the airway (ADR-018 step 2b), or none. Its times are on the lungs' clock (`resp.t`). */
+  setVentilator: (v: Ventilator | null) => void;
 }
 
 export function createCirculation(m: PatientModel): CirculationRun {
@@ -88,14 +91,22 @@ export function createCirculation(m: PatientModel): CirculationRun {
   };
 
   let pplMean = NaN;
+  /* The pressure perfusing the brainstem, aortic minus right atrial, over a few seconds (ADR-018 step 2b). */
+  let brainP = NaN;
+  const BRAIN_TAU_S = 3;
   const couple = () => {
     /* The lungs and the body see the circulation over a circulation time, not beat by beat: the mixed venous blood
        reaching the lungs is pooled from many beats, and the beats differ through each breath (the respiratory pump).
        They read the beats averaged over about a breath. */
     const mt = sim.metricsBreath ?? sim.metrics;
     const out = bodyOut();
+    const perf = (sim.Part ?? 93) - (sim.Pra ?? 4);
+    brainP = Number.isFinite(brainP) ? brainP + (perf - brainP) * (1 - Math.exp(-COUPLE_S / BRAIN_TAU_S)) : perf;
     resp.setInputs({
-      CO: mt?.CO && mt.CO > 0.3 ? mt.CO : 5.2, Pla: mt?.PlaMean ?? 7, Ppa: mt?.PpaMean ?? 15,
+      /* The lungs receive what the heart (or the compressions) pump: in an arrest very little. Before the first beat is
+         measured, the normal output. */
+      CO: mt?.CO != null && Number.isFinite(mt.CO) && sim.t > 2 ? Math.max(0.05, mt.CO) : 5.2, Pla: mt?.PlaMean ?? 7, Ppa: mt?.PpaMean ?? 15,
+      brainPerfusion: sim.t > 2 ? brainP : undefined,
       Hb: out.Hb, sbc: out.sbc, albumin: out.albumin, temp: milieu.s.T, sysDrive: milieu.ventilatoryDrive(), metabolicMult: milieu.metabolicMult(),
     });
     sim.Rpul = model.circulation.Rpul * resp.rpulMult();
@@ -130,12 +141,14 @@ export function createCirculation(m: PatientModel): CirculationRun {
        The circulation's constants were grounded on mean pressures and flows measured in breathing people, so they
        already contain breathing's average effect; what the pump adds is the swing within each breath. The mean follows
        over about two breaths. */
-    pplMean = Number.isFinite(pplMean) ? pplMean + (r.Ppl - pplMean) * (1 - Math.exp(-COUPLE_S / PPL_MEAN_TAU_S)) : r.Ppl;
+    /* The reference follows normal breathing only: when the centre fails or breaths are given, the change of pleural
+       pressure from what normal breathing averaged is itself what acts on the heart (apnoea, positive pressure). */
+    if (resp.eupnoeic() || !Number.isFinite(pplMean)) pplMean = Number.isFinite(pplMean) ? pplMean + (r.Ppl - pplMean) * (1 - Math.exp(-COUPLE_S / PPL_MEAN_TAU_S)) : r.Ppl;
     sim.dPpl = (r.Ppl - pplMean) * CMH2O_TO_MMHG;
     /* where in the breath the circulation now is, so each beat can say which phase its heart sounds fell in */
     sim.breath = { t: r.breathT, Ti: r.Ti, Te: r.Te, at: sim.t };
     milieu.setInputs({
-      MAP: mt?.Pmean ?? 93, CO: mt?.CO && mt.CO > 0.3 ? mt.CO : 5.2, CVP: mt?.CVPmean ?? 3.5, sympathetic: sim.sigmaS ?? 0.47,
+      MAP: mt?.Pmean ?? 93, CO: mt?.CO != null && Number.isFinite(mt.CO) && sim.t > 2 ? Math.max(0.05, mt.CO) : 5.2, CVP: mt?.CVPmean ?? 3.5, sympathetic: sim.sigmaS ?? 0.47,
       PaCO2: r.PaCO2, DO2: r.DO2 ?? 1000, VO2: r.VO2 ?? 250, SaO2: r.SaO2,
     });
   };
@@ -236,9 +249,10 @@ export function createCirculation(m: PatientModel): CirculationRun {
   const settle = (seconds: number) => { course(); settleFast(seconds * 0.6); };
 
   const setCompressor = (c: Compressor | null) => { sim.chest = c ? (t: number) => c.pressureAt(t) : null; if (!c) sim.Pchest = 0; };
+  const setVentilator = (v: Ventilator | null) => { resp.ventilator = v; };
 
   apply(m);
-  return { sim, heart, resp, body: milieu, apply, advance, equilibrate, settle, settleFast, course, courseSteps, setCompressor };
+  return { sim, heart, resp, body: milieu, apply, advance, equilibrate, settle, settleFast, course, courseSteps, setCompressor, setVentilator };
 }
 
 export interface SettledPatient {

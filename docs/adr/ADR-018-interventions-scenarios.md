@@ -1,6 +1,6 @@
 # ADR-018 — Interventions, scenarios and guideline scoring: acting on a running patient
 
-Status: Accepted (owner, 2026-10-19; the answers to the open questions are below); steps 1 and 2a built (2026-10-19)  
+Status: Accepted (owner, 2026-10-19; the answers to the open questions are below); steps 1 and 2 built (2026-10-19/20)  
 Date: 2026-10-19  
 Repository: ClinicalPhysiologyLab
 
@@ -238,14 +238,42 @@ Step 2 is built in two parts: 2a the compression pump (here), 2b ventilation, ap
 - **In a scenario:** the intervention `cpr.compressions` (continuous, hands busy, 2 s to start, a placement), and the input `compress` with its exact onset inside the tick, so tapped compressions replay exactly.
 - **Not yet:**
   - the breath's pleural swing does not reach the thoracic aorta (the heart–lung chain, paused);
-  - the lungs keep breathing in arrest, so a breathless patient's pleural swings pump a little blood on their own (0.5 L/min in the COPD case): apnoea in arrest comes with 2b;
-  - the lungs are still handed a normal cardiac output when the measured one is very low (`couple` in the host), and their gas exchange assumes a steady state, so end-tidal CO₂ in arrest is not yet meaningful: 2b.
+  - the lungs kept breathing in arrest, and were handed a normal cardiac output when the measured one was very low: both done in 2b.
 
-## Step 2b, planned: ventilation, apnoea, CO₂ at low flow
+## Step 2b, as built: breathing in arrest, given breaths, CO₂ at low flow
 
-- **Apnoea in arrest:** the respiratory centre stops when the brain is not perfused (agonal breaths first), grounded where human data allow.
-- **Positive pressure at the airway:** delivered breaths (bag-mask, supraglottic airway, tube) in the lung's equation of motion in place of the muscles; mask leak, an unopened airway and an oesophageal tube as states of the source. Validated against Jellinek 2000 (15 cmH₂O of airway pressure raises right atrial and filling pressure alike).
-- **CO₂ at low flow:** the body's CO₂ stores filled by metabolism and emptied by the blood the lungs receive, in place of the steady-state Fick balance, so end-tidal CO₂ follows pulmonary flow. Grounded on the rate PaCO₂ rises in apnoea; validated against Falk 1988, Ornato 1988 (1.7 % at 60/min, unchanged by rate) and Levine 1997.
+- **The respiratory centre** (`physiology/lung/respiratory.ts`) follows the pressure perfusing the brainstem (aortic minus right atrial, over 3 s, from the host). It fails in seconds (`lung.centreFailTau`, 8 s) when that falls between 25 and 10 mmHg, and recovers over a minute. The thresholds and times are placements: no human measurement was found. They are set below every living circulation in the model's cases and tests, and no existing result moved through them.
+- **Gasping:** whether a patient gasps, and for how long, is drawn once per run from its seed.
+  - **Chance:** Clark 1992, 56 % in VF.
+  - **Duration:** exponential, with the mean (8.5 min) derived from Bobrow 2008's decline with time.
+  - **Placements:** the gasps' rate and volume.
+  - Outside a scenario no one gasps.
+- **Real flow to the lungs:** the host hands the lungs and the body the measured cardiac output, not the stand-in normal 5.2 L/min it used below 0.3.
+- **CO₂ store:** the tissues and venous blood hold CO₂, with a capacity derived from Stock 1989 (3.4 mmHg/min of apnoea after the first minute). The blood brings the lungs what it carries, not what the body makes, so at low flow end-tidal CO₂ falls with the flow. This replaces the ungrounded 50 s time constant of arterial CO₂ (`lung.paco2Tau`, removed).
+- **The lungs' gas:** while breathing is not normal (the centre failing or gasping, apnoea, or breaths given), the lungs' gas is one mixed compartment with a mass balance for O₂ and CO₂.
+  - Apnoea on oxygen keeps a patient saturated for minutes.
+  - The blood bypassing the alveoli is the lungs' structural shunt.
+  - Normal breathing keeps its steady-state solution with its V/Q units.
+- **Breaths given** (`physiology/lung/ventilation.ts`): airway pressure in the equation of motion, set so the squeezed volume (0.5 L over 1 s, a placement from the guidelines) reaches the lungs.
+  - **Routes:** a mask leaks (30 %, a placement) and gives nothing on an airway that is not open; a supraglottic airway leaks 10 % (a placement); a tube seals; an oesophageal tube gives no chest rise and a flat capnogram, by itself.
+  - **Static pressure:** for PEEP and held inflations.
+  - **Pleural reference:** the circulation's pleural reference follows normal breathing only, so apnoea and positive pressure act on the heart.
+- **In a scenario:**
+  - `vent.bag` (needs a bag-mask) and the `ventilate` input (the learner's own breaths);
+  - a team member gives 10/min through an airway device; with a mask, breaths only when told (the 30:2 coordination with compressions is step 5);
+  - taking over a task frees the hands of whoever had it;
+  - `airway.supraglottic` and `airway.tube` (needs the airway kit) change the route.
+- **Validated** (`scripts/arrest.test.mjs`):
+  - **Stock 1989:** 3.4 mmHg/min after the first minute (fitted), and saturation kept through 5 min of apnoea on oxygen.
+  - **Jellinek 2000:** 15 cmH₂O of airway pressure raises right atrial pressure and lowers stroke volume.
+  - **Falk 1988:** end-tidal CO₂ falls at arrest and rises with compressions.
+  - **Ornato 1988:** end-tidal CO₂ is unchanged by the compression rate, at about 1.7 %.
+- **Known gaps** (22–25 in `docs/evidence-grounding-status.md`):
+  - **Stock's first minute:** the model rises 8.6 mmHg, Stock 12. The lungs hold an awake adult's FRC.
+  - **Jellinek's filling pressure:** the model's mean systemic filling pressure rises +1.0 mmHg, Jellinek +2.5. There is no abdominal venous pool.
+  - **Levine's late end-tidal CO₂:** 26 mmHg after 20 min of CPR, against 4.4. Nothing deteriorates during a long arrest, and there is no alveolar dead space at low pulmonary pressures.
+- **Refitted:** `cpr.cardiacExtra` 0.10 → 0.11, with the same target and procedure. The lungs no longer breathe in an arrest, and their pleural swings had been pumping a little. With it, Ornato's flat diastolic pressure across rates moved from a pass (by under a millimetre) to a known gap: 30.0 → 35.2 mmHg from 60 to 140/min (gap 21).
+- **Moved elsewhere:** CO₂ now settles through the store, so results that run through it move slightly. Moderate PE's rise of mean pulmonary arterial pressure went from just over 3 mmHg to 3.0, now a known gap where it had passed by a hair. The other shifts are in the first decimal place.
 
 ## Decided by the owner (2026-10-19)
 

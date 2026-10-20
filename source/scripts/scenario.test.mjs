@@ -121,7 +121,8 @@ console.log('\nThe seed and the inputs replay a run');
   ok('replayed from its seed and inputs, the run is the same: scene, events, encounter, model and every value', fingerprint(B) === fingerprint(A));
   ok('…including the blocked inputs and the time the cannula took', J(kinds(B, 'blocked')) === J(kinds(A, 'blocked')) && J(kinds(B, 'chance')) === J(kinds(A, 'chance')));
   const C = S.replay(COPD, { seed: 8, caseDef: caseOf('copd-exacerbation'), log: A.log, until: A.t });
-  ok('another seed draws another time for the same inputs', kinds(C, 'chance')[0].value !== kinds(A, 'chance')[0].value);
+  const cannula = (r) => kinds(r, 'chance').find((e) => e.stream === 'duration:access.iv');
+  ok('another seed draws another time for the same inputs', cannula(C).value !== cannula(A).value);
   let threw = false;
   try { A.advanceTo(10); } catch { threw = true; }
   ok('the clock never runs back', threw);
@@ -182,6 +183,56 @@ console.log('\nChest compressions in a scenario (ADR-018 step 2)');
   ok('…which makes flow too', n.CPP > 5 && n.CO > 0.2, `CPP ${n.CPP?.toFixed(1)} mmHg, CO ${n.CO.toFixed(2)} L/min`);
   const R = S.replay(VEST, { seed: 11, caseDef: caseOf('vestibular-neuritis-left'), interventions: own, log: run.log, until: run.t });
   ok('a run with tapped compressions replays exactly from its seed and taps', fingerprint(R) === fingerprint(run));
+}
+
+console.log('\nBreaths given in a scenario, and gasping drawn from the seed (ADR-018 step 2b)');
+{
+  /* Gasping: drawn once per run, from the seed, as Clark's share of VF arrests; its duration from Bobrow's decline. */
+  const draws = Array.from({ length: 4000 }, (_, i) => { const c = new S.Chance(i + 1); const u = c.uniform('gasp'); return u < S.LUNG.gaspChanceVf ? -Math.log(1 - c.uniform('gasp-duration')) * S.LUNG.gaspMeanSeconds : 0; });
+  const share = draws.filter((x) => x > 0).length / draws.length;
+  ok('over many seeds, the share of patients who gasp is Clark’s 56 % for VF (within 3 %)', Math.abs(share - 0.56) < 0.03, `${(share * 100).toFixed(0)} %`);
+  const still = (min) => draws.filter((x) => x > min * 60).length / Math.max(1, draws.filter((x) => x > 0).length);
+  ok('…and the share still gasping falls with time as in Bobrow’s patients (61, 42 and 21 % at about 4.5, 8 and 11 min; within 8 %)',
+    Math.abs(still(4.5) - 20 / 33) < 0.08 && Math.abs(still(8) - 14 / 33) < 0.08 && Math.abs(still(11) - 7 / 33) < 0.08, `${[4.5, 8, 11].map((m) => (still(m) * 100).toFixed(0)).join(', ')} %`);
+  const run = start(COPD, 4);
+  ok('a run records whether its patient would gasp, as a draw from its seed', kinds(run, 'chance')[0]?.stream === 'gasp' && run.live.run.resp.gaspFor === draws[3]);
+
+  const def = structuredClone(COPD);
+  def.scene.equipment.push({ id: 'bag-mask', label: { en: 'Bag-valve-mask', de: 'Beatmungsbeutel mit Maske' }, present: true },
+    { id: 'airway-kit', label: { en: 'Airway kit', de: 'Atemwegsset' }, present: true });
+  const r = start(def, 4);
+  ok('the learner takes the bag', r.intervene('vent.bag'));
+  r.advanceTo(6);
+  ok('…and gives a breath (squeezed over a second): the chest rises through the mask, less than through a tube', r.ventilate(r.t, 1) && (r.advanceTo(8), r.live.snap.resp.givenVolume > 0.2 && r.live.snap.resp.givenVolume < S.LUNG.bagVolume),
+    `${r.live.snap.resp.givenVolume.toFixed(2)} L`);
+  ok('only the one holding the bag can give a breath', !r.ventilate(r.t, 1, 'nurse') && kinds(r, 'blocked').at(-1)?.reason === 'not-ventilating');
+  ok('the bag keeps the hands busy', r.examine('measure.spo2').outcome === 'blocked');
+  ok('the nurse intubates while the learner bags', r.intervene('airway.tube', 'nurse'));
+  r.advanceTo(40);
+  ok('…and the breaths go through the tube from then on, without leak', r.airway === 'tube' && r.ventilator.route === 'tube' && r.ventilator.reach() === 1);
+  r.ventilate(r.t, 1); r.advanceTo(43);
+  ok('…so a breath fills the lungs with what was squeezed', Math.abs(r.live.snap.resp.givenVolume - S.LUNG.bagVolume) < 1e-9);
+  const R = S.replay(def, { seed: 4, caseDef: caseOf('copd-exacerbation'), log: r.log, until: r.t });
+  ok('a run with given breaths replays exactly', fingerprint(R) === fingerprint(r));
+}
+
+console.log('\nTaking over (ADR-018 step 2b)');
+{
+  const def = structuredClone(COPD);
+  def.scene.equipment.push({ id: 'bag-mask', label: { en: 'Bag-valve-mask', de: 'Beatmungsbeutel mit Maske' }, present: true },
+    { id: 'airway-kit', label: { en: 'Airway kit', de: 'Atemwegsset' }, present: true });
+  const r = start(def, 9);
+  r.intervene('cpr.compressions');
+  r.advanceTo(3);
+  ok('the nurse takes over the compressions the learner was doing', r.intervene('cpr.compressions', 'nurse'));
+  r.advanceTo(6);
+  ok('…and the learner’s hands are free again', !r.actors.learner.hands && r.examine('measure.hr').outcome === 'performed' && kinds(r, 'release').some((e) => e.by === 'learner' && e.slot === 'compressions'));
+  r.advanceTo(20);
+  r.release('compressions', 'nurse');
+  ok('with a mask, the nurse holding the bag gives no breaths until told', r.intervene('vent.bag', 'nurse') && (r.advanceTo(40), r.ventilator.given(0, 1e9).length === 0));
+  ok('…and gives one when told', r.ventilate(r.t, 1, 'nurse') && r.ventilator.given(0, 1e9).length === 1);
+  r.advanceTo(42);
+  ok('once a tube is in, she goes over to 10 breaths a minute', r.intervene('airway.tube', 'learner') && (r.advanceTo(110), r.airway === 'tube' && r.live.snap.resp.givenRate >= 8 && r.live.snap.resp.givenRate <= 12), `${r.live.snap.resp.givenRate?.toFixed(1)}/min`);
 }
 
 console.log('\nThe case’s course on the scenario’s clock');

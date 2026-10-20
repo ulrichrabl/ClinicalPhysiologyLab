@@ -40,10 +40,23 @@
                     the way patients do it: stiff lungs breathe fast and
                     shallow.
 
+     Arrest and     (ADR-018 step 2b) the centre fails when the brainstem is
+     given breaths  not perfused (some patients gasp first); breaths given at
+                    the airway (bag, airway device, ventilator) drive the same
+                    equation of motion. While breathing is not normal, the
+                    lungs' gas is a store (one mixed compartment), so apnoea
+                    desaturates over minutes, not seconds.
+
+     CO2 store      the tissues and venous blood hold CO2 (Stock 1989): the
+                    blood brings the lungs what it carries from them, not what
+                    the body makes, so in low flow end-tidal CO2 falls with
+                    the flow. In a steady state the two are equal.
+
    Units: gas tensions in kPa, contents in mL/dL, flows in L/min.
 =========================================================================== */
 
 import { LUNG } from '../../evidence/lung.ts';
+import type { Ventilator } from './ventilation.ts';
 
 export type LobeId = 'RUL' | 'RML' | 'RLL' | 'LUL' | 'LLL';
 export const LOBES: LobeId[] = ['RUL', 'RML', 'RLL', 'LUL', 'LLL'];
@@ -98,6 +111,9 @@ export interface RespiratoryInputs {
   sysDrive?: number;
   /** Oxygen consumption × normal from the body (thyroid hormone). */
   metabolicMult?: number;
+  /** Pressure perfusing the brainstem: aortic minus right atrial (mmHg), smoothed. Absent, the respiratory centre is
+      taken to be perfused (ADR-018 step 2b). */
+  brainPerfusion?: number;
 }
 export const DEFAULT_INPUTS: RespiratoryInputs = { CO: 5.2, Pla: 7, Ppa: 15, Hb: 150, sbc: 24, albumin: 42, temp: 37 };
 
@@ -150,6 +166,10 @@ export interface LobeState {
 export interface RespSnapshot {
   /* mechanics, instantaneous */
   t: number; V: number; flow: number; Pmus: number; Palv: number; Ppl: number; phase: 'insp' | 'exp'; breathT: number; EELV: number;
+  /* breathing in arrest and given breaths (ADR-018 step 2b) */
+  /** The respiratory centre's function, 0–1; gasping now; pressure at the airway (cmH2O); breaths given per minute and
+      the volume of the last one that reached the lungs (L, the chest rise); tissue CO2 tension (kPa). */
+  centre: number; gasping: boolean; Paw: number; givenRate: number; givenVolume: number; PtCO2: number;
   /* pattern */
   RR: number; VT: number; VE: number; VA: number; VDanat: number; Ti: number; Te: number; iPEEP: number;
   Crs: number; Raw: number; tauE: number; effort: number; demand: number; capacity: number; afferent: number;
@@ -189,6 +209,21 @@ export class Respiratory {
   private Pv = { O2: 5.3, CO2: 6.1 };
   private sinceSolve = 1e9;
   private pred: ReturnType<typeof predicted>;
+  /* ---- breathing in arrest and given breaths (ADR-018 step 2b) ---- */
+  /** The respiratory centre's function (0–1): it fails when the brainstem is not perfused. */
+  centre = 1;
+  /** Seconds the failing centre gasps for once it has failed (a patient who gasps; set by a run's seeded chance). */
+  gaspFor = 0;
+  private gaspStart = NaN;
+  /** Breaths given at the airway (bag, airway device, later the ventilator), or none. */
+  ventilator: Ventilator | null = null;
+  /** CO2 held in the tissues and venous blood, as its tension (kPa): the mixed venous PCO2 the lungs receive. */
+  PtCO2 = 6.1;
+  private Paw = 0;
+  private Rnow = 0;
+  /** The gas in the lungs, as one mixed compartment (kPa), while breathing is not normal: the store that keeps a patient
+      oxygenated for minutes of apnoea and that given breaths wash out. Null while breathing normally. */
+  private alv: { O2: number; CO2: number; Ca: { O2: number; CO2: number }; Pa: { O2: number; CO2: number }; VA: number; Cv: { O2: number; S: number } } | null = null;
 
   constructor(p: Partial<RespiratoryParams> = {}, body: Body = { age: 45, sex: 'M', heightCm: 176, weightKg: 76 }) {
     this.p = { ...RESPIRATORY_DEFAULTS, ...p };
@@ -347,14 +382,23 @@ export class Respiratory {
   /* ---- gas exchange ------------------------------------------------------------------ */
   private warm = new Map<string, [number, number]>();
 
-  solve(VE: number) {
+  /** The gas exchange for a spontaneous ventilation VE. `opt.store`: the mixed venous PCO2 is the tissue store's (kPa),
+      not the steady state's (Fick); `opt.given`: breathing other than the centre's (scaled by `opt.centre`), as
+      ventilation and alveolar ventilation (L/min). */
+  solve(VE: number, opt: { store?: number; centre?: number; given?: { VE: number; VA: number } } = {}) {
     const p = this.p, inp = this.inp;
     const m = this.mechanics();
     const pat = this.pattern(VE, m);
     const VDanat = LUNG.deadSpacePerKg * idealWeight(this.body) * (1 + LUNG.deadSpaceEmphysema * p.emphysema);            // L
-    const VA = Math.max(0.2, VE - pat.RR * VDanat);
-    const VO2 = this.VO2() + this.VO2breathing(VE, m, this.capacity(m)), VCO2 = VO2 * p.RQ;
-    const Q = Math.max(0.5, inp.CO);
+    /* The centre's own breathing, shallower as it fails (the dead space takes more of each breath), plus what is given. */
+    const special = opt.centre !== undefined || opt.given !== undefined;
+    const c = opt.centre ?? 1;
+    const VA = special ? Math.max(0, c * VE - pat.RR * VDanat) + (opt.given?.VA ?? 0) : Math.max(0.2, VE - pat.RR * VDanat);
+    const VEtot = special ? c * VE + (opt.given?.VE ?? 0) : VE;
+    const VO2 = this.VO2() + this.VO2breathing(c * VE, m, this.capacity(m)), VCO2 = VO2 * p.RQ;
+    /* The flow the lungs receive. Very low in an arrest, and then the CO2 the lungs see is what that flow brings from the
+       store (opt.store), not what the body makes. */
+    const Q = Math.max(0.05, inp.CO);
     const PIO2 = clamp(p.FiO2, 0.05, 1) * (p.Pb - PH2O);
     const dys = clamp(p.COHb + p.metHb, 0, 0.95);
     const Hb = inp.Hb;
@@ -377,7 +421,7 @@ export class Respiratory {
     let PvO2 = this.Pv.O2, PvCO2 = this.Pv.CO2;
     const lobePAO2 = m.st.map((_, i) => this.lobePA[i] ?? 13);
     let units: Unit[] = [];
-    let CaO2 = 0, CaCO2 = 0, PaO2 = this.PaO2, PaCO2 = this.PaCO2, G = 1, hpvMean = 0;
+    let CaO2 = 0, CaCO2 = 0, PaO2 = this.PaO2, PaCO2 = this.PaCO2, G = 1, hpvMean = 0, structural = 0;
 
     /* One gas-exchanging unit: O2 uptake by blood equals O2 delivered by ventilation, and the same for CO2
        given off, both through the dissociation curves. Newton's method from the last solution. */
@@ -434,6 +478,7 @@ export class Respiratory {
       hpvMean = m.st.reduce((a, l, i) => a + LOBE_PERF[l.id] * (1 - hpvC(lobePAO2[i])), 0);
       const Qlung = Q * (1 - LUNG.baseShunt);          // 2 % bypasses the alveoli altogether (bronchial and Thebesian veins)
       units = [{ lobe: -1, VA: 0, Q: Q * LUNG.baseShunt, kind: 'base', PO2: PvO2, PCO2: PvCO2, diffU: 0 }];
+      structural = Q * LUNG.baseShunt;
       m.st.forEach((l, i) => {
         const qL = Qlung * g[i] / Math.max(1e-6, G);
         const aer = LOBE_PERF[l.id] * (1 - l.emb) * l.aerated * hpvC(lobePAO2[i]);
@@ -441,6 +486,7 @@ export class Respiratory {
         const qShunt = qL - qAer;
         const vaL = VA * ventW[i] / ventSum;
         if (qShunt > 1e-6) units.push({ lobe: i, VA: 0, Q: qShunt, kind: 'shunt', PO2: PvO2, PCO2: PvCO2, diffU: 0 });
+        structural += qShunt;
         // Embolised segments are still ventilated but receive no blood: alveolar dead space.
         // Emphysema destroys the capillaries of the alveolar walls with them: more alveolar dead space.
         const dead = 1 - (1 - l.emb) * (1 - 0.4 * clamp(p.emphysema, 0, 1));
@@ -489,7 +535,7 @@ export class Respiratory {
       // mixed venous blood from metabolism (Fick)
       const nCvO2 = Math.max(0.3, CaO2 - VO2 / (10 * Q)), nCvCO2 = CaCO2 + VCO2 / (10 * Q);
       const nPvO2 = invO2(nCvO2, PvCO2);
-      const nPvCO2 = invCO2(nCvCO2, satAt(nPvO2, PvCO2));
+      const nPvCO2 = opt.store !== undefined ? opt.store : invCO2(nCvCO2, satAt(nPvO2, PvCO2));
       const d = Math.abs(nPvO2 - PvO2) + Math.abs(nPvCO2 - PvCO2);
       PvO2 = 0.3 * PvO2 + 0.7 * nPvO2; PvCO2 = 0.3 * PvCO2 + 0.7 * nPvCO2;
       m.st.forEach((_, i) => {
@@ -505,7 +551,9 @@ export class Respiratory {
     const SvO2 = satAt(PvO2, PvCO2);
     const vaTot = units.reduce((a, u) => a + u.VA, 0);
     const PACO2mix = vaTot > 0 ? units.reduce((a, u) => a + u.VA * u.PCO2, 0) / vaTot : 0;
-    const PECO2 = PACO2mix * VA / VE;
+    const PECO2 = VEtot > 1e-6 ? PACO2mix * VA / VEtot : 0;
+    /* CO2 the blood brings to the lungs and leaves there (mL/min): in a steady state, all the body makes. */
+    const delivCO2 = 10 * Q * (cCO2(PvCO2, SvO2) - CaCO2);
     // the ideal alveolar gas equation, as the clinician calculates it from the blood gas
     const PAO2ideal = PIO2 - PaCO2 * (1 - clamp(p.FiO2, 0, 1) * (1 - p.RQ)) / p.RQ;
     const CcIdeal = cO2(PAO2ideal, PaCO2);
@@ -525,8 +573,8 @@ export class Respiratory {
       };
     });
     return {
-      m, pat, VA, VDanat, VO2, VCO2, PIO2, PaO2, PaCO2, PvO2, PvCO2, SaO2, SvO2, CaO2, CvO2, PAO2ideal, PACO2mix, PECO2,
-      shunt: trueShunt, venousAdmixture: clamp((CcIdeal - CaO2) / Math.max(0.1, CcIdeal - CvO2), 0, 1),
+      m, pat, VA, VEtot, VDanat, VO2, VCO2, delivCO2, PIO2, PaO2, PaCO2, PvO2, PvCO2, SaO2, SvO2, CaO2, CvO2, PAO2ideal, PACO2mix, PECO2,
+      shunt: trueShunt, structuralShunt: structural / Math.max(1e-6, qTot), venousAdmixture: clamp((CcIdeal - CaO2) / Math.max(0.1, CcIdeal - CvO2), 0, 1),
       G, hpvMean, lobes, Q,
     };
   }
@@ -581,10 +629,49 @@ export class Respiratory {
     this.sol = best.sol ?? this.solve(best.VE);
     this.PaO2 = this.sol.PaO2; this.PaCO2 = this.sol.PaCO2;
     this.Pv = { O2: this.sol.PvO2, CO2: this.sol.PvCO2 };
+    this.PtCO2 = this.sol.PvCO2;
     this.fe = null;
     this.Pmax = (this.sol.pat.VT / this.sol.m.Crs) * 1.6;
     this.V = 0;
   }
+
+  /** Breathing other than the centre's own: true while the centre fails or barely drives (apnoea, as under anaesthesia),
+      gasps, or breaths are given. Otherwise the mechanics and the alveolar ventilation are as before ADR-018. */
+  special(): boolean { return this.centre < 0.999 || !!this.ventilator || this.VEdrive < 0.3; }
+  /** Breathing spontaneously and normally: the circulation's reference for pleural pressure follows only this. */
+  eupnoeic(): boolean { return !this.special(); }
+  gasping(): boolean { return this.centre < 0.2 && Number.isFinite(this.gaspStart) && this.t - this.gaspStart < this.gaspFor; }
+  /** CO2 store capacity (mL per kPa). */
+  private co2Capacity(): number { return LUNG.co2StorePerKg * this.body.weightKg; }
+
+  /** Ventilation given at the airway and by gasps over the last window (L/min), and its alveolar part. */
+  private givenVentilation(VD: number): { VE: number; VA: number; rate: number; last: number } {
+    const W = LUNG.givenVentilationWindow, t = this.t;
+    let VE = 0, VA = 0, n = 0, last = 0;
+    if (this.ventilator) {
+      const reach = this.ventilator.reach();
+      for (const b of this.ventilator.given(t - W, t)) { const v = b.volume * reach; VE += v; VA += Math.max(0, v - VD); n++; last = v; }
+    }
+    if (Number.isFinite(this.gaspStart)) {
+      const Tg = 60 / LUNG.gaspRate, end = this.gaspStart + this.gaspFor;
+      for (let k = Math.max(0, Math.ceil((t - W - this.gaspStart) / Tg)); ; k++) {
+        const at = this.gaspStart + k * Tg;
+        if (at >= t || at >= end) break;
+        VE += LUNG.gaspVolume; VA += Math.max(0, LUNG.gaspVolume - VD); n++;
+      }
+    }
+    return { VE: VE * 60 / W, VA: VA * 60 / W, rate: n * 60 / W, last };
+  }
+
+  /** The gas exchange as it is now: the steady-state solution while breathing normally, the store-driven one otherwise. */
+  private solveNow() {
+    if (!this.special()) return this.solve(this.VEdrive, { store: this.PtCO2 });
+    const VD = LUNG.deadSpacePerKg * idealWeight(this.body) * (1 + LUNG.deadSpaceEmphysema * this.p.emphysema);
+    const g = this.givenVentilation(VD);
+    return this.solve(this.VEdrive, { store: this.PtCO2, centre: this.spontaneousShare(), given: { VE: g.VE, VA: g.VA } });
+  }
+  /** The share of its drive the centre still turns into breaths. */
+  private spontaneousShare(): number { return this.centre * this.VEdrive >= 0.3 ? this.centre : 0; }
 
   /** Advance by `seconds`: breathing, and the slower drift of gases, drive and lung water toward their targets. */
   advance(seconds: number): void {
@@ -595,6 +682,7 @@ export class Respiratory {
       left -= h;
       this.t += h;
       this.sinceSolve += h;
+      this.centreStep(h);
       if (this.sinceSolve >= 0.5 || !this.sol) {
         const span = Math.min(this.sinceSolve, 5);
         this.sinceSolve = 0;
@@ -607,13 +695,22 @@ export class Respiratory {
           const k = 1 - Math.exp(-span / (target > this.water[i] ? 90 : 900));
           this.water[i] += (target - this.water[i]) * k;
         });
-        const sol = this.solve(this.VEdrive);
+        const sol = this.solveNow();
         this.sol = sol;
         this.fe = null;
         this.Pv = { O2: sol.PvO2, CO2: sol.PvCO2 };
-        // blood O2 follows within a circulation time; CO2 is buffered by the body's large stores
-        this.PaO2 += (sol.PaO2 - this.PaO2) * (1 - Math.exp(-span / LUNG.pao2Tau));
-        this.PaCO2 += (sol.PaCO2 - this.PaCO2) * (1 - Math.exp(-span / LUNG.paco2Tau));
+        /* While breathing is not normal the lungs' own gas is a store that changes over seconds to minutes; the arterial
+           blood and the CO2 taken from the tissues then come from it rather than from the steady state. */
+        let arterial = { O2: sol.PaO2, CO2: sol.PaCO2 }, deliv = sol.delivCO2;
+        if (this.special()) {
+          const a = this.stepAlveoli(sol, span);
+          arterial = a.Pa; deliv = a.deliv;
+        } else this.alv = null;
+        /* The tissues' CO2 store fills with what the body makes and empties by what the blood takes to the lungs. */
+        this.PtCO2 = Math.max(0.5, this.PtCO2 + ((sol.VCO2 - deliv) / 60) * span / this.co2Capacity());
+        // arterial blood follows the lungs within a circulation time
+        this.PaO2 += (arterial.O2 - this.PaO2) * (1 - Math.exp(-span / LUNG.pao2Tau));
+        this.PaCO2 += (arterial.CO2 - this.PaCO2) * (1 - Math.exp(-span / LUNG.pao2Tau));
         const target = this.delivered(this.demand(this.PaO2, this.PaCO2, sol.m), this.capacity(sol.m));
         this.VEdrive += (target - this.VEdrive) * (1 - Math.exp(-span / LUNG.driveTau));
       }
@@ -622,6 +719,69 @@ export class Respiratory {
   }
   private fe: ReturnType<Respiratory['forcedExpiration']> | null = null;
 
+  /** One mixed alveolar compartment, integrated over `span` seconds: inspired gas brought by the alveolar ventilation,
+      O2 taken up and CO2 given off by the blood that passes the alveoli (the rest, the lungs' true shunt, bypasses them). Returns the arterial tensions and the CO2 the blood takes from the tissues to the lungs. */
+  private stepAlveoli(sol: ReturnType<Respiratory['solve']>, span: number) {
+    const inp = this.inp, p = this.p;
+    const dys = clamp(p.COHb + p.metHb, 0, 0.95);
+    const sat = (po2: number, pco2: number) => satO2(po2, phOf(hco3At(inp.sbc, pco2), pco2), pco2, p.COHb, inp.temp);
+    const cO2 = (po2: number, pco2: number) => contentO2(po2, sat(po2, pco2), inp.Hb, dys);
+    const cCO2 = (pco2: number, S: number) => contentCO2(pco2, S, inp.sbc);
+    const Vgas = Math.max(0.5, sol.m.FRC + this.V);                        // L of gas in the lungs
+    const cap = Vgas * K_GAS;                                               // mL per kPa
+    /* The blood that bypasses the alveoli: the shunt of the lungs' structure (consolidated, collapsed or flooded lung, the
+       bronchial and Thebesian veins). Not the steady state's admixture, which counts unventilated lung as shunt, nor its
+       absorption atelectasis, which takes many minutes on oxygen. */
+    const Q = sol.Q, sh = clamp(sol.structuralShunt, 0, 0.95), VA = sol.VA, PIO2 = sol.PIO2;
+    if (!this.alv) {
+      /* Entering: the alveolar gas and arterial blood the normal steady state had. */
+      const PACO2 = sol.PACO2mix > 0 ? sol.PACO2mix : this.PaCO2;
+      this.alv = { O2: Math.max(sol.PvO2, Math.min(PIO2, sol.PAO2ideal)), CO2: PACO2, Ca: { O2: sol.CaO2, CO2: 0 }, Pa: { O2: this.PaO2, CO2: this.PaCO2 }, VA, Cv: { O2: sol.CvO2, S: sol.SvO2 } };
+    }
+    const a = this.alv;
+    const inv = (f: (x: number) => number, C: number, hi: number) => { let lo = 0, h = hi; for (let i = 0; i < 40; i++) { const mid = (lo + h) / 2; if (f(mid) < C) lo = mid; else h = mid; } return (lo + h) / 2; };
+    /* The mixed venous blood: the arterial blood that reached the tissues, less the O2 they took (Fick), with the CO2 of the
+       tissues' store. */
+    const venous = (CaO2: number) => {
+      const CvO2 = Math.max(0.3, CaO2 - sol.VO2 / (10 * Q));
+      const Pv = inv((x) => cO2(x, this.PtCO2), CvO2, 100);
+      return { O2: CvO2, S: sat(Pv, this.PtCO2) };
+    };
+    const n = Math.max(1, Math.ceil(span / 0.1)), dt = span / n / 60;      // minutes
+    for (let k = 0; k < n; k++) {
+      const S = sat(a.O2, a.CO2);
+      const Cc = contentO2(a.O2, S, inp.Hb, dys);
+      a.Cv = venous((1 - sh) * Cc + sh * a.Cv.O2);
+      const CvCO2 = cCO2(this.PtCO2, a.Cv.S);
+      const up = 10 * Q * (1 - sh) * (Cc - a.Cv.O2);
+      const off = 10 * Q * (1 - sh) * (CvCO2 - cCO2(a.CO2, S));
+      a.O2 = clamp(a.O2 + (K_GAS * VA * (PIO2 - a.O2) - up) / cap * dt, 0.5, PIO2);
+      a.CO2 = clamp(a.CO2 + (off - K_GAS * VA * a.CO2) / cap * dt, 0, 30);
+    }
+    const S = sat(a.O2, a.CO2);
+    const CvCO2 = cCO2(this.PtCO2, a.Cv.S);
+    const CaO2 = (1 - sh) * contentO2(a.O2, S, inp.Hb, dys) + sh * a.Cv.O2;
+    const CaCO2 = (1 - sh) * cCO2(a.CO2, S) + sh * CvCO2;
+    const PaCO2 = inv((x) => cCO2(x, S), CaCO2, 30);
+    const PaO2 = inv((x) => cO2(x, PaCO2), CaO2, 100);
+    a.Ca = { O2: CaO2, CO2: CaCO2 }; a.Pa = { O2: PaO2, CO2: PaCO2 }; a.VA = VA;
+    return { Pa: a.Pa, deliv: 10 * Q * (CvCO2 - CaCO2) };
+  }
+
+  /** The respiratory centre follows the brainstem's perfusion: it fails within seconds, recovers over a minute. */
+  private centreStep(h: number): void {
+    const bp = this.inp.brainPerfusion;
+    if (bp === undefined) { this.centre = 1; this.gaspStart = NaN; return; }
+    const x = clamp((bp - LUNG.centrePerfusionZero) / (LUNG.centrePerfusionFull - LUNG.centrePerfusionZero), 0, 1);
+    const target = x * x * (3 - 2 * x);
+    if (target >= 1 && this.centre >= 0.999) { this.centre = 1; return; }
+    const tau = target < this.centre ? LUNG.centreFailTau : LUNG.centreRecoverTau;
+    this.centre += (target - this.centre) * (1 - Math.exp(-h / tau));
+    if (this.centre >= 0.999 && target >= 1) this.centre = 1;
+    if (this.centre < 0.2 && !Number.isFinite(this.gaspStart)) { this.gaspStart = this.t; this.sinceSolve = 1e9; }
+    if (this.centre > 0.5) this.gaspStart = NaN;
+  }
+
   private breathe(h: number): void {
     const sol = this.sol, pat = sol.pat, m = sol.m;
     const Ttot = pat.Ti + pat.Te;
@@ -629,7 +789,7 @@ export class Respiratory {
     if (this.breathT >= Ttot) {
       // end of a breath: adjust the inspiratory pressure toward the tidal volume the centre wants
       const got = Math.max(0.02, this.vtThis);
-      this.Pmax = clamp(this.Pmax * (pat.VT / got) ** 0.7, 0.5, 60 * clamp(this.p.muscleStrength, 0.05, 1.3));
+      if (!this.special()) this.Pmax = clamp(this.Pmax * (pat.VT / got) ** 0.7, 0.5, 60 * clamp(this.p.muscleStrength, 0.05, 1.3));
       this.breathT -= Ttot;
       this.endExp = this.V;
       this.vStart = this.V;
@@ -637,6 +797,8 @@ export class Respiratory {
     }
     const insp = this.breathT < pat.Ti;
     this.phase = insp ? 'insp' : 'exp';
+    if (this.special()) { this.breatheSpecial(h, insp, pat, m); return; }
+    this.Paw = 0;
     /* The inspiratory muscles' pressure rises through inspiration to its peak at its end, and relaxes over early expiration
        (the waveform of Albanese 2016). So air flows in for the whole of Ti, as Tobin's duty cycle says, and pleural pressure is
        lowest at end-inspiration. (A half-sine peaking mid-inspiration let the lungs empty again before Ti was over.) */
@@ -644,6 +806,7 @@ export class Respiratory {
     const Pmus = insp ? this.Pmax * (t * (Ttot - t)) / (Ti * Te)
                       : (this.Pmax / (1 - Math.exp(-Te / tauM))) * (Math.exp(-(t - Ti) / tauM) - Math.exp(-Te / tauM));
     const R = insp ? m.Ri : m.Re;
+    this.Rnow = R;
     const tau = R * m.Crs;
     const Vinf = Pmus * m.Crs;                         // V measured above the relaxed FRC
     const Vn = Vinf + (this.V - Vinf) * Math.exp(-h / tau);
@@ -655,6 +818,32 @@ export class Respiratory {
   }
   private Pmus = 0;
 
+  /** Breathing while the centre fails, gasps, or breaths are given: the muscles' pressure (scaled by what the centre still
+      does), a gasp's, and the airway's all drive the same equation of motion. Air flows in while the driving pressure's
+      equilibrium volume is above the lungs' volume, out while below. */
+  private breatheSpecial(h: number, insp: boolean, pat: { Ti: number; Te: number; VT: number }, m: ReturnType<Respiratory['mechanics']>): void {
+    const t = this.breathT, Ti = pat.Ti, Te = pat.Te, Ttot = Ti + Te, tauM = Math.max(0.05, LUNG.pmusDecay * Te);
+    const own = insp ? this.Pmax * (t * (Ttot - t)) / (Ti * Te)
+                     : (this.Pmax / (1 - Math.exp(-Te / tauM))) * (Math.exp(-(t - Ti) / tauM) - Math.exp(-Te / tauM));
+    let Pmus = own * this.spontaneousShare();
+    if (this.gasping()) {
+      /* A gasp: a brief, strong inspiratory pull, half a second long. */
+      const Tg = 60 / LUNG.gaspRate, gTi = 0.5, g = (this.t - this.gaspStart) % Tg;
+      if (g < gTi) Pmus += LUNG.gaspVolume / (m.Crs * (2 / Math.PI) * (1 - Math.exp(-gTi / Math.max(0.02, m.Ri * m.Crs)))) * Math.sin(Math.PI * g / gTi);
+    }
+    const Paw = this.ventilator ? this.ventilator.pressureAt(this.t, m.Crs, m.Ri * m.Crs) : 0;
+    this.Paw = Paw;
+    const Vinf = (Pmus + Paw) * m.Crs;
+    const R = Vinf >= this.V ? m.Ri : m.Re;
+    this.Rnow = R;
+    const Vn = Vinf + (this.V - Vinf) * Math.exp(-h / (R * m.Crs));
+    this.flow = (Vn - this.V) / h;
+    this.V = Vn;
+    this.Pmus = Pmus;
+    if (this.breathT < h) { this.endExp = this.V; this.vStart = this.V; this.vtThis = 0; }
+    this.vtThis = Math.max(this.vtThis, this.V - this.vStart);
+  }
+
   snapshot(): RespSnapshot {
     const sol = this.sol, m = sol.m, pat = sol.pat, p = this.p;
     const pH = phOf(hco3At(this.inp.sbc, this.PaCO2), this.PaCO2);
@@ -665,18 +854,26 @@ export class Respiratory {
     const dem = this.demand(this.PaO2, this.PaCO2, m), cap = this.capacity(m);
     const s = this.starling();
     // cmH2O: alveolar pressure drives flow through the airways; pleural pressure adds the lung's recoil (≈ −5 at FRC)
-    const Palv = -(this.phase === 'insp' ? m.Ri : m.Re) * this.flow;
+    const Palv = this.special() ? this.Paw - this.Rnow * this.flow : -(this.phase === 'insp' ? m.Ri : m.Re) * this.flow;
+    const sp = this.special();
+    const VD = sol.VDanat;
+    const g = sp ? this.givenVentilation(VD) : { VE: 0, VA: 0, rate: 0, last: 0 };
+    const own = sp ? this.spontaneousShare() : 1;
     const Ppl = Palv + LUNG.restingPleural - this.V / m.CL;
     return {
       t: this.t, V: this.V, flow: this.flow, Pmus: this.Pmus, Palv, Ppl, phase: this.phase, breathT: this.breathT, EELV: m.FRC + this.endExp,
-      RR: pat.RR, VT: pat.VT, VE: this.VEdrive, VA: sol.VA, VDanat: sol.VDanat, Ti: pat.Ti, Te: pat.Te, iPEEP: Math.max(0, this.endExp / m.Crs),
+      ...(sp ? { RR: (own > 0 ? pat.RR : 0) + g.rate, VT: (own * this.VEdrive + g.VE) / Math.max(1e-6, (own > 0 ? pat.RR : 0) + g.rate) * (((own > 0 ? pat.RR : 0) + g.rate) > 0 ? 1 : 0), VE: own * this.VEdrive + g.VE }
+            : { RR: pat.RR, VT: pat.VT, VE: this.VEdrive }),
+      VA: sol.VA,
+      centre: this.centre, gasping: this.gasping(), Paw: this.Paw, givenRate: g.rate, givenVolume: g.last, PtCO2: this.PtCO2, VDanat: sol.VDanat, Ti: pat.Ti, Te: pat.Te, iPEEP: Math.max(0, this.endExp / m.Crs),
       Crs: m.Crs * 1000, Raw: (m.Ri + m.Re) / 2, tauE: m.Re * m.Crs, effort: dem / cap, demand: dem, capacity: cap, afferent: this.afferent(m),
-      PIO2: sol.PIO2, PAO2ideal: sol.PAO2ideal, PaO2: this.PaO2, PaCO2: this.PaCO2, PvO2: sol.PvO2, PvCO2: sol.PvCO2, pH, hco3: hco3At(this.inp.sbc, this.PaCO2),
-      SaO2, SvO2: sol.SvO2, FO2Hb: SaO2 * (1 - dys), FHHb: (1 - SaO2) * (1 - dys), COHb: p.COHb, metHb: p.metHb, CaO2, CvO2: sol.CvO2,
+      PIO2: sol.PIO2, PAO2ideal: sol.PAO2ideal, PaO2: this.PaO2, PaCO2: this.PaCO2, PvO2: sol.PvO2, PvCO2: this.alv ? this.PtCO2 : sol.PvCO2, pH, hco3: hco3At(this.inp.sbc, this.PaCO2),
+      SaO2, SvO2: this.alv ? this.alv.Cv.S : sol.SvO2, FO2Hb: SaO2 * (1 - dys), FHHb: (1 - SaO2) * (1 - dys), COHb: p.COHb, metHb: p.metHb, CaO2, CvO2: this.alv ? this.alv.Cv.O2 : sol.CvO2,
       DO2: sol.Q * CaO2 * 10, VO2: sol.VO2, VCO2: sol.VCO2, AaGradient: sol.PAO2ideal - this.PaO2, shunt: sol.shunt, venousAdmixture: sol.venousAdmixture,
-      EtCO2: sol.PACO2mix, PECO2: sol.PECO2, VDVT: clamp((this.PaCO2 - sol.PECO2) / Math.max(0.1, this.PaCO2), 0, 1),
+      /* With the lungs' own gas as the store, what is breathed out is that gas; with nothing breathed out, the capnograph reads nothing. */
+      EtCO2: this.alv ? (this.alv.VA > 0.05 ? this.alv.CO2 : 0) : sol.PACO2mix, PECO2: sol.PECO2, VDVT: clamp((this.PaCO2 - sol.PECO2) / Math.max(0.1, this.PaCO2), 0, 1),
       // capillary blood, halfway between arterial and mixed venous: what colours lips and tongue
-      deoxyHb: this.inp.Hb * (1 - dys) * (1 - (SaO2 + sol.SvO2) / 2),
+      deoxyHb: this.inp.Hb * (1 - dys) * (1 - (SaO2 + (this.alv ? this.alv.Cv.S : sol.SvO2)) / 2),
       RpulMult: this.rpulMult(),
       Pcap: s.Pcap, filtration: s.J, interstitial: this.interstitial, HPVtone: sol.hpvMean,
       TLC: m.TLC, RV: m.RV, FRC: m.FRC, FVC: fe.FVC, FEV1: fe.FEV1, PEF: fe.PEF,
@@ -728,8 +925,8 @@ export class Respiratory {
     return clamp(LUNG.sympatheticHypoxia * hyp + LUNG.sympatheticCo2 * Math.max(0, this.PaCO2 - LUNG.sympatheticCo2Onset) + LUNG.sympatheticAfferent * this.afferent(), 0, 1);
   }
 
-  serialize() { return { PaO2: this.PaO2, PaCO2: this.PaCO2, VEdrive: this.VEdrive, water: [...this.water], interstitial: this.interstitial, t: this.t, Pv: { ...this.Pv } }; }
-  restore(s: ReturnType<Respiratory['serialize']>) { Object.assign(this, { PaO2: s.PaO2, PaCO2: s.PaCO2, VEdrive: s.VEdrive, water: [...s.water], interstitial: s.interstitial, t: s.t, Pv: { ...s.Pv } }); this.sinceSolve = 1e9; this.sol = this.solve(this.VEdrive); }
+  serialize() { return { PaO2: this.PaO2, PaCO2: this.PaCO2, VEdrive: this.VEdrive, water: [...this.water], interstitial: this.interstitial, t: this.t, Pv: { ...this.Pv }, PtCO2: this.PtCO2, centre: this.centre }; }
+  restore(s: ReturnType<Respiratory['serialize']>) { Object.assign(this, { PaO2: s.PaO2, PaCO2: s.PaCO2, VEdrive: s.VEdrive, water: [...s.water], interstitial: s.interstitial, t: s.t, Pv: { ...s.Pv }, PtCO2: s.PtCO2 ?? s.Pv.CO2, centre: s.centre ?? 1 }); this.sinceSolve = 1e9; this.sol = this.solveNow(); }
 }
 
 /** Pulse oximetry: red and infrared absorbance of the pulsatile blood, read through a calibration made on O2Hb and HHb alone. */
