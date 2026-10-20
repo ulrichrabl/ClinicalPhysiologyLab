@@ -382,6 +382,7 @@ export class ScenarioRun {
     this.events.push({ t: this.t, kind: 'scene', state: name });
     for (const d of st.enter ?? []) {
       if ('say' in d) this.events.push({ t: this.t, kind: 'say', who: d.say.who, text: d.say.text });
+      else if ('change' in d) this.writeModel(d.change.map((w) => [w.path, w.add != null ? Number(getPath(this.live.model, w.path)) + w.add : w.set!]));
       else this.arrivals.push({ at: this.tick + Math.round(d.arrive.afterSeconds / TICK_S), people: d.arrive.people ?? [], equipment: d.arrive.equipment ?? [] });
     }
     this.arrive();

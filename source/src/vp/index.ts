@@ -70,7 +70,8 @@ export { Chance } from './scenario/chance.ts';
 export { validateInterventions, validateScenario } from './scenario/validate.ts';
 import copdEdOxygen from './scenarios/copd-ed-oxygen.json';
 import vestibularEdCourse from './scenarios/vestibular-ed-course.json';
+import arrestPractice from './scenarios/arrest-practice.json';
 import type { ScenarioDef } from './scenario/types.ts';
 
 /** Scenarios are JSON documents, like cases; the validator vouches for them. All drafts for now. */
-export const SCENARIOS: ScenarioDef[] = [copdEdOxygen, vestibularEdCourse] as unknown as ScenarioDef[];
+export const SCENARIOS: ScenarioDef[] = [copdEdOxygen, vestibularEdCourse, arrestPractice] as unknown as ScenarioDef[];

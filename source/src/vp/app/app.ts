@@ -83,6 +83,10 @@ const UI: Record<string, Record<Lang, string>> = {
   backToDebrief: { en: 'Debrief', de: 'Nachbesprechung' }, backToEncounter: { en: 'Patient', de: 'Patient' },
   stationText: { en: 'One test and the physiology that writes it, side by side: the ECG with the conduction system and the cardiac vector at every instant of the beat.', de: 'Ein Test und die Physiologie, die ihn schreibt, nebeneinander: das EKG mit dem Reizleitungssystem und dem Herzvektor in jedem Moment des Herzschlags.' },
   openStation: { en: 'Open the station', de: 'Station öffnen' },
+  practiceTag: { en: 'Practice · draft', de: 'Übung · Entwurf' },
+  practiceArrestTitle: { en: 'Cardiac arrest', de: 'Herz-Kreislauf-Stillstand' },
+  practiceArrestText: { en: 'A man collapses in front of you. Compressions and breaths with your own hands, the clock running. No defibrillator or drugs yet.', de: 'Ein Mann bricht vor Ihnen zusammen. Kompressionen und Beatmung mit eigenen Händen, die Uhr läuft. Noch kein Defibrillator und keine Medikamente.' },
+  openPractice: { en: 'Start', de: 'Beginnen' },
   stationAuscText: { en: 'The heart sounds and the mechanics that make them, side by side: the phonocardiogram with a Wiggers diagram of every beat, its pressures, valves and phases.', de: 'Die Herztöne und die Mechanik, die sie erzeugt, nebeneinander: das Phonokardiogramm mit einem Wiggers-Diagramm jedes Schlags, seinen Drücken, Klappen und Phasen.' },
   preparing: { en: 'Bringing the patient to a steady state…', de: 'Der Patient erreicht einen stabilen Zustand…' },
   placeholder: { en: 'Ask or examine…', de: 'Fragen oder untersuchen…' }, send: { en: 'Go', de: 'Los' },
@@ -168,10 +172,11 @@ import { FREE_CASE } from './free-case.ts';
 import { installReport } from './report.ts';
 import { mountEcgStation, type StationHandle } from './station-ecg.ts';
 import { ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION } from '../stations/station.ts';
-type StationId = 'ecg' | 'auscultation' | 'eyes' | 'pulse';
+type StationId = 'ecg' | 'auscultation' | 'eyes' | 'pulse' | 'arrest';
 import { mountAuscultationStation } from './station-auscultation.ts';
 import { mountEyeStation } from './station-eyes.ts';
 import { mountPulseStation } from './station-pulse.ts';
+import { mountArrestPractice } from './practice-arrest.ts';
 import { pulseSignsOf } from '../stations/pulse-signs.ts';
 import { eyeSignsOf } from '../stations/eye-signs.ts';
 import { ecgSignsOf } from '../stations/ecg-signs.ts';
@@ -347,6 +352,12 @@ export function mount(root: HTMLElement) {
       <p class="bed-triage">${t('stationPulseText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
     pc.querySelector('button')!.onclick = () => openStation('pulse');
     wl.appendChild(pc);
+    const ar = document.createElement('article');
+    ar.className = 'bedcard free';
+    ar.innerHTML = `<span class="tag">${t('practiceTag')}</span><h2>${t('practiceArrestTitle')}</h2>
+      <p class="bed-triage">${t('practiceArrestText')}</p><button type="button" class="primary">${t('openPractice')}</button>`;
+    ar.querySelector('button')!.onclick = () => openStation('arrest');
+    wl.appendChild(ar);
   };
   /* A station opens on a healthy heart from the Ward, or on the patient being examined (ADR-017 step 5). On a patient only
      when the mechanism is no longer a spoiler: in the free lab, or once the learner has committed to a diagnosis. Back returns
@@ -356,7 +367,7 @@ export function mount(root: HTMLElement) {
     const withPatient = onPatient && !!live && !!s && (free || committed);
     if (from === 'ward') stopLive(); else live?.stop();
     show('station');
-    const mount = which === 'ecg' ? mountEcgStation : which === 'eyes' ? mountEyeStation : which === 'pulse' ? mountPulseStation : mountAuscultationStation;
+    const mount = which === 'ecg' ? mountEcgStation : which === 'eyes' ? mountEyeStation : which === 'pulse' ? mountPulseStation : which === 'arrest' ? mountArrestPractice : mountAuscultationStation;
     station = mount($('#station'), {
       lang,
       ...(withPatient ? { patient: { model: structuredClone(live!.model), name: { en: base.patient.name, de: base.patient.name } } } : {}),

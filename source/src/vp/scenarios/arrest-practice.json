@@ -1,0 +1,45 @@
+{
+  "schema": "vp.scenario/1",
+  "id": "arrest-practice",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": {
+    "en": "Practice: cardiac arrest",
+    "de": "Übung: Herz-Kreislauf-Stillstand"
+  },
+  "caseId": "free-patient",
+  "purpose": "A first practice screen after ADR-018 step 2: a healthy man whose heart fibrillates a few seconds in, a nurse, and a bag-mask on the wall. Compressions and breaths only; no defibrillator or drugs yet. For the owner to try.",
+  "scene": {
+    "place": { "en": "A side room on the ward", "de": "Ein Nebenzimmer auf Station" },
+    "people": [
+      { "id": "nurse", "role": { "en": "Nurse", "de": "Pflegekraft" }, "present": true }
+    ],
+    "equipment": [
+      { "id": "bag-mask", "label": { "en": "Bag-valve-mask on the wall", "de": "Beatmungsbeutel mit Maske an der Wand" }, "present": true }
+    ]
+  },
+  "machine": {
+    "start": "talking",
+    "states": {
+      "talking": {
+        "label": { "en": "Talking", "de": "Im Gespräch" },
+        "enter": [
+          { "say": { "who": "patient", "text": { "en": "I feel a bit odd…", "de": "Mir ist irgendwie komisch…" } } }
+        ],
+        "next": [{ "when": { "inStateFor": 4 }, "to": "arrest" }]
+      },
+      "arrest": {
+        "label": { "en": "Cardiac arrest", "de": "Herz-Kreislauf-Stillstand" },
+        "enter": [
+          { "change": [{ "path": "electrical.ventricular", "set": "vf" }] },
+          { "say": { "who": "nurse", "text": { "en": "He’s collapsed! He isn’t responding.", "de": "Er ist zusammengebrochen! Er reagiert nicht." } } }
+        ],
+        "next": [{ "when": { "at": 1200 }, "to": "end" }]
+      },
+      "end": {
+        "label": { "en": "Twenty minutes", "de": "Zwanzig Minuten" },
+        "final": true
+      }
+    }
+  }
+}
