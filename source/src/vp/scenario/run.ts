@@ -149,6 +149,7 @@ export class ScenarioRun {
     else if (e.do === 'examine') this.examine(e.manoeuvre, e.side, e.by);
     else if (e.do === 'compress') this.compress(e.at, e.by);
     else if (e.do === 'ventilate') this.ventilate(e.at, e.seconds, e.by);
+    else if (e.do === 'bag') this.bag(e.phase, e.at, e.by);
     else this.order(e.test, e.by);
   }
 
@@ -319,6 +320,19 @@ export class ScenarioRun {
     if (!h || h.by !== by || !this.ventilator) return this.blocked('ventilate', by, 'not-ventilating');
     this.ventilator.give(this.respTime(at), LUNG.bagVolume, Math.max(0.2, seconds));
     return true;
+  }
+
+  /** The bag squeezed and let go by whoever holds the ventilation: the breath lasts as long as it is held (decision 7). */
+  bag(phase: 'squeeze' | 'release', at: number, by = 'learner'): boolean {
+    if (!this.actors[by]) throw new Error(`no one called ${by} in scenario ${this.def.id}`);
+    if (!(at >= this.t - 1e-9 && at < this.t + TICK_S + 1e-9)) throw new Error(`a squeeze at ${at} s given at ${this.t} s`);
+    this.note({ t: this.t, do: 'bag', phase, at, by });
+    const h = this.held.get('ventilation');
+    if (!h || h.by !== by || !this.ventilator) return phase === 'release' ? false : this.blocked('ventilate', by, 'not-ventilating');
+    if (phase === 'squeeze') { this.ventilator.squeeze(this.respTime(at)); return true; }
+    const b = this.ventilator.release(this.respTime(at));
+    if (b) this.events.push({ t: this.t, kind: 'breath', by, seconds: Math.round(b.ti * 100) / 100, volume: Math.round(b.volume * 1000) / 1000 });
+    return !!b;
   }
 
   /** The lungs' clock at scenario time `at`. */

@@ -235,6 +235,25 @@ console.log('\nTaking over (ADR-018 step 2b)');
   ok('once a tube is in, she goes over to 10 breaths a minute', r.intervene('airway.tube', 'learner') && (r.advanceTo(110), r.airway === 'tube' && r.live.snap.resp.givenRate >= 8 && r.live.snap.resp.givenRate <= 12), `${r.live.snap.resp.givenRate?.toFixed(1)}/min`);
 }
 
+console.log('\nA breath lasts as long as the bag is squeezed (decision 7)');
+{
+  const P = structuredClone(scenarioOf('arrest-practice'));
+  P.machine.states.arrest.enter = P.machine.states.arrest.enter.filter((d) => !('leave' in d) && !('arrive' in d));
+  const r = start(P, 41, S.FREE_CASE);
+  r.advanceTo(10);
+  ok('squeezing needs the bag in your hands', !r.bag('squeeze', r.t) && kinds(r, 'blocked').at(-1)?.reason === 'not-ventilating');
+  r.intervene('vent.bag');
+  r.advanceTo(20);
+  const held = (s) => { const t0 = r.t; r.bag('squeeze', t0); r.advanceTo(Math.round((t0 + s) * 10) / 10); r.bag('release', r.t); const b = kinds(r, 'breath').at(-1); r.advanceTo(r.t + 6); return b; };
+  const quick = held(0.3), standard = held(1.0), long = held(2.0);
+  ok('a squeeze held about a second gives the standard breath (bagVolume, 0.5 L)', Math.abs(standard.volume - S.LUNG.bagVolume) < 0.01 && standard.seconds === 1, `${standard.volume} L over ${standard.seconds} s`);
+  ok('a quick squeeze gives less: the lungs have not filled to the pressure', quick.volume < 0.8 * standard.volume, `${quick.volume} L over ${quick.seconds} s`);
+  ok('holding longer adds little: the lungs have come up to the pressure', long.volume > standard.volume && long.volume < 1.1 * standard.volume, `${long.volume} L over ${long.seconds} s`);
+  ok('letting go of a bag not squeezed does nothing', !r.bag('release', r.t) && kinds(r, 'breath').length === 3);
+  const R = S.replay(P, { seed: 41, caseDef: S.FREE_CASE, log: r.log, until: r.t });
+  ok('a run with held squeezes replays exactly', fingerprint(R) === fingerprint(r) && J(kinds(R, 'breath')) === J(kinds(r, 'breath')));
+}
+
 console.log('\nThe practice arrest (a scene that changes the model)');
 {
   const P = scenarioOf('arrest-practice');
