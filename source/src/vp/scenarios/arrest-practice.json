@@ -1,43 +1,132 @@
 {
   "schema": "vp.scenario/1",
   "id": "arrest-practice",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "status": "draft",
   "title": {
     "en": "Practice: cardiac arrest",
     "de": "Übung: Herz-Kreislauf-Stillstand"
   },
   "caseId": "free-patient",
-  "purpose": "A first practice screen after ADR-018 step 2: a healthy man whose heart fibrillates a few seconds in, a nurse, and a bag-mask on the wall. Compressions and breaths only; no defibrillator or drugs yet. For the owner to try.",
+  "purpose": "A practice screen after ADR-018 step 3: a healthy man whose heart fibrillates a few seconds in; the nurse goes for the arrest trolley and is back with the defibrillator a minute later, so the learner starts alone. A bag-mask on the wall. Compressions, breaths and shocks; no drugs yet. For the owner to try.",
   "scene": {
-    "place": { "en": "A side room on the ward", "de": "Ein Nebenzimmer auf Station" },
+    "place": {
+      "en": "A side room on the ward",
+      "de": "Ein Nebenzimmer auf Station"
+    },
     "people": [
-      { "id": "nurse", "role": { "en": "Nurse", "de": "Pflegekraft" }, "present": true }
+      {
+        "id": "nurse",
+        "role": {
+          "en": "Nurse",
+          "de": "Pflegekraft"
+        },
+        "present": true
+      }
     ],
     "equipment": [
-      { "id": "bag-mask", "label": { "en": "Bag-valve-mask on the wall", "de": "Beatmungsbeutel mit Maske an der Wand" }, "present": true }
+      {
+        "id": "bag-mask",
+        "label": {
+          "en": "Bag-valve-mask on the wall",
+          "de": "Beatmungsbeutel mit Maske an der Wand"
+        },
+        "present": true
+      },
+      {
+        "id": "defibrillator",
+        "label": {
+          "en": "Arrest trolley with a defibrillator",
+          "de": "Notfallwagen mit Defibrillator"
+        },
+        "present": false
+      }
     ]
   },
   "machine": {
     "start": "talking",
     "states": {
       "talking": {
-        "label": { "en": "Talking", "de": "Im Gespräch" },
+        "label": {
+          "en": "Talking",
+          "de": "Im Gespräch"
+        },
         "enter": [
-          { "say": { "who": "patient", "text": { "en": "I feel a bit odd…", "de": "Mir ist irgendwie komisch…" } } }
+          {
+            "say": {
+              "who": "patient",
+              "text": {
+                "en": "I feel a bit odd…",
+                "de": "Mir ist irgendwie komisch…"
+              }
+            }
+          }
         ],
-        "next": [{ "when": { "inStateFor": 4 }, "to": "arrest" }]
+        "next": [
+          {
+            "when": {
+              "inStateFor": 4
+            },
+            "to": "arrest"
+          }
+        ]
       },
       "arrest": {
-        "label": { "en": "Cardiac arrest", "de": "Herz-Kreislauf-Stillstand" },
+        "label": {
+          "en": "Cardiac arrest",
+          "de": "Herz-Kreislauf-Stillstand"
+        },
         "enter": [
-          { "change": [{ "path": "electrical.ventricular", "set": "vf" }] },
-          { "say": { "who": "nurse", "text": { "en": "He’s collapsed! He isn’t responding.", "de": "Er ist zusammengebrochen! Er reagiert nicht." } } }
+          {
+            "change": [
+              {
+                "path": "electrical.ventricular",
+                "set": "vf"
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "He’s collapsed! He isn’t responding. I’ll get the arrest trolley.",
+                "de": "Er ist zusammengebrochen! Er reagiert nicht. Ich hole den Notfallwagen."
+              }
+            }
+          },
+          {
+            "leave": {
+              "people": [
+                "nurse"
+              ]
+            }
+          },
+          {
+            "arrive": {
+              "people": [
+                "nurse"
+              ],
+              "equipment": [
+                "defibrillator"
+              ],
+              "afterSeconds": 60
+            }
+          }
         ],
-        "next": [{ "when": { "at": 1200 }, "to": "end" }]
+        "next": [
+          {
+            "when": {
+              "at": 1200
+            },
+            "to": "end"
+          }
+        ]
       },
       "end": {
-        "label": { "en": "Twenty minutes", "de": "Zwanzig Minuten" },
+        "label": {
+          "en": "Twenty minutes",
+          "de": "Zwanzig Minuten"
+        },
         "final": true
       }
     }

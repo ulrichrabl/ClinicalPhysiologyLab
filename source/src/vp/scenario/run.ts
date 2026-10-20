@@ -11,6 +11,7 @@ import { Chance } from './chance.ts';
 import { Compressor } from '../physiology/cpr/compressions.ts';
 import { CPR } from '../evidence/cpr.ts';
 import { LUNG } from '../evidence/lung.ts';
+import { ARREST } from '../evidence/arrest.ts';
 import { Ventilator, type AirwayRoute } from '../physiology/lung/ventilation.ts';
 import type { InterventionDef, ScenarioDef, ScenarioEvent, ScenarioInput, SceneWhen } from './types.ts';
 
@@ -116,6 +117,11 @@ export class ScenarioRun {
     this.tick++;
     this.live.advance(TICK_S);
     this.sync();
+    if (this.refibAt != null && this.tick >= this.refibAt) {
+      this.refibAt = null;
+      const from = this.rhythm();
+      if (from !== 'vf') { this.writeModel([['electrical.ventricular', 'vf']]); this.events.push({ t: this.t, kind: 'refibrillation', from }); }
+    }
     for (const p of this.pending.filter((x) => x.at <= this.tick)) this.complete(p);
     this.pending = this.pending.filter((x) => x.at > this.tick);
     this.arrive();
@@ -264,6 +270,8 @@ export class ScenarioRun {
   charged = false;
   /** Shocks delivered. */
   shocks = 0;
+  /** When (tick) VF comes back after the last terminating shock, if it will. */
+  private refibAt: number | null = null;
 
   /** Deliver the charged shock (ADR-018 step 3). Whether it ends the fibrillation, and what follows, is drawn from the run's
       seed; the heart's own state sets the odds. A shock given uncharged does nothing; one given with hands on the patient,
@@ -286,6 +294,14 @@ export class ScenarioRun {
     if (outcome !== 'not-terminated') this.events.push({ t: this.t, kind: 'chance', stream: 'shock-rhythm', value: uR, use: `then ${outcome === 'organised' ? 'an organised rhythm' : 'asystole'} (chance of organised ${(this.live.run.arrest.organisedChance() * 100).toFixed(0)} %)` });
     if (outcome === 'organised') this.writeModel([['electrical.ventricular', 'none']]);
     if (outcome === 'asystole') this.writeModel([['electrical.ventricular', 'asystole']]);
+    /* After a terminating shock VF comes back in most patients, within a minute or two (van Alem 2003). Drawn now. */
+    this.refibAt = null;
+    const uF = this.chance.uniform('refibrillation'), uFt = this.chance.uniform('refibrillation-time');
+    if (outcome !== 'not-terminated' && uF < ARREST.refibrillationChance) {
+      const after = -Math.log(1 - uFt) * ARREST.refibrillationMedian / Math.LN2;
+      this.refibAt = this.tick + Math.max(1, Math.round(after / TICK_S));
+      this.events.push({ t: this.t, kind: 'chance', stream: 'refibrillation', value: uF, use: `VF will come back after ${after.toFixed(0)} s` });
+    }
     this.events.push({ t: this.t, kind: 'shock', by, rhythm, outcome, joules });
   }
 
@@ -415,6 +431,14 @@ export class ScenarioRun {
     this.events.push({ t: this.t, kind: 'scene', state: name });
     for (const d of st.enter ?? []) {
       if ('say' in d) this.events.push({ t: this.t, kind: 'say', who: d.say.who, text: d.say.text });
+      else if ('leave' in d) {
+        for (const who of d.leave.people) {
+          /* whatever they held is let go */
+          for (const [slot, h] of [...this.held]) if (h.by === who) this.release(slot, who);
+          this.actors[who].present = false; this.actors[who].busyUntil = 0;
+        }
+        this.events.push({ t: this.t, kind: 'leave', people: d.leave.people });
+      }
       else if ('change' in d) this.writeModel(d.change.map((w) => [w.path, w.add != null ? Number(getPath(this.live.model, w.path)) + w.add : w.set!]));
       else this.arrivals.push({ at: this.tick + Math.round(d.arrive.afterSeconds / TICK_S), people: d.arrive.people ?? [], equipment: d.arrive.equipment ?? [] });
     }

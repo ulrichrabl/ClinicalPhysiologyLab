@@ -1,6 +1,6 @@
 # ADR-018 — Interventions, scenarios and guideline scoring: acting on a running patient
 
-Status: Accepted (owner, 2026-10-19; the answers to the open questions are below); steps 1 and 2 built (2026-10-19/20)  
+Status: Accepted (owner, 2026-10-19; the answers to the open questions are below); steps 1–3 built (2026-10-19/20)  
 Date: 2026-10-19  
 Repository: ClinicalPhysiologyLab
 
@@ -274,6 +274,37 @@ Step 2 is built in two parts: 2a the compression pump (here), 2b ventilation, ap
   - **Levine's late end-tidal CO₂:** 26 mmHg after 20 min of CPR, against 4.4. Nothing deteriorates during a long arrest, and there is no alveolar dead space at low pulmonary pressures.
 - **Refitted:** `cpr.cardiacExtra` 0.10 → 0.11, with the same target and procedure. The lungs no longer breathe in an arrest, and their pleural swings had been pumping a little. With it, Ornato's flat diastolic pressure across rates moved from a pass (by under a millimetre) to a known gap: 30.0 → 35.2 mmHg from 60 to 140/min (gap 21).
 - **Moved elsewhere:** CO₂ now settles through the store, so results that run through it move slightly. Moderate PE's rise of mean pulmonary arterial pressure went from just over 3 mmHg to 3.0, now a known gap where it had passed by a hair. The other shifts are in the first decimal place.
+
+## Step 3, as built: the heart in an arrest and the shock
+
+- **The myocardium's state** (`physiology/heart/arrest.ts`, constants `evidence/arrest.ts`): one variable M, 1 for a perfused heart.
+  - It falls while the heart fibrillates or stands still without coronary flow, and recovers with coronary perfusion pressure (aortic minus right atrial pressure between compressions, from the host).
+  - It sets how coarse VF is, the chance of an organised rhythm after a terminating shock, and the contractility of an organised heart.
+  - A perfused heart stays at exactly 1, so no existing result moved.
+  - **Asystole** is a new rhythm of the electrical model.
+- **Pulse or not is the circulation's:** an organised heart contracts at M times its own strength. Below about 12 %, the circulation makes too little pressure for a pulse (PEA) without being told to.
+- **The shock** (in a scenario: `defib.pads`, `defib.charge` (7 s, compressions go on), `defib.shock`, 150 J):
+  - **Termination:** it ends VF with Stiell 2007's measured 86.8 %, independent of duration.
+  - **What follows:** an organised rhythm with chance M^0.39, else asystole. The exponent is derived from Stiell's 44 % of terminations, assuming a 10-minute untreated arrest; that assumption is stated.
+  - **Recurrence:** VF comes back in 79 % (van Alem 2003), at an exponential time with median 45 s.
+  - All draws come from the run's seed and are logged.
+  - **Hazards:** a shock with hands on the patient, or of a rhythm that is not shockable, is recorded as a hazard (never blocked).
+- **Time course:** depletion and recovery are placements. They are set so that ten minutes without compressions brings an organised rhythm to the edge of pulselessness, the end of Weisfeldt & Becker's circulatory phase (read as quoted; based largely on animals).
+- **Validated** (`scripts/arrest.test.mjs`):
+  - **Electrical phase:** an organised rhythm after an early shock perfuses within 30 s.
+  - **Late:** an organised rhythm starts pulseless and perfuses within minutes (Pierce 2015: ROSC a median 136 s after the shock).
+  - **Compressions first:** within Wik 2003's confidence interval late (OR 2.22, 1.06–4.63), no difference early (Wik, Cobb 1999).
+  - **Falk 1988:** the end-tidal CO₂ overshoot at the return of a circulation, peaking within 30 s.
+  - **Scenarios:** over many seeds, termination and recurrence follow the measured odds.
+- **Known gaps** (26–28):
+  - **26:** no PEA that persists.
+  - **27:** Paradis's 15 mmHg threshold is not met (weak compressions still restore).
+  - **28:** VF is finer than Weaver's.
+- **Not used:** Valenzuela 1997's coefficients (not confirmed in any readable source). Larsen's and Valenzuela's survival curves are not compared, because survival depends on the brain after the arrest, which the model does not have. The validation is at the level of the heart (an organised rhythm, a pulse).
+- **The practice screen:**
+  - The nurse runs for the arrest trolley at the collapse (a scene `leave`) and is back with the defibrillator a minute later, so the learner starts alone.
+  - Pads, charge and shock go to whoever has free hands.
+  - The log names shocks, outcomes, recurrences and hazards.
 
 ## A first practice screen (draft, after step 2)
 

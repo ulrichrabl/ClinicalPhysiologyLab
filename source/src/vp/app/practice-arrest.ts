@@ -26,8 +26,8 @@ import type { StationHandle, StationOptions } from './station-ecg.ts';
 const L = (en: string, de: string): LocalizedText => ({ en, de });
 const T: Record<string, LocalizedText> = {
   eyebrow: L('Practice · draft', 'Übung · Entwurf'), title: L('Cardiac arrest', 'Herz-Kreislauf-Stillstand'),
-  lede: L('Your hands on a running patient: compressions and breaths. No defibrillator or drugs yet, so he cannot be saved here; what you can do is keep blood moving to his heart and brain.',
-    'Ihre Hände an einem laufenden Patienten: Thoraxkompressionen und Beatmung. Noch kein Defibrillator und keine Medikamente, er kann hier also nicht gerettet werden; Sie können Blut zu Herz und Gehirn bewegen.'),
+  lede: L('Your hands on a running patient: compressions, breaths and the defibrillator, which the nurse brings. No drugs yet. Whether a shock works, and what follows, is chance, weighted by how long his heart has gone without blood.',
+    'Ihre Hände an einem laufenden Patienten: Thoraxkompressionen, Beatmung und der Defibrillator, den die Pflegekraft bringt. Noch keine Medikamente. Ob ein Schock wirkt und was folgt, ist Zufall, gewichtet danach, wie lange sein Herz ohne Blut war.'),
   back: L('Ward', 'Übersicht'), preparing: L('Preparing the patient…', 'Der Patient wird vorbereitet…'),
   pause: L('Pause', 'Anhalten'), resume: L('Resume', 'Weiter'), restart: L('Start again', 'Neu beginnen'),
   monitor: L('Monitor', 'Monitor'), monitorNote: L('ECG lead II, arterial pressure (an arterial line, for teaching: on the ward you would not have one), the pressure of the compressions in the chest, and airway pressure.',
@@ -56,8 +56,18 @@ const T: Record<string, LocalizedText> = {
   you: L('You', 'Sie'), nurseName: L('Nurse', 'Pflegekraft'), patient: L('Patient', 'Patient'),
   blocked: L('Not now', 'Jetzt nicht'),
   reasons_busy: L('your hands are busy', 'Ihre Hände sind beschäftigt'), reasons_absent: L('not here yet', 'noch nicht da'),
-  draft: L('Draft for review: the physiology is from ADR-018 steps 1–2 (compressions, breathing in arrest, given breaths); the scene, the wording and the layout are first attempts. The monitor’s labels and the numbers are the model’s own.',
-    'Entwurf zur Durchsicht: die Physiologie stammt aus ADR-018, Schritte 1–2 (Kompressionen, Atmung im Stillstand, Beatmung); Szene, Wortlaut und Gestaltung sind erste Versuche. Beschriftungen und Zahlen des Monitors stammen aus dem Modell.'),
+  draft: L('Draft for review: the physiology is from ADR-018 steps 1–3 (compressions, breathing in arrest, given breaths, the heart in arrest and the shock); the scene, the wording and the layout are first attempts. The monitor’s labels and the numbers are the model’s own.',
+    'Entwurf zur Durchsicht: die Physiologie stammt aus ADR-018, Schritte 1–3 (Kompressionen, Atmung im Stillstand, Beatmung, das Herz im Stillstand und der Schock); Szene, Wortlaut und Gestaltung sind erste Versuche. Beschriftungen und Zahlen des Monitors stammen aus dem Modell.'),
+  defib: L('Defibrillator', 'Defibrillator'), dNotHere: L('on its way', 'unterwegs'), dNoPads: L('here, pads not on', 'da, Elektroden nicht aufgeklebt'), dPads: L('pads on', 'Elektroden aufgeklebt'),
+  dCharging: L('charging…', 'lädt…'), dCharged: L('charged: 150 J', 'geladen: 150 J'),
+  pads: L('Pads on', 'Elektroden aufkleben'), charge: L('Charge 150 J', 'Laden 150 J'), shockNow: L('Shock: stand clear!', 'Schock: alle weg!'),
+  noFree: L('no one has free hands', 'niemand hat die Hände frei'),
+  logPads: L('has the pads on', 'hat die Elektroden aufgeklebt'), logCharged: L('defibrillator charged', 'Defibrillator geladen'),
+  logShock: L('shocks', 'schockt'), logArrive: L('the arrest trolley is here', 'der Notfallwagen ist da'),
+  oNone: L('no effect: not a shockable rhythm', 'keine Wirkung: kein schockbarer Rhythmus'), oStill: L('VF goes on', 'das Kammerflimmern geht weiter'),
+  oOrg: L('VF ends: an organised rhythm', 'Kammerflimmern endet: ein organisierter Rhythmus'), oAsys: L('VF ends: asystole', 'Kammerflimmern endet: Asystolie'), oUncharged: L('not charged', 'nicht geladen'),
+  logRefib: L('VF is back', 'das Kammerflimmern ist zurück'), logLeave: L('runs for the arrest trolley', 'läuft zum Notfallwagen'), away: L('away', 'weg'),
+  hazard: L('Unsafe', 'Gefährlich'), hzComp: L('shock with hands on the chest', 'Schock mit Händen am Thorax'), hzVent: L('shock while bagging', 'Schock während der Beatmung'), hzNon: L('shock of a rhythm that is not shockable', 'Schock eines nicht schockbaren Rhythmus'),
 };
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 const MMHG = 7.50062;
@@ -124,6 +134,9 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
           <button type="button" class="ghost ar-breath" data-breath>${t('breath')}</button>
           <dl class="ar-feedback" data-feedback></dl>
           <p class="muted small">${t('target')}</p>
+          <h3>${t('defib')} <span class="muted small" data-defib-state></span></h3>
+          <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-d="pads">${t('pads')}</button><button type="button" class="ghost small" data-d="charge">${t('charge')}</button>
+            <button type="button" class="primary small ar-shock" data-d="shock">${t('shockNow')}</button></div>
           <h3>${t('nurse')} <span class="muted small" data-nurse-state></span></h3>
           <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-n="cpr">${t('nCpr')}</button><button type="button" class="ghost small" data-n="bag">${t('nBag')}</button>
             <button type="button" class="ghost small" data-n="two">${t('nTwo')}</button><button type="button" class="ghost small" data-n="stop">${t('nStop')}</button></div>
@@ -195,6 +208,16 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     host.querySelector<HTMLButtonElement>('[data-bag]')!.onclick = () => act(() => (learnerHolds('ventilation') ? run!.release('ventilation') : run!.intervene('vent.bag')));
     host.querySelector<HTMLButtonElement>('[data-push]')!.addEventListener('pointerdown', (e) => { e.preventDefault(); push(); });
     host.querySelector<HTMLButtonElement>('[data-breath]')!.onclick = () => act(() => breath('learner'));
+    /* pads, charging and the shock go to whoever has free hands, the learner first */
+    const free = () => (['learner', 'nurse'] as const).find((x) => { const a = run!.actors[x]; return a && a.present && !a.hands && a.busyUntil <= run!.tick; });
+    host.querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) => b.onclick = () => {
+      if (!run || paused) return;
+      now();
+      const who = free();
+      if (!who) { note(`${t('blocked')}: ${t('noFree')}`); return; }
+      const id = b.dataset.d === 'pads' ? 'defib.pads' : b.dataset.d === 'charge' ? 'defib.charge' : 'defib.shock';
+      act(() => run!.intervene(id, who));
+    });
     host.querySelectorAll<HTMLButtonElement>('[data-n]').forEach((b) => b.onclick = () => {
       const k = b.dataset.n!;
       if (k === 'cpr') act(() => run!.intervene('cpr.compressions', 'nurse'));
@@ -328,10 +351,16 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     if (bag) bag.textContent = learnerHolds('ventilation') ? t('dropBag') : t('takeBag');
     const pad = host.querySelector<HTMLButtonElement>('[data-push]'); if (pad) pad.disabled = !learnerHolds('compressions');
     const br = host.querySelector<HTMLButtonElement>('[data-breath]'); if (br) br.disabled = !learnerHolds('ventilation');
+    const ds = host.querySelector<HTMLElement>('[data-defib-state]');
+    if (ds) {
+      const charging = run.events.some((e: any) => e.kind === 'begin' && e.id === 'defib.charge' && e.until > run!.t);
+      ds.textContent = !run.equipment.has('defibrillator') ? t('dNotHere') : !run.access.has('pads') ? t('dNoPads') : run.charged ? t('dCharged') : charging ? t('dCharging') : t('dPads');
+      host.querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) => { b.disabled = !run!.equipment.has('defibrillator') || (b.dataset.d !== 'pads' && !run!.access.has('pads')) || (b.dataset.d === 'pads' && run!.access.has('pads')) || (b.dataset.d === 'shock' && !run!.charged); });
+    }
     const ns = host.querySelector<HTMLElement>('[data-nurse-state]');
     if (ns) {
       const h = [...run.held.entries()].find(([, x]) => x.by === 'nurse');
-      ns.textContent = h ? t(h[0] === 'compressions' ? 'nDoingCpr' : 'nDoingBag') : run.actors.nurse && run.actors.nurse.busyUntil > run.tick ? t('busy') : t('free');
+      ns.textContent = !run.actors.nurse?.present ? t('away') : h ? t(h[0] === 'compressions' ? 'nDoingCpr' : 'nDoingBag') : run.actors.nurse.busyUntil > run.tick ? t('busy') : t('free');
     }
     /* what the patient's breathing is: the learner should see gasping for what it is */
     const state = r.gasping ? 'gasp' : (r.RR ?? 0) - (r.givenRate ?? 0) > 0.5 ? 'normal' : 'none';
@@ -351,7 +380,12 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     for (; seenEvents < ev.length; seenEvents++) {
       const e = ev[seenEvents] as any;
       if (e.kind === 'say') log.push({ t: e.t, who: who(e.who), text: tr(e.text, lang), fromEvent: true });
-      else if (e.kind === 'done') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: tr(e.id === 'cpr.compressions' ? L('starts compressions', 'beginnt mit den Kompressionen') : e.id === 'vent.bag' ? L('has the bag on the face', 'hat die Maske aufgesetzt') : L(e.id, e.id), lang) });
+      else if (e.kind === 'done' && e.id !== 'defib.shock') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: e.id === 'defib.pads' ? t('logPads') : e.id === 'defib.charge' ? t('logCharged') : tr(e.id === 'cpr.compressions' ? L('starts compressions', 'beginnt mit den Kompressionen') : e.id === 'vent.bag' ? L('has the bag on the face', 'hat die Maske aufgesetzt') : L(e.id, e.id), lang) });
+      else if (e.kind === 'arrive' && e.equipment.includes('defibrillator')) log.push({ fromEvent: true, t: e.t, who: who('nurse'), text: t('logArrive') });
+      else if (e.kind === 'leave') log.push({ fromEvent: true, t: e.t, who: who(e.people[0]), text: t('logLeave') });
+      else if (e.kind === 'shock') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: `${t('logShock')}: ${t(e.joules === 0 ? 'oUncharged' : e.outcome === 'no-effect' ? 'oNone' : e.outcome === 'not-terminated' ? 'oStill' : e.outcome === 'organised' ? 'oOrg' : 'oAsys')}` });
+      else if (e.kind === 'refibrillation') log.push({ fromEvent: true, t: e.t, who: t('patient'), text: t('logRefib') });
+      else if (e.kind === 'hazard') log.push({ fromEvent: true, t: e.t, who: `⚠ ${t('hazard')}`, text: t(e.code === 'shock-while-compressing' ? 'hzComp' : e.code === 'shock-while-ventilating' ? 'hzVent' : 'hzNon') });
       else if (e.kind === 'release') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: tr(e.slot === 'compressions' ? L('stops compressions', 'beendet die Kompressionen') : L('puts the bag down', 'legt den Beutel ab'), lang) });
     }
     const box = host.querySelector<HTMLElement>('[data-events]');

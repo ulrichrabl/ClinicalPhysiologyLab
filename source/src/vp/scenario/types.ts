@@ -81,6 +81,8 @@ export type SceneDo =
   | { say: { who: string; text: LocalizedText } }
   /** A scripted change to the patient's model: the event the scene is built around (the heart fibrillates). */
   | { change: ModelWrite[] }
+  /** People who leave the room (to fetch something, to call for help); `arrive` brings them back. */
+  | { leave: { people: string[] } }
   | { arrive: { people?: string[]; equipment?: string[]; afterSeconds: number } };
 
 export interface SceneState {
@@ -124,6 +126,7 @@ export type ScenarioEvent =
   | { t: number; kind: 'scene'; state: string }
   | { t: number; kind: 'say'; who: string; text: LocalizedText }
   | { t: number; kind: 'arrive'; people: string[]; equipment: string[] }
+  | { t: number; kind: 'leave'; people: string[] }
   | { t: number; kind: 'begin'; id: string; by: string; until: number }
   | { t: number; kind: 'done'; id: string; by: string }
   | { t: number; kind: 'release'; slot: string; by: string; id: string }
@@ -136,4 +139,6 @@ export type ScenarioEvent =
   | { t: number; kind: 'shock'; by: string; rhythm: string; outcome: 'not-terminated' | 'organised' | 'asystole' | 'no-effect'; joules: number }
   /** Something done that is unsafe or against the rules (a shock with hands on the patient, a shock of a rhythm that is not
       shockable), recorded for the debrief and never blocked, as in the encounter. */
-  | { t: number; kind: 'hazard'; code: string; by: string };
+  | { t: number; kind: 'hazard'; code: string; by: string }
+  /** Ventricular fibrillation comes back after a shock had ended it. */
+  | { t: number; kind: 'refibrillation'; from: string };
