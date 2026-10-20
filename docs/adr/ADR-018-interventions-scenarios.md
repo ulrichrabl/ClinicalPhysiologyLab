@@ -364,6 +364,12 @@ Asked for by the owner (2026-10-20) before step 3, to try the hands on a running
 
 For now the screen stays as it is, to get the circuit right: physiology, scene, inputs and replay.
 
+**What to build it from** (looked at 2026-10-20; agreed with the owner as its own topic, after step 5 or before it if the owner prefers):
+- **The patient:** the bedside figure (`render/patient-figure.ts`, `figure-*.ts`; read `studio/figure/BRIEF.md` first). It is anatomical, built from the patient and the model's findings, posed by joint angles with smooth transitions, and seen from three sides, from above when lying. The collapse is a pose change to `supine` at the scene's VF; the bag-mask goes on the face like the oxygen mask does.
+- **Where the hands go:** the chest views (`render/thorax.ts`): the same body, with landmarks and positions in chest-frame cm, where the ECG electrodes are already dragged on. Hands on the lower half of the sternum, the pads (right infraclavicular and apical), later the cannula on the forearm, are placed the same way. A wrong place is logged; any effect on the compressions waits for grounding.
+- **The mechanism:** the stations' signal-and-mechanism pattern (`render/wiggers.ts`, `conduction-heart.ts`) for a diagram of the thoracic pump and coronary filling, in place of the trend alone.
+- **Checking it:** the figure loop (`sh studio/figure/run.sh`, `shoot.py zoom`), with close-ups for the owner before any claim.
+
 ## The open questions of the practice screen and step 4, settled (2026-10-20)
 
 The owner handed these over ("tackle those"); each is decided here, with its reason, and can be revisited.
