@@ -14,3 +14,7 @@ export { LUNG } from '../src/vp/evidence/lung.ts';
 /* ADR-018 step 3: the heart in an arrest and the shock */
 export { MyocardialState } from '../src/vp/physiology/heart/arrest.ts';
 export { ARREST } from '../src/vp/evidence/arrest.ts';
+/* ADR-018 step 4: drugs */
+export { Drugs } from '../src/vp/physiology/drugs/drugs.ts';
+export { DRUGS } from '../src/vp/evidence/drugs.ts';
+export { drugTrial, firstDoseRise, paradisRise, trialMean, trialPeak, PARADIS } from '../src/vp/physiology/drugs/trial.ts';

@@ -306,6 +306,62 @@ console.log('\nThe defibrillator (ADR-018 step 3)');
   ok('after a terminating shock, VF comes back at the time drawn for it', !!seen && kinds(seen.q, 'refibrillation').length >= 1 && seen.q.rhythm() === 'vf', seen ? seen.planned.use : 'no seed with a terminating shock and a recurrence');
 }
 
+console.log('\nDrugs (ADR-018 step 4)');
+{
+  const P = structuredClone(scenarioOf('arrest-practice'));
+  for (const e of P.scene.equipment) e.present = true;
+  P.machine.states.arrest.enter = P.machine.states.arrest.enter.filter((d) => !('leave' in d) && !('arrive' in d));   // the nurse stays, the trolley is here
+  const r = start(P, 31, S.FREE_CASE);
+  r.advanceTo(5);
+  ok('no drug without a vein: adrenaline needs IV access first', !r.intervene('drug.adrenaline') && kinds(r, 'blocked').at(-1)?.reason === 'access:iv');
+  ok('the nurse puts in a cannula', r.intervene('access.iv', 'nurse'));
+  r.intervene('cpr.compressions');
+  r.advanceTo(70);
+  ok('…and then gives adrenaline 1 mg', r.access.has('iv') && r.intervene('drug.adrenaline', 'nurse'));
+  r.advanceTo(90);
+  const dose = kinds(r, 'dose').at(-1);
+  r.advanceTo(170);
+  const level = r.live.run.drugs.adrenaline(), mult = r.live.run.drugs.resistanceMult();
+  ok('the dose is recorded, and a minute later it is in the blood and constricts the arterioles', dose?.drug === 'adrenaline' && dose.mg === 1 && dose.by === 'nurse' && level > 50 && mult > 1.5,
+    `${level.toFixed(0)} ng/mL, resistance × ${mult.toFixed(2)}`);
+  r.advanceTo(170 + 900);
+  ok('fifteen minutes later it has nearly gone (half-life 2.6 min: under 3 % of the level a minute after the dose)', r.live.run.drugs.adrenaline() < 0.03 * level && r.live.run.drugs.resistanceMult() < 1.1,
+    `${level.toFixed(0)} → ${r.live.run.drugs.adrenaline().toFixed(1)} ng/mL`);
+  const R = S.replay(P, { seed: 31, caseDef: S.FREE_CASE, log: r.log, until: r.t });
+  ok('a run with a drug replays exactly', fingerprint(R) === fingerprint(r) && R.live.run.drugs.given.adrenaline === 1);
+
+  const noKit = structuredClone(P);
+  noKit.scene.equipment.find((e) => e.id === 'drugs').present = false;
+  const k = start(noKit, 32, S.FREE_CASE);
+  k.advanceTo(5); k.intervene('access.iv'); k.advanceTo(70);
+  ok('no drug without the drugs in the room', !k.intervene('drug.adrenaline') && /equipment/.test(kinds(k, 'blocked').at(-1)?.reason ?? ''), kinds(k, 'blocked').at(-1)?.reason);
+
+  /* Amiodarone: on board, the recurrence a seed would have drawn may not come. A seed whose draw falls between the two
+     chances (79 % without, 79 % × (1 − 0.13) with) shows it. */
+  const withAmio = S.ARREST.refibrillationChance * (1 - S.DRUGS.amiodaroneRecurrenceCut);
+  let seed = null;
+  for (let s = 400; s < 2000 && seed == null; s++) {
+    const c = new S.Chance(s); const uT = c.uniform('shock'); const uR = c.uniform('shock-rhythm'); const uF = c.uniform('refibrillation');
+    if (uT < S.ARREST.shockTermination && uR < 0.5 && uF >= withAmio && uF < S.ARREST.refibrillationChance) seed = s;
+  }
+  const shockRun = (amio) => {
+    const q = start(P, seed, S.FREE_CASE);
+    q.advanceTo(5); q.intervene('access.iv', 'nurse'); q.intervene('defib.pads');
+    q.advanceTo(70);
+    if (amio) q.intervene('drug.amiodarone.300', 'nurse');
+    q.advanceTo(390); q.intervene('defib.charge'); q.advanceTo(400); q.intervene('defib.shock');   // the dose given by 130 s, arrived by 400
+    return q;
+  };
+  const without = shockRun(false), withA = shockRun(true);
+  ok('amiodarone on board, a recurrence the seed draws without it does not come (its cut of 13 %)', seed != null
+    && kinds(without, 'chance').some((e) => e.stream === 'refibrillation') && !kinds(withA, 'chance').some((e) => e.stream === 'refibrillation')
+    && withA.live.run.drugs.amiodarone() > 0.999 && kinds(withA, 'shock').at(-1).outcome === kinds(without, 'shock').at(-1).outcome, `seed ${seed}`);
+
+  const bad = structuredClone(S.INTERVENTIONS);
+  bad.find((x) => x.id === 'drug.adrenaline').effect.dose.mg = 0;
+  ok('the validator refuses a dose that is not one', errors(S.validateInterventions(bad, S.CATALOG)).some((i) => /not a drug the model has, or not a dose/.test(i.message)));
+}
+
 console.log('\nThe case’s course on the scenario’s clock');
 {
   const run = start(VEST, 1);

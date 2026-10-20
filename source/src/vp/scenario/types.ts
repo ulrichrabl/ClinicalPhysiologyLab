@@ -1,6 +1,7 @@
 import type { LocalizedList, LocalizedText } from '../model/i18n.ts';
 import type { Ability, PatientState, Side } from '../model/types.ts';
 import type { AirwayRoute } from '../physiology/lung/ventilation.ts';
+import type { DrugId } from '../physiology/drugs/drugs.ts';
 
 /* ===========================================================================
    Interventions and scenarios (ADR-018).
@@ -33,7 +34,7 @@ export interface ContinuousEffect {
   driver?: 'compressions' | 'ventilation';
 }
 
-/** Done once: a shock, IV access. */
+/** Done once: a shock, IV access, a dose of a drug. */
 export interface InstantEffect {
   kind: 'instantaneous';
   change?: ModelWrite[];
@@ -43,10 +44,11 @@ export interface InstantEffect {
   airway?: AirwayRoute;
   /** The defibrillator (ADR-018 step 3): charge it, or deliver the charged shock. */
   defib?: 'charge' | 'shock';
+  /** A dose into the vein (ADR-018 step 4); the drug model carries it in and lets it act. */
+  dose?: { drug: DrugId; mg: number };
   state?: Partial<PatientState>;
 }
 
-/* Pharmacological interventions (a dose into a compartment) arrive with the drugs, ADR-018 step 4. */
 export type InterventionEffect = ContinuousEffect | InstantEffect;
 
 export interface InterventionDef {
@@ -140,5 +142,7 @@ export type ScenarioEvent =
   /** Something done that is unsafe or against the rules (a shock with hands on the patient, a shock of a rhythm that is not
       shockable), recorded for the debrief and never blocked, as in the encounter. */
   | { t: number; kind: 'hazard'; code: string; by: string }
+  /** A dose given into the vein (ADR-018 step 4). */
+  | { t: number; kind: 'dose'; drug: DrugId; mg: number; by: string }
   /** Ventricular fibrillation comes back after a shock had ended it. */
   | { t: number; kind: 'refibrillation'; from: string };

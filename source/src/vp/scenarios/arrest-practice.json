@@ -1,14 +1,14 @@
 {
   "schema": "vp.scenario/1",
   "id": "arrest-practice",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "status": "draft",
   "title": {
     "en": "Practice: cardiac arrest",
     "de": "Übung: Herz-Kreislauf-Stillstand"
   },
   "caseId": "free-patient",
-  "purpose": "A practice screen after ADR-018 step 3: a healthy man whose heart fibrillates a few seconds in; the nurse goes for the arrest trolley and is back with the defibrillator a minute later, so the learner starts alone. A bag-mask on the wall. Compressions, breaths and shocks; no drugs yet. For the owner to try.",
+  "purpose": "A practice screen after ADR-018 step 4: a healthy man whose heart fibrillates a few seconds in; the nurse goes for the arrest trolley and is back a minute later with the defibrillator, a cannula and the drugs, so the learner starts alone. A bag-mask on the wall. Compressions, breaths, shocks, IV access, adrenaline and amiodarone. For the owner to try.",
   "scene": {
     "place": {
       "en": "A side room on the ward",
@@ -38,6 +38,22 @@
         "label": {
           "en": "Arrest trolley with a defibrillator",
           "de": "Notfallwagen mit Defibrillator"
+        },
+        "present": false
+      },
+      {
+        "id": "cannula-kit",
+        "label": {
+          "en": "IV cannulas on the arrest trolley",
+          "de": "Venenverweilkanülen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "drugs",
+        "label": {
+          "en": "Adrenaline and amiodarone on the arrest trolley",
+          "de": "Adrenalin und Amiodaron am Notfallwagen"
         },
         "present": false
       }
@@ -107,7 +123,9 @@
                 "nurse"
               ],
               "equipment": [
-                "defibrillator"
+                "defibrillator",
+                "cannula-kit",
+                "drugs"
               ],
               "afterSeconds": 60
             }

@@ -10,6 +10,7 @@ import { CPR } from '../evidence/cpr.ts';
 import type { Compressor } from '../physiology/cpr/compressions.ts';
 import type { Ventilator } from '../physiology/lung/ventilation.ts';
 import { MyocardialState } from '../physiology/heart/arrest.ts';
+import { Drugs } from '../physiology/drugs/drugs.ts';
 const CMH2O_TO_MMHG = 0.7356;
 /** How quickly the circulation's reference for pleural pressure follows its mean (s): about two quiet breaths. */
 const PPL_MEAN_TAU_S = 8;
@@ -69,6 +70,8 @@ export interface CirculationRun {
   arrest: MyocardialState;
   /** The coronary perfusion pressure the myocardium is getting now (mmHg, smoothed; between compressions in CPR). */
   coronaryPerfusion: () => number;
+  /** Drugs given (ADR-018 step 4). */
+  drugs: Drugs;
 }
 
 export function createCirculation(m: PatientModel): CirculationRun {
@@ -102,6 +105,8 @@ export function createCirculation(m: PatientModel): CirculationRun {
      between compressions, where the coronary arteries fill (Paradis 1990). */
   let coronaryP = NaN;
   const arrest = new MyocardialState();
+  /* Drugs given (ADR-018 step 4), acting on the arterioles and on the recurrence of VF. */
+  const drugs = new Drugs();
   const arrested = () => heart.p.ventricular === 'vf' || heart.p.ventricular === 'asystole';
   const BRAIN_TAU_S = 3;
   const couple = () => {
@@ -115,6 +120,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     if (!((sim.Pchest ?? 0) > 0)) coronaryP = Number.isFinite(coronaryP) ? coronaryP + (perf - coronaryP) * (1 - Math.exp(-COUPLE_S / BRAIN_TAU_S)) : perf;
     if (sim.t > 2) arrest.step(COUPLE_S, coronaryP, arrested());
     heart.vfScale = arrest.vfScale();
+    drugs.step(COUPLE_S);
     resp.setInputs({
       /* The lungs receive what the heart (or the compressions) pump: in an arrest very little. Before the first beat is
          measured, the normal output. */
@@ -125,7 +131,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     sim.Rpul = model.circulation.Rpul * resp.rpulMult();
     /* Blood viscosity rises with haematocrit: anaemic blood flows more easily, so resistance falls and output rises.
        Angiotensin II and vasopressin constrict arterioles and capacitance veins. */
-    sim.Rsys = model.circulation.Rsys * (CIRC.viscosityFixed + (1 - CIRC.viscosityFixed) * Math.min(CIRC.viscosityCap, out.Hb / CIRC.viscosityHbRef)) * milieu.rsysMult();
+    sim.Rsys = model.circulation.Rsys * (CIRC.viscosityFixed + (1 - CIRC.viscosityFixed) * Math.min(CIRC.viscosityCap, out.Hb / CIRC.viscosityHbRef)) * milieu.rsysMult() * drugs.resistanceMult();
     sim.V0sv = model.circulation.V0sv * milieu.v0svMult();
     sim.Emax = model.circulation.Emax * milieu.contractility() * arrest.contractility();
     /* Septic vessels respond poorly to sympathetic drive as well. */
@@ -185,7 +191,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     resp.setParams(next.respiratory, body());
     sim.Rpul = c.Rpul * resp.rpulMult();
     sim.EmaxRv = c.EmaxRv * (1 - (sim.rvIschaemia ?? 0)) * arrest.contractility();
-    sim.Rsys = c.Rsys * milieu.rsysMult();
+    sim.Rsys = c.Rsys * milieu.rsysMult() * drugs.resistanceMult();
     sim.V0sv = c.V0sv * milieu.v0svMult();
     sim.Emax = c.Emax * milieu.contractility() * arrest.contractility();
     sim.gR = c.gR * (1 - INF.reflexResistanceLoss * milieu.vasoplegia()) * milieu.adrenergicResponse(); sim.gV = c.gV * (1 - INF.reflexVenousLoss * milieu.vasoplegia()) * milieu.adrenergicResponse();
@@ -266,7 +272,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
   const coronaryPerfusion = () => coronaryP;
 
   apply(m);
-  return { sim, heart, resp, body: milieu, apply, advance, equilibrate, settle, settleFast, course, courseSteps, setCompressor, setVentilator, arrest, coronaryPerfusion };
+  return { sim, heart, resp, body: milieu, apply, advance, equilibrate, settle, settleFast, course, courseSteps, setCompressor, setVentilator, arrest, coronaryPerfusion, drugs };
 }
 
 export interface SettledPatient {

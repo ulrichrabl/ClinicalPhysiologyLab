@@ -296,5 +296,99 @@ console.log('\nThe return of a circulation (Falk 1988)');
   gap('validated: …with the peak within about 30 s (Falk; within 30 s of that)', peakAt <= 60, `peak at ${peakAt} s`);
 }
 
+/* ---- ADR-018 step 4: adrenaline and amiodarone ------------------------------------------------------------------------- */
+console.log('\nDrugs at rest');
+{
+  const d = new S.Drugs();
+  d.step(60);
+  ok('with no drug given, nothing changes: resistance and the recurrence of VF are exactly as without the drug model', d.resistanceMult() === 1 && d.recurrenceMult() === 1 && d.adrenaline() === 0);
+  d.give('adrenaline', 1); d.step(0.1);
+  ok('a dose is not in the blood at once: it is carried in from the vein', d.adrenaline() < 10, `${d.adrenaline().toFixed(1)} ng/mL after 0.1 s`);
+}
+
+console.log('\nAdrenaline in CPR (Paradis 1991; Wortsman 1993; Gonzalez 1988)');
+const sd = (x) => x.toFixed(1);
+/* Paradis's protocol: several standard doses, the third measured; and the same with the third a high dose (0.2 mg/kg, 14 mg at 70 kg). */
+const std = S.paradisRise(1), high = S.paradisRise(14);
+{
+  const first = S.firstDoseRise();
+  ok('fitted: the first standard dose raises the coronary perfusion pressure by Paradis’s 3.7 mmHg (within 0.3)', Math.abs(first.rise - 3.7) < 0.3, `${sd(first.before)} → ${sd(first.peak)} mmHg`);
+  ok('derived: 2.5 min after a standard dose the plasma level is Wortsman’s about 0.5 µmol/L (91.6 ng/mL, within 5 %)', Math.abs(first.at150 / 91.6 - 1) < 0.05, `${first.at150.toFixed(0)} ng/mL`);
+  const at5 = first.rows.find((r) => r.t === S.PARADIS.earlier[0] + 300).adrenaline;
+  ok('a dose wears off: five minutes after it, the plasma level is under half its peak (half-life 2.6 min, Heradstveit)', at5 < 0.5 * first.plasmaPeak, `${first.plasmaPeak.toFixed(0)} → ${at5.toFixed(0)} ng/mL`);
+  /* Paradis: the rise after a standard dose 3.7 ± 5.0 mmHg in 32 patients (standard error 0.9). */
+  gap('validated: after earlier doses a standard dose still raises the coronary perfusion pressure by Paradis’s 3.7 mmHg (within two standard errors, 1.8)', Math.abs(std.rise - 3.7) <= 1.8,
+    `${sd(std.before)} → ${sd(std.peak)} mmHg (+${sd(std.rise)}). The model’s coronary perfusion pressure is near its ceiling after two doses: its arteries keep full reflex tone in an arrest (gap 20), so constricting them further adds little; Paradis’s patients, after long CPR, had more room.`);
+  ok('validated: a high dose raises it more than a standard one (Paradis)', high.rise > std.rise, `+${sd(high.rise)} against +${sd(std.rise)}`);
+  gap('validated: …by Paradis’s 11.3 ± 10.0 mmHg (within two standard errors, 3.5)', Math.abs(high.rise - 11.3) <= 3.5, `+${sd(high.rise)} mmHg; the same ceiling, and the effect is held above the measured 400 ng/mL`);
+  /* Paradis: the highest plasma level after a standard dose 152 ± 162 ng/mL (standard error 29), after a high dose 393 ± 289 (51). */
+  ok('validated: the highest plasma level after a standard dose (Paradis: 152 ± 162 ng/mL, within two standard errors)', Math.abs(std.plasmaPeak - 152) <= 58, `${std.plasmaPeak.toFixed(0)} ng/mL`);
+  gap('validated: …and after a high dose (Paradis: 393 ± 289 ng/mL, within two standard errors)', Math.abs(high.plasmaPeak - 393) <= 102,
+    `${high.plasmaPeak.toFixed(0)} ng/mL. A single compartment scales the level with the dose (14 mg, 14 times); Paradis measured 2.6 times the standard dose’s peak. Distribution or clearance that rise with the level are not modelled; the effect is held above 400 ng/mL, so the pressure does not follow the overshoot.`);
+}
+{
+  /* Gonzalez 1988: a Thumper at 60/min, 50:50, ventilated; peak radial systolic 35 ± 5 before, 57 ± 20 after 1 mg (n = 5). */
+  const rows = S.drugTrial({ device: 'mechanical', rate: 60, vfSeconds: 240, cprSeconds: 600, doses: [{ at: 300, drug: 'adrenaline', mg: 1 }] });
+  const before = S.trialMean(rows, 'Psys', 240, 300), peak = S.trialPeak(rows, 'Psys', 300, 600, 30);
+  gap('validated: on a mechanical compressor at 60/min, 1 mg raises the systolic pressure by Gonzalez’s 22 mmHg (35 → 57 ± 20, five patients; within 20)', Math.abs(peak - before - 22) <= 20,
+    `${sd(before)} → ${sd(peak)} mmHg. Systolic pressure in CPR is the compression’s; the arterioles hold the pressure between compressions, so constricting them raises the diastolic more than the systolic. Gonzalez’s patients started far lower (35 against the model’s ${before.toFixed(0)}, fitted to Ornato’s 59).`);
+}
+
+console.log('\nThrough the shocks: a cohort (ARREST 1999; PARAMEDIC2 2018)');
+/* A cohort through the shocks, cheaply: each patient's myocardium (MyocardialState) and rhythm, second by second, with a
+   shock every 2 min while in VF and the run's own chance streams. The circulation is not run per patient: in VF or
+   asystole under compressions the coronary perfusion pressure is the model's in CPR (read from the runs above); an
+   organised heart perfuses itself (gap 26). Asystole has no way out here, as in the model. A return of circulation at
+   the end is the outcome; survival depends on the brain, which the model does not have. */
+const cohort = ({ n, cpp, startM, seconds, doses = [] }) => {
+  let rosc = 0;
+  for (let i = 0; i < n; i++) {
+    const c = new S.Chance(5000 + i), heart = new S.MyocardialState(), drugs = new S.Drugs();
+    heart.M = startM;
+    let rhythm = 'vf', nextShock = 120, refibAt = null;
+    const due = [...doses];
+    for (let t = 0; t < seconds; t++) {
+      while (due.length && due[0].at <= t) { const d = due.shift(); drugs.give(d.drug, d.mg); }
+      drugs.step(1);
+      if (rhythm === 'organised' && refibAt != null && t >= refibAt) { rhythm = 'vf'; refibAt = null; nextShock = t + 120; }
+      heart.step(1, rhythm === 'organised' ? S.ARREST.cppFullFlow : cpp(t), rhythm !== 'organised');
+      if (rhythm === 'vf' && t >= nextShock) {
+        const out = heart.shock(c.uniform('shock'), c.uniform('shock-rhythm'));
+        const uF = c.uniform('refibrillation'), uFt = c.uniform('refibrillation-time');
+        if (out === 'not-terminated') { nextShock = t + 120; continue; }
+        rhythm = out;
+        if (out === 'organised' && uF < S.ARREST.refibrillationChance * drugs.recurrenceMult()) refibAt = t + Math.max(1, -Math.log(1 - uFt) * S.ARREST.refibrillationMedian / Math.LN2);
+      }
+    }
+    if (rhythm === 'organised') rosc++;
+  }
+  return rosc / n;
+};
+const odds = (x) => x / (1 - x);
+/* Compressions alone, and with adrenaline every 5 min, read from Paradis's protocol: before the first dose, and from it on. */
+const cppNone = S.trialMean(std.rows, 'CPP', 240, 360), cppAdr = S.trialMean(std.rows, 'CPP', 360, 1260);
+{
+  /* ARREST (Kudenchuk 1999): shock-refractory VF after three or more shocks, about 20 min into a resuscitation of 42; 300 mg
+     against placebo; admitted alive 44 % against 34 % (adjusted OR 1.6, 1.1–2.4). Twenty minutes in, the myocardium under
+     compressions is at its steady state, the share of full coronary supply that the compressions give. */
+  const base = { n: 4000, cpp: () => cppNone, startM: cppNone / S.ARREST.cppFullFlow, seconds: 20 * 60 };
+  const pPl = cohort(base), pAm = cohort({ ...base, doses: [{ at: 0, drug: 'amiodarone', mg: 300 }] });
+  const or = odds(pAm) / odds(pPl);
+  ok('validated: amiodarone after the third shock raises the odds of a circulation at the end within ARREST’s confidence interval (OR 1.6, 1.1–2.4)', or >= 1.1 && or <= 2.4,
+    `${(pAm * 100).toFixed(0)} % against ${(pPl * 100).toFixed(0)} %, OR ${or.toFixed(2)} (ARREST: 44 % against 34 % admitted alive; its 4 against 6 shocks set the effect)`);
+  gap('validated: …at ARREST’s rates (34 % with placebo, within 8 %)', Math.abs(pPl - 0.34) <= 0.08,
+    `${(pPl * 100).toFixed(0)} % with placebo. Asystole after a shock is final here, and an organised rhythm always perfuses (gap 26).`);
+}
+{
+  /* PARAMEDIC2 (Perkins 2018): ROSC at hospital arrival 23.8 % against 8.0 % (OR 3.59, 3.14–4.12), but about 78 % of its
+     patients were in asystole or PEA, where adrenaline was given at once. For VF (adrenaline after the third shock) no
+     breakdown was read. The model's VF arm: the coronary perfusion pressure of Paradis's protocol, adrenaline every 5 min. */
+  const base = { n: 4000, startM: cppNone / S.ARREST.cppFullFlow, seconds: 20 * 60 };
+  const pPl = cohort({ ...base, cpp: () => cppNone }), pAd = cohort({ ...base, cpp: () => cppAdr });
+  const or = odds(pAd) / odds(pPl);
+  gap('validated: adrenaline raises the odds of a return of circulation about as much as in PARAMEDIC2 (OR 3.59, 3.14–4.12; mostly non-shockable rhythms)', or >= 3.14 && or <= 4.12,
+    `VF only: ${(pAd * 100).toFixed(0)} % against ${(pPl * 100).toFixed(0)} %, OR ${or.toFixed(2)}; coronary perfusion pressure ${sd(cppAdr)} against ${sd(cppNone)} mmHg. Here adrenaline helps only through the coronary perfusion pressure it adds, which the model’s ceiling keeps small (gap 20); its β effects on a weak organised heart are not modelled, and asystole and PEA, where most of PARAMEDIC2’s effect lay, have no way out or no need of one (gap 26).`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);

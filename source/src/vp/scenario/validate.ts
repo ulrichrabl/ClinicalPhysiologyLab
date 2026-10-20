@@ -3,6 +3,7 @@ import type { CaseDef } from '../model/types.ts';
 import type { Catalog } from '../data/catalog.ts';
 import type { Issue } from '../engine/validate.ts';
 import { healthyModel } from '../physiology/state.ts';
+import { DRUG_IDS } from '../physiology/drugs/drugs.ts';
 import type { InterventionDef, ScenarioDef, SceneWhen } from './types.ts';
 
 /* Checks for the intervention registry and for scenarios (ADR-018). Every learner-facing text in English and German. */
@@ -46,7 +47,8 @@ export function validateInterventions(list: InterventionDef[], cat: Catalog): Is
         if ((w.set === undefined) === (w.add === undefined)) out.push({ level: 'error', path: `${p}.effect.change`, message: `${w.path}: give set or add, not both or neither` });
         checkPath(w.path, w.set ?? w.add, `${p}.effect.change`, out);
       }
-      if (!e.change?.length && !e.grants?.length && !e.state && !e.airway && !e.defib) out.push({ level: 'warning', path: `${p}.effect`, message: 'does nothing' });
+      if (e.dose && !(DRUG_IDS.includes(e.dose.drug) && e.dose.mg > 0)) out.push({ level: 'error', path: `${p}.effect.dose`, message: `${e.dose.drug} ${e.dose.mg} mg: not a drug the model has, or not a dose` });
+      if (!e.change?.length && !e.grants?.length && !e.state && !e.airway && !e.defib && !e.dose) out.push({ level: 'warning', path: `${p}.effect`, message: 'does nothing' });
     }
     /* Sharing an id with a manoeuvre means the same act: it must leave the patient in the same state. */
     const m = cat.manoeuvres[x.id];

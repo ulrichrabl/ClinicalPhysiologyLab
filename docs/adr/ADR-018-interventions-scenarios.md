@@ -98,7 +98,7 @@ These are validated by running many simulated arrests with varied delays and com
 
 #### d. Drugs
 
-- **Adrenaline:** a one-compartment pharmacokinetic model acting on resistance (α) and contractility (β) through the existing adrenergic hooks. Validated by the coronary perfusion pressure rise after a dose (Paradis's patients); the PARAMEDIC2 trial's outcomes (more ROSC, little change in good neurological survival) are a population check, not a fit.
+- **Adrenaline:** a one-compartment pharmacokinetic model acting on resistance (α) and contractility (β) through the existing adrenergic hooks. (As built in step 4: on resistance only, with the fit on the first dose; see "Step 4, as built".) Validated by the coronary perfusion pressure rise after a dose (Paradis's patients); the PARAMEDIC2 trial's outcomes (more ROSC, little change in good neurological survival) are a population check, not a fit.
 - **Amiodarone:** its effect on shock success and recurrence is weakly grounded. The ALPS trial's outcomes are a population check only; the effect sizes are labelled.
 
 #### e. After ROSC
@@ -193,7 +193,7 @@ One complete arrest, chosen because it is bounded: one algorithm, clear metrics,
 1. **Interventions and the scenario layer,** with the seeded replay. No new physiology; checked on an existing case with a scripted course.
 2. **The compression pump and positive-pressure ventilation** (decision 6a–b), validated against Ornato, Paradis and Falk.
 3. **The heart in arrest and the shock** (6c), validated against Larsen and Valenzuela.
-4. **Adrenaline and amiodarone** (6d).
+4. **Adrenaline and amiodarone** (6d). Built: see "Step 4, as built".
 5. **The ward VF scenario, end to end,** in practice mode: the ERC 2025 file, the team (decision 8), teaching nudges, and the debrief.
 5b. **Assessment mode** (decision 4).
 6. **Further arrests,** reusing the parts:
@@ -305,6 +305,46 @@ Step 2 is built in two parts: 2a the compression pump (here), 2b ventilation, ap
   - The nurse runs for the arrest trolley at the collapse (a scene `leave`) and is back with the defibrillator a minute later, so the learner starts alone.
   - Pads, charge and shock go to whoever has free hands.
   - The log names shocks, outcomes, recurrences and hazards.
+
+## Step 4, as built: adrenaline and amiodarone
+
+- **The drug model** (`physiology/drugs/drugs.ts`, constants `evidence/drugs.ts`):
+  - **Doses:** a dose goes into a vein and reaches the central circulation with a time constant of 30 s (a placement, with the flush).
+  - **Adrenaline:** leaves with Heradstveit 2023's half-life measured in people in arrest, 2.6 min, from a volume of 6.38 L. The volume is derived from Wortsman 1993's ~0.5 µmol/L at 2.5 min after 1 mg.
+  - **Amiodarone:** stays; its half-life is weeks.
+  - **With no drug given,** every multiplier is exactly 1, so no existing result moved.
+- **Arrival is not tied to the flow.** A first version carried the dose in with the model's cardiac output. Adrenaline then lowered the flow that carries it (0.45 → 0.13 L/min under compressions), and the plasma level stood for minutes instead of falling from a peak as measured. The model's CPR flow is not validated, so arrival is a fixed placement.
+- **Adrenaline acts on the arterioles (α) only:**
+  - the systemic resistance rises in proportion to the plasma level, held above the 400 ng/mL measured range;
+  - the gain is fitted once (`scripts/fit-drugs.mjs`) to Paradis 1991's +3.7 mmHg of coronary perfusion pressure after a standard dose;
+  - at the first dose's peak (115 ng/mL) the resistance is ×4.5.
+- **Why the first dose is the fit, not Paradis's protocol.** Paradis measured a dose given after several earlier ones. In the model a dose onto a circulation that already has adrenaline adds little: the coronary perfusion pressure is near a ceiling, because its arteries keep full reflex tone in an arrest (gap 20). Fitting the third dose could not reach +3.7 at any gain; the rise falls as the gain grows. So the fit uses the first dose, the one with room, and Paradis's protocol is a validation that the model does not meet (gap 29).
+- **Not modelled:**
+  - adrenaline's β effects (rate, contractility, β2 vasodilation at low levels), its venoconstriction, and its effect on the fibrillating myocardium's oxygen use;
+  - amiodarone's hypotension and bradycardia (ARREST: 59 % against 48 %, 41 % against 25 %).
+
+  The decision's "contractility (β)" is not built: no human measurement at arrest levels was found.
+- **Amiodarone** lowers the chance that VF comes back after a terminating shock by 13 % at a full dose (300 mg arrived; less acts in proportion; the second 150 mg adds nothing). The cut is derived from ARREST's 4 against 6 shocks per patient, taking shocks to follow the number of VF episodes, 1 / (1 − r). Shock termination is unchanged: no human data say otherwise.
+- **In a scenario:** `drug.adrenaline` (1 mg), `drug.amiodarone.300` and `drug.amiodarone.150`. They need IV access (`access.iv`, which needs the cannula kit) and the drugs in the room. A `dose` event is logged, and replay is exact. In the practice scene the nurse brings the cannulas and the drugs on the trolley with the defibrillator; the screen has a "Line and drugs" panel.
+- **Validated** (`scripts/arrest.test.mjs`):
+  - **The plasma peak after a standard dose:** within Paradis's 152 ± 162 ng/mL.
+  - **A high dose raises CPP more than a standard one** (Paradis): +1.8 against +0.9 mmHg.
+  - **Gonzalez 1988, mechanical compressor at 60/min:** systolic 59.6 → 66.2 mmHg after 1 mg, against 35 → 57 ± 20 in five patients. It passes only on the wide tolerance; the diastolic rises more (30 → 42).
+  - **ARREST** (a cohort through the shocks, below): amiodarone gives 34 % against 27 % with a circulation at 20 min, OR 1.40. ARREST found 44 % against 34 % admitted alive, adjusted OR 1.6 (1.1–2.4).
+- **The cohort through the shocks:**
+  - each patient's myocardial state and rhythm are run second by second, with a shock every 2 min in VF and the run's own chance streams;
+  - the coronary perfusion pressure is the model's in CPR, with and without adrenaline, read from the full runs;
+  - 4,000 seeded patients per arm, in a fraction of a second.
+
+  The full circulation takes 16 s per 10 simulated minutes, too slow for cohorts. Asystole has no way out here, and an organised rhythm always perfuses (gap 26). The outcome is a circulation at the end; survival is not compared, because the model has no brain.
+- **Known gaps** (29–32):
+  - **29:** a standard dose after earlier ones adds +0.9 mmHg, against Paradis's 3.7.
+  - **30:** a high dose adds +1.8 mmHg, against 11.3.
+  - **31:** the high dose's plasma peak is 1653 ng/mL, against 393. One compartment scales with the dose; the effect is held at 400.
+  - **32:** in VF, adrenaline raises the odds of a circulation by only OR 1.10, against PARAMEDIC2's 3.59. Most of PARAMEDIC2's patients were in asystole or PEA, which the model cannot leave or does not need to. With only the coronary pressure it adds, small under the ceiling, adrenaline barely helps here.
+- **Not compared:** ALPS's survival (the brain); Wortsman's aortic pressure 20 → 28 and CPP 4 → 10 (a standard and a high dose in one window).
+- **Gap 26** (no persistent PEA) is not changed by this step: without β effects adrenaline does nothing to a weak organised heart that the model's own perfusion does not already do.
+- **Observation:** with adrenaline the forward flow under compressions falls (0.45 → 0.13 L/min) while the pressures rise. The model's brain perfusion is a pressure (arterial minus right atrial), so this does not reach it. Whether flow to the brain falls in people is debated (and is part of why PARAMEDIC2 found more survivors with severe brain injury).
 
 ## A first practice screen (draft, after step 2)
 
