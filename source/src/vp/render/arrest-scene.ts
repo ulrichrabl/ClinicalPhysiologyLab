@@ -108,7 +108,11 @@ export function sceneSvg(s: SceneState, patient: { svg: string; marks: Marks }):
   const sternum = { x: m.chest[0] + (m.chest[2] - m.chest[0]) * 0.62, y: m.chest[1] + 2 };
   /* the face, from the neck: lying flat the head lies just beyond the neck, the mouth uppermost */
   const face = { x: m.neck[0] + 10, y: m.neck[1] - 10 };   // the mask's centre, measured on the figure lying flat
-  const SHOULDER = sternum.y - 104;               // straight arms: shoulders over the sternum
+  /* Rescuers stand on the floor at adult proportions, whatever the patient does: about 170 cm tall at 1.77 units per cm,
+     legs about 85 cm (150 units), trunk to the shoulders about 52 cm (92). Lying flat, the lower sternum is then about 90
+     units below the shoulders: straight arms, leaning a little. (Placing them from the patient's chest made their legs
+     grow while he sat up.) */
+  const SHOULDER = 372 - 150 - 92;
   const press = Math.max(0, Math.min(1, s.press));
 
   /* where each task stands */
