@@ -102,6 +102,17 @@ export const INTERVENTIONS: InterventionDef[] = [
     timing: { status: 'placement', note: 'Pressing the button; the pause it needs is what the learner makes of it.' },
     effect: { kind: 'instantaneous', defib: 'shock' },
   },
+  /* The rhythm check (ADR-018 step 5): compressions paused, the rhythm read off the defibrillator. Whoever is free looks;
+     the pause is whatever the hands on the chest make of it. */
+  {
+    id: 'check.rhythm',
+    label: { en: 'Check the rhythm', de: 'Rhythmus beurteilen' },
+    phrases: { en: ['rhythm check', 'check the rhythm', 'stop compressions, rhythm check', 'analyse the rhythm', 'what is the rhythm'], de: ['rhythmuskontrolle', 'rhythmus beurteilen', 'rhythmusanalyse', 'kompressionen stopp, rhythmus', 'welcher rhythmus'] },
+    needs: { equipment: ['defibrillator'], access: ['pads'] },
+    duration: { seconds: 2 },
+    timing: { status: 'placement', note: 'A glance at the defibrillator screen; the pause it needs is what the learner makes of it.' },
+    effect: { kind: 'instantaneous', assess: 'rhythm' },
+  },
   /* Drugs (ADR-018 step 4): into the vein of the cannula, with a flush. Doses as in the ERC 2025 adult ALS guideline. */
   {
     id: 'drug.adrenaline',

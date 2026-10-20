@@ -505,6 +505,20 @@ canvas.st-strip:focus-visible { outline: 3px solid var(--accent); outline-offset
 .ar-shock:disabled { opacity: .45; }
 .ar-wrap .ghost:disabled, .ar-breath:disabled { opacity: .45; cursor: default; }
 .ar-events { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+.ar-debrief { margin-top: 4px; padding: 14px 16px; }
+@media (max-width: 600px) { .ar-debrief { padding: 10px 12px; } }
+.ar-debrief h3 { margin: 16px 0 6px; }
+.ar-db-outcome { margin: 6px 0 0; }
+.ar-db-timeline { width: 100%; display: block; border-radius: 10px; }
+.ar-db-rules { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.ar-db-rule { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; align-items: start; padding: 8px 10px; border-radius: 10px; background: var(--sunk); }
+.ar-db-mark { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: 700 13px var(--font-mono); background: var(--surface); color: var(--muted); }
+.ar-db-rule.met .ar-db-mark { color: var(--accent); }
+.ar-db-rule.missed .ar-db-mark { background: var(--abn); color: #fff; }
+.ar-db-rule.not-applicable { opacity: .7; }
+.ar-db-val { font-family: var(--font-mono); }
+.ar-db-ours { font-size: 11px; border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; color: var(--muted); white-space: nowrap; }
+.ar-db-rule details { margin-top: 2px; } .ar-db-rule summary { cursor: pointer; }
 @media (max-width: 600px) {
   /* a phone: the monitor first, compact, so it, the feedback and the pad fit on one screen while compressing */
   .ar-hands { order: 0; } .ar-mon-note { display: none; }

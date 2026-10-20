@@ -70,6 +70,12 @@ export class ScenarioRun {
   readonly held = new Map<string, Held>();
   /** Interventions completed and manoeuvres and orders performed. */
   readonly did = new Set<string>();
+  /** Every chest compression's onset (s), tapped or at a team member's steady rate (ADR-018 step 5: the debrief). */
+  readonly compressions: Array<{ at: number; by: string }> = [];
+  /** What the patient did, once a second: rhythm, pressures, end-tidal CO₂ (for the debrief). */
+  readonly trace: TraceRow[] = [];
+  /** The next onset of a team member's steady compressions (scenario s), while they compress. */
+  private steadyNext: number | null = null;
 
   private sceneSince = 0;
   private pending: Array<{ at: number; id: string; by: string }> = [];
@@ -117,6 +123,12 @@ export class ScenarioRun {
     this.tick++;
     this.live.advance(TICK_S);
     this.sync();
+    while (this.steadyNext != null && this.steadyNext <= this.t + 1e-9) {
+      const h = this.held.get('compressions');
+      if (h) this.compressions.push({ at: Math.round(this.steadyNext * 1000) / 1000, by: h.by });
+      this.steadyNext += 60 / CPR.rescuerRate;
+    }
+    if (this.tick % 10 === 0) this.record();
     if (this.refibAt != null && this.tick >= this.refibAt) {
       this.refibAt = null;
       const from = this.rhythm();
@@ -258,6 +270,7 @@ export class ScenarioRun {
     const h = this.held.get('compressions');
     if (!h || h.by !== by || !this.compressor) return this.blocked('compress', by, 'not-compressing');
     this.compressor.push(this.simTime(at));
+    this.compressions.push({ at, by });
     return true;
   }
 
@@ -308,6 +321,14 @@ export class ScenarioRun {
     this.events.push({ t: this.t, kind: 'shock', by, rhythm, outcome, joules });
   }
 
+  /** One row of the trace: what a monitor (with an arterial line) and the capnograph would show. */
+  private record(): void {
+    const m = this.live.snap.metrics as any, r = this.live.snap.resp as any;
+    const breathing = (r?.givenRate ?? 0) > 0 || (r?.RR ?? 0) > 0;
+    this.trace.push({ t: this.t, rhythm: this.rhythm(), Psys: m?.Psys ?? NaN, Pdia: m?.Pdia ?? NaN, CPP: m?.CPP ?? null,
+      EtCO2: breathing ? (r?.EtCO2 ?? 0) * 7.50062 : null });
+  }
+
   /** The heart's rhythm as the model runs it: 'vf', 'vt', 'asystole' or 'organised'. */
   rhythm(): string { const v = this.live.model.electrical.ventricular; return v === 'none' ? 'organised' : v; }
 
@@ -352,10 +373,10 @@ export class ScenarioRun {
       this.live.run.setVentilator(v);
       return;
     }
-    if (!on) { this.compressor = null; this.live.run.setCompressor(null); return; }
+    if (!on) { this.compressor = null; this.steadyNext = null; this.live.run.setCompressor(null); return; }
     const c = new Compressor(CPR.itpManual);
     /* A team member keeps a steady rate from now; the learner's compressions are their own taps. */
-    if (by !== 'learner') c.steady(CPR.rescuerRate, this.simTime(this.t));
+    if (by !== 'learner') { c.steady(CPR.rescuerRate, this.simTime(this.t)); this.steadyNext = this.t; }
     this.compressor = c;
     this.live.run.setCompressor(c);
   }
@@ -393,6 +414,7 @@ export class ScenarioRun {
       }
       if (e.defib === 'charge') this.charged = true;
       if (e.defib === 'shock') this.shock(p.by);
+      if (e.assess === 'rhythm') this.events.push({ t: this.t, kind: 'assessed', what: 'rhythm', rhythm: this.rhythm(), by: p.by });
       if (e.dose) { this.live.run.drugs.give(e.dose.drug, e.dose.mg); this.events.push({ t: this.t, kind: 'dose', drug: e.dose.drug, mg: e.dose.mg, by: p.by }); }
       if (e.state) this.setState(e.state);
     }
@@ -507,6 +529,10 @@ export class ScenarioRun {
 }
 
 /** Run a scenario again from its seed and inputs, to `until` seconds (default: the last input). */
+/** A second of the patient, for the debrief: rhythm, arterial pressure, coronary perfusion pressure (mmHg), end-tidal CO₂
+    (mmHg, null while nothing is breathed out). */
+export interface TraceRow { t: number; rhythm: string; Psys: number; Pdia: number; CPP: number | null; EtCO2: number | null }
+
 export function replay(def: ScenarioDef, opts: RunOptions & { log: ScenarioInput[]; until?: number }): ScenarioRun {
   const run = new ScenarioRun(def, opts);
   for (const e of opts.log) { run.advanceTo(e.t); run.input(e); }

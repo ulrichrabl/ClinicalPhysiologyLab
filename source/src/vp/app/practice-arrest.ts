@@ -3,6 +3,10 @@ import { ScenarioRun, TICK_S } from '../scenario/run.ts';
 import type { ScenarioDef } from '../scenario/types.ts';
 import { FREE_CASE } from './free-case.ts';
 import arrestPractice from '../scenarios/arrest-practice.json';
+import ercAls2025 from '../guidelines/erc-2025-als.json';
+import type { GuidelineDef } from '../guidelines/types.ts';
+import { scoreRun } from '../guidelines/score.ts';
+import { debriefHtml, drawDebrief } from './arrest-debrief.ts';
 import type { Lang } from './diagrams.ts';
 import type { StationHandle, StationOptions } from './station-ecg.ts';
 
@@ -71,6 +75,8 @@ const T: Record<string, LocalizedText> = {
   reasons_access_iv: L('no IV access yet', 'noch kein Venenzugang'), reasons_access_pads: L('the pads are not on', 'die Elektroden kleben noch nicht'),
   defib: L('Defibrillator', 'Defibrillator'), dNotHere: L('on its way', 'unterwegs'), dNoPads: L('here, pads not on', 'da, Elektroden nicht aufgeklebt'), dPads: L('pads on', 'Elektroden aufgeklebt'),
   dCharging: L('charging…', 'lädt…'), dCharged: L('charged: 150 J', 'geladen: 150 J'),
+  finish: L('Finish and debrief', 'Beenden und nachbesprechen'), check: L('Check rhythm', 'Rhythmus prüfen'), logCheck: L('checks the rhythm', 'beurteilt den Rhythmus'),
+  rVf: L('VF', 'Kammerflimmern'), rVt: L('VT', 'Kammertachykardie'), rAsystole: L('asystole', 'Asystolie'), rOrganised: L('an organised rhythm', 'ein organisierter Rhythmus'),
   pads: L('Pads on', 'Elektroden aufkleben'), charge: L('Charge 150 J', 'Laden 150 J'), shockNow: L('Shock: stand clear!', 'Schock: alle weg!'),
   noFree: L('no one has free hands', 'niemand hat die Hände frei'),
   logPads: L('has the pads on', 'hat die Elektroden aufgeklebt'), logCharged: L('defibrillator charged', 'Defibrillator geladen'),
@@ -92,7 +98,8 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const t = (k: string) => tr(T[k], lang);
   const def = arrestPractice as unknown as ScenarioDef;
   let run: ScenarioRun | null = null;
-  let raf = 0, stopped = false, paused = false;
+  let raf = 0, stopped = false, paused = false, debrief = false;
+  const guideline = ercAls2025 as unknown as GuidelineDef;
   let wall0 = 0, pausedAt = 0, pausedTotal = 0, pauseWall = 0;
   /* the monitor's samples: the circulation's own (2 ms), read as they are produced */
   let buf: Sample[] = [];
@@ -117,7 +124,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const start = () => {
     host.innerHTML = `${head()}<p class="muted" data-preparing>${t('preparing')}</p>`;
     wire();
-    run = null; buf = []; paw = []; trend = []; taps = []; sinceBreaths = 0; lastBreath = null; squeezeAt = null; seenEvents = 0; log.length = 0; curArr = null; idx = 0; lastBreathing = '';
+    run = null; debrief = false; buf = []; paw = []; trend = []; taps = []; sinceBreaths = 0; lastBreath = null; squeezeAt = null; seenEvents = 0; log.length = 0; curArr = null; idx = 0; lastBreathing = '';
     setTimeout(() => {
       if (stopped) return;
       /* a fresh seed each time: chance (gasping, the heart's noise) differs from run to run, as in life */
@@ -130,7 +137,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const head = () => `<div class="st-head">
       <button type="button" class="ghost" data-leave>← ${o.backLabel ? tr(o.backLabel, lang) : t('back')}</button>
       <div class="st-title"><div class="eyebrow">${t('eyebrow')}</div><h1>${t('title')}</h1><p class="lede">${t('lede')}</p></div>
-      <span class="ar-head-buttons"><button type="button" class="ghost" data-pause>${paused ? t('resume') : t('pause')}</button><button type="button" class="ghost" data-restart>${t('restart')}</button></span>
+      <span class="ar-head-buttons">${debrief ? '' : `<button type="button" class="ghost" data-pause>${paused ? t('resume') : t('pause')}</button><button type="button" class="ghost" data-finish>${t('finish')}</button><button type="button" class="ghost" data-restart>${t('restart')}</button>`}</span>
     </div>`;
 
   const render = () => {
@@ -155,7 +162,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
           <p id="ar-breath-hint" class="muted small">${t('breathHint')}</p>
           <h3>${t('defib')} <span class="muted small" data-defib-state></span></h3>
           <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-d="pads">${t('pads')}</button><button type="button" class="ghost small" data-d="charge">${t('charge')}</button>
-            <button type="button" class="primary small ar-shock" data-d="shock">${t('shockNow')}</button></div>
+            <button type="button" class="ghost small" data-d="check">${t('check')}</button><button type="button" class="primary small ar-shock" data-d="shock">${t('shockNow')}</button></div>
           <h3>${t('drugs')} <span class="muted small" data-drug-state></span></h3>
           <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-g="access.iv">${t('iv')}</button><button type="button" class="ghost small" data-g="drug.adrenaline">${t('adr')}</button>
             <button type="button" class="ghost small" data-g="drug.amiodarone.300">${t('amio300')}</button><button type="button" class="ghost small" data-g="drug.amiodarone.150">${t('amio150')}</button></div>
@@ -178,6 +185,21 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       </div>`;
     wire();
     renderEvents(true);
+  };
+
+  /* ---- the debrief (ADR-018 step 5) ----------------------------------------------------------- */
+  const openDebrief = () => {
+    if (!run) return;
+    debrief = true;
+    if (squeezeAt != null) { squeezeAt = null; run.bag('release', run.t); }
+    const rep = scoreRun(guideline, run);
+    host.innerHTML = `${head()}${debriefHtml(rep, guideline, run, lang, { canReturn: !run.over })}`;
+    wire();
+    const back = host.querySelector<HTMLButtonElement>('[data-db-back]');
+    if (back) back.onclick = () => { debrief = false; if (paused) { pausedTotal += performance.now() - pauseWall; paused = false; } render(); };
+    host.querySelector<HTMLButtonElement>('[data-db-again]')!.onclick = () => start();
+    const c = host.querySelector<HTMLCanvasElement>('.ar-db-timeline');
+    if (c) drawDebrief(c, rep, guideline, run, css);
   };
 
   /* ---- inputs ---------------------------------------------------------------------------------- */
@@ -219,14 +241,18 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
 
   const wire = () => {
     host.querySelector<HTMLButtonElement>('[data-leave]')!.onclick = () => o.onLeave();
-    host.querySelector<HTMLButtonElement>('[data-restart]')!.onclick = () => start();
-    host.querySelector<HTMLButtonElement>('[data-pause]')!.onclick = (e) => {
+    const rs = host.querySelector<HTMLButtonElement>('[data-restart]');
+    if (rs) rs.onclick = () => start();
+    const pb = host.querySelector<HTMLButtonElement>('[data-pause]');
+    if (pb) pb.onclick = (e) => {
       if (!run) return;
       if (paused) { pausedTotal += performance.now() - pauseWall; paused = false; }
       else { pausedAt = runT(); pauseWall = performance.now(); paused = true; }
       (e.target as HTMLButtonElement).textContent = paused ? t('resume') : t('pause');
     };
-    if (!run) return;
+    const fin = host.querySelector<HTMLButtonElement>('[data-finish]');
+    if (fin) fin.onclick = () => { if (!run) return; now(); if (!paused) { pausedAt = runT(); pauseWall = performance.now(); paused = true; } openDebrief(); };
+    if (!run || debrief) return;
     host.querySelector<HTMLButtonElement>('[data-aline]')!.onclick = () => {
       aline = !aline;
       try { localStorage.setItem('cpl.arrest.aline', aline ? 'on' : 'off'); } catch { /* not remembered */ }
@@ -263,7 +289,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       now();
       const who = free();
       if (!who) { note(`${t('blocked')}: ${t('noFree')}`); return; }
-      const id = b.dataset.d === 'pads' ? 'defib.pads' : b.dataset.d === 'charge' ? 'defib.charge' : 'defib.shock';
+      const id = b.dataset.d === 'pads' ? 'defib.pads' : b.dataset.d === 'charge' ? 'defib.charge' : b.dataset.d === 'check' ? 'check.rhythm' : 'defib.shock';
       act(() => run!.intervene(id, who));
     });
     /* the line and the drugs go to whoever has free hands too */
@@ -454,8 +480,9 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
         if (e.by === 'learner') lastBreath = { seconds: e.seconds, volume: e.volume };
         log.push({ fromEvent: true, t: e.t, who: who(e.by), text: `${t('logBreath')} (${e.seconds.toFixed(1)} ${t('s')}, ${Math.round(e.volume * 1000)} mL)` });
       }
+      else if (e.kind === 'assessed') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: `${t('logCheck')}: ${t(e.rhythm === 'vf' ? 'rVf' : e.rhythm === 'vt' ? 'rVt' : e.rhythm === 'asystole' ? 'rAsystole' : 'rOrganised')}` });
       else if (e.kind === 'dose') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: t('logDose').replace('{drug}', t(e.drug === 'adrenaline' ? 'nameAdr' : 'nameAmio')).replace('{mg}', String(e.mg)) });
-      else if (e.kind === 'done' && e.id !== 'defib.shock' && !e.id.startsWith('drug.')) log.push({ fromEvent: true, t: e.t, who: who(e.by), text: e.id === 'defib.pads' ? t('logPads') : e.id === 'defib.charge' ? t('logCharged') : e.id === 'access.iv' ? t('logIv') : tr(e.id === 'cpr.compressions' ? L('starts compressions', 'beginnt mit den Kompressionen') : e.id === 'vent.bag' ? L('has the bag on the face', 'hat die Maske aufgesetzt') : L(e.id, e.id), lang) });
+      else if (e.kind === 'done' && e.id !== 'defib.shock' && e.id !== 'check.rhythm' && !e.id.startsWith('drug.')) log.push({ fromEvent: true, t: e.t, who: who(e.by), text: e.id === 'defib.pads' ? t('logPads') : e.id === 'defib.charge' ? t('logCharged') : e.id === 'access.iv' ? t('logIv') : tr(e.id === 'cpr.compressions' ? L('starts compressions', 'beginnt mit den Kompressionen') : e.id === 'vent.bag' ? L('has the bag on the face', 'hat die Maske aufgesetzt') : L(e.id, e.id), lang) });
       else if (e.kind === 'arrive' && e.equipment.includes('defibrillator')) log.push({ fromEvent: true, t: e.t, who: who('nurse'), text: t('logArrive') });
       else if (e.kind === 'leave') log.push({ fromEvent: true, t: e.t, who: who(e.people[0]), text: t('logLeave') });
       else if (e.kind === 'shock') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: `${t('logShock')}: ${t(e.joules === 0 ? 'oUncharged' : e.outcome === 'no-effect' ? 'oNone' : e.outcome === 'not-terminated' ? 'oStill' : e.outcome === 'organised' ? 'oOrg' : 'oAsys')}` });
@@ -471,8 +498,10 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const frame = () => {
     if (stopped) return;
     raf = requestAnimationFrame(frame);
-    if (!run) return;
+    if (!run || debrief) return;
     if (!paused) { run.advanceTo(Math.floor(runT() / TICK_S) * TICK_S); readSamples(); }
+    /* the scene's end: the debrief opens by itself */
+    if (run.over) { if (!paused) { pausedAt = runT(); pauseWall = performance.now(); paused = true; } openDebrief(); return; }
     drawStrip();
     if (tick++ % 6 === 0) { renderNumbers(); renderEvents(); drawTrend(); }
   };
@@ -481,6 +510,6 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   raf = requestAnimationFrame(frame);
   return {
     stop: () => { stopped = true; cancelAnimationFrame(raf); document.removeEventListener('keydown', onKey); },
-    setLang: (l: Lang) => { lang = l; if (run) render(); else start(); },
+    setLang: (l: Lang) => { lang = l; if (run && debrief) openDebrief(); else if (run) render(); else start(); },
   };
 }
