@@ -7,8 +7,8 @@ import { OXYGEN } from './manoeuvres.ts';
 
    They act through inputs the models take: the inspired oxygen fraction the
    lungs breathe, and the pressure chest compressions put on the chest
-   (step 2a) and the breaths given at the airway (step 2b). The shock and the
-   drugs follow in steps 3–4.
+   (step 2a), the breaths given at the airway (step 2b), the shock (step 3)
+   and a dose of a drug into a vein (step 4).
 
    An oxygen device shares its id with the encounter's manoeuvre that puts it
    on (`give.oxygen.*`), so a phrase, a case's `unless` and the debrief name
@@ -101,6 +101,34 @@ export const INTERVENTIONS: InterventionDef[] = [
     duration: { seconds: 0 },
     timing: { status: 'placement', note: 'Pressing the button; the pause it needs is what the learner makes of it.' },
     effect: { kind: 'instantaneous', defib: 'shock' },
+  },
+  /* Drugs (ADR-018 step 4): into the vein of the cannula, with a flush. Doses as in the ERC 2025 adult ALS guideline. */
+  {
+    id: 'drug.adrenaline',
+    label: { en: 'Adrenaline 1 mg IV', de: 'Adrenalin 1 mg i.v.' },
+    phrases: { en: ['adrenaline', 'adrenaline 1 mg', 'give adrenaline', 'epinephrine', 'epi', '1 mg adrenaline iv'], de: ['adrenalin', 'adrenalin 1 mg', 'suprarenin', '1 mg adrenalin i.v.', 'adrenalin geben'] },
+    needs: { equipment: ['drugs'], access: ['iv'] },
+    duration: { min: 10, max: 20 },
+    timing: { status: 'placement', note: 'A prefilled syringe into the cannula and a 20 mL flush; not measured.' },
+    effect: { kind: 'instantaneous', dose: { drug: 'adrenaline', mg: 1 } },
+  },
+  {
+    id: 'drug.amiodarone.300',
+    label: { en: 'Amiodarone 300 mg IV', de: 'Amiodaron 300 mg i.v.' },
+    phrases: { en: ['amiodarone', 'amiodarone 300', 'give amiodarone', '300 of amiodarone'], de: ['amiodaron', 'amiodaron 300', 'cordarex', 'amiodaron 300 mg i.v.'] },
+    needs: { equipment: ['drugs'], access: ['iv'] },
+    duration: { min: 30, max: 60 },
+    timing: { status: 'placement', note: 'Drawing up from ampoules (or a prefilled syringe), into the cannula, and a flush; not measured.' },
+    effect: { kind: 'instantaneous', dose: { drug: 'amiodarone', mg: 300 } },
+  },
+  {
+    id: 'drug.amiodarone.150',
+    label: { en: 'Amiodarone 150 mg IV', de: 'Amiodaron 150 mg i.v.' },
+    phrases: { en: ['amiodarone 150', 'further amiodarone', 'second dose of amiodarone'], de: ['amiodaron 150', 'zweite dosis amiodaron', 'nochmal amiodaron'] },
+    needs: { equipment: ['drugs'], access: ['iv'] },
+    duration: { min: 30, max: 60 },
+    timing: { status: 'placement', note: 'As the first dose; not measured.' },
+    effect: { kind: 'instantaneous', dose: { drug: 'amiodarone', mg: 150 } },
   },
 ];
 

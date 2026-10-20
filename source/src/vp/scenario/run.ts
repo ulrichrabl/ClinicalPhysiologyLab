@@ -297,7 +297,9 @@ export class ScenarioRun {
     /* After a terminating shock VF comes back in most patients, within a minute or two (van Alem 2003). Drawn now. */
     this.refibAt = null;
     const uF = this.chance.uniform('refibrillation'), uFt = this.chance.uniform('refibrillation-time');
-    if (outcome !== 'not-terminated' && uF < ARREST.refibrillationChance) {
+    /* Amiodarone on board makes it less likely (ADR-018 step 4). */
+    const recurrence = ARREST.refibrillationChance * this.live.run.drugs.recurrenceMult();
+    if (outcome !== 'not-terminated' && uF < recurrence) {
       const after = -Math.log(1 - uFt) * ARREST.refibrillationMedian / Math.LN2;
       this.refibAt = this.tick + Math.max(1, Math.round(after / TICK_S));
       this.events.push({ t: this.t, kind: 'chance', stream: 'refibrillation', value: uF, use: `VF will come back after ${after.toFixed(0)} s` });
@@ -377,6 +379,7 @@ export class ScenarioRun {
       }
       if (e.defib === 'charge') this.charged = true;
       if (e.defib === 'shock') this.shock(p.by);
+      if (e.dose) { this.live.run.drugs.give(e.dose.drug, e.dose.mg); this.events.push({ t: this.t, kind: 'dose', drug: e.dose.drug, mg: e.dose.mg, by: p.by }); }
       if (e.state) this.setState(e.state);
     }
     this.did.add(p.id);
