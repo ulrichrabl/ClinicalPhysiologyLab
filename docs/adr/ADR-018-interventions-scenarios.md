@@ -1,6 +1,6 @@
 # ADR-018 — Interventions, scenarios and guideline scoring: acting on a running patient
 
-Status: Accepted (owner, 2026-10-19; the answers to the open questions are below); step 1 built (2026-10-19)  
+Status: Accepted (owner, 2026-10-19; the answers to the open questions are below); steps 1 and 2a built (2026-10-19)  
 Date: 2026-10-19  
 Repository: ClinicalPhysiologyLab
 
@@ -218,6 +218,34 @@ Interventions, the scenario layer and the seeded replay, with no new physiology.
 - **Replay:** `replay(def, { seed, caseDef, log })` rebuilds a run from its seed and inputs. A replay reproduces the scene, the events, the encounter, the model and every value of the patient exactly. `LivePatient.settleNow` settles synchronously with the same arithmetic as `settle`, so a run starts from the same patient every time.
 - **Checked on** two draft scenarios, not offered to learners: `copd-ed-oxygen` (oxygen held on the running lungs, a cannula of seeded duration, the tray arriving, the scene waiting for both) and `vestibular-ed-course` (the examination and the case's scripted course at 20 minutes on the scenario clock). Tests: `scripts/scenario.test.mjs` (`npm run test:scenario`), including that a scenario with no inputs runs the patient exactly as the patient runs alone.
 - **Not yet:** no screen. The app's encounter still applies oxygen itself (`breatheOxygen` in `app/app.ts`); it could use the intervention's inputs once a scenario screen exists.
+
+## Step 2a, as built: chest compressions
+
+Step 2 is built in two parts: 2a the compression pump (here), 2b ventilation, apnoea in arrest and the end-tidal CO₂ of low flow (next).
+
+- **The input** (`domains/cardio/sim/circulation.ts`): `Pchest`, the rise of intrathoracic pressure, read each integration step from a compressor on the circulation's own clock. It adds to every intrathoracic pressure as the pleural swing does (atria, ventricles, pulmonary vessels: the thoracic pump). The ventricles feel `1 + cpr.cardiacExtra` times as much (the cardiac pump), and the lumped systemic arteries `cpr.aortaInChest` of it, for the thoracic aorta. Zero, it changes nothing: the existing suites are unchanged to the last digit.
+- **The compressor** (`physiology/cpr/compressions.ts`): each compression a half-sine for half of its cycle (`cpr.duty`), then full release. The learner's taps are onsets; a team member keeps a steady 110/min (`cpr.rescuerRate`, a placement until fatigue is modelled).
+- **The constants** (`evidence/cpr.ts`):
+  - the intrathoracic rise is measured: 32 cmH₂O manually and 69 with a device (Charbonney 2018, oesophageal pressure in cadavers whose respiratory mechanics matched arrested patients);
+  - the thoracic aorta's share of arterial compliance is derived from Saouti 2012 (0.375, plausible 0.25–0.50);
+  - the cardiac pump's extra is fitted once (`scripts/fit-cpr.mjs`) to Ornato 1988's systolic pressure: 0.10, weakly determined (0 to 0.17 fit within Ornato's spread). The measured intrathoracic rise alone carries most of the flow.
+- **The readings** (`metrics`): `CPP` (aortic minus right atrial pressure over the relaxation phase, as Paradis measured it), `CPPend` (just before the next compression), `aortaRelax`, `compressionShare`. In VF the circulation's windows are 8 s long.
+- **Validated** (`scripts/arrest.test.mjs`):
+  - untreated VF: the right atrial pressure 7.5 s after onset is Jellinek 2000's mean systemic filling pressure (10.2 ± 3.5 mmHg); by 30 s aorta and right atrium have met;
+  - Ornato's diastolic pressure stays flat across rates;
+  - manual compressions at 110/min give a coronary perfusion pressure among Paradis 1990's patients who regained a circulation.
+- **Known gaps** (20, 21 in `docs/evidence-grounding-status.md`): the aortic relaxation pressure is 29 against Ornato's 23 (the model's vessels keep a fresh arrest's maximal reflex tone); and the fall of systolic pressure with rate cannot be compared cleanly, because Ornato's machine held its force, not its pressure.
+- **In a scenario:** the intervention `cpr.compressions` (continuous, hands busy, 2 s to start, a placement), and the input `compress` with its exact onset inside the tick, so tapped compressions replay exactly.
+- **Not yet:**
+  - the breath's pleural swing does not reach the thoracic aorta (the heart–lung chain, paused);
+  - the lungs keep breathing in arrest, so a breathless patient's pleural swings pump a little blood on their own (0.5 L/min in the COPD case): apnoea in arrest comes with 2b;
+  - the lungs are still handed a normal cardiac output when the measured one is very low (`couple` in the host), and their gas exchange assumes a steady state, so end-tidal CO₂ in arrest is not yet meaningful: 2b.
+
+## Step 2b, planned: ventilation, apnoea, CO₂ at low flow
+
+- **Apnoea in arrest:** the respiratory centre stops when the brain is not perfused (agonal breaths first), grounded where human data allow.
+- **Positive pressure at the airway:** delivered breaths (bag-mask, supraglottic airway, tube) in the lung's equation of motion in place of the muscles; mask leak, an unopened airway and an oesophageal tube as states of the source. Validated against Jellinek 2000 (15 cmH₂O of airway pressure raises right atrial and filling pressure alike).
+- **CO₂ at low flow:** the body's CO₂ stores filled by metabolism and emptied by the blood the lungs receive, in place of the steady-state Fick balance, so end-tidal CO₂ follows pulmonary flow. Grounded on the rate PaCO₂ rises in apnoea; validated against Falk 1988, Ornato 1988 (1.7 % at 60/min, unchanged by rate) and Levine 1997.
 
 ## Decided by the owner (2026-10-19)
 

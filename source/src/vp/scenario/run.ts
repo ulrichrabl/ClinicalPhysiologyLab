@@ -8,6 +8,8 @@ import { startEncounter, perform, order, advanceCourse, abilities, type Session,
 import { buildView } from '../engine/view.ts';
 import { INTERVENTION_BY_ID } from '../data/interventions.ts';
 import { Chance } from './chance.ts';
+import { Compressor } from '../physiology/cpr/compressions.ts';
+import { CPR } from '../evidence/cpr.ts';
 import type { InterventionDef, ScenarioDef, ScenarioEvent, ScenarioInput, SceneWhen } from './types.ts';
 
 /* ===========================================================================
@@ -131,6 +133,7 @@ export class ScenarioRun {
     if (e.do === 'intervene') this.intervene(e.id, e.by);
     else if (e.do === 'release') this.release(e.slot, e.by);
     else if (e.do === 'examine') this.examine(e.manoeuvre, e.side, e.by);
+    else if (e.do === 'compress') this.compress(e.at, e.by);
     else this.order(e.test, e.by);
   }
 
@@ -231,6 +234,32 @@ export class ScenarioRun {
     return true;
   }
 
+  /** One tapped compression by whoever holds the compressions, beginning at `at` seconds (now or within this tick). */
+  compress(at: number, by = 'learner'): boolean {
+    if (!this.actors[by]) throw new Error(`no one called ${by} in scenario ${this.def.id}`);
+    if (!(at >= this.t - 1e-9 && at < this.t + TICK_S + 1e-9)) throw new Error(`a compression at ${at} s given at ${this.t} s`);
+    this.note({ t: this.t, do: 'compress', at, by });
+    const h = this.held.get('compressions');
+    if (!h || h.by !== by || !this.compressor) return this.blocked('compress', by, 'not-compressing');
+    this.compressor.push(this.simTime(at));
+    return true;
+  }
+
+  /** The compressor driving the chest while compressions are held. */
+  compressor: Compressor | null = null;
+
+  /** The circulation's clock at scenario time `at` (the two advance together, tick by tick). */
+  private simTime(at: number): number { return this.live.run.sim.t + (at - this.t); }
+
+  private drive(driver: 'compressions', by: string, on: boolean): void {
+    if (!on) { this.compressor = null; this.live.run.setCompressor(null); return; }
+    const c = new Compressor(CPR.itpManual);
+    /* A team member keeps a steady rate from now; the learner's compressions are their own taps. */
+    if (by !== 'learner') c.steady(CPR.rescuerRate, this.simTime(this.t));
+    this.compressor = c;
+    this.live.run.setCompressor(c);
+  }
+
   /* ---- effects ------------------------------------------------------------------------------------------ */
 
   private complete(p: { id: string; by: string }): void {
@@ -245,6 +274,7 @@ export class ScenarioRun {
       if (e.state) this.setState(e.state);
       this.held.set(e.slot, { id: p.id, by: p.by, inputs: before, state: stateBefore });
       if (e.handsWhileHeld) this.actors[p.by].hands = e.slot;
+      if (e.driver) this.drive(e.driver, p.by, true);
     } else {
       if (e.change?.length) this.writeModel(e.change.map((w) => [w.path, w.add != null ? Number(getPath(this.live.model, w.path)) + w.add : w.set!]));
       for (const g of e.grants ?? []) this.access.add(g);
@@ -256,7 +286,9 @@ export class ScenarioRun {
   }
 
   private undo(h: Held): void {
-    this.writeModel(Object.entries(h.inputs));
+    const e = this.interventions[h.id].effect;
+    if (e.kind === 'continuous' && e.driver) this.drive(e.driver, h.by, false);
+    if (Object.keys(h.inputs).length) this.writeModel(Object.entries(h.inputs));
     if (Object.keys(h.state).length) this.setState(h.state);
   }
 

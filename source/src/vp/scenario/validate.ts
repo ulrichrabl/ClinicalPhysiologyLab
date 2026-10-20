@@ -37,7 +37,10 @@ export function validateInterventions(list: InterventionDef[], cat: Catalog): Is
     if ('seconds' in d ? !(d.seconds >= 0) : !(d.min >= 0 && d.max >= d.min)) out.push({ level: 'error', path: `${p}.duration`, message: 'not a valid time' });
     if (!x.timing.note.trim()) out.push({ level: 'error', path: `${p}.timing`, message: 'says nothing about where its time comes from' });
     const e = x.effect;
-    if (e.kind === 'continuous') for (const [path, v] of Object.entries(e.inputs)) checkPath(path, v, `${p}.effect.inputs`, out);
+    if (e.kind === 'continuous') {
+      for (const [path, v] of Object.entries(e.inputs)) checkPath(path, v, `${p}.effect.inputs`, out);
+      if (!Object.keys(e.inputs).length && !e.driver && !e.state) out.push({ level: 'warning', path: `${p}.effect`, message: 'holds nothing' });
+    }
     else {
       for (const w of e.change ?? []) {
         if ((w.set === undefined) === (w.add === undefined)) out.push({ level: 'error', path: `${p}.effect.change`, message: `${w.path}: give set or add, not both or neither` });

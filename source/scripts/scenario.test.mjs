@@ -150,6 +150,40 @@ console.log('\nWho does it');
   ok('…letting go frees them, and what it held returns', r2.release('hands-test') && r2.live.model.circulation.HR === 90 && r2.examine('measure.hr').outcome === 'performed');
 }
 
+console.log('\nChest compressions in a scenario (ADR-018 step 2)');
+{
+  const own = { ...S.INTERVENTION_BY_ID,
+    'test.vf': { id: 'test.vf', label: { en: 'x', de: 'x' }, duration: { seconds: 0 }, timing: { status: 'placement', note: 'test' }, effect: { kind: 'instantaneous', change: [{ path: 'electrical.ventricular', set: 'vf' }] } } };
+  /* On the vestibular patient, whose breathing is quiet: the lungs do not yet stop breathing in arrest (step 2b), and a
+     breathless patient's pleural swings would pump a little blood on their own. */
+  const run = start(VEST, 11, undefined, { interventions: own });
+  run.intervene('test.vf', 'nurse');
+  ok('a model input can be a rhythm: the heart fibrillates', run.live.model.electrical.ventricular === 'vf');
+  run.advanceTo(20);
+  const still = run.live.snap.metrics;
+  ok('…and twenty seconds later there is no output', still.CO < 0.1, `CO ${still.CO.toFixed(2)} L/min`);
+  ok('a tap before anyone is compressing does nothing', !run.compress(run.t) && kinds(run, 'blocked').at(-1)?.reason === 'not-compressing');
+  ok('the learner starts compressions', run.intervene('cpr.compressions'));
+  run.advanceTo(22);
+  ok('…which keeps the hands busy: no examination while compressing', run.examine('measure.hr').outcome === 'blocked');
+  /* Taps at 110/min, landing inside ticks rather than on them, for 30 s. */
+  let at = 22.03;
+  while (at < 52) { run.advanceTo(Math.floor(at * 10 + 1e-9) / 10); run.compress(Math.round(at * 1000) / 1000); at += 60 / 110; }
+  run.advanceTo(53);
+  const m = run.live.snap.metrics;
+  ok('the learner’s taps make a coronary perfusion pressure and flow', m.CPP > 5 && m.CO > 0.2, `CPP ${m.CPP?.toFixed(1)} mmHg, CO ${m.CO.toFixed(2)} L/min`);
+  ok('only the one compressing can tap', !run.compress(run.t, 'nurse') && kinds(run, 'blocked').at(-1)?.reason === 'not-compressing');
+  ok('stopping compressions frees the hands', run.release('compressions') && run.examine('measure.hr').outcome === 'performed');
+  run.advanceTo(65);
+  ok('…and the coronary gradient goes', run.live.run.sim.Part - run.live.run.sim.Pra < 3);
+  ok('the nurse takes over compressions, at a steady rate', run.intervene('cpr.compressions', 'nurse'));
+  run.advanceTo(95);
+  const n = run.live.snap.metrics;
+  ok('…which makes flow too', n.CPP > 5 && n.CO > 0.2, `CPP ${n.CPP?.toFixed(1)} mmHg, CO ${n.CO.toFixed(2)} L/min`);
+  const R = S.replay(VEST, { seed: 11, caseDef: caseOf('vestibular-neuritis-left'), interventions: own, log: run.log, until: run.t });
+  ok('a run with tapped compressions replays exactly from its seed and taps', fingerprint(R) === fingerprint(run));
+}
+
 console.log('\nThe case’s course on the scenario’s clock');
 {
   const run = start(VEST, 1);
