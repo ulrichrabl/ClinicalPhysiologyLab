@@ -260,6 +260,37 @@ export class ScenarioRun {
   ventilator: Ventilator | null = null;
   /** The patient's airway: a mask until a device is in. */
   airway: AirwayRoute = 'mask';
+  /** The defibrillator is charged (a shock can be given). */
+  charged = false;
+  /** Shocks delivered. */
+  shocks = 0;
+
+  /** Deliver the charged shock (ADR-018 step 3). Whether it ends the fibrillation, and what follows, is drawn from the run's
+      seed; the heart's own state sets the odds. A shock given uncharged does nothing; one given with hands on the patient,
+      or into a rhythm that is not shockable, is recorded as a hazard (and is given). */
+  private shock(by: string): void {
+    const joules = 150;
+    if (!this.charged) { this.events.push({ t: this.t, kind: 'shock', by, rhythm: this.rhythm(), outcome: 'no-effect', joules: 0 }); return; }
+    this.charged = false;
+    this.shocks++;
+    for (const [slot, h] of this.held) if (slot === 'compressions' || slot === 'ventilation') this.events.push({ t: this.t, kind: 'hazard', code: `shock-while-${slot === 'compressions' ? 'compressing' : 'ventilating'}`, by: h.by });
+    const rhythm = this.rhythm();
+    if (rhythm !== 'vf' && rhythm !== 'vt') {
+      this.events.push({ t: this.t, kind: 'hazard', code: 'shock-non-shockable', by });
+      this.events.push({ t: this.t, kind: 'shock', by, rhythm, outcome: 'no-effect', joules });
+      return;
+    }
+    const uT = this.chance.uniform('shock'), uR = this.chance.uniform('shock-rhythm');
+    const outcome = this.live.run.arrest.shock(uT, uR);
+    this.events.push({ t: this.t, kind: 'chance', stream: 'shock', value: uT, use: `shock ${this.shocks}: ${outcome === 'not-terminated' ? 'the fibrillation goes on' : 'the fibrillation ends'}` });
+    if (outcome !== 'not-terminated') this.events.push({ t: this.t, kind: 'chance', stream: 'shock-rhythm', value: uR, use: `then ${outcome === 'organised' ? 'an organised rhythm' : 'asystole'} (chance of organised ${(this.live.run.arrest.organisedChance() * 100).toFixed(0)} %)` });
+    if (outcome === 'organised') this.writeModel([['electrical.ventricular', 'none']]);
+    if (outcome === 'asystole') this.writeModel([['electrical.ventricular', 'asystole']]);
+    this.events.push({ t: this.t, kind: 'shock', by, rhythm, outcome, joules });
+  }
+
+  /** The heart's rhythm as the model runs it: 'vf', 'vt', 'asystole' or 'organised'. */
+  rhythm(): string { const v = this.live.model.electrical.ventricular; return v === 'none' ? 'organised' : v; }
 
   /** One breath given by whoever holds the ventilation, beginning at `at` seconds (now or within this tick). */
   ventilate(at: number, seconds = LUNG.bagInspiration, by = 'learner'): boolean {
@@ -328,6 +359,8 @@ export class ScenarioRun {
           if (h && h.by !== 'learner' && e.airway !== 'mask') this.ventilator.steady(10, this.respTime(this.t));
         }
       }
+      if (e.defib === 'charge') this.charged = true;
+      if (e.defib === 'shock') this.shock(p.by);
       if (e.state) this.setState(e.state);
     }
     this.did.add(p.id);
