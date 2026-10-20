@@ -88,7 +88,12 @@ export function validateScenario(s: ScenarioDef, ctx: { cases: CaseDef[]; interv
     if (!reached.has(name)) out.push({ level: 'warning', path: sp, message: 'never reached' });
     text(st.label, `${sp}.label`, out);
     for (const d of st.enter ?? []) {
-      if ('say' in d) {
+      if ('change' in d) {
+        for (const w of d.change) {
+          if ((w.set === undefined) === (w.add === undefined)) out.push({ level: 'error', path: `${sp}.change`, message: `${w.path}: give set or add, not both or neither` });
+          checkPath(w.path, w.set ?? w.add, `${sp}.change`, out);
+        }
+      } else if ('say' in d) {
         text(d.say.text, `${sp}.say`, out);
         if (d.say.who !== 'patient' && !people.has(d.say.who)) out.push({ level: 'error', path: `${sp}.say`, message: `no one called ${d.say.who}` });
       } else {

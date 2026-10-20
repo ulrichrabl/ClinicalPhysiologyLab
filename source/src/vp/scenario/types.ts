@@ -77,6 +77,8 @@ export type SceneWhen =
 
 export type SceneDo =
   | { say: { who: string; text: LocalizedText } }
+  /** A scripted change to the patient's model: the event the scene is built around (the heart fibrillates). */
+  | { change: ModelWrite[] }
   | { arrive: { people?: string[]; equipment?: string[]; afterSeconds: number } };
 
 export interface SceneState {

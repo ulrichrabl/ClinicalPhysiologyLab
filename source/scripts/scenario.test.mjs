@@ -18,7 +18,7 @@ const J = (x) => JSON.stringify(x);
 const errors = (issues) => issues.filter((i) => i.level === 'error');
 const show = (issues) => issues.map((i) => `${i.path}: ${i.message}`).join('; ');
 
-const caseOf = (id) => S.CASES.find((c) => c.id === id);
+const caseOf = (id) => [...S.CASES, S.FREE_CASE].find((c) => c.id === id);
 const scenarioOf = (id) => S.SCENARIOS.find((s) => s.id === id);
 const COPD = scenarioOf('copd-ed-oxygen'), VEST = scenarioOf('vestibular-ed-course');
 const start = (def, seed, caseDef = caseOf(def.caseId), more = {}) => new S.ScenarioRun(def, { seed, caseDef, ...more });
@@ -37,7 +37,7 @@ console.log('\nThe registry and the scenarios');
   ok('the oxygen devices are the encounter’s own, with the same ids and the same inspired fraction',
     S.INTERVENTIONS.filter((x) => x.id.startsWith('give.oxygen.')).every((x) => S.CATALOG.manoeuvres[x.id]?.sets?.oxygen?.fio2 === x.effect.inputs['respiratory.FiO2']));
   for (const s of S.SCENARIOS) {
-    const si = S.validateScenario(s, { cases: S.CASES, interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG });
+    const si = S.validateScenario(s, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG });
     ok(`scenario ${s.id} is valid, in English and German`, !errors(si).length, show(si));
   }
   const bad = structuredClone(COPD);
@@ -233,6 +233,20 @@ console.log('\nTaking over (ADR-018 step 2b)');
   ok('…and gives one when told', r.ventilate(r.t, 1, 'nurse') && r.ventilator.given(0, 1e9).length === 1);
   r.advanceTo(42);
   ok('once a tube is in, she goes over to 10 breaths a minute', r.intervene('airway.tube', 'learner') && (r.advanceTo(110), r.airway === 'tube' && r.live.snap.resp.givenRate >= 8 && r.live.snap.resp.givenRate <= 12), `${r.live.snap.resp.givenRate?.toFixed(1)}/min`);
+}
+
+console.log('\nThe practice arrest (a scene that changes the model)');
+{
+  const P = scenarioOf('arrest-practice');
+  const r = start(P, 2, S.FREE_CASE);
+  ok('the patient talks, and his heart beats', r.scene === 'talking' && r.live.model.electrical.ventricular !== 'vf');
+  r.advanceTo(4.1);
+  ok('four seconds in, the scene fibrillates his heart (a scripted change to the model), and the nurse calls it', r.scene === 'arrest' && r.live.model.electrical.ventricular === 'vf' && kinds(r, 'say').some((e) => e.who === 'nurse'));
+  r.advanceTo(40);
+  ok('…and with no one acting, he has no output', r.live.snap.metrics.CO < 0.1);
+  const bad = structuredClone(P);
+  bad.machine.states.arrest.enter[0].change[0].path = 'body.sodiumIntake';
+  ok('the validator refuses a scene change to the body’s slow parameters', errors(S.validateScenario(bad, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).some((i) => /not a model input/.test(i.message)));
 }
 
 console.log('\nThe case’s course on the scenario’s clock');

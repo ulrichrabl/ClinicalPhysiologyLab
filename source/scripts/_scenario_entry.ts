@@ -1,6 +1,7 @@
 /** Bundle entry for the scenario tests (ADR-018). */
 export { CASES, SCENARIOS, INTERVENTIONS, INTERVENTION_BY_ID, ScenarioRun, replay, TICK_S, Chance, validateInterventions, validateScenario, validateCase, CATALOG, REGISTRY, modelFromCase } from '../src/vp/index.ts';
 export { LivePatient } from '../src/vp/live/live-patient.ts';
+export { FREE_CASE } from '../src/vp/app/free-case.ts';
 /* ADR-018 step 2: chest compressions */
 export { cprTrial } from '../src/vp/physiology/cpr/trial.ts';
 export { Compressor } from '../src/vp/physiology/cpr/compressions.ts';

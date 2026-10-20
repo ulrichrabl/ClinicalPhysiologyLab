@@ -275,6 +275,24 @@ Step 2 is built in two parts: 2a the compression pump (here), 2b ventilation, ap
 - **Refitted:** `cpr.cardiacExtra` 0.10 → 0.11, with the same target and procedure. The lungs no longer breathe in an arrest, and their pleural swings had been pumping a little. With it, Ornato's flat diastolic pressure across rates moved from a pass (by under a millimetre) to a known gap: 30.0 → 35.2 mmHg from 60 to 140/min (gap 21).
 - **Moved elsewhere:** CO₂ now settles through the store, so results that run through it move slightly. Moderate PE's rise of mean pulmonary arterial pressure went from just over 3 mmHg to 3.0, now a known gap where it had passed by a hair. The other shifts are in the first decimal place.
 
+## A first practice screen (draft, after step 2)
+
+Asked for by the owner (2026-10-20) before step 3, to try the hands on a running patient. `app/practice-arrest.ts`, opened from the Ward:
+- **The run:** a `ScenarioRun` of `scenarios/arrest-practice.json` on the free patient. The scene fibrillates his heart 4 s in (`SceneDo.change`, a scripted change to the model, validated like an intervention's).
+- **Hands:** compressions are tapped (or the space bar); the bag is taken and each press gives a 1 s breath. One pair of hands cannot do both.
+- **The nurse:** compresses, takes the bag or gives two breaths when told.
+- **What is shown:** the circulation's own samples and numbers, the patient's breathing (breathing, gasping, not breathing), the learner's rate, count and hands-off time, two minutes of coronary perfusion pressure and end-tidal CO₂ with a short explanation, and a log.
+- **Not yet:** the duration of a press as the breath's (decision 7), the debrief and scoring (step 5), the defibrillator and the drugs (steps 3–4).
+
+**Owner (2026-10-20): the buttons are a stand-in.** Later the arrest gets a real patient and animated tools, as the examination and the stations have, because where and how things are done is part of what is learned:
+- **The patient figure** in the arrest: collapsed, on the floor or the bed, with the rescuers.
+- **Hand position for compressions:** the learner places the hands, and a wrong place is scored and weakens the compressions (the model would then need a placement factor, grounded where data allow).
+- **The airway and the bag:** head tilt and chin lift, the mask grip and seal (the leak would follow from it), the chest rising.
+- **Pads** placed on the chest (step 3).
+- **IV access as a procedure:** placing a venflon, with its steps and its time, before drugs can be given (step 4).
+
+For now the screen stays as it is, to get the circuit right: physiology, scene, inputs and replay.
+
 ## Decided by the owner (2026-10-19)
 
 1. **Guideline:** ERC 2025, with the GRC's German text (decision 3).
