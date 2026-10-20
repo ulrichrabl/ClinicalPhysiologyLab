@@ -7,7 +7,8 @@ import { OXYGEN } from './manoeuvres.ts';
 
    They act through inputs the models take: the inspired oxygen fraction the
    lungs breathe, and the pressure chest compressions put on the chest
-   (step 2). Ventilation, the shock and the drugs follow in steps 2–4.
+   (step 2a) and the breaths given at the airway (step 2b). The shock and the
+   drugs follow in steps 3–4.
 
    An oxygen device shares its id with the encounter's manoeuvre that puts it
    on (`give.oxygen.*`), so a phrase, a case's `unless` and the debrief name
@@ -44,6 +45,34 @@ export const INTERVENTIONS: InterventionDef[] = [
     duration: { seconds: 2 },
     timing: { status: 'placement', note: 'Kneeling at the side and placing the hands on the lower half of the sternum; not measured.' },
     effect: { kind: 'continuous', slot: 'compressions', inputs: {}, handsWhileHeld: true, driver: 'compressions' },
+  },
+  /* Breaths given at the airway (ADR-018 step 2b): held by whoever ventilates, through a mask until an airway device is in. */
+  {
+    id: 'vent.bag',
+    label: { en: 'Ventilate with the bag', de: 'Mit dem Beutel beatmen' },
+    phrases: { en: ['bag the patient', 'bag mask ventilation', 'ventilate', 'give breaths', 'rescue breaths', 'bag him'], de: ['beutelbeatmung', 'beatmen', 'maskenbeatmung', 'beatmung beginnen', 'mit dem beutel beatmen'] },
+    needs: { equipment: ['bag-mask'] },
+    duration: { seconds: 5 },
+    timing: { status: 'placement', note: 'Connecting oxygen, placing the mask and taking the grip; not measured.' },
+    effect: { kind: 'continuous', slot: 'ventilation', inputs: {}, handsWhileHeld: true, driver: 'ventilation' },
+  },
+  {
+    id: 'airway.supraglottic',
+    label: { en: 'Insert a supraglottic airway', de: 'Larynxmaske/Larynxtubus einlegen' },
+    phrases: { en: ['supraglottic airway', 'i-gel', 'igel', 'laryngeal mask', 'lma', 'laryngeal tube'], de: ['larynxmaske', 'larynxtubus', 'i-gel', 'supraglottische atemwegshilfe', 'lama'] },
+    needs: { equipment: ['airway-kit'] },
+    duration: { min: 10, max: 20 },
+    timing: { status: 'placement', note: 'Taking the device out, lubricating and inserting it; not measured.' },
+    effect: { kind: 'instantaneous', airway: 'supraglottic' },
+  },
+  {
+    id: 'airway.tube',
+    label: { en: 'Intubate', de: 'Intubieren' },
+    phrases: { en: ['intubate', 'tube him', 'endotracheal tube', 'et tube', 'put a tube in'], de: ['intubieren', 'intubation', 'endotrachealtubus', 'tubus'] },
+    needs: { equipment: ['airway-kit'] },
+    duration: { min: 20, max: 30 },
+    timing: { status: 'placement', note: 'ADR-018: 20–30 s, to be checked against observed times.' },
+    effect: { kind: 'instantaneous', airway: 'tube' },
   },
 ];
 

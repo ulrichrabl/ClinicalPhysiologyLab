@@ -1,5 +1,6 @@
 import type { LocalizedList, LocalizedText } from '../model/i18n.ts';
 import type { Ability, PatientState, Side } from '../model/types.ts';
+import type { AirwayRoute } from '../physiology/lung/ventilation.ts';
 
 /* ===========================================================================
    Interventions and scenarios (ADR-018).
@@ -29,7 +30,7 @@ export interface ContinuousEffect {
   /** Whether it keeps the hands of whoever holds it busy (compressions do; an oxygen mask does not). */
   handsWhileHeld?: boolean;
   /** A time-varying input the run drives while held: chest compressions (the learner's taps, or a team member's steady rate). */
-  driver?: 'compressions';
+  driver?: 'compressions' | 'ventilation';
 }
 
 /** Done once: a shock, IV access. */
@@ -38,6 +39,8 @@ export interface InstantEffect {
   change?: ModelWrite[];
   /** What it makes possible for later interventions ('iv'). */
   grants?: string[];
+  /** The airway the patient now has: a supraglottic airway or a tube (breaths given go through it). */
+  airway?: AirwayRoute;
   state?: Partial<PatientState>;
 }
 
@@ -108,7 +111,9 @@ export type ScenarioInput =
   | { t: number; do: 'examine'; manoeuvre: string; side?: Side; by: string }
   | { t: number; do: 'order'; test: string; by: string }
   /** One chest compression, tapped: `at` is when it began (seconds, at or after t, within the tick it was given in). */
-  | { t: number; do: 'compress'; at: number; by: string };
+  | { t: number; do: 'compress'; at: number; by: string }
+  /** One breath given by whoever holds the ventilation: when it began, and how long the bag was squeezed (s). */
+  | { t: number; do: 'ventilate'; at: number; seconds: number; by: string };
 
 /** What followed from the inputs, the scene, the course and chance. Reproduced exactly by a replay. */
 export type ScenarioEvent =

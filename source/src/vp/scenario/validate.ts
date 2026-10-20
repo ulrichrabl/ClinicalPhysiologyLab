@@ -46,7 +46,7 @@ export function validateInterventions(list: InterventionDef[], cat: Catalog): Is
         if ((w.set === undefined) === (w.add === undefined)) out.push({ level: 'error', path: `${p}.effect.change`, message: `${w.path}: give set or add, not both or neither` });
         checkPath(w.path, w.set ?? w.add, `${p}.effect.change`, out);
       }
-      if (!e.change?.length && !e.grants?.length && !e.state) out.push({ level: 'warning', path: `${p}.effect`, message: 'does nothing' });
+      if (!e.change?.length && !e.grants?.length && !e.state && !e.airway) out.push({ level: 'warning', path: `${p}.effect`, message: 'does nothing' });
     }
     /* Sharing an id with a manoeuvre means the same act: it must leave the patient in the same state. */
     const m = cat.manoeuvres[x.id];

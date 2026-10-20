@@ -7,3 +7,6 @@ export { Compressor } from '../src/vp/physiology/cpr/compressions.ts';
 export { CPR } from '../src/vp/evidence/cpr.ts';
 export { createCirculation } from '../src/vp/engine/circulation-host.ts';
 export { healthyModel } from '../src/vp/physiology/state.ts';
+/* ADR-018 step 2b: breathing in arrest and given breaths */
+export { Ventilator } from '../src/vp/physiology/lung/ventilation.ts';
+export { LUNG } from '../src/vp/evidence/lung.ts';
