@@ -22,6 +22,8 @@ export type Snapshot = Record<string, any>;
 
 /** How many recent beats a live patient keeps with their samples (about seven seconds at a resting rate). */
 const BEATS_KEPT = 10;
+/** The longest step between two looks at the circulation (s): shorter than any beat. */
+const STEP_S = 0.2;
 
 /** One beat as the circulation recorded it. */
 export interface BeatRecord {
@@ -97,9 +99,14 @@ export class LivePatient {
 
   advance(seconds: number): void {
     if (seconds <= 0 || this.busy) return;
-    this.run.advance(seconds);
-    this.t += seconds;
-    this.snap = this.capture();
+    /* In steps shorter than a beat: each beat is recorded when a step ends after it, and a long step would drop all but
+       its last beat (a slow frame, or running ahead). */
+    for (let done = 0; done < seconds - 1e-9;) {
+      const h = Math.min(STEP_S, seconds - done);
+      this.run.advance(h);
+      this.t += h; done += h;
+      this.snap = this.capture();
+    }
     this.chemistry = chemistryState(this.snap, this.model.chemistry) as unknown as Record<string, number>;
   }
 

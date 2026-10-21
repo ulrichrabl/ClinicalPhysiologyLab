@@ -76,6 +76,16 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
   - an event in a beat's last step keeps its time;
   - lead II holds its value between drains.
 
+### 8b. The auscultation station revisited (owner, 2026-10-21)
+
+- **The site is chosen on the chest.** The station now shows the thorax view of the examination, cropped to the chest, with the stethoscope where it lies. A tap moves the stethoscope to the nearest of the five cardiac areas; the arrow keys step through them. In Explore the areas are marked faintly; in Identify they are not, since finding them is part of the task. The dropdown is gone.
+- **The sound stays on.** Once switched on, it follows the site, the bell, the position, the breathing and the heart without being switched on again, so two sites or two hearts can be compared by ear.
+  - The page has one audio context, resumed on each start. A browser plays a context only if it was created or resumed in a tap; the old code made a new one whenever the heart changed, outside a tap, and that one stayed silent.
+  - The loop changes its sound where the cycle playing ends, so the rhythm does not break.
+- **The timing after a change** (it raced, then slowed) had two causes:
+  - **Settling played on screen.** The station ran the 20 s of settling at eight times real time on screen. It now runs them out of sight, as fast as they compute (a fraction of a second), while the last picture stays dimmed; then the new heart plays in real time.
+  - **Beats went missing.** `LivePatient.advance` recorded a beat only at the end of each step. A step longer than a beat (eight-times speed, or a slow frame) dropped all but the last, so the strip had gaps and the cursor jumped. It now advances in steps of at most 0.2 s, and a test checks that 1.5 s steps keep every beat.
+
 ### 9. How the eye station was built (added with it)
 
 - **One station for one examination, not one test.** The eye examination reads several observables (pupils, lids, ductions, alignment, nystagmus, head impulse, pursuit, fields), so `StationDef` gains `alsoTests`, and the settings are derived from all of them: the vestibular loss and the lesions of the nervous-system graph.

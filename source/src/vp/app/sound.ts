@@ -40,13 +40,23 @@ export function traceLoop(canvas: HTMLCanvasElement, f: (t: number) => number, w
   return () => cancelAnimationFrame(raf);
 }
 
-/** Heart sounds as damped low-frequency bursts, murmurs as band-passed noise shaped by their envelope. Returns stop(). */
-export function playCycle(cyc: Cycle): (() => void) | null {
+/* One audio context for the page. A browser lets a context play only if it was created or resumed in a tap or a click;
+   a new context made later (when the heart under the stethoscope changes) would stay silent. So it is made once and
+   resumed on each start. */
+let shared: AudioContext | null = null;
+function audio(): AudioContext | null {
   const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
   if (!AC) return null;
-  const ac: AudioContext = new AC();
+  if (!shared || shared.state === 'closed') shared = new AC() as AudioContext;
+  if (shared.state === 'suspended') void shared.resume();
+  return shared;
+}
+
+/** One cardiac cycle rendered into a buffer: heart sounds as damped low-frequency bursts, murmurs as band-passed noise
+    shaped by their envelope. */
+function cycleBuffer(ac: AudioContext, cyc: Cycle): AudioBuffer {
   const sr = ac.sampleRate;
-  const len = Math.round(cyc.periodS * sr);
+  const len = Math.max(1, Math.round(cyc.periodS * sr));
   const buf = ac.createBuffer(1, len, sr);
   const d = buf.getChannelData(0);
   let seed = 1;
@@ -70,12 +80,42 @@ export function playCycle(cyc: Cycle): (() => void) | null {
       d[i] += y * m.amp * 0.9;
     }
   }
-  const src = ac.createBufferSource();
-  src.buffer = buf; src.loop = true;
-  const g = ac.createGain(); g.gain.value = 0.9;
-  src.connect(g).connect(ac.destination);
-  src.start();
-  return () => { try { src.stop(); ac.close(); } catch { /* already stopped */ } };
+  return buf;
+}
+
+/** A cycle played over and over. Returns stop(), or null if the browser cannot play sound. */
+export function playCycle(cyc: Cycle): (() => void) | null {
+  const loop = cycleLoop();
+  if (!loop) return null;
+  loop.set(cyc);
+  return () => loop.stop();
+}
+
+/** A cycle played over and over, whose sound can be changed while it plays: the new one takes over where the old one's
+    cycle ends, so changing the site, the bell or the heart does not stop the sound or break its rhythm. */
+export function cycleLoop(): { set: (cyc: Cycle) => void; stop: () => void; readonly periodS: number } | null {
+  const ac = audio();
+  if (!ac) return null;
+  const gain = ac.createGain(); gain.gain.value = 0.9; gain.connect(ac.destination);
+  let src: AudioBufferSourceNode | null = null, startedAt = 0, period = 0;
+  return {
+    get periodS() { return period; },
+    set(cyc: Cycle) {
+      if (ac.state === 'suspended') void ac.resume();
+      const next = ac.createBufferSource();
+      next.buffer = cycleBuffer(ac, cyc); next.loop = true; next.connect(gain);
+      let at = ac.currentTime + 0.02;
+      if (src && period > 0) {
+        /* at the end of the cycle now playing */
+        const k = Math.ceil((at - startedAt) / period);
+        at = Math.max(at, startedAt + k * period);
+        try { src.stop(at); } catch { /* already stopped */ }
+      }
+      next.start(at);
+      src = next; startedAt = at; period = cyc.periodS;
+    },
+    stop() { try { src?.stop(); } catch { /* already stopped */ } src = null; gain.disconnect(); },
+  };
 }
 
 /* ---- the lungs ------------------------------------------------------------------------------------------------- */

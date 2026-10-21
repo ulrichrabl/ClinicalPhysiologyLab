@@ -373,5 +373,15 @@ console.log('\nThe pulse and neck-vein station');
   ok('every pulse explanation exists in English and German, with its numbers filled in', txt.length > 40 && txt.every((x) => x.en && x.de && x.en !== x.de && !/\$\{|undefined|NaN/.test(x.en + x.de)), `${txt.length} texts`);
 }
 
+console.log('\nA live patient records every beat, however long the step');
+{
+  const lp = new S.LivePatient(S.healthyModel());
+  await lp.settle(10);
+  for (let i = 0; i < 5; i++) lp.advance(1.5);   // a slow frame, or running ahead: each step longer than a beat
+  const bs = lp.beats;
+  const gaps = bs.slice(1).map((b, i) => b.t0 - (bs[i].t0 + bs[i].dur));
+  ok('consecutive beats follow each other with no beat missing (each starts where the last ended, within 3 ms)', bs.length >= 8 && gaps.every((g) => Math.abs(g) <= 3), JSON.stringify({ n: bs.length, gaps: gaps.map((g) => Math.round(g)) }));
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);
