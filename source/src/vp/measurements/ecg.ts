@@ -147,6 +147,21 @@ export function recordLeads(vcg: Vcg, pl: Placement = standardPlacement()): Reco
   return out;
 }
 
+/** A frontal axis read from the net areas (or amplitudes) of leads I and aVF, as a machine and a reader take it: on
+    Einthoven's ideal circle, I = |M| cos θ and aVF = (√3/2)|M| sin θ. This is the one definition of the axis the app
+    shows (ADR-017, 9c). */
+export function axisFromIandAvf(aI: number, aF: number): number {
+  return (Math.atan2((2 * aF) / Math.sqrt(3), aI) * 180) / Math.PI;
+}
+
+/** The axis the standard 12 leads read for a frontal–sagittal vector in Frank coordinates (x left, y feet, z back). */
+let STANDARD_LEADS: Record<LeadName, Vec3> | null = null;
+export function standardAxisOf(v: Vec3): number {
+  const L = (STANDARD_LEADS ??= leadVectors(standardPlacement()));
+  const dot = (a: Vec3) => a[0] * v[0] + a[1] * v[1] + a[2] * v[2];
+  return axisFromIandAvf(dot(L.I), dot(L.aVF));
+}
+
 /** The machine's frontal axis: net QRS area in I and aVF, around each complex it detects. */
 export function measuredAxis(leads: Record<LeadName, Float32Array>, fs: number): number | null {
   const I = leads.I, F = leads.aVF, n = I.length;
@@ -167,7 +182,7 @@ export function measuredAxis(leads: Record<LeadName, Float32Array>, fs: number):
     }
   }
   if (!beats) return null;
-  return Math.round((Math.atan2(af, ai) * 180) / Math.PI);
+  return Math.round(axisFromIandAvf(ai, af));
 }
 
 /** Electrode misplacements worth knowing, as placements. */

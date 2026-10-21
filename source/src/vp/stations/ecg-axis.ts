@@ -1,5 +1,5 @@
 import type { Activation } from '../physiology/heart/electrical.ts';
-import type { LeadName, Vcg } from '../measurements/ecg.ts';
+import { axisFromIandAvf, type LeadName, type Vcg } from '../measurements/ecg.ts';
 
 /* ---------------------------------------------------------------------------
    The QRS axis, as the ECG station teaches it (ADR-017, 9b).
@@ -66,8 +66,8 @@ export function readAxis(rec: { vcg: Vcg; t0: number; dt: number; activations: A
   });
   const areaOf = (name: string) => leads.find((l) => l.name === name)!.area;
   const readVector: [number, number] = [areaOf('I'), (2 * areaOf('aVF')) / Math.sqrt(3)];
-  const read = angle(readVector[0], readVector[1]);
-  const std = angle(dot(standard.I, mean), (2 * dot(standard.aVF, mean)) / Math.sqrt(3));
+  const read = axisFromIandAvf(areaOf('I'), areaOf('aVF'));
+  const std = axisFromIandAvf(dot(standard.I, mean), dot(standard.aVF, mean));
   const iso = leads.reduce((best, l) => (Math.abs(l.area) < Math.abs(best.area) ? l : best), leads[0]);
   return { mean, loop, leads, read, readVector, own: angle(mean[0], mean[1]), standard: std, misplaced: Math.abs(wrap(read - std)) > 15, isoelectric: iso.name };
 }

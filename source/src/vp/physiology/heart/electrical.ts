@@ -1,5 +1,6 @@
 import type { LocalizedText } from '../../model/i18n.ts';
 import { ECG } from '../../evidence/ecg.ts';
+import { standardAxisOf } from '../../measurements/ecg.ts';
 
 /* ===========================================================================
    The heart's electrical activity, as physiology.
@@ -122,7 +123,12 @@ interface Plateau { t0: number; t1: number; rise: number; fall: number; v: Vec3 
 
 /** Machine-style intervals, but known exactly: the model knows its own fiducials. */
 export interface ElectricalMetrics {
-  HR: number; PR: number | null; QRS: number; QT: number; QTc: number; qrsAxis: number; pAxis: number | null; tAxis: number;
+  HR: number; PR: number | null; QRS: number; QT: number; QTc: number;
+  /** The axes as the standard 12-lead ECG reads them (I and aVF on Einthoven's circle): what a machine reports. */
+  qrsAxis: number; pAxis: number | null; tAxis: number;
+  /** The QRS vector's own direction in the frontal plane of Frank's coordinates (the vectorcardiogram's angle). The leads
+      see the chest a little askew, so this differs from qrsAxis by some degrees; it is not shown as "the axis". */
+  vcgAxis: number;
   RR: number; conducted: boolean;
 }
 
@@ -217,7 +223,7 @@ export class HeartElectrical {
   /** How coarse the fibrillation is, 0–1: set from outside by the myocardium's state in an arrest (coarse at first, fine
       as the muscle runs out of energy). 1 leaves the fibrillation as it always was. */
   vfScale = 1;
-  metrics: ElectricalMetrics = { HR: 72, PR: 160, QRS: 90, QT: 390, QTc: 427, qrsAxis: 55, pAxis: 60, tAxis: 45, RR: 833, conducted: true };
+  metrics: ElectricalMetrics = { HR: 72, PR: 160, QRS: 90, QT: 390, QTc: 427, qrsAxis: 70, pAxis: 60, tAxis: 45, vcgAxis: 46, RR: 833, conducted: true };
 
   /* ---- configuration ------------------------------------------------------------------- */
   setParams(p: Partial<ElectricalParams>): void {
@@ -544,7 +550,8 @@ export class HeartElectrical {
       HR: Math.round(60000 / meanRR), RR: rrMs,
       PR: kind === 'conducted' && p.atrial === 'sinus' && pr != null && pVisible ? Math.round(pr) : null,
       QRS: Math.round(qrs), QT: Math.round(QT), QTc: Math.round(QT / Math.sqrt(rr / 1000)),
-      qrsAxis: Math.round(frontal(qrsArea)), pAxis: pVisible ? Math.round(frontal(add(D.ra, D.la))) : null, tAxis: Math.round(frontal(tDir)),
+      qrsAxis: Math.round(standardAxisOf(qrsArea)), pAxis: pVisible ? Math.round(standardAxisOf(add(D.ra, D.la))) : null, tAxis: Math.round(standardAxisOf(tDir)),
+      vcgAxis: Math.round(frontal(qrsArea)),
       conducted: kind === 'conducted' && pr != null,
     };
   }
