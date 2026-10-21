@@ -2,7 +2,14 @@ import { LivePatient } from '../live/live-patient.ts';
 import { healthyModel, applyPreset, type PatientModel } from '../physiology/state.ts';
 import { getPath, setPath } from '../physiology/models.ts';
 import type { VariableDef } from '../physiology/types.ts';
-import { LEAD_NAMES, leadVectors, standardPlacement, recordLeads, type LeadName } from '../measurements/ecg.ts';
+import { LEAD_NAMES, leadVectors, leadVectorsOn, standardPlacement, recordLeads, type LeadName, type Placement } from '../measurements/ecg.ts';
+import { mountEcgPlacement } from './focus-ecg.ts';
+import { figureLookFor } from '../render/patient-figure.ts';
+import { appearanceOf } from '../render/face-canvas.ts';
+import { FREE_CASE } from './free-case.ts';
+import type { ThoraxLook } from '../render/thorax.ts';
+import { drawCabrera, cabreraHeight, angleOf, axisClass, type CabreraHit, type CabreraLead } from '../render/cabrera.ts';
+import { readAxis, lagetyp, CABRERA } from '../stations/ecg-axis.ts';
 import { drawEcgPaper, PAPER_MM } from '../render/ecg-paper.ts';
 import { ecgSigns, ecgSignsOf } from '../stations/ecg-signs.ts';
 import { KNOWLEDGE, labelOf } from '../knowledge/index.ts';
@@ -73,6 +80,44 @@ const T: Record<string, LocalizedText> = {
   hits: L('Named, and there', 'Benannt und vorhanden'), misses: L('There, not named', 'Vorhanden, nicht benannt'), over: L('Named, not there', 'Benannt, nicht vorhanden'),
   mechRight: L('Right', 'Richtig'), mechWrong: L('It was', 'Es war'),
   syndromes: L('Together they make', 'Zusammen ergeben sie'), score: L('right this session', 'richtig in dieser Sitzung'),
+  detail: L('Two leads in detail', 'Zwei Ableitungen im Detail'),
+  twelve: L('All twelve leads, and where the electrodes are', 'Alle zwölf Ableitungen und wo die Elektroden liegen'),
+  twelveNote: L('The same heart, through the ten electrodes on his chest and limbs. Move an electrode and every lead it belongs to changes, here, in the detail strip above and in the axis below. Print takes the last ten seconds onto paper.',
+    'Dasselbe Herz, über die zehn Elektroden an Brust und Extremitäten. Verschieben Sie eine Elektrode: Jede Ableitung, zu der sie gehört, ändert sich, hier, im Detailstreifen oben und in der Achse unten. Drucken bringt die letzten zehn Sekunden aufs Papier.'),
+  printed: L('Printed', 'Gedruckt'), stdRead: L('standard electrodes', 'Standardelektroden'),
+  axisH: L('The axis', 'Die Herzachse (Lagetyp)'),
+  axisSub: L('The six limb leads on the Cabrera circle, the heart’s mean QRS vector (red), the loop the dipole drew through the last QRS, and each lead’s QRS. Tap a lead to see its share of the vector.',
+    'Die sechs Extremitätenableitungen im Cabrera-Kreis, der mittlere QRS-Vektor des Herzens (rot), die Schleife, die der Dipol im letzten QRS gezeichnet hat, und der QRS-Komplex jeder Ableitung. Tippen Sie auf eine Ableitung, um ihren Anteil am Vektor zu sehen.'),
+  cabrera: L('Cabrera circle with the mean QRS vector', 'Cabrera-Kreis mit dem mittleren QRS-Vektor'),
+  aNormal: L('normal', 'normal'), aLad: L('left', 'links'), aRad: L('right', 'rechts'), aExtreme: L('extreme', 'extrem'),
+  aNormalLong: L('a normal axis', 'normale Achse'), aLadLong: L('left axis deviation', 'Linksabweichung'), aRadLong: L('right axis deviation', 'Rechtsabweichung'), aExtremeLong: L('an extreme axis (“north-west”)', 'extreme Achse („Nordwest“)'),
+  lagetyp: L('', ' Lagetyp: {t}.'),
+  axisNow: L('Axis {a}: {class}.', 'Achse {a}: {class}.'),
+  quick: L('Lead I {i}, aVF {f}.', 'Ableitung I {i}, aVF {f}.'), pos: L('positive', 'positiv'), neg: L('negative', 'negativ'),
+  iso: L('Most nearly isoelectric: {lead} ({ang}); the axis lies at right angles to it, towards the more positive side.', 'Am ehesten isoelektrisch: {lead} ({ang}); die Achse steht senkrecht dazu, zur positiveren Seite hin.'),
+  misread: L('With the electrodes in their standard places this ECG would read {true}; through these electrodes it reads {read}. The machine assumes the standard positions.', 'Mit den Elektroden an ihren Standardpositionen läge die Achse bei {true}; über diese Elektroden gelesen zeigt das EKG {read}. Das Gerät nimmt die Standardpositionen an.'),
+  ownDir: L('(The heart’s own mean vector, in the model’s body coordinates: {a}; the leads see it a little askew, see “Why a lead sees what it sees”.)', '(Der mittlere Vektor des Herzens selbst, in den Körperkoordinaten des Modells: {a}; die Ableitungen sehen ihn etwas schief, siehe „Warum eine Ableitung sieht, was sie sieht“.)'),
+  focusLine: L('{lead} sees the vector’s shadow on its axis: {sign}.', '{lead} sieht den Schatten des Vektors auf seiner Achse: {sign}.'),
+  shadowPos: L('positive, towards its positive pole', 'positiv, zu ihrem positiven Pol hin'), shadowNeg: L('negative, away from it', 'negativ, von ihm weg'),
+  tryH: L('See it move', 'Sehen, wie sie wandert'), swapArms: L('Swap the arm electrodes', 'Armelektroden vertauschen'), standardEl: L('Electrodes back to standard', 'Elektroden auf Standard'),
+  axWhatH: L('What the axis is', 'Was die Achse ist'),
+  axWhat: L('The QRS axis is the direction of the heart’s mean electrical vector while the ventricles depolarise, seen in the frontal plane: the average of all the arrows the dipole draws through QRS. The red arrow is that average; the loop is the path the arrow’s tip took. 0° points to the patient’s left, +90° to the feet, −90° to the head.',
+    'Die QRS-Achse ist die Richtung des mittleren elektrischen Vektors des Herzens während der Kammerdepolarisation, in der Frontalebene: der Mittelwert aller Pfeile, die der Dipol während QRS zeichnet. Der rote Pfeil ist dieser Mittelwert; die Schleife ist der Weg seiner Spitze. 0° zeigt zur linken Seite des Patienten, +90° zu den Füßen, −90° zum Kopf.'),
+  axPhysH: L('Why a lead sees what it sees', 'Warum eine Ableitung sieht, was sie sieht'),
+  axPhys: L('The body conducts, and the depolarising ventricles act like one electrical dipole. A lead measures the dipole’s projection on its own axis (Einthoven): the most positive when the dipole points at its positive pole, negative when it points away, nothing when it lies at right angles. Einthoven’s I, II and III and Goldberger’s aVR, aVL and aVF look at the frontal plane from six directions 30° apart. The Cabrera circle lays them out by angle, with −aVR in place of aVR, so the complexes change step by step round the circle. Each lead’s net QRS (the bars) is the red arrow’s shadow on that lead’s axis.',
+    'Der Körper leitet, und die depolarisierenden Kammern wirken wie ein elektrischer Dipol. Eine Ableitung misst die Projektion des Dipols auf ihre eigene Achse (Einthoven): am positivsten, wenn der Dipol auf ihren positiven Pol zeigt, negativ, wenn er wegzeigt, null, wenn er senkrecht dazu steht. Einthovens I, II und III und Goldbergers aVR, aVL und aVF sehen die Frontalebene aus sechs Richtungen im Abstand von 30°. Der Cabrera-Kreis ordnet sie nach dem Winkel, mit −aVR statt aVR, sodass sich die Komplexe rund um den Kreis Schritt für Schritt ändern. Der Netto-QRS jeder Ableitung (die Balken) ist der Schatten des roten Pfeils auf ihre Achse.'),
+  axPhysioH: L('Why it points where it points', 'Warum sie dorthin zeigt'),
+  axPhysio: L('The left ventricle has several times the mass of the right and depolarises last at its free wall, so normally the mean vector points left and down: between −30° and +90° in adults. It turns to the right in the young and slim (a vertical heart), with right ventricular hypertrophy or acute right heart strain, and when the left posterior fascicle does not conduct. It turns to the left with age and obesity, left ventricular hypertrophy, an inferior infarct (whose forces are lost) and a left anterior fascicular block. When a bundle branch is blocked, the wave takes another path, and the late, slow part of QRS points to the ventricle reached late. The model has no fascicular blocks yet, and its infarcts are acute, without the Q waves of an old one.',
+    'Der linke Ventrikel hat ein Mehrfaches der Masse des rechten und depolarisiert zuletzt an seiner freien Wand, deshalb zeigt der mittlere Vektor normalerweise nach links unten: bei Erwachsenen zwischen −30° und +90°. Nach rechts dreht er bei Jungen und Schlanken (Steiltyp), bei Rechtsherzhypertrophie oder akuter Rechtsherzbelastung und wenn der linke posteriore Faszikel nicht leitet. Nach links dreht er mit Alter und Adipositas, bei Linksherzhypertrophie, nach einem Hinterwandinfarkt (dessen Kräfte fehlen) und beim linksanterioren Hemiblock. Ist ein Tawara-Schenkel blockiert, nimmt die Erregung einen anderen Weg, und der späte, langsame Teil des QRS zeigt zur spät erreichten Kammer. Faszikuläre Blöcke hat das Modell noch nicht, und seine Infarkte sind akut, ohne die Q-Zacken eines alten.'),
+  axWhyH: L('Why we measure it', 'Warum wir sie bestimmen'),
+  axWhy: L('Because it costs a glance and points to what the heart is doing: hypertrophy, a fascicle or bundle that does not conduct, an old inferior infarct, right heart strain, pre-excitation. In a broad-complex tachycardia an extreme axis (−90° to ±180°) points to a ventricular origin. And an axis that does not fit the patient, with lead I negative, is often the arm electrodes swapped: try it.',
+    'Weil sie einen Blick kostet und darauf hinweist, was das Herz tut: Hypertrophie, ein Faszikel oder Schenkel, der nicht leitet, ein alter Hinterwandinfarkt, Rechtsherzbelastung, Präexzitation. Bei einer Breitkomplextachykardie spricht eine extreme Achse (−90° bis ±180°) für einen ventrikulären Ursprung. Und eine Achse, die nicht zum Patienten passt, mit negativem I, sind oft vertauschte Armelektroden: probieren Sie es aus.'),
+  axHowH: L('Reading it in ten seconds', 'Sie in zehn Sekunden ablesen'),
+  axHow: L('Look at I and aVF. Both positive: normal. I positive, aVF negative: left, unless II is still positive (then normal, down to −30°). I negative, aVF positive: right. Both negative: extreme. Then find the lead whose QRS is most nearly isoelectric: the axis is at right angles to it, on the side of the lead whose QRS is most positive.',
+    'Schauen Sie auf I und aVF. Beide positiv: normal. I positiv, aVF negativ: links, es sei denn, II ist noch positiv (dann normal, bis −30°). I negativ, aVF positiv: rechts. Beide negativ: extrem. Dann suchen Sie die Ableitung, deren QRS am ehesten isoelektrisch ist: Die Achse steht senkrecht dazu, auf der Seite der Ableitung mit dem positivsten QRS.'),
+  axIdeal: L('The circle is Einthoven’s ideal one. In a real chest the leads look a little askew (Burger’s triangle is not equilateral): in this model’s torso, lead I points at {I}, aVF at {F}. The axis an ECG machine reports, and the one read here, assumes the ideal circle; the heart’s own direction can differ by some degrees.',
+    'Der Kreis ist Einthovens ideales Schema. In einem echten Thorax blicken die Ableitungen etwas schief (Burgers Dreieck ist nicht gleichseitig): im Thorax dieses Modells zeigt Ableitung I auf {I}, aVF auf {F}. Die Achse, die ein EKG-Gerät angibt und die hier abgelesen wird, setzt den idealen Kreis voraus; die Richtung des Herzens selbst kann um einige Grad abweichen.'),
+  axSource: L('Ranges: AHA/ACCF/HRS recommendations for the standardization and interpretation of the ECG (2009).', 'Bereiche: AHA/ACCF/HRS-Empfehlungen zur Standardisierung und Interpretation des EKG (2009).'),
 };
 /* The patterns Identify hides: the station's presets, with a healthy heart among them. Ventricular fibrillation is left
    out: it is recognised, not read. */
@@ -114,7 +159,19 @@ export function mountEcgStation(host: HTMLElement, o: StationOptions): StationHa
   const synLabel = (s: string) => labelOf(KNOWLEDGE, `syndrome:${s}`, lang);
   const presetLabel = (pid: string) => (pid === 'normal' ? t('healthyHeart') : tr(ELECTRICAL_PRESETS.find((x) => x.id === pid)?.label ?? L(pid, pid), lang));
   let note = '';
-  const vectors = leadVectors(standardPlacement());
+  /* The electrodes: where they are is what every lead here sees (the detail strip, the heart pane, the axis). They start
+     at the standard positions; the learner can move them in the twelve-lead panel. */
+  let placement: Partial<Placement> = standardPlacement();
+  let vectors = leadVectorsOn(placement);
+  const vec = (l: LeadName): [number, number, number] => (vectors[l] ?? [0, 0, 0]) as [number, number, number];
+  const STD = leadVectors(standardPlacement());
+  let stopPlace: (() => void) | null = null;
+  let printed: Record<LeadName, Float32Array> | null = null;
+  let axisFocus: string | null = 'I';
+  const signDeg = (d: number) => `${d > 0 ? '+' : d < 0 ? '−' : ''}${Math.abs(Math.round(d))}°`;
+  let cabHits: CabreraHit[] = [];
+  const ap = appearanceOf(FREE_CASE.patient as Parameters<typeof appearanceOf>[0], 7);
+  const thoraxLook: ThoraxLook = { skin: ap.skin, shade: ap.skinShade, sex: FREE_CASE.patient.sex, figure: figureLookFor(FREE_CASE.patient, { exposure: ['chest'] } as any, 7) };
   const seconds = () => secondsFor(host.querySelector<HTMLElement>('.st-strip')?.clientWidth ?? 800);
   const settings = stationSettings(ECG_STATION);
   const presets = stationPresets(ECG_STATION);
@@ -144,7 +201,7 @@ export function mountEcgStation(host: HTMLElement, o: StationOptions): StationHa
         <div class="st-main">
           <section class="panel st-signal" aria-labelledby="st-see-h">
             <div class="st-row">
-              <div><h2 id="st-see-h">${t('see')}</h2><div class="muted small">${t('seeNote')}</div></div>
+              <div><h2 id="st-see-h">${t('detail')}</h2><div class="muted small">${t('seeNote')}</div></div>
               <div class="st-leads">
                 <label>${t('lead1')} <select data-lead="0">${LEAD_NAMES.map((n) => `<option ${n === show[0] ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
                 <label>${t('lead2')} <select data-lead="1">${LEAD_NAMES.map((n) => `<option ${n === show[1] ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
@@ -178,13 +235,60 @@ export function mountEcgStation(host: HTMLElement, o: StationOptions): StationHa
               </div>
             </div>
           </section>
+          <section class="panel st-twelve" aria-labelledby="st-12-h">
+            <h2 id="st-12-h">${t('twelve')}</h2>
+            <p class="muted small">${t('twelveNote')}</p>
+            <div data-place></div>
+            <div class="st-paper-wrap" data-printed ${printed ? '' : 'hidden'}><h3>${t('printed')}</h3><canvas class="st-paper st-printed"></canvas></div>
+          </section>
+          <section class="panel st-axis" aria-labelledby="st-axis-h">
+            <h2 id="st-axis-h">${t('axisH')}</h2>
+            <p class="muted small">${t('axisSub')}</p>
+            <p class="st-axis-now" data-axis-now aria-live="polite"></p>
+            <canvas class="st-cabrera" tabindex="0" aria-label="${t('cabrera')}"></canvas>
+            <div class="st-axis-try"><span class="muted small">${t('tryH')}:</span>
+              ${['lvh', 'rvh', 'lbbb', 'rbbb', 'wpw'].map((p) => `<button type="button" class="ghost small" data-try="${p}">${esc(presetLabel(p))}</button>`).join('')}
+              <button type="button" class="ghost small" data-try="normal">${t('healthy')}</button>
+              <button type="button" class="ghost small" data-arms>${t('swapArms')}</button>
+              <button type="button" class="ghost small" data-std-el>${t('standardEl')}</button></div>
+            <div class="st-axis-text">
+              <details open><summary>${t('axWhatH')}</summary><p>${t('axWhat')}</p></details>
+              <details><summary>${t('axPhysH')}</summary><p>${t('axPhys')}</p><p class="muted">${t('axIdeal').replace('{I}', signDeg(angleOf(STD.I[0], STD.I[1]))).replace('{F}', signDeg(angleOf(STD.aVF[0], STD.aVF[1])))}</p></details>
+              <details><summary>${t('axPhysioH')}</summary><p>${t('axPhysio')}</p></details>
+              <details><summary>${t('axWhyH')}</summary><p>${t('axWhy')}</p></details>
+              <details><summary>${t('axHowH')}</summary><p>${t('axHow')}</p></details>
+              <p class="muted small">${t('axSource')}</p>
+            </div>
+          </section>
         </div>
       </div>`;
     renderControls();
     wire();
+    mountPlacement();
     renderPredict();
     textKey = '';
   };
+
+  /* ---- the electrodes and all twelve leads (the examination's own placement view) ----------------- */
+  const mountPlacement = () => {
+    stopPlace?.(); stopPlace = null;
+    const box = host.querySelector<HTMLElement>('[data-place]');
+    if (!box) return;
+    stopPlace = mountEcgPlacement(box, {
+      look: thoraxLook, lang, placement, chestExposed: true, onExpose: () => undefined,
+      source: { samples: () => live.samples, read: (n: number) => live.vcg(n / 500), rate: () => (live.snap.ecgMetrics?.HR as number | undefined) ?? null },
+      onChange: (p) => { placement = p; vectors = leadVectorsOn(p); },
+      onRecord: (p) => { printed = recordLeads(live.vcg(10), p); drawPrinted(); },
+    });
+  };
+  const drawPrinted = () => {
+    const wrap = host.querySelector<HTMLElement>('[data-printed]');
+    const c = host.querySelector<HTMLCanvasElement>('.st-printed');
+    if (!wrap || !c || !printed) return;
+    wrap.hidden = false;
+    drawEcgPaper(c, printed, 500, { pxPerMm: Math.max(3, Math.min(5, (wrap.clientWidth - 2) / PAPER_MM.width)), header: t('printed') });
+  };
+  const setPlacement = (p: Partial<Placement>) => { placement = p; vectors = leadVectorsOn(p); mountPlacement(); };
 
   /* ---- settings ------------------------------------------------------------------------------ */
   const renderControls = () => {
@@ -254,6 +358,37 @@ export function mountEcgStation(host: HTMLElement, o: StationOptions): StationHa
     host.querySelector<HTMLInputElement>('[data-predict]')!.onchange = (e) => { predict = (e.target as HTMLInputElement).checked; pending = null; renderPredict(); };
     host.querySelector<HTMLButtonElement>('[data-healthy]')!.onclick = () => { const h = healthyModel(); change(h, true); host.querySelector<HTMLSelectElement>('[data-preset]')!.value = ''; };
     host.querySelectorAll<HTMLSelectElement>('[data-lead]').forEach((s) => s.onchange = () => { show[Number(s.dataset.lead)] = s.value as LeadName; });
+    /* the axis: change the heart, or the electrodes, and watch it move; tap a lead to follow it */
+    host.querySelectorAll<HTMLButtonElement>('[data-try]').forEach((b) => b.onclick = () => {
+      const pid = b.dataset.try!;
+      change(pid === 'normal' ? healthyModel() : applyPreset(healthyModel(), pid), true);
+      const sel = host.querySelector<HTMLSelectElement>('[data-preset]'); if (sel) sel.value = pid === 'normal' ? '' : pid;
+    });
+    host.querySelector<HTMLButtonElement>('[data-arms]')!.onclick = () => {
+      const p = { ...standardPlacement(), ...placement } as Placement;
+      setPlacement({ ...placement, RA: p.LA, LA: p.RA });
+    };
+    host.querySelector<HTMLButtonElement>('[data-std-el]')!.onclick = () => setPlacement(standardPlacement());
+    const cab = host.querySelector<HTMLCanvasElement>('.st-cabrera')!;
+    const focusLead = (name: string) => {
+      axisFocus = name;
+      /* the lead goes into the upper detail strip too */
+      const lead = (name === '−aVR' ? 'aVR' : name) as LeadName;
+      show[0] = lead;
+      const s0 = host.querySelector<HTMLSelectElement>('[data-lead="0"]'); if (s0) s0.value = lead;
+    };
+    cab.onclick = (ev) => {
+      const r = cab.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
+      const h = cabHits.find((q) => x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h);
+      if (h) focusLead(h.name);
+    };
+    cab.onkeydown = (ev) => {
+      const order = ['aVL', 'I', '−aVR', 'II', 'aVF', 'III'];
+      const k = ev.key === 'ArrowRight' || ev.key === 'ArrowDown' ? 1 : ev.key === 'ArrowLeft' || ev.key === 'ArrowUp' ? -1 : 0;
+      if (!k) return;
+      ev.preventDefault();
+      focusLead(order[(order.indexOf(axisFocus ?? 'I') + k + order.length) % order.length]);
+    };
     host.querySelector<HTMLButtonElement>('[data-play]')!.onclick = () => { if (playing) pause(); else { playing = true; frozen = null; note = ''; syncButtons(); } };
     host.querySelector<HTMLButtonElement>('[data-slow]')!.onclick = () => { slow = !slow; live.speed = slow ? 0.25 : 1; syncButtons(); };
     host.querySelectorAll<HTMLButtonElement>('[data-phase]').forEach((b) => b.onclick = () => {
@@ -351,6 +486,7 @@ export function mountEcgStation(host: HTMLElement, o: StationOptions): StationHa
     playing = true; frozen = null;
   };
   const renderIdentify = () => {
+    stopPlace?.(); stopPlace = null;
     const groups = stationPresets(ECG_STATION);
     host.innerHTML = `${head()}
       <div class="st-grid">
@@ -427,12 +563,56 @@ export function mountEcgStation(host: HTMLElement, o: StationOptions): StationHa
     return { g, w };
   };
   const project = (rec: ReturnType<LivePatient['recording']>, lead: LeadName) => {
-    const v = vectors[lead], n = rec.vcg.X.length, a = new Float32Array(n);
+    const v = vec(lead), n = rec.vcg.X.length, a = new Float32Array(n);
     for (let i = 0; i < n; i++) a[i] = v[0] * rec.vcg.X[i] + v[1] * rec.vcg.Y[i] + v[2] * rec.vcg.Z[i];
     return a;
   };
   const median = (a: Float32Array) => { const s = Array.from(a).sort((p, q) => p - q); return s[Math.floor(s.length / 2)] ?? 0; };
   const fmt = (x: number, d = 2) => { const s = (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(d); return lang === 'de' ? s.replace('.', ',') : s; };
+
+  /* ---- the axis ---------------------------------------------------------------------------------- */
+  let axisKey = '';
+  let lastReadAxis: number | null = null;
+  const drawAxis = (rec: ReturnType<LivePatient['recording']>, at: number, scale: number) => {
+    const c = host.querySelector<HTMLCanvasElement>('.st-cabrera');
+    if (!c || !c.clientWidth) return;
+    const ax = readAxis(rec, vectors, STD, at);
+    const ideal = (d: number) => [Math.cos((d * Math.PI) / 180), Math.sin((d * Math.PI) / 180)];
+    const leadsC: CabreraLead[] = ax ? ax.leads.map((l) => ({ name: l.name, a: ideal(l.deg)[0], b: ideal(l.deg)[1], complex: l.complex, area: l.area }))
+      : CABRERA.map((l) => ({ name: l.name, a: ideal(l.deg)[0], b: ideal(l.deg)[1], complex: null, area: 0 }));
+    const n = rec.vcg.X.length, i = Math.max(0, Math.min(n - 1, Math.round((at - rec.t0) / rec.dt)));
+    const mean = ax?.mean ?? null, readAx = ax?.read ?? 0, trueAx = ax?.own ?? 0, stdAx = ax?.standard ?? 0, misread = !!ax?.misplaced;
+    const readV = ax?.readVector ?? [0, 0], loop = ax?.loop ?? [];
+    const A1 = ax ? leadsC[1].area : 0, A2 = ax ? leadsC[4].area : 0;
+    lastReadAxis = ax ? readAx : null;
+    const colors = { fg: css('--fg'), muted: css('--muted'), accent: css('--accent'), abn: css('--abn'), line: css('--line'), surface: css('--surface'), sunk: css('--sunk') };
+    const w = c.clientWidth, h = cabreraHeight(w);
+    cabHits = drawCabrera(sizeCanvas(c, h).g, w, h, {
+      leads: leadsC, mean: mean ? readV : null, truth: misread ? [Math.cos((stdAx * Math.PI) / 180), Math.sin((stdAx * Math.PI) / 180)] : null,
+      loop: misread ? [] : loop, dipole: misread ? null : [rec.vcg.X[i], rec.vcg.Y[i]], scale, focus: axisFocus, colors,
+      labels: { normal: t('aNormal'), lad: t('aLad'), rad: t('aRad'), extreme: t('aExtreme'), mean: '', now: t('stdRead') },
+    });
+    /* the words under it */
+    if (!mean) return;
+    const iso = leadsC.find((L) => L.name === ax!.isoelectric)!;
+    const cls = axisClass(readAx);
+    const f = leadsC.find((L) => L.name === axisFocus);
+    const key = JSON.stringify([lang, Math.round(readAx / 2), Math.round(trueAx / 2), misread, iso.name, axisFocus, f ? Math.sign(f.area) : 0]);
+    if (key === axisKey) return;
+    axisKey = key;
+    /* German teaching names the axis by Lagetyp, in 30° steps */
+    const lt = lagetyp(readAx);
+    const parts = [
+      t('axisNow').replace('{a}', `<b>${signDeg(readAx)}</b>`).replace('{class}', `<b class="${cls === 'normal' ? '' : 'abn'}">${t(cls === 'normal' ? 'aNormalLong' : cls === 'lad' ? 'aLadLong' : cls === 'rad' ? 'aRadLong' : 'aExtremeLong')}</b>`),
+      ...(lang === 'de' && axisClass(readAx) !== 'extreme' ? [t('lagetyp').replace('{t}', `<b>${lt}</b>`).trim()] : []),
+      t('quick').replace('{i}', t(A1 >= 0 ? 'pos' : 'neg')).replace('{f}', t(A2 >= 0 ? 'pos' : 'neg')),
+      t('iso').replace('{lead}', `<b>${iso.name}</b>`).replace('{ang}', signDeg(angleOf(iso.a, iso.b))),
+    ];
+    if (misread) parts.push(`<span class="abn">${t('misread').replace('{true}', signDeg(stdAx)).replace('{read}', signDeg(readAx))}</span>`);
+    else parts.push(`<span class="muted">${t('ownDir').replace('{a}', signDeg(trueAx))}</span>`);
+    if (f) parts.push(t('focusLine').replace('{lead}', `<b>${f.name}</b>`).replace('{sign}', t(f.area >= 0 ? 'shadowPos' : 'shadowNeg')));
+    const box = host.querySelector<HTMLElement>('[data-axis-now]'); if (box) box.innerHTML = parts.join(' ');
+  };
 
   let measureTick = 0;
   const frame = () => {
@@ -471,11 +651,13 @@ export function mountEcgStation(host: HTMLElement, o: StationOptions): StationHa
     const limb: LeadName[] = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF'], chest: LeadName[] = ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
     drawConductionHeart(hg, hw, heartPaneHeight(hw), {
       moment: m, e, dipole: d, trail, scale,
-      frontal: limb.map((l) => ({ name: l, a: vectors[l][0], b: vectors[l][1], on: show.includes(l) })),
-      horizontal: chest.map((l) => ({ name: l, a: vectors[l][0], b: vectors[l][2], on: show.includes(l) })),
+      frontal: limb.map((l) => ({ name: l, a: vec(l)[0], b: vec(l)[1], on: show.includes(l) })),
+      horizontal: chest.map((l) => ({ name: l, a: vec(l)[0], b: vec(l)[2], on: show.includes(l) })),
       colors,
       labels: { frontal: t('frontal'), horizontal: t('horizontal'), front: t('front'), back: t('backSide'), ra: t('ra'), la: t('la'), rv: t('rv'), lv: t('lv'), sa: t('sa'), av: t('av'), focus: t('focus'), ap: t('ap') },
     });
+
+    if (measureTick % 3 === 0) drawAxis(rec, cursor, scale);
 
     // the words: rewritten only when what they describe changes
     const K = live.model.chemistry.potassium ?? live.model.circulation.K ?? 4;
@@ -503,7 +685,7 @@ export function mountEcgStation(host: HTMLElement, o: StationOptions): StationHa
       const chip = (label: string, v: number | null | undefined, unit: string, r?: [number, number]) =>
         `<span class="${v != null && r && (v < r[0] || v > r[1]) ? 'abn' : ''}">${label} <b>${v == null || !Number.isFinite(v) ? '—' : Math.round(v)}</b> ${unit}</span>`;
       host.querySelector('[data-measures]')!.innerHTML = chip(t('rate'), met.HR, '/min', range.rate) + chip('PR', met.PR, 'ms', range.pr) + chip('QRS', met.QRS, 'ms', range.qrs)
-        + chip('QTc', met.QTc, 'ms', range.qtc) + chip(t('axis'), met.qrsAxis, '°', range.axis);
+        + chip('QTc', met.QTc, 'ms', range.qtc) + chip(t('axis'), lastReadAxis ?? met.qrsAxis, '°', range.axis);
     }
   };
 
@@ -517,7 +699,7 @@ export function mountEcgStation(host: HTMLElement, o: StationOptions): StationHa
   });
 
   return {
-    stop: () => { stopped = true; cancelAnimationFrame(raf); live.stop(); },
-    setLang: (l: Lang) => { lang = l; render(); },
+    stop: () => { stopped = true; cancelAnimationFrame(raf); live.stop(); stopPlace?.(); },
+    setLang: (l: Lang) => { lang = l; axisKey = ''; render(); },
   };
 }

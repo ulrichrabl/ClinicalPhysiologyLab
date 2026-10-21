@@ -97,6 +97,32 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
   - `fixed-dilated-pupil` now needs the pupil to be dilated (≥ 5.5 mm in room light), so a blind eye's pupil is an afferent defect, not this sign;
   - the scene can hold the lids up and show slow pursuit; a paretic eye can rest beyond its voluntary range (the third nerve's down and out).
 
+### 9b. The ECG station revisited: all twelve leads, the electrodes, the axis (owner, 2026-10-21)
+
+**Owner:** "only two leads at the same time visible?"; "the thorax view with the leads would be nice to be integrated"; "there is really nowhere where axis is taught … no Cabrera circle?"
+
+- **All twelve leads, and the electrodes.** Explore now includes the examination's own electrode view (`mountEcgPlacement`, `app/focus-ecg.ts`): the patient's chest and limbs with the ten electrodes at the standard positions, and its live twelve-lead monitor, fed by the station's running heart. Nothing new was drawn for it.
+  - Moving an electrode changes every lead it belongs to: on the monitor, in the two-lead detail strip (now titled so), in the heart pane's lead axes, and in the axis.
+  - "Print 12-lead ECG" puts the last ten seconds on paper below.
+- **The axis** (`stations/ecg-axis.ts`, drawn by `render/cabrera.ts`):
+  - **What is drawn:** the six limb leads on the Cabrera circle (aVL, I, −aVR, II, aVF, III), shaded by range, with the mean QRS vector (red), the loop the dipole drew through the last QRS, and the dipole at the cursor. Beside it is each lead's QRS with its net area.
+  - **Where the numbers come from:** the mean vector is the recorded dipole integrated over the last QRS. Each lead's net area is that vector projected on the lead through the electrodes as they are.
+  - **How it is read:** the reading is the one a machine or a reader makes: from I and aVF on Einthoven's ideal circle (I = |M| cos θ, aVF = (√3/2)|M| sin θ).
+  - **Tapping a lead** shows the vector's shadow on it and puts that lead into the detail strip.
+  - **The words under it** give:
+    - the axis and its range (AHA/ACCF/HRS 2009: −30° to +90° normal), plus the German Lagetyp in German;
+    - the signs of I and aVF;
+    - the most nearly isoelectric lead.
+  - **Explanations** (EN/DE, folded): what the axis is; why a lead sees what it sees (Einthoven, Goldberger, Cabrera); why it points where it points (left ventricular mass; what turns it left and right); why we measure it; and reading it in ten seconds.
+  - **"See it move":** left and right ventricular hypertrophy, both bundle branch blocks, pre-excitation, and swapping the arm electrodes. When a reading differs by more than 15° from the same heart read through standard electrodes, it is flagged as the electrodes, not the heart, and the standard reading is drawn as a dashed arrow.
+- **What the model gives** (`station.test`):
+  - The healthy heart reads about +70°, normal. Its own mean vector in body coordinates is +46°: the model's limb leads are askew (lead I points at about −20°, aVF at about +94°; Burger's triangle is not equilateral either). The station shows both and says why. Nothing was tuned to bring them together.
+  - Right ventricular hypertrophy reads about +102° (right). Left ventricular hypertrophy moves the heart's own vector only from +46° to +37°.
+  - Swapping the arms turns lead I negative and reads about +110°.
+- **Not in the model:**
+  - fascicular blocks (left anterior and posterior);
+  - an old infarct with Q waves: its infarcts are acute. The inferior infarct is therefore not among the "see it move" buttons; the text says so.
+
 ## Steps
 
 1. **The ECG station, Explore** (this PR): the activation log in the electrical model, with tests; the station screen with settings, strip, ladder, cursor, conduction heart and explanations in EN and DE; a Stations card on the Ward.

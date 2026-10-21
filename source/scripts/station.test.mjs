@@ -373,6 +373,23 @@ console.log('\nThe pulse and neck-vein station');
   ok('every pulse explanation exists in English and German, with its numbers filled in', txt.length > 40 && txt.every((x) => x.en && x.de && x.en !== x.de && !/\$\{|undefined|NaN/.test(x.en + x.de)), `${txt.length} texts`);
 }
 
+console.log('\nThe axis (ADR-017, 9b): read from the recorded leads, on Einthoven\'s circle');
+{
+  ok('the ranges: −30° to +90° normal, to −90° left, to 180° right, the rest extreme (AHA/ACCF/HRS 2009)',
+    S.axisClass(-30) === 'normal' && S.axisClass(90) === 'normal' && S.axisClass(-31) === 'lad' && S.axisClass(-90) === 'lad' && S.axisClass(91) === 'rad' && S.axisClass(180) === 'rad' && S.axisClass(-120) === 'extreme');
+  ok('German Lagetypen in 30° steps', S.lagetyp(-40) === 'überdrehter Linkstyp' && S.lagetyp(0) === 'Linkstyp' && S.lagetyp(45) === 'Indifferenztyp' && S.lagetyp(70) === 'Steiltyp' && S.lagetyp(100) === 'Rechtstyp' && S.lagetyp(150) === 'überdrehter Rechtstyp');
+  const STD = S.axisLeadVectors(S.axisStandardPlacement());
+  const read = async (m, vecs = STD) => { const lp = new S.LivePatient(m); await lp.settle(6); lp.advance(3); return S.readAxis(lp.recording(3), vecs, STD); };
+  const h = await read(S.healthyModel());
+  ok('a healthy heart reads a normal axis, with I and aVF positive', h && S.axisClass(h.read) === 'normal' && h.leads[1].area > 0 && h.leads[4].area > 0 && !h.misplaced, h && JSON.stringify({ read: Math.round(h.read), own: Math.round(h.own) }));
+  const rvh = await read(S.applyPreset(S.healthyModel(), 'rvh'));
+  ok('right ventricular hypertrophy turns it right: lead I negative', rvh && S.axisClass(rvh.read) === 'rad' && rvh.leads[1].area < 0, rvh && `${Math.round(rvh.read)}°`);
+  const pl = S.axisStandardPlacement(), swapped = { ...pl, RA: pl.LA, LA: pl.RA };
+  const arms = await read(S.healthyModel(), S.axisLeadVectorsOn(swapped));
+  ok('arm electrodes swapped: lead I turns negative, the reading moves right, and it is flagged as the electrodes, not the heart', arms && arms.leads[1].area < 0 && arms.misplaced && Math.abs(arms.standard - h.read) < 10, arms && JSON.stringify({ read: Math.round(arms.read), standard: Math.round(arms.standard) }));
+  ok('the most nearly isoelectric limb lead is at about right angles to the axis (within 30°)', h && Math.abs(Math.abs(((h.leads.find((l) => l.name === h.isoelectric).deg - h.read + 540) % 360) - 180) - 90) <= 30, h && `${h.isoelectric} vs ${Math.round(h.read)}°`);
+}
+
 console.log('\nA live patient records every beat, however long the step');
 {
   const lp = new S.LivePatient(S.healthyModel());
