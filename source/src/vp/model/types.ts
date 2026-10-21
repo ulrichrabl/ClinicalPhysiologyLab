@@ -171,7 +171,7 @@ export interface PropertyDef {
 
 export type Verb =
   | 'inspect' | 'palpate' | 'percuss' | 'auscultate' | 'measure' | 'test'
-  | 'ask' | 'instruct' | 'position' | 'expose' | 'order' | 'give';
+  | 'ask' | 'instruct' | 'position' | 'expose' | 'cover' | 'order' | 'give';
 
 export type Ability = 'follows-commands' | 'can-sit' | 'can-stand' | 'can-walk' | 'can-fixate';
 
@@ -201,6 +201,8 @@ export interface ManoeuvreDef {
     consent?: 'verbal' | 'chaperone';
   };
   durationSeconds: number;
+  /** Removes specific access granted by an earlier manoeuvre (e.g. covering an exposed area). */
+  clears?: { exposure?: string[] };
   /** Changes the patient state (repositioning, exposing). */
   sets?: Partial<PatientState>;
   /** Doing this in these states is harmful (recorded in the debrief, never blocked). */
