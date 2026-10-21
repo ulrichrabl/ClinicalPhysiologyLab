@@ -432,7 +432,7 @@ console.log('\nBefore the first compression: the bed, the breathing, the mouth (
   c.advanceTo(17.1);
   const look = kinds(c, 'assessed').at(-1);
   ok('…and finds him not breathing normally (a failing centre’s last shallow breaths, gasping, or nothing)', look?.what === 'breathing' && ['failing', 'gasping', 'none'].includes(look.breathing), look?.breathing);
-  ok('a look before the collapse finds him breathing normally', (() => { const q = start(P, without, S.FREE_CASE); q.intervene('assess.breathing'); q.advanceTo(3.5); return kinds(q, 'assessed').at(-1)?.breathing === 'normal'; })());
+  ok('before the collapse what a look would see is normal breathing (a look takes 7 s, longer than he talks)', (() => { const q = start(P, without, S.FREE_CASE); q.advanceTo(3); return S.breathingOf(q.live.snap.resp) === 'normal'; })());
   ok('a look in his mouth: nothing there', c.intervene('assess.mouth') && (c.advanceTo(20.2), kinds(c, 'assessed').at(-1)?.mouth === 'clear'));
 
   const b = start(P, withBolus, S.FREE_CASE);
