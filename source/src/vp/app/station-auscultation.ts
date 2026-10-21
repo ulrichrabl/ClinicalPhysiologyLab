@@ -17,7 +17,10 @@ import { explainCycle, CYCLE_LABEL } from '../stations/auscultation-texts.ts';
 import { cycle as phonoCycle } from '../render/phono.ts';
 import { drawPhonoStrip, phonoStripHeight, type StripBeat, type PhonoGeometry } from '../render/phono-strip.ts';
 import { drawWiggers, wiggersHeight, type WiggersGeometry } from '../render/wiggers.ts';
-import { playCycle } from './sound.ts';
+import { cycleLoop } from './sound.ts';
+import { thoraxSvg, landmarks, stethoscope, thoraxHit, AUSCULTATION_SITES, type ThoraxLook } from '../render/thorax.ts';
+import { figureLookFor } from '../render/patient-figure.ts';
+import { appearanceOf } from '../render/face-canvas.ts';
 import { auscSigns, auscSignsOf } from '../stations/auscultation-signs.ts';
 import { KNOWLEDGE, labelOf } from '../knowledge/index.ts';
 import { fmtValue } from './math.ts';
@@ -51,7 +54,11 @@ const T: Record<string, LocalizedText> = {
   quiet: L('Quiet breathing', 'Ruhige Atmung'), held: L('Breath held out', 'In Exspiration angehalten'),
   hear: L('What you hear', 'Was Sie hören'), hearNote: L('The phonocardiogram of the last beats, each timed from its own valves, under the ECG they made', 'Das Phonokardiogramm der letzten Schläge, jeder nach seinen eigenen Klappen getimt, unter dem EKG, das sie erzeugt haben'),
   play: L('Play', 'Abspielen'), pause: L('Pause', 'Anhalten'), slow: L('Slow motion', 'Zeitlupe'),
-  sound: L('Listen to this beat', 'Diesen Schlag anhören'), stopSound: L('Stop the sound', 'Ton beenden'),
+  sound: L('Sound: off', 'Ton: aus'), stopSound: L('Sound: on', 'Ton: an'),
+  soundNote: L('The sound stays on while you move the stethoscope or change the heart, so you can compare.', 'Der Ton bleibt an, während Sie das Stethoskop versetzen oder das Herz verändern, damit Sie vergleichen können.'),
+  tapChest: L('Tap the chest where you would listen.', 'Tippen Sie auf den Thorax, wo Sie hören würden.'), keysSite: L('Arrow keys move between the areas.', 'Pfeiltasten wechseln zwischen den Arealen.'), listeningAt: L('Listening at', 'Abgehört an'),
+  landmarks: L('Landmarks', 'Orientierungslinien'),
+  overBone: L('Little to hear there: try over the heart, at the base or the apex.', 'Dort ist wenig zu hören: versuchen Sie es über dem Herzen, an der Basis oder der Spitze.'),
   hint: L('or tap or drag on the sounds or the diagram; ← → move the cursor', 'oder auf die Töne oder das Diagramm tippen oder ziehen; ← → bewegen den Cursor'),
   why: L('What makes it', 'Was es erzeugt'), mechanism: L('The beat under the cursor', 'Der Schlag unter dem Cursor'),
   left: L('Left heart', 'Linkes Herz'), right: L('Right heart', 'Rechtes Herz'),
@@ -107,7 +114,8 @@ export function mountAuscultationStation(host: HTMLElement, o: StationOptions): 
   let side: 'left' | 'right' = 'left';
   const ctx: ExamContext = { site: 'chest.aortic-area', instrument: 'stethoscope-diaphragm', position: 'supine', respiration: 'quiet' };
   let finding: any = null, findingTick = 0;
-  let stopSound: (() => void) | null = null;
+  /** The sound, once switched on, stays on: it follows the site, the bell, the position and the heart. */
+  let sound: ReturnType<typeof cycleLoop> = null;
   let textKey = '';
   let mode: 'explore' | 'identify' = 'explore';
   let predict = false;
@@ -132,12 +140,58 @@ export function mountAuscultationStation(host: HTMLElement, o: StationOptions): 
       </div>
       ${mode === 'explore' ? patientBanner(o, lang) : ''}
       ${ready ? '' : `<p class="muted" data-preparing>${t('preparing')}</p>`}`;
-  const listenControls = () => `<div class="st-listen" role="group" aria-label="${t('listen')}">
-              <label>${t('site')} <select data-site>${SITES.map((s) => `<option value="${s}" ${s === ctx.site ? 'selected' : ''}>${esc(tr(CATALOG.structures[s]?.label ?? L(s, s), lang))}</option>`).join('')}</select></label>
+  const siteName = (s: string) => tr(CATALOG.structures[s]?.label ?? L(s, s), lang);
+  const listenControls = () => `<div class="st-listen-wrap">
+            <div class="st-thorax-box">
+              <div class="st-thorax" data-thorax tabindex="0" role="group" aria-label="${t('tapChest')} ${t('keysSite')}"></div>
+              <p class="st-at small" data-at aria-live="polite"></p>
+              <button type="button" class="tog small" data-landmarks aria-pressed="${showLandmarks}">${t('landmarks')}</button>
+            </div>
+            <div class="st-listen" role="group" aria-label="${t('listen')}">
               <span class="seg" role="radiogroup" aria-label="${t('listen')}">${(['stethoscope-diaphragm', 'stethoscope-bell'] as const).map((i) => `<button type="button" role="radio" aria-checked="${ctx.instrument === i}" data-inst="${i}">${t(i === 'stethoscope-bell' ? 'bell' : 'diaphragm')}</button>`).join('')}</span>
               <label>${t('position')} <select data-pos>${([['supine', 'supine'], ['left-lateral', 'leftLat'], ['sitting-forward', 'forward']] as const).map(([v, k]) => `<option value="${v}" ${ctx.position === v ? 'selected' : ''}>${t(k)}</option>`).join('')}</select></label>
               <label>${t('breathing')} <select data-resp>${([['quiet', 'quiet'], ['held-expiration', 'held']] as const).map(([v, k]) => `<option value="${v}" ${ctx.respiration === v ? 'selected' : ''}>${t(k)}</option>`).join('')}</select></label>
-            </div>`;
+            </div></div>`;
+
+  /* ---- the chest: where the stethoscope goes ---------------------------------------------------- */
+  let showLandmarks = false;
+  const ap = appearanceOf(FREE_CASE.patient as Parameters<typeof appearanceOf>[0], 7);
+  const thoraxLook: ThoraxLook = { skin: ap.skin, shade: ap.skinShade, sex: FREE_CASE.patient.sex, figure: figureLookFor(FREE_CASE.patient, { exposure: ['chest'] } as any, 7) };
+  const drawThorax = () => {
+    const box = host.querySelector<HTMLElement>('[data-thorax]');
+    if (!box) return;
+    const at = AUSCULTATION_SITES[ctx.site!] ?? AUSCULTATION_SITES['chest.aortic-area'];
+    /* in Explore the five areas are marked faintly; in Identify, finding them is part of the task */
+    const marks = mode === 'explore' ? SITES.map((s) => { const p = AUSCULTATION_SITES[s]; return `<circle cx="${p.x}" cy="${p.y}" r="1.1" fill="none" stroke="rgba(31,111,102,0.55)" stroke-width="0.35" stroke-dasharray="0.7 0.5"/>`; }).join('') : '';
+    box.innerHTML = thoraxSvg(thoraxLook, 'front', (showLandmarks ? landmarks() : '') + marks + thoraxHit(thoraxLook) + stethoscope(at.x, at.y, ctx.instrument === 'stethoscope-bell')).replace('<svg ', '<svg class="thorax" ')
+      /* the chest only, from the neck to below the apex: the areas are what matters here */
+      .replace(/viewBox="[^"]*"/, 'viewBox="-20 -24 40 36"');
+    const a = host.querySelector<HTMLElement>('[data-at]'); if (a) a.innerHTML = `${t('listeningAt')}: <b>${esc(siteName(ctx.site!))}</b>`;
+  };
+  const listenAt = (site: string) => { ctx.site = site; findingTick = 0; drawThorax(); };
+  const wireThorax = () => {
+    const box = host.querySelector<HTMLElement>('[data-thorax]');
+    if (!box) return;
+    box.onclick = (ev) => {
+      const svg = box.querySelector('svg') as SVGSVGElement | null;
+      if (!svg) return;
+      const pt = svg.createSVGPoint(); pt.x = (ev as MouseEvent).clientX; pt.y = (ev as MouseEvent).clientY;
+      const p = pt.matrixTransform(svg.getScreenCTM()!.inverse());
+      let best = '', bd = 1e9;
+      for (const s of SITES) { const q = AUSCULTATION_SITES[s]; const d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; best = s; } }
+      if (best && bd < 4.5) { listenAt(best); note(''); } else note(t('overBone'));
+    };
+    /* from the keyboard: the arrow keys go from area to area */
+    box.onkeydown = (ev) => {
+      const k = ev.key === 'ArrowRight' || ev.key === 'ArrowDown' ? 1 : ev.key === 'ArrowLeft' || ev.key === 'ArrowUp' ? -1 : 0;
+      if (!k) return;
+      ev.preventDefault();
+      listenAt(SITES[(SITES.indexOf(ctx.site!) + k + SITES.length) % SITES.length]);
+    };
+    const lm = host.querySelector<HTMLButtonElement>('[data-landmarks]');
+    if (lm) lm.onclick = () => { showLandmarks = !showLandmarks; lm.setAttribute('aria-pressed', String(showLandmarks)); drawThorax(); };
+    drawThorax();
+  };
   const render = () => {
     if (mode === 'identify') { renderIdentify(); return; }
     host.innerHTML = `${head()}
@@ -167,7 +221,7 @@ export function mountAuscultationStation(host: HTMLElement, o: StationOptions): 
           <div class="st-bar" role="group">
             <button type="button" class="primary" data-play></button>
             <button type="button" class="ghost" data-slow aria-pressed="${slow}">${t('slow')}</button>
-            <button type="button" class="ghost" data-sound aria-pressed="false">${t('sound')}</button>
+            <button type="button" class="ghost" data-sound aria-pressed="false" title="${t('soundNote')}">${t('sound')}</button>
             <span class="st-phases">${CYCLE_PHASES.map((p) => `<button type="button" class="tog" data-phase="${p}">${esc(tr(CYCLE_LABEL[p], lang))}</button>`).join('')}</span>
             <span class="muted small">${t('hint')}</span>
             <span class="st-note" role="status" data-note></span>
@@ -270,7 +324,7 @@ export function mountAuscultationStation(host: HTMLElement, o: StationOptions): 
           </section>
           <div class="st-bar" role="group">
             <button type="button" class="primary" data-play></button>
-            <button type="button" class="ghost" data-sound aria-pressed="false">${t('sound')}</button>
+            <button type="button" class="ghost" data-sound aria-pressed="false" title="${t('soundNote')}">${t('sound')}</button>
             <span class="muted small">${t('hint')}</span>
             <span class="st-note" role="status" data-note></span>
           </div>
@@ -287,10 +341,10 @@ export function mountAuscultationStation(host: HTMLElement, o: StationOptions): 
       id.checked = true; id.done++;
       const tp = id.truth!.present;
       if (id.mech === id.hidden && [...id.named].every((x) => tp.has(x)) && [...tp].every((x) => id.named.has(x))) id.right++;
-      endSound(); renderIdentify();
+      renderIdentify();
     });
-    host.querySelector<HTMLButtonElement>('[data-next]')?.addEventListener('click', () => { endSound(); nextUnknown(); renderIdentify(); });
-    host.querySelector<HTMLButtonElement>('[data-why]')?.addEventListener('click', () => { mode = 'explore'; endSound(); render(); });
+    host.querySelector<HTMLButtonElement>('[data-next]')?.addEventListener('click', () => { nextUnknown(); renderIdentify(); });
+    host.querySelector<HTMLButtonElement>('[data-why]')?.addEventListener('click', () => { mode = 'explore'; render(); });
     findingTick = 0;
   };
   const resultHtml = () => {
@@ -339,27 +393,71 @@ export function mountAuscultationStation(host: HTMLElement, o: StationOptions): 
       el.addEventListener(el instanceof HTMLInputElement && el.type === 'range' ? 'input' : 'change', handler);
     });
   };
-  /* After a change the circulation takes some seconds to settle (blood moves between vessels and heart, the reflexes act):
-     the station runs it ahead quickly through that, so what is heard is the new steady state. */
-  let settleUntil = 0;
-  const SETTLE_S = 20, SETTLE_SPEED = 8;
+  /* After a change the circulation takes some seconds to settle (blood moves between vessels and heart, the reflexes act).
+     The station runs it ahead through that out of sight, as fast as it computes, while the last picture stays; then the
+     new heart plays in real time. (It used to play the settling at eight times real time, which looked like the heart
+     racing and then slowing: owner, 2026-10-21. The run's clock then also outran what a frame could compute, and beats
+     went missing from the strip.) */
+  const SETTLE_S = 20;
+  let settling = false, settleToken = 0;
   const change = (next: ReturnType<typeof healthyModel>, rerenderControls: boolean) => {
     live.setModel(next);
-    settleUntil = live.t + SETTLE_S; live.speed = SETTLE_SPEED; note(t('settling'));
-    playing = true; frozen = null; findingTick = 0; endSound();
+    playing = true; frozen = null; findingTick = 0;
     if (rerenderControls) renderControls();
+    settleAhead();
     syncButtons();
+  };
+  const settleAhead = () => {
+    const token = ++settleToken;
+    settling = true; note(t('settling')); host.classList.add('st-settling');
+    live.stop();
+    let left = SETTLE_S;
+    const step = () => {
+      if (stopped || token !== settleToken) return;
+      if (live.busy || !ready) { setTimeout(step, 30); return; }   // the body's course is being run, or the first settling
+      const d = Math.min(1, left);
+      live.advance(d); left -= d;
+      if (left > 1e-9) { setTimeout(step, 0); return; }
+      settling = false; host.classList.remove('st-settling'); note('');
+      live.speed = slow ? 0.25 : 1;
+      live.start();
+      settled();
+    };
+    setTimeout(step, 0);
+  };
+  const settled = () => {
+    findingTick = 0;
+    if (awaiting) {
+      const after = auscSignsOf(live.model, live.snap, live.chemistry).present, a = awaiting;
+      feedback = { brought: [...after].filter((x) => !a.before.has(x)), took: [...a.before].filter((x) => !after.has(x)), picked: a.picked };
+      awaiting = null; renderPredict();
+    }
+    if (mode === 'identify' && !id.truth) {
+      id.truth = auscSignsOf(live.model, live.snap, live.chemistry);
+      host.querySelector('[data-recording]')?.remove();
+      const c = host.querySelector<HTMLButtonElement>('[data-check]'); if (c) c.disabled = !id.mech;
+    }
   };
 
   /* ---- sound --------------------------------------------------------------------------------- */
-  const endSound = () => { stopSound?.(); stopSound = null; host.querySelector('[data-sound]')?.setAttribute('aria-pressed', 'false'); const b = host.querySelector<HTMLButtonElement>('[data-sound]'); if (b) b.textContent = t('sound'); };
+  const syncSound = () => { const b = host.querySelector<HTMLButtonElement>('[data-sound]'); if (b) { b.setAttribute('aria-pressed', String(!!sound)); b.textContent = sound ? t('stopSound') : t('sound'); } };
+  const endSound = () => { sound?.stop(); sound = null; syncSound(); };
+  /** What the sound plays: the beat under the cursor (the latest while playing). */
+  const soundCycle = () => { const b = wigBeat ?? beats().at(-1); return b ? stripBeat(b).cycle : null; };
   const startSound = () => {
-    const b = stripBeat(wigBeat ?? beats().at(-1)!);
-    if (!b) return;
-    stopSound = playCycle(b.cycle);
-    const btn = host.querySelector<HTMLButtonElement>('[data-sound]')!;
-    if (!stopSound) { note(t('noAudio')); return; }
-    btn.setAttribute('aria-pressed', 'true'); btn.textContent = t('stopSound');
+    const c = soundCycle();
+    if (!c) return;
+    sound = cycleLoop();
+    if (!sound) { note(t('noAudio')); return; }
+    sound.set(c); playingCycle = c; syncSound();
+  };
+  let playingCycle: ReturnType<typeof soundCycle> = null;
+  /** Keep the sound on what is heard now: a new finding (another site, the bell, another heart) or a rate that moved. */
+  const followSound = (force: boolean) => {
+    if (!sound) return;
+    const c = soundCycle();
+    if (!c) return;
+    if (force || !playingCycle || Math.abs(c.periodS - playingCycle.periodS) > 0.04 * playingCycle.periodS) { sound.set(c); playingCycle = c; }
   };
 
   /* ---- wiring -------------------------------------------------------------------------------- */
@@ -396,19 +494,20 @@ const wireCommon = () => {
     host.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.onclick = () => {
       const m = b.dataset.mode as typeof mode;
       if (m === mode) return;
-      mode = m; pending = null; awaiting = null; feedback = null; endSound();
+      mode = m; pending = null; awaiting = null; feedback = null;
       if (mode === 'identify') nextUnknown(); else { playing = true; frozen = null; }
       render();
     });
-    host.querySelector<HTMLSelectElement>('[data-site]')!.onchange = (e) => { ctx.site = (e.target as HTMLSelectElement).value; findingTick = 0; endSound(); };
-    host.querySelector<HTMLSelectElement>('[data-pos]')!.onchange = (e) => { ctx.position = (e.target as HTMLSelectElement).value as ExamContext['position']; findingTick = 0; endSound(); };
-    host.querySelector<HTMLSelectElement>('[data-resp]')!.onchange = (e) => { ctx.respiration = (e.target as HTMLSelectElement).value as ExamContext['respiration']; findingTick = 0; endSound(); };
+    host.querySelector<HTMLSelectElement>('[data-pos]')!.onchange = (e) => { ctx.position = (e.target as HTMLSelectElement).value as ExamContext['position']; findingTick = 0; };
+    host.querySelector<HTMLSelectElement>('[data-resp]')!.onchange = (e) => { ctx.respiration = (e.target as HTMLSelectElement).value as ExamContext['respiration']; findingTick = 0; };
     host.querySelectorAll<HTMLButtonElement>('[data-inst]').forEach((b) => b.onclick = () => {
-      ctx.instrument = b.dataset.inst!; findingTick = 0; endSound();
+      ctx.instrument = b.dataset.inst!; findingTick = 0; drawThorax();
       host.querySelectorAll('[data-inst]').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
     });
     host.querySelector<HTMLButtonElement>('[data-play]')!.onclick = () => { if (playing) pause(); else { playing = true; frozen = null; note(''); syncButtons(); } };
-    host.querySelector<HTMLButtonElement>('[data-sound]')!.onclick = () => { if (stopSound) endSound(); else startSound(); };
+    host.querySelector<HTMLButtonElement>('[data-sound]')!.onclick = () => { if (sound) endSound(); else startSound(); };
+    syncSound();
+    wireThorax();
     seekOn(host.querySelector<HTMLCanvasElement>('.st-strip')!, (x) => stripGeom?.tAt(x) ?? null);
     syncButtons();
   };
@@ -426,7 +525,7 @@ const wireCommon = () => {
       side = b.dataset.side as typeof side;
       host.querySelectorAll('[data-side]').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
     });
-    host.querySelector<HTMLButtonElement>('[data-slow]')!.onclick = () => { slow = !slow; if (!settleUntil) live.speed = slow ? 0.25 : 1; syncButtons(); };
+    host.querySelector<HTMLButtonElement>('[data-slow]')!.onclick = () => { slow = !slow; live.speed = slow ? 0.25 : 1; syncButtons(); };
     host.querySelectorAll<HTMLButtonElement>('[data-phase]').forEach((b) => b.onclick = () => {
       pause();
       const beat = wigBeat ?? beats().at(-1);
@@ -472,20 +571,9 @@ const wireCommon = () => {
     if (stopped) return;
     raf = requestAnimationFrame(frame);
     if (!ready) return;
-    if (settleUntil && live.t >= settleUntil) {
-      settleUntil = 0; live.speed = slow ? 0.25 : 1; note('');
-      if (awaiting) {
-        const after = auscSignsOf(live.model, live.snap, live.chemistry).present, a = awaiting;
-        feedback = { brought: [...after].filter((x) => !a.before.has(x)), took: [...a.before].filter((x) => !after.has(x)), picked: a.picked };
-        awaiting = null; renderPredict();
-      }
-      if (mode === 'identify' && !id.truth) {
-        id.truth = auscSignsOf(live.model, live.snap, live.chemistry);
-        host.querySelector('[data-recording]')?.remove();
-        const c = host.querySelector<HTMLButtonElement>('[data-check]'); if (c) c.disabled = !id.mech;
-      }
-    }
-    if (mode === 'explore' && !settleUntil && signsTick-- <= 0) { renderSignsNow(); signsTick = 90; }
+    /* while it settles out of sight, the last picture stays */
+    if (settling) return;
+    if (mode === 'explore' && signsTick-- <= 0) { renderSignsNow(); signsTick = 90; }
     if (findingTick-- <= 0) {
       readFinding(); findingTick = 30;
       const key = JSON.stringify([finding, ctx]);
@@ -493,7 +581,7 @@ const wireCommon = () => {
         findingKey = key;
         const heard = host.querySelector<HTMLElement>('[data-heard]');
         if (heard) heard.textContent = FORMATTERS['heart.sounds']?.(finding, ctx, lang, CATALOG, { property: 'heart.sounds' } as any) ?? '';
-        if (stopSound) { endSound(); startSound(); }
+        followSound(true);
       }
     }
     const bs = beats();
@@ -508,6 +596,7 @@ const wireCommon = () => {
     }
     const beat = bs.find((b) => cursor >= b.t0 && cursor < b.t0 + b.dur) ?? last;
     wigBeat = beat;
+    followSound(false);
     const sb = stripBeat(beat);
     const tIn = cursor - beat.t0;
     const mo = cycleAt(beat, tIn, side);
@@ -578,11 +667,11 @@ const wireCommon = () => {
     if (stopped) return;
     ready = true;
     host.querySelector('[data-preparing]')?.remove();
-    live.start();
+    if (!settling) live.start();
   });
 
   return {
-    stop: () => { stopped = true; cancelAnimationFrame(raf); live.stop(); endSound(); },
+    stop: () => { stopped = true; settleToken++; cancelAnimationFrame(raf); live.stop(); endSound(); },
     setLang: (l: Lang) => { lang = l; findingKey = ''; render(); },
   };
 }
