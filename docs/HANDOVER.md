@@ -250,6 +250,7 @@ A station pairs one test with the mechanism that writes it, on one clock. Read `
     - S1 is the closure that belongs to the beat, including one in the previous window.
     - An event in a beat's last step keeps its time.
     - Lead II no longer drops to zero after the dipole is drained.
+- **ECG station, second look (ADR-017, 9b):** Explore shows all twelve leads through the examination's electrode view (move an electrode and every view follows), and an axis pane: the Cabrera circle with the mean QRS vector, each limb lead's QRS, the reading from I and aVF, ranges and Lagetyp, explanations, and "see it move" buttons including swapped arm electrodes (`stations/ecg-axis.ts`, `render/cabrera.ts`).
 - **Auscultation Predict and Identify:** they score the knowledge tables' heart-sound signs, found by the standard cardiac auscultation manoeuvres, each in its own context (`stations/auscultation-signs.ts`).
   - Explore lists the signs heard now and where.
   - "Predict first" asks which signs a heart will bring, and scores the answer once the circulation has settled.

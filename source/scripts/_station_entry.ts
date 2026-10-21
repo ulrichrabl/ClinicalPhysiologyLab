@@ -44,3 +44,7 @@ export { PULSE_PRESETS, PULSE_PRESET_GROUPS, applyPulsePreset } from '../src/vp/
 export { pulseSigns, pulseSignsOf, pulseSignGroups, PULSE_MANOEUVRES } from '../src/vp/stations/pulse-signs.ts';
 export { explainPulse } from '../src/vp/stations/pulse-texts.ts';
 export { venousWaves, arterialWave } from '../src/domains/cardio/sim/waves.ts';
+/* the ECG station's axis (ADR-017, 9b) */
+export { readAxis, lagetyp } from '../src/vp/stations/ecg-axis.ts';
+export { axisClass } from '../src/vp/render/cabrera.ts';
+export { leadVectors as axisLeadVectors, leadVectorsOn as axisLeadVectorsOn, standardPlacement as axisStandardPlacement } from '../src/vp/measurements/ecg.ts';
