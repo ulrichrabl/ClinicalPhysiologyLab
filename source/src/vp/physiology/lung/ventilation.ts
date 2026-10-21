@@ -35,6 +35,9 @@ export class Ventilator {
   route: AirwayRoute;
   /** For a mask: whether the airway is held open (head tilt and chin lift, or the jaw thrust of the mask grip). */
   airwayOpen = true;
+  /** Something lodged in the pharynx (a bolus of food): no breath gets past it, by mask, supraglottic airway or tube,
+      until it is taken out. */
+  obstructed = false;
   /** A static pressure at the airway (cmH2O): PEEP, or a held inflation. */
   staticPressure = 0;
   private breaths: GivenBreath[] = [];
@@ -48,7 +51,7 @@ export class Ventilator {
 
   /** The share of the airway pressure that reaches the lungs. */
   reach(): number {
-    if (this.route === 'oesophageal') return 0;
+    if (this.route === 'oesophageal' || this.obstructed) return 0;
     if (this.route === 'mask') return this.airwayOpen ? 1 - LUNG.maskLeak : 0;
     if (this.route === 'supraglottic') return 1 - LUNG.supraglotticLeak;
     return 1;

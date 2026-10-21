@@ -5,8 +5,8 @@ import { figureSvg, lerpPose, POSES, viewAt, type FigureLook, type Pose } from '
    his right, and the people round him doing what the run says they do.
 
    The patient is the bedside figure itself (patient-figure.ts), posed and
-   coloured by the run: sitting up while he talks, lying flat once his heart
-   stops, grey without a circulation, the bag-mask on his face while he is
+   coloured by the run: sitting up while he talks, slumped where he sat once
+   his heart stops, lying flat once someone lowers the bed, grey without a circulation, the bag-mask on his face while he is
    ventilated. Its landmarks (the chest, the neck, the wrist) place
    everything else, so hands land on the lower sternum whatever the body.
 
@@ -21,7 +21,11 @@ import { figureSvg, lerpPose, POSES, viewAt, type FigureLook, type Pose } from '
    cm); the scene widens it to make room for people standing.
 =========================================================================== */
 
-export type SceneTask = 'compressions' | 'airway' | 'defibrillator' | 'drugs' | 'calling' | 'idle';
+export type SceneTask = 'compressions' | 'airway' | 'defibrillator' | 'drugs' | 'calling' | 'idle'
+  /** at the head: opening the airway and looking (breathing, the mouth), or taking something out of it */
+  | 'look'
+  /** at the head end, lowering the backrest */
+  | 'bed';
 
 export interface ScenePerson {
   id: string;
@@ -66,8 +70,15 @@ export function patientLayer(pose: Pose, look: FigureLook): { svg: string; marks
   return { svg, marks: { chest: bbox(got.chest ?? [{ x: 100, y: 220 }]), neck: bbox(got.neck ?? [{ x: 80, y: 230 }]), wrist: (got.wristR ?? [{ x: 186, y: 245 }])[0] } };
 }
 
-/** The pose while he collapses: sitting up, then flat (u from 0 to 1). */
-export const collapsePose = (u: number): Pose => lerpPose(POSES['reclined-45'], POSES.supine, Math.max(0, Math.min(1, u)));
+/** Slumped where he sat when his heart stopped: the backrest still up, the chin on the chest, the arms fallen to his sides. */
+export const SLUMPED: Pose = { ...POSES['reclined-45'], torso: 136, neck: -56, head: -22, armUpper: [-72, -68], armFore: [-34, -28], hand: [-18, -18] };
+
+/** The pose in the arrest: sitting up as he talks, slumping as he loses consciousness (`slump` 0–1), then laid flat as the
+    bed is lowered (`flat` 0–1). He does not lie down by himself. */
+export const collapsePose = (slump: number, flat = 0): Pose => {
+  const c = (u: number) => Math.max(0, Math.min(1, u));
+  return lerpPose(lerpPose(POSES['reclined-45'], SLUMPED, c(slump)), POSES.supine, c(flat));
+};
 
 const f = (x: number) => x.toFixed(1);
 
@@ -94,10 +105,12 @@ function arm(sx: number, sy: number, hx: number, hy: number, p: ScenePerson, ben
     + `<circle cx="${f(hx)}" cy="${f(hy)}" r="5.5" fill="${p.skin}"/>`;
 }
 
-function bubble(x: number, y: number, text: string): string {
+function bubble(x0: number, y: number, text: string): string {
   const w = Math.min(170, 12 + text.length * 5.2);
+  /* kept inside the scene (viewBox x from -40 to 410); the pointer stays over the speaker */
+  const x = Math.max(-40 + w / 2 + 2, Math.min(410 - w / 2 - 2, x0));
   return `<g class="scene-say"><rect x="${f(x - w / 2)}" y="${f(y - 30)}" width="${f(w)}" height="20" rx="10" fill="var(--surface, #fff)" stroke="var(--line, #ccd)"/>`
-    + `<path d="M${f(x - 4)} ${f(y - 10.5)} L${f(x)} ${f(y - 4)} L${f(x + 4)} ${f(y - 10.5)}" fill="var(--surface, #fff)" stroke="var(--line, #ccd)"/>`
+    + `<path d="M${f(x0 - 4)} ${f(y - 10.5)} L${f(x0)} ${f(y - 4)} L${f(x0 + 4)} ${f(y - 10.5)}" fill="var(--surface, #fff)" stroke="var(--line, #ccd)"/>`
     + `<text x="${f(x)}" y="${f(y - 16)}" text-anchor="middle" font-size="10" fill="var(--fg, #222)">${text.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!))}</text></g>`;
 }
 
@@ -116,7 +129,7 @@ export function sceneSvg(s: SceneState, patient: { svg: string; marks: Marks }):
   const press = Math.max(0, Math.min(1, s.press));
 
   /* where each task stands */
-  const slot: Record<SceneTask, number> = { compressions: sternum.x, airway: face.x - 72, defibrillator: 342, drugs: m.wrist.x + 14, calling: 272, idle: 272 };
+  const slot: Record<SceneTask, number> = { compressions: sternum.x, airway: face.x - 72, look: face.x - 28, bed: Math.max(-6, face.x - 100), defibrillator: 342, drugs: m.wrist.x + 14, calling: 272, idle: 272 };
   const used = new Map<number, number>();
   const placed = s.people.map((p) => {
     let x = slot[p.task];
@@ -127,7 +140,7 @@ export function sceneSvg(s: SceneState, patient: { svg: string; marks: Marks }):
 
   const back: string[] = [], front: string[] = [], over: string[] = [];
   placed.forEach(({ p, x }, i) => {
-    const sy = p.task === 'compressions' ? SHOULDER + press * 7 : p.task === 'airway' ? SHOULDER + 18 : SHOULDER;
+    const sy = p.task === 'compressions' ? SHOULDER + press * 7 : p.task === 'airway' || p.task === 'look' ? SHOULDER + 18 : SHOULDER;
     back.push(body(x, p, sy));
     const lx = x - 27, rx = x + 27, ay = sy + 4;
     if (p.task === 'compressions') {
@@ -142,6 +155,12 @@ export function sceneSvg(s: SceneState, patient: { svg: string; marks: Marks }):
       front.push(`<ellipse cx="${f(bx)}" cy="${f(by)}" rx="${f(rx2)}" ry="${f(ry2)}" fill="#e8b04a" stroke="#a87a26" stroke-width="1.2"/>`);
       front.push(`<ellipse cx="${f(bx - rx2 + 3)}" cy="${f(by)}" rx="4" ry="6" fill="#d6d9dc" stroke="#8a949b" stroke-width="1"/>`);
       front.push(arm(lx, ay, bx - 2, by - ry2 + 3, p, 0.6), arm(rx, ay, face.x + 3, face.y - 4, p, -0.8));
+    } else if (p.task === 'look') {
+      /* head tilt and chin lift: one hand on the forehead, two fingers under the chin, leaning in to look and listen */
+      front.push(arm(lx, ay, face.x - 8, face.y - 8, p, 0.8), arm(rx, ay, face.x + 10, face.y + 4, p, -0.6));
+    } else if (p.task === 'bed') {
+      /* both hands on the head of the bed, pushing the backrest down */
+      front.push(arm(lx, ay, m.neck[0] - 18, m.neck[1] - 6, p, 0.5), arm(rx, ay, m.neck[0] - 6, m.neck[1] - 2, p, -0.5));
     } else if (p.task === 'defibrillator') {
       front.push(arm(lx, ay, 352, 222, p, 1), arm(rx, ay, x + 30, ay + 70, p, -0.3));
     } else if (p.task === 'drugs') {

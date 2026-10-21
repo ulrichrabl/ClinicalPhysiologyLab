@@ -1,5 +1,5 @@
 import type { LocalizedList, LocalizedText } from '../model/i18n.ts';
-import type { Ability, PatientState, Side } from '../model/types.ts';
+import type { Ability, PatientState, Position, Side } from '../model/types.ts';
 import type { AirwayRoute } from '../physiology/lung/ventilation.ts';
 import type { DrugId } from '../physiology/drugs/drugs.ts';
 
@@ -44,8 +44,11 @@ export interface InstantEffect {
   airway?: AirwayRoute;
   /** The defibrillator (ADR-018 step 3): charge it, or deliver the charged shock. */
   defib?: 'charge' | 'shock';
-  /** A look at the patient that is recorded with what it showed (ADR-018 step 5): the rhythm on the defibrillator. */
-  assess?: 'rhythm';
+  /** A look at the patient that is recorded with what it showed (ADR-018 step 5): the rhythm on the defibrillator (and the
+      pulse with an organised rhythm), his breathing with the airway opened, what is in his mouth. */
+  assess?: 'rhythm' | 'breathing' | 'mouth';
+  /** The airway cleared of what blocks it (suction, Magill forceps). */
+  clearAirway?: boolean;
   /** Someone goes for equipment and comes back with it (ADR-018 step 5): the arrest trolley. */
   fetch?: { equipment: string[]; seconds: number };
   /** A dose into the vein (ADR-018 step 4); the drug model carries it in and lets it act. */
@@ -60,7 +63,7 @@ export interface InterventionDef {
   label: LocalizedText;
   phrases?: LocalizedList;
   /** What it needs: equipment in the room, access already gained, what the patient can do. */
-  needs?: { equipment?: string[]; access?: string[]; ability?: Ability[] };
+  needs?: { equipment?: string[]; access?: string[]; ability?: Ability[]; /** the patient lying so (compressions need him flat) */ position?: Position[] };
   /** How long the hands are busy before it takes effect: fixed, or drawn from the run's seeded chance. */
   duration: { seconds: number } | { min: number; max: number };
   /** Where the time comes from. A placement is a judgement to be checked against observed times (rule 1). */
@@ -114,6 +117,9 @@ export interface ScenarioDef {
     /** Who comes when the arrest team is called (ADR-018 step 5, decision 8), what they bring, and when: a call that
         does not say where delays them. */
     team?: { people: string[]; equipment: string[]; afterSeconds: number; lateWithoutWhere: number; callSeconds: number };
+    /** Something in the airway (a teaching variant, drawn from the seed with this chance): no breath given reaches the lungs
+        until it is cleared. */
+    airway?: { obstruction: 'bolus'; chance: number };
   };
   /** The parts that are not physiology: who arrives, what is said, when the scene moves on. */
   machine: { start: string; states: Record<string, SceneState> };
@@ -164,13 +170,15 @@ export type ScenarioEvent =
       shockable), recorded for the debrief and never blocked, as in the encounter. */
   | { t: number; kind: 'hazard'; code: string; by: string }
   /** A held squeeze let go: how long it lasted and the volume it sent towards the lungs (L). */
-  | { t: number; kind: 'breath'; by: string; seconds: number; volume: number }
+  | { t: number; kind: 'breath'; by: string; seconds: number; volume: number; /** whether any of it reached the lungs (the chest rose) */ rise?: boolean }
   /** The arrest team called: what was said, and when they will come. */
   | { t: number; kind: 'call'; by: string; says: CallContent[]; arriveAt: number }
   /** A task given to someone (or taken from them: to null). */
   | { t: number; kind: 'assigned'; role: TeamRole; to: string | null }
   /** A rhythm check (ADR-018 step 5): the rhythm it showed. */
-  | { t: number; kind: 'assessed'; what: 'rhythm'; rhythm: string; by: string }
+  | { t: number; kind: 'assessed'; what: 'rhythm' | 'breathing' | 'mouth'; by: string; rhythm?: string; pulse?: boolean; breathing?: 'normal' | 'failing' | 'gasping' | 'none'; mouth?: 'clear' | 'bolus' }
+  /** Something in his airway (drawn at the start), or taken out of it (`what` null). */
+  | { t: number; kind: 'obstruction'; what: string | null; by?: string }
   /** A dose given into the vein (ADR-018 step 4). */
   | { t: number; kind: 'dose'; drug: DrugId; mg: number; by: string }
   /** Ventricular fibrillation comes back after a shock had ended it. */

@@ -18,3 +18,5 @@ export { ARREST } from '../src/vp/evidence/arrest.ts';
 export { Drugs } from '../src/vp/physiology/drugs/drugs.ts';
 export { DRUGS } from '../src/vp/evidence/drugs.ts';
 export { drugTrial, firstDoseRise, paradisRise, trialMean, trialPeak, PARADIS } from '../src/vp/physiology/drugs/trial.ts';
+/* ADR-018 step 5: the debrief's narrative */
+export { heartCourse, debriefHtml } from '../src/vp/app/arrest-debrief.ts';

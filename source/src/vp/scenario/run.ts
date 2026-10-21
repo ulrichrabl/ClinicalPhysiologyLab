@@ -66,6 +66,8 @@ export class ScenarioRun {
   scene = '';
   readonly actors: Record<string, Actor> = { learner: { present: true, busyUntil: 0 } };
   readonly equipment = new Set<string>();
+  /** What was in the room from the start (for the debrief: what could be used from the beginning). */
+  readonly startEquipment: string[] = [];
   readonly access = new Set<string>();
   /** Continuous interventions held now, by slot, with what they replaced. */
   readonly held = new Map<string, Held>();
@@ -96,13 +98,22 @@ export class ScenarioRun {
     const g = this.chance.uniform('gasp');
     const gaspFor = g < LUNG.gaspChanceVf ? -Math.log(1 - this.chance.uniform('gasp-duration')) * LUNG.gaspMeanSeconds : 0;
     this.live.run.resp.gaspFor = gaspFor;
+    /* Something in his airway (a teaching variant, not a physiological rate): drawn now, from its own stream. */
+    const ob = def.scene.airway;
+    if (ob) {
+      const u = this.chance.uniform('obstruction');
+      this.obstruction = u < ob.chance ? ob.obstruction : null;
+      this.pendingChance.push({ t: 0, kind: 'chance', stream: 'obstruction', value: u, use: this.obstruction ? `a ${ob.obstruction} in his airway` : 'nothing in his airway' });
+      if (this.obstruction) this.pendingChance.push({ t: 0, kind: 'obstruction', what: this.obstruction });
+    }
     this.live.settleNow(opts.settleSeconds ?? 20);
     const caseDef = opts.caseDef;
     this.session = startEncounter(opts.catalog ?? CATALOG, opts.registry ?? REGISTRY, caseDef, buildView(caseDef, { circulation: this.live.snap, chemistry: this.live.chemistry }));
     for (const p of def.scene.people) this.actors[p.id] = { present: p.present, busyUntil: 0 };
-    for (const e of def.scene.equipment) if (e.present) this.equipment.add(e.id);
+    for (const e of def.scene.equipment) if (e.present) { this.equipment.add(e.id); this.startEquipment.push(e.id); }
     this.sync();
     this.events.push({ t: 0, kind: 'chance', stream: 'gasp', value: g, use: gaspFor > 0 ? `gasps for ${gaspFor.toFixed(0)} s if the brain loses its blood supply` : 'does not gasp' });
+    this.events.push(...this.pendingChance);
     this.enter(def.machine.start);
   }
 
@@ -197,6 +208,8 @@ export class ScenarioRun {
     if (why) return this.blocked(id, by, why);
     const missingKit = (x.needs?.equipment ?? []).filter((e) => !this.equipment.has(e));
     if (missingKit.length) return this.blocked(id, by, `equipment:${missingKit.join('|')}`);
+    const pos = x.needs?.position;
+    if (pos && !pos.includes(this.session.state.position as never)) return this.blocked(id, by, `position:${pos.join('|')}`);
     const missingAccess = (x.needs?.access ?? []).filter((a) => !this.access.has(a));
     if (missingAccess.length) return this.blocked(id, by, `access:${missingAccess.join('|')}`);
     const can = abilities(this.session.state);
@@ -333,7 +346,8 @@ export class ScenarioRun {
     const m = this.live.snap.metrics as any, r = this.live.snap.resp as any;
     const breathing = (r?.givenRate ?? 0) > 0 || (r?.RR ?? 0) > 0;
     this.trace.push({ t: this.t, rhythm: this.rhythm(), Psys: m?.Psys ?? NaN, Pdia: m?.Pdia ?? NaN, CPP: m?.CPP ?? null,
-      EtCO2: breathing ? (r?.EtCO2 ?? 0) * 7.50062 : null });
+      EtCO2: breathing ? (r?.EtCO2 ?? 0) * 7.50062 : null,
+      breathing: breathingOf(r) });
   }
 
   /** The heart's rhythm as the model runs it: 'vf', 'vt', 'asystole' or 'organised'. */
@@ -346,7 +360,9 @@ export class ScenarioRun {
     this.note({ t: this.t, do: 'ventilate', at, seconds, by });
     const h = this.held.get('ventilation');
     if (!h || h.by !== by || !this.ventilator) return this.blocked('ventilate', by, 'not-ventilating');
-    this.ventilator.give(this.respTime(at), LUNG.bagVolume, Math.max(0.2, seconds));
+    const ti = Math.max(0.2, seconds);
+    this.ventilator.give(this.respTime(at), LUNG.bagVolume, ti);
+    this.events.push({ t: this.t, kind: 'breath', by, seconds: Math.round(ti * 100) / 100, volume: LUNG.bagVolume, rise: this.ventilator.reach() > 0 });
     return true;
   }
 
@@ -359,9 +375,13 @@ export class ScenarioRun {
     if (!h || h.by !== by || !this.ventilator) return phase === 'release' ? false : this.blocked('ventilate', by, 'not-ventilating');
     if (phase === 'squeeze') { this.ventilator.squeeze(this.respTime(at)); return true; }
     const b = this.ventilator.release(this.respTime(at));
-    if (b) this.events.push({ t: this.t, kind: 'breath', by, seconds: Math.round(b.ti * 100) / 100, volume: Math.round(b.volume * 1000) / 1000 });
+    if (b) this.events.push({ t: this.t, kind: 'breath', by, seconds: Math.round(b.ti * 100) / 100, volume: Math.round(b.volume * 1000) / 1000, rise: this.ventilator.reach() > 0 });
     return !!b;
   }
+
+  /** What blocks his airway now, if anything (cleared by `airway.clear`). */
+  obstruction: string | null = null;
+  private pendingChance: ScenarioEvent[] = [];
 
   /** Who holds each task (ADR-018 decision 8). Compressions and the airway are also held as interventions. */
   readonly roles: Record<TeamRole, string | null> = { compressions: null, airway: null, defibrillator: null, drugs: null };
@@ -393,6 +413,9 @@ export class ScenarioRun {
     if (!this.actors[to]) throw new Error(`no one called ${to} in scenario ${this.def.id}`);
     this.note({ t: this.t, do: 'assign', role, to });
     if (!this.actors[to].present) return this.blocked(`role:${role}`, to, 'absent');
+    /* compressions on a raised bed are refused before anyone lets go of what they hold */
+    const pos = role === 'compressions' ? this.interventions['cpr.compressions']?.needs?.position : undefined;
+    if (pos && !pos.includes(this.session.state.position as never) && this.held.get('compressions')?.by !== to) return this.blocked(`role:${role}`, to, `position:${pos.join('|')}`);
     /* one task per pair of hands: whatever else they held is given up */
     for (const r of TEAM_ROLES) if (r !== role && this.roles[r] === to) { this.roles[r] = null; this.events.push({ t: this.t, kind: 'assigned', role: r, to: null }); }
     const slot = role === 'compressions' ? 'compressions' : role === 'airway' ? 'ventilation' : null;
@@ -426,6 +449,8 @@ export class ScenarioRun {
     if (driver === 'ventilation') {
       if (!on) { this.ventilator = null; this.live.run.setVentilator(null); return; }
       const v = new Ventilator(this.airway);
+      /* a bolus in the pharynx stops whatever is given, by mask or device, until it is cleared */
+      v.obstructed = !!this.obstruction;
       /* Through an airway device a team member gives breaths at a steady 10/min (ERC: continuous compressions, 10 breaths a
          minute); with a mask, breaths only when told (the `ventilate` input), in the pauses of 30:2. The learner gives their own. */
       if (by !== 'learner' && this.airway !== 'mask') v.steady(10, this.respTime(this.t));
@@ -481,7 +506,21 @@ export class ScenarioRun {
         this.arrivals.push({ at: this.tick + Math.round(e.fetch.seconds / TICK_S), people: [p.by], equipment: e.fetch.equipment });
         this.events.push({ t: this.t, kind: 'leave', people: [p.by] });
       }
-      if (e.assess === 'rhythm') this.events.push({ t: this.t, kind: 'assessed', what: 'rhythm', rhythm: this.rhythm(), by: p.by });
+      if (e.assess === 'rhythm') {
+        /* with an organised rhythm, the pulse too (ERC: rhythm and pulse check) */
+        const rhythm = this.rhythm(), m = this.live.snap.metrics as any;
+        this.events.push({ t: this.t, kind: 'assessed', what: 'rhythm', rhythm, by: p.by, ...(rhythm === 'organised' ? { pulse: (m?.Psys ?? 0) >= 50 } : {}) });
+      }
+      if (e.assess === 'breathing') {
+        const r = this.live.snap.resp as any;
+        this.events.push({ t: this.t, kind: 'assessed', what: 'breathing', by: p.by, breathing: breathingOf(r) });
+      }
+      if (e.assess === 'mouth') this.events.push({ t: this.t, kind: 'assessed', what: 'mouth', by: p.by, mouth: this.obstruction ? 'bolus' : 'clear' });
+      if (e.clearAirway && this.obstruction) {
+        this.obstruction = null;
+        if (this.ventilator) this.ventilator.obstructed = false;
+        this.events.push({ t: this.t, kind: 'obstruction', what: null, by: p.by });
+      }
       if (e.dose) { this.live.run.drugs.give(e.dose.drug, e.dose.mg); this.events.push({ t: this.t, kind: 'dose', drug: e.dose.drug, mg: e.dose.mg, by: p.by }); }
       if (e.state) this.setState(e.state);
     }
@@ -598,7 +637,17 @@ export class ScenarioRun {
 /** Run a scenario again from its seed and inputs, to `until` seconds (default: the last input). */
 /** A second of the patient, for the debrief: rhythm, arterial pressure, coronary perfusion pressure (mmHg), end-tidal CO₂
     (mmHg, null while nothing is breathed out). */
-export interface TraceRow { t: number; rhythm: string; Psys: number; Pdia: number; CPP: number | null; EtCO2: number | null }
+export interface TraceRow { t: number; rhythm: string; Psys: number; Pdia: number; CPP: number | null; EtCO2: number | null; breathing?: Breathing }
+
+export type Breathing = 'normal' | 'failing' | 'gasping' | 'none';
+/** What someone looking would see of his own breathing (given breaths aside): normal only while the respiratory centre
+    works (at least 0.9 of its function: our cut); breaths still coming from a failing centre are slow and shallow, not
+    normal; gasping; or nothing. */
+export function breathingOf(r: { gasping?: boolean; RR?: number; givenRate?: number; centre?: number } | undefined): Breathing {
+  if (r?.gasping) return 'gasping';
+  if ((r?.RR ?? 0) - (r?.givenRate ?? 0) <= 0.5) return 'none';
+  return (r?.centre ?? 1) >= 0.9 ? 'normal' : 'failing';
+}
 
 export function replay(def: ScenarioDef, opts: RunOptions & { log: ScenarioInput[]; until?: number }): ScenarioRun {
   const run = new ScenarioRun(def, opts);

@@ -45,6 +45,7 @@ const record = ({ from = 6, rate = 110, pause = 3, around = 1, shocks = [75, 195
   const byAt = (at) => !rotate ? 'learner' : shocks.filter((s) => s < at).length % 2 ? 'doctor' : 'learner';
   const events = [
     ...(call ? [{ t: callAt, kind: 'call', by: 'nurse', says: call, arriveAt: callAt + 120 }] : []),
+    { t: 4.5, kind: 'assessed', what: 'breathing', by: 'learner', breathing: 'gasping' },
     { t: 5, kind: 'assigned', role: 'compressions', to: 'learner' },
     { t: 20, kind: 'assigned', role: 'airway', to: 'nurse' },
     { t: 64, kind: 'arrive', people: ['doctor', 'nurse2'], equipment: ['defibrillator', 'cannula-kit', 'drugs'] },
@@ -127,6 +128,42 @@ console.log('\nShocks, rhythm checks and drugs against the algorithm');
   ok('a shock with hands on the chest misses shock safety, at its time', rule(unsafe, 'shock-safety').status === 'missed' && rule(unsafe, 'shock-safety').at[0] === 195);
 }
 
+console.log('\nBefore the first compression, and a blocked airway (second pass)');
+{
+  const base = record({ doses: DOSES });
+  const without = { ...base, events: base.events.filter((e) => e.kind !== 'assessed') };
+  const late = { ...base, events: [...without.events, { t: 30, kind: 'assessed', what: 'breathing', by: 'learner', breathing: 'none' }].sort((a, b) => a.t - b.t) };
+  ok('breathing looked at before the first compression: met', rule(S.scoreRun(G, base), 'check-breathing').status === 'met');
+  ok('compressions started without looking at the breathing: missed, marked at the first compression', (() => { const x = rule(S.scoreRun(G, without), 'check-breathing'); return x.status === 'missed' && x.at[0] === 6; })(), J(rule(S.scoreRun(G, without), 'check-breathing')));
+  ok('a look only after compressions began does not count', rule(S.scoreRun(G, late), 'check-breathing').status === 'missed');
+  ok('no bolus in the run: the blocked-airway rule does not apply', rule(S.scoreRun(G, base), 'clear-obstruction').status === 'not-applicable');
+  const blocked = (clearAt) => ({ ...base, events: [{ t: 0, kind: 'obstruction', what: 'bolus' }, { t: 21, kind: 'breath', by: 'nurse', seconds: 1, volume: 0.5, rise: false },
+    ...(clearAt != null ? [{ t: clearAt, kind: 'obstruction', what: null, by: 'doctor' }] : []), ...base.events].sort((a, b) => a.t - b.t) });
+  ok('a bolus taken out 50 s after the first breath that did not get in: met', (() => { const x = rule(S.scoreRun(G, blocked(71)), 'clear-obstruction'); return x.status === 'met' && x.value === 50; })(), J(rule(S.scoreRun(G, blocked(71)), 'clear-obstruction')));
+  ok('…after 100 s, or never: missed, marked 60 s after that breath', ['missed', 'missed'].every((st, i) => { const x = rule(S.scoreRun(G, blocked(i ? null : 121)), 'clear-obstruction'); return x.status === st && x.at[0] === 81; }));
+  const lateKit = (clearAt) => { const x = blocked(clearAt); return { ...x, startEquipment: ['bag-mask'], events: x.events.map((e) => (e.kind === 'arrive' ? { ...e, equipment: [...e.equipment, 'airway-kit'] } : e)) }; };
+  ok('the kit came only at 64 s: the clock starts then (cleared at 110 s: 46 s, met)', (() => { const x = rule(S.scoreRun(G, lateKit(110)), 'clear-obstruction'); return x.status === 'met' && x.value === 46; })(), J(rule(S.scoreRun(G, lateKit(110)), 'clear-obstruction')));
+  const noKit = { ...blocked(null), startEquipment: ['bag-mask'] };
+  ok('the kit never came: nobody could have cleared it, so the rule does not apply', rule(S.scoreRun(G, noKit), 'clear-obstruction').status === 'not-applicable');
+}
+
+console.log('\nWhat the debrief says about the end (the outcome follows the course)');
+{
+  /* VF from 4 s, a circulation from 200 s, VF again from 260 s (a recurrence), a circulation from 400 s to the end,
+     with a 1 s blip that is not a spell */
+  const state = (t) => t <= 4 ? 'pulse' : t <= 200 ? 'vf' : t <= 260 ? 'pulse' : t <= 400 ? 'vf' : t === 450 ? 'vf' : 'pulse';
+  const trace = Array.from({ length: 600 }, (_, i) => { const t = i + 1, s = state(t); return { t, rhythm: s === 'vf' ? 'vf' : 'organised', Psys: s === 'vf' ? 30 : 105, Pdia: 60, CPP: null, EtCO2: 30, breathing: t > 500 ? 'normal' : 'none' }; });
+  const course = S.heartCourse(4, G, trace);
+  ok('the course: VF, a circulation, VF again, a circulation; a 1 s blip is not a spell', J(course.map((c) => c.state)) === J(['vf', 'pulse', 'vf', 'pulse']) && course[1].from === 200 && course[2].from === 260, J(course));
+  const rec = { ...record({ doses: DOSES }), trace };
+  const html = S.debriefHtml(S.scoreRun(G, rec), G, rec, 'en', { canReturn: false });
+  ok('a patient with a pulse and breathing at the end: the debrief says he has a circulation, and breathes', /has a circulation at the end/.test(html) && /breathing/.test(html) && !/still in arrest/.test(html));
+  const back = trace.map((r) => (r.t > 560 ? { ...r, rhythm: 'vf', Psys: 30, breathing: 'none' } : r));
+  const rec2 = { ...rec, trace: back };
+  const html2 = S.debriefHtml(S.scoreRun(G, rec2), G, rec2, 'de', { canReturn: false });
+  ok('VF back in the last 40 s: still in arrest, and the course shows the circulation that came and went (German)', /Am Ende ist er noch im Kreislaufstillstand/.test(html2) && !/Am Ende hat er einen Kreislauf/.test(html2) && J(S.heartCourse(4, G, back).map((c) => c.state).slice(-2)) === J(['pulse', 'vf']));
+}
+
 console.log('\nA run on the clock (the practice arrest, scripted)');
 {
   /* The nurse stays and the trolley is in the room. The learner compresses at 110/min from the collapse; the nurse takes
@@ -139,10 +176,11 @@ console.log('\nA run on the clock (the practice arrest, scripted)');
   const tap = 60 / 110;
   let next = null, count = 0, resumeAt = null;
   const breathsAt = [];
-  r.advanceTo(4.5); r.intervene('cpr.compressions'); r.intervene('defib.pads', 'nurse');
+  r.advanceTo(4.5); r.intervene('bed.flat', 'nurse');
+  r.advanceTo(7.6); r.intervene('cpr.compressions'); r.intervene('defib.pads', 'nurse');
   while (r.t < 150) {
     const t = r.t;
-    if (t >= 6.5 && next == null && r.held.get('compressions')?.by === 'learner') next = t;
+    if (t >= 9.6 && next == null && r.held.get('compressions')?.by === 'learner') next = t;
     if (t >= 30 && !r.held.get('ventilation') && r.actors.nurse.busyUntil <= r.tick && !r.did.has('vent.bag')) r.intervene('vent.bag', 'nurse');
     if (next != null && resumeAt == null && next < t + 0.1 - 1e-9) {
       r.compress(Math.max(t, Math.round(next * 1000) / 1000)); count++; next += tap;
@@ -157,7 +195,7 @@ console.log('\nA run on the clock (the practice arrest, scripted)');
   }
   const rep = S.scoreRun(G, r);
   ok('the run records every compression and a trace of the patient each second', r.compressions.length > 150 && r.trace.length === 150 && r.trace.at(-1).t === 150, `${r.compressions.length} compressions, ${r.trace.length} rows`);
-  ok('the collapse is found at the scene’s 4 s, and the first compression about 3 s later', rep.onset != null && Math.abs(rep.onset - 4) <= 1 && rep.measures.firstCompression <= 4, J({ onset: rep.onset, fc: rep.measures.firstCompression }));
+  ok('the collapse is found at the scene’s 4 s, and the first compression about 6 s later, once the bed is flat', rep.onset != null && Math.abs(rep.onset - 4) <= 1 && rep.measures.firstCompression <= 7, J({ onset: rep.onset, fc: rep.measures.firstCompression }));
   ok('the scripted rate and 30:2 are read back (the first cycle runs on until the nurse has the bag)', Math.abs(rep.measures.rate - 110) <= 2 && rep.measures.cycles.length >= 3 && rep.measures.cycles.slice(1).every((c) => c === 30) && rep.measures.cycles[0] > 30, J({ rate: rep.measures.rate, cycles: rep.measures.cycles }));
   ok('the trace shows the patient: VF, and a coronary perfusion pressure once compressions run', r.trace.filter((x) => x.t > 20).every((x) => x.rhythm === 'vf') && r.trace.filter((x) => x.t > 30).some((x) => x.CPP > 10), J(r.trace.slice(25, 28)));
   ok('pads on and no rhythm check: the check is missed, marked 30 s after the pads', rule(rep, 'rhythm-checks').status === 'missed', J(rule(rep, 'rhythm-checks')));
