@@ -1470,7 +1470,7 @@ console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)')
   /* An examiner who does every test that can show each reference sign gets every sign item. */
   const testsShowing = (id) => [...new Set([...testsForSign(KNOWLEDGE, CATALOG, id),
     ...Object.values(KNOWLEDGE.presentations).filter((p) => p.signs.includes(id)).flatMap((p) => p.tests)])]
-    .filter((t) => !['position', 'give', 'expose'].includes(CATALOG.manoeuvres[t]?.verb));
+    .filter((t) => !['position', 'give', 'expose', 'cover'].includes(CATALOG.manoeuvres[t]?.verb));
   const missedByExpert = [];
   for (const c of CASES) {
     const items = c.reference.evidence.filter((e) => e.kind === 'sign');
