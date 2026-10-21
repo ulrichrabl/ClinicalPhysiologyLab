@@ -111,7 +111,7 @@ export const PROPERTIES: PropertyDef[] = [
       v1: c('qrs-shape'), v6: c('qrs-shape'), delta: bool, st: perLead, t: perLead, u: q('mV', 0, 2), sokolow: q('mV', 0, 10),
     }, ['pr']),
     normal: { value: {
-      rate: 72, regular: true, pWaves: 'present', pAmplitude: 0.12, pDuration: 100, pr: 160, prProgressive: false, conduction: 'all', qrs: 92, qtc: 400, axis: 46,
+      rate: 72, regular: true, pWaves: 'present', pAmplitude: 0.12, pDuration: 100, pr: 160, prProgressive: false, conduction: 'all', qrs: 92, qtc: 400, axis: 71,
       v1: 'rS', v6: 'qR', delta: false, u: 0.02, sokolow: 2.2,
       st: { I: 0.02, II: 0.07, III: 0.04, aVR: -0.04, aVL: -0.01, aVF: 0.05, V1: 0.01, V2: 0.06, V3: 0.1, V4: 0.09, V5: 0.07, V6: 0.04 },
       t: { I: 0.1, II: 0.32, III: 0.22, aVR: -0.2, aVL: -0.06, aVF: 0.27, V1: 0.05, V2: 0.25, V3: 0.43, V4: 0.42, V5: 0.33, V6: 0.2 },
