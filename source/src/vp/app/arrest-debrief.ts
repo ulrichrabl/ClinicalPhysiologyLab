@@ -18,8 +18,12 @@ const T: Record<string, LocalizedText> = {
   title: L('Debrief', 'Nachbesprechung'),
   lede: L('What you did, against the ERC 2025 guideline, on one timeline with what the patient did. The score is how closely you followed the guideline, not whether he survived: his course is the model’s, and partly chance.',
     'Was Sie getan haben, gemessen an der ERC-Leitlinie 2025, auf einer Zeitachse mit dem, was der Patient tat. Bewertet wird, wie genau Sie der Leitlinie gefolgt sind, nicht ob er überlebt hat: sein Verlauf ist der des Modells und zum Teil Zufall.'),
-  outcomeRosc: L('A circulation returned at {t}.', 'Ein Kreislauf kehrte bei {t} zurück.'),
-  outcomeNone: L('He was still in arrest at the end ({r}).', 'Am Ende war er noch im Stillstand ({r}).'),
+  outcomeRosc: L('He has a circulation at the end.', 'Am Ende hat er einen Kreislauf.'),
+  outcomeNone: L('He is still in arrest at the end.', 'Am Ende ist er noch im Kreislaufstillstand.'),
+  sVf: L('VF', 'Kammerflimmern'), sVt: L('VT', 'Kammertachykardie'), sAsys: L('asystole', 'Asystolie'), sPea: L('organised rhythm, no pulse', 'organisierter Rhythmus ohne Puls'), sPulse: L('circulation (pulse)', 'Kreislauf (Puls)'),
+  atEnd: L('At the end ({t}): {state}, {breath}.', 'Am Ende ({t}): {state}, {breath}.'),
+  bNormal: L('breathing on his own', 'atmet selbst'), bGasping: L('gasping', 'Schnappatmung'), bNone: L('not breathing', 'keine Eigenatmung'), bFailing: L('a few slow, shallow breaths', 'einzelne langsame, flache Atemzüge'),
+  course: L('The course', 'Der Verlauf'),
   outcomeNoArrest: L('His heart did not stop in this run.', 'Sein Herz ist in diesem Durchgang nicht stehen geblieben.'),
   vf: L('ventricular fibrillation', 'Kammerflimmern'), asystole: L('asystole', 'Asystolie'), pea: L('pulseless electrical activity', 'pulslose elektrische Aktivität'), vt: L('ventricular tachycardia', 'Kammertachykardie'),
   measures: L('Measures', 'Kennzahlen'),
@@ -27,7 +31,7 @@ const T: Record<string, LocalizedText> = {
   mRate: L('Rate', 'Frequenz'), mPause: L('Longest pause', 'Längste Pause'), mShocks: L('Shocks', 'Schocks'),
   after: L('after the collapse', 'nach dem Kollaps'), ofTime: L('of the time CPR was needed', 'der Zeit, in der Reanimation nötig war'),
   timeline: L('Timeline', 'Zeitachse'),
-  kRhythm: L('Rhythm', 'Rhythmus'), kCpr: L('Compressions (red: pauses over 10 s)', 'Kompressionen (rot: Pausen über 10 s)'), kEvents: L('Shocks ⚡, adrenaline A, amiodarone Am, rhythm checks R', 'Schocks ⚡, Adrenalin A, Amiodaron Am, Rhythmuskontrollen R'),
+  kRhythm: L('Rhythm', 'Rhythmus'), kCpr: L('Compressions (red: pauses over 10 s)', 'Kompressionen (rot: Pausen über 10 s)'), kEvents: L('Shocks ⚡, adrenaline A, amiodarone Am, checks of rhythm R, breathing B, mouth M, airway cleared ✓', 'Schocks ⚡, Adrenalin A, Amiodaron Am, Kontrolle von Rhythmus R, Atmung B, Mund M, Atemweg frei ✓'),
   kLines: L('Coronary perfusion pressure (red) and end-tidal CO₂ (blue), mmHg', 'Koronarer Perfusionsdruck (rot) und endtidales CO₂ (blau), mmHg'),
   kMissed: L('Numbered: where a rule was missed', 'Nummeriert: wo eine Regel verfehlt wurde'),
   rules: L('The guideline', 'Die Leitlinie'), ringNote: L('rules of the guideline met, of those that applied in this run; tap a rule for why it matters and its source', 'erfüllte Regeln der Leitlinie, von denen, die in diesem Durchgang zutrafen; tippen Sie auf eine Regel für Begründung und Quelle'),
@@ -42,21 +46,34 @@ export const fmtClock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floo
 
 export interface DebriefRun { trace: TraceRow[]; compressions: Array<{ at: number; by: string }>; events: ScenarioEvent[]; t: number }
 
-/** The first second, after the collapse, from which an organised rhythm with a pulse held to the end (or null). */
-function roscAt(rep: GuidelineReport, g: GuidelineDef, trace: TraceRow[]): number | null {
-  if (rep.onset == null) return null;
-  const pulse = (r: TraceRow) => r.rhythm === 'organised' && r.Psys >= g.definitions.pulseSystolic.value;
-  let from: number | null = null;
-  for (const r of trace) { if (r.t <= rep.onset) continue; if (pulse(r)) { if (from == null) from = r.t; } else from = null; }
-  return from;
+type HeartState = 'vf' | 'vt' | 'asystole' | 'pea' | 'pulse';
+/** What the heart did from the collapse on, as spells of at least 3 s (shorter flickers are folded into the spell before):
+    VF, VT, asystole, an organised rhythm without a pulse, or a circulation. */
+export function heartCourse(onset: number | null, g: GuidelineDef, trace: TraceRow[]): Array<{ from: number; state: HeartState }> {
+  if (onset == null) return [];
+  const stateOf = (r: TraceRow): HeartState => r.rhythm === 'organised' ? (r.Psys >= g.definitions.pulseSystolic.value ? 'pulse' : 'pea') : (r.rhythm as HeartState);
+  const rows = trace.filter((r) => r.t > onset);
+  const out: Array<{ from: number; state: HeartState }> = [];
+  for (let i = 0; i < rows.length; i++) {
+    const s = stateOf(rows[i]);
+    if (out.at(-1)?.state === s) continue;
+    /* a new spell only if it lasts 3 s */
+    let j = i; while (j < rows.length && stateOf(rows[j]) === s) j++;
+    if (j - i >= 3 || j === rows.length) out.push({ from: rows[i].t - 1, state: s });
+  }
+  return out;
 }
 
 export function debriefHtml(rep: GuidelineReport, g: GuidelineDef, run: DebriefRun, lang: Lang, opts: { canReturn: boolean }): string {
   const t = (k: string) => tr(T[k], lang);
   const last = run.trace.at(-1);
-  const rosc = roscAt(rep, g, run.trace);
-  const rhythmName = (r: TraceRow | undefined) => !r ? '' : r.rhythm === 'organised' ? t('pea') : t(r.rhythm in T ? r.rhythm : 'vf');
-  const outcome = rep.onset == null ? t('outcomeNoArrest') : rosc != null ? t('outcomeRosc').replace('{t}', fmtClock(rosc)) : t('outcomeNone').replace('{r}', rhythmName(last));
+  const course = heartCourse(rep.onset, g, run.trace);
+  const name = (s: HeartState) => t(s === 'vf' ? 'sVf' : s === 'vt' ? 'sVt' : s === 'asystole' ? 'sAsys' : s === 'pea' ? 'sPea' : 'sPulse');
+  const endState = course.at(-1)?.state;
+  const outcome = rep.onset == null ? t('outcomeNoArrest') : endState === 'pulse' ? t('outcomeRosc') : t('outcomeNone');
+  const courseLine = !course.length ? '' : course.slice(-8).map((c) => `${fmtClock(c.from)} ${name(c.state)}`).join(' → ');
+  const endLine = !last || rep.onset == null ? '' : t('atEnd').replace('{t}', fmtClock(last.t)).replace('{state}', name(endState ?? 'vf'))
+    .replace('{breath}', t(last.breathing === 'normal' ? 'bNormal' : last.breathing === 'gasping' ? 'bGasping' : last.breathing === 'failing' ? 'bFailing' : 'bNone'));
   const m = rep.measures;
   const tile = (label: string, v: string, sub = '') => `<div><dt>${label}</dt><dd>${v}</dd>${sub ? `<div class="muted small">${sub}</div>` : ''}</div>`;
   const missedIds = rep.rules.filter((r) => r.status === 'missed').map((r) => r.id);
@@ -68,7 +85,7 @@ export function debriefHtml(rep: GuidelineReport, g: GuidelineDef, run: DebriefR
     const value = res.value != null && rule.unit ? `<span class="ar-db-val">${res.value}${rule.unit === '%' ? ' %' : rule.unit === '/min' ? '/min' : ` ${rule.unit}`}</span>` : '';
     return `<li class="ar-db-rule ${res.status}"><details><summary>
         <span class="ar-db-mark" aria-label="${t(res.status === 'met' ? 'met' : res.status === 'missed' ? 'missed' : 'na')}">${mark}</span>
-        <span class="ar-db-title">${esc(tr(rule.title, lang))}</span>${value}${rule.basis === 'placement' ? `<span class="ar-db-ours" title="${esc(t('oursHint'))}">${t('ours')}</span>` : ''}</summary>
+        <span class="ar-db-title">${esc(tr(rule.title, lang))}${rule.basis === 'placement' ? ` <span class="ar-db-ours" title="${esc(t('oursHint'))}">${t('ours')}</span>` : ''}</span>${value}</summary>
         <div class="small"><p>${esc(tr(rule.why, lang))}</p>${res.at.length ? `<p class="muted">${res.at.slice(0, 6).map(fmtClock).join(', ')}${res.at.length > 6 ? ' …' : ''}</p>` : ''}<p class="muted">${esc(rule.section)}${rule.note ? ` · ${esc(rule.note)}` : ''}</p></div></details></li>`;
   };
   const GROUPS: Array<[GuidelineDef['rules'][number]['group'], string]> = [['team', 'gTeam'], ['compressions', 'gCompressions'], ['airway', 'gAirway'], ['defibrillation', 'gDefib'], ['drugs', 'gDrugs']];
@@ -88,7 +105,7 @@ export function debriefHtml(rep: GuidelineReport, g: GuidelineDef, run: DebriefR
   return `<section class="panel ar-debrief" aria-labelledby="ar-db-h">
       <div class="st-row"><div><h2 id="ar-db-h">${t('title')}</h2><p class="muted small">${t('lede')}</p></div>
         <span class="ar-head-buttons">${opts.canReturn ? `<button type="button" class="ghost" data-db-back>${t('back')}</button>` : ''}<button type="button" class="primary" data-db-again>${t('again')}</button></span></div>
-      <div class="ar-db-top">${ring}<div><p class="ar-db-outcome"><b>${outcome}</b></p><p class="muted small">${t('ringNote')}</p></div></div>
+      <div class="ar-db-top">${ring}<div><p class="ar-db-outcome"><b>${outcome}</b></p><p class="small">${endLine}</p>${courseLine ? `<p class="muted small">${t('course')}: ${courseLine}</p>` : ''}<p class="muted small">${t('ringNote')}</p></div></div>
       <h3>${t('measures')}</h3>
       <dl class="ar-nums">
         ${tile(t('mFirst'), m.firstCompression != null ? `${m.firstCompression} s` : '—', t('after'))}
@@ -136,7 +153,8 @@ export function drawDebrief(c: HTMLCanvasElement, rep: GuidelineReport, g: Guide
   for (const e of run.events) {
     if (e.kind === 'shock' && e.joules > 0) mark(e.t, '⚡', '#b9770e', 44);
     if (e.kind === 'dose') mark(e.t, e.drug === 'adrenaline' ? 'A' : 'Am', e.drug === 'adrenaline' ? '#c0392b' : '#8e44ad', 58);
-    if (e.kind === 'assessed') mark(e.t, 'R', muted, 44);
+    if (e.kind === 'assessed') mark(e.t, e.what === 'breathing' ? 'B' : e.what === 'mouth' ? 'M' : 'R', muted, 44);
+    if (e.kind === 'obstruction' && !e.what) mark(e.t, '✓', '#2e7d4f', 58);
   }
   /* the patient's pressures, 0–40 mmHg */
   const top = 70, bot = h - 46, Y = (v: number) => bot - Math.max(0, Math.min(40, v)) / 40 * (bot - top);

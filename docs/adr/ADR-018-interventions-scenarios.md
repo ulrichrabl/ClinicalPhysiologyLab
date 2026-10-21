@@ -440,6 +440,32 @@ Step 5 is built in parts: (1) the guideline file, scoring and the debrief; (2) t
   - the 4 H's and 4 T's;
   - placing hands and pads by dragging (the chest view, `render/thorax.ts`).
 
+## Step 5, second pass, as built: the bed, the airway, and playability
+
+**Owner (2026-10-21), after playing:** the debrief's layout broke in German; it said "still in arrest (VF)" when he was breathing with a sinus rhythm at the end; "Start again" hung on "Preparing the patient…"; the interface felt illogical and unresponsive at times; he lay down flat by himself; nobody set the bed up for CPR or checked the airway ("What if he has a bolus in his throat?").
+
+- **Start again** threw before the new patient was made (the page was wired against the old run, whose controls were gone). The old run is now dropped first.
+- **The outcome** is narrated from the trace instead of one line: the course of the heart in spells of at least 3 s ("0:04 VF → 3:20 a circulation → 4:20 VF …"), and the state at the end with his breathing. A circulation that came back and was lost again (in the model VF comes back after most successful shocks) now shows as such; the run that was reported could not be reproduced, and this is the likeliest explanation. The trace records his breathing each second.
+- **The German debrief:** each rule's line is a grid (mark, title, value), so long titles wrap instead of pushing values out of the card. The play page no longer overflows a 390 px phone (the header's buttons wrap).
+- **The bed.** He slumps where he sat when his heart stops (`SLUMPED`: the backrest up, chin on the chest, arms fallen), and stays so. `bed.flat` (3 s, a placement) lowers the backrest; the scene animates it over those 3 s. `cpr.compressions` needs him supine (`needs.position`), and so does giving someone the compressions; the refusal says why.
+- **Breathing.** `assess.breathing` (7 s; the guideline allows no more than 10 s) records what someone looking would see: normal only while the respiratory centre works (at least 0.9 of its function, our cut); the last slow, shallow breaths of a failing centre (`failing`), gasping, or nothing. The monitor no longer shows his breathing all the time: it shows the last check and when it was. Gasps are still logged as they come, since they are seen and heard across the room.
+- **The airway.** In a quarter of runs (`scene.airway`: a teaching variant drawn from its own stream, not a rate) a bolus of food from his meal sits in his pharynx. No breath gets past it, by mask, supraglottic airway or tube (`Ventilator.obstructed`); each breath records whether the chest rose. `assess.mouth` (3 s) shows it; `airway.clear` (suction or Magill forceps, 10–20 s, placements) takes it out and needs the airway kit, which is on the arrest trolley (it comes with the team or the fetched trolley). On the screen, whoever holds the bag puts it down to look or clear and takes it up again after.
+- **Scored** (two new rules, version 1.2.0 of the guideline file):
+  - **Breathing checked before compressions** (the guideline's sequence: unresponsive, open the airway, look for normal breathing, then compress).
+  - **A blocked airway cleared** within 60 s (ours) of the first breath that did not get in, or of the airway kit's arrival if that was later; not applicable without a bolus or without the kit. The run now records what was in the room from the start (`startEquipment`).
+  - Laying the bed flat adds about 3 s before the first compression; the 15 s rule for it is unchanged.
+- **Playability:**
+  - a message over the scene (a toast) for what was refused and why, and for what was found: the breathing, the mouth, the rhythm (with the pulse for an organised rhythm), a shock's outcome, VF coming back, the team arriving, no chest rise;
+  - the team cards say how many seconds someone is still busy;
+  - a first-steps row in the hands panel (bed, breathing, mouth, suction), done by the learner with free hands, else by whoever is free;
+  - in the scene, whoever lowers the bed stands at its head end, and whoever checks the breathing or the mouth has a hand on the forehead and two fingers under the chin; speech bubbles stay inside the scene.
+- **Tests:** `scenario.test.mjs` (the raised bed refuses compressions, laying it flat, the breathing and the mouth, the bolus drawn by seed, no chest rise, the kit, clearing, a supraglottic airway not past a bolus, replay, the validator); `debrief.test.mjs` (the two rules, the kit arriving late or never, the course and the outcome in English and German). The compression tests that are about compressions start with the patient lying flat.
+- **Not yet:**
+  - a bolus does not stop his own breaths (a failing centre's last breaths and gasps still move air in the model);
+  - choking before the arrest (a hypoxic arrest) is a different scenario;
+  - suction at the bedside (many wards have wall suction) is not in the room;
+  - his eyes stay open in the figure when he is unconscious.
+
 ## A first practice screen (draft, after step 2)
 
 Asked for by the owner (2026-10-20) before step 3, to try the hands on a running patient. `app/practice-arrest.ts`, opened from the Ward:

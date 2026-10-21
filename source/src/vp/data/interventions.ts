@@ -36,12 +36,48 @@ export const INTERVENTIONS: InterventionDef[] = [
     timing: { status: 'placement', note: 'ADR-018: 30–60 s, to be checked against observed times.' },
     effect: { kind: 'instantaneous', grants: ['iv'] },
   },
+  /* Before the first compression (ADR-018 step 5, second pass): he slumps in a bed whose head is raised; it is laid flat
+     (and the CPR release of the mattress pulled), the airway opened and his breathing looked at, his mouth looked into. */
+  {
+    id: 'bed.flat',
+    label: { en: 'Lay the bed flat for CPR', de: 'Bett flach stellen für die Reanimation' },
+    phrases: { en: ['lay him flat', 'bed flat', 'lie him flat', 'put the bed down', 'cpr position'], de: ['flach lagern', 'bett flach', 'flach hinlegen', 'kopfteil runter', 'reanimationslagerung'] },
+    duration: { seconds: 3 },
+    timing: { status: 'placement', note: 'Lowering the head of the bed and pulling the mattress’s CPR release; not measured.' },
+    effect: { kind: 'instantaneous', state: { position: 'supine' } },
+  },
+  {
+    id: 'assess.breathing',
+    label: { en: 'Open the airway, check breathing', de: 'Atemwege öffnen, Atmung prüfen' },
+    phrases: { en: ['check breathing', 'is he breathing', 'look listen feel', 'open the airway', 'head tilt chin lift'], de: ['atmung prüfen', 'atmet er', 'sehen hören fühlen', 'atemwege freimachen', 'kopf überstrecken'] },
+    duration: { seconds: 7 },
+    timing: { status: 'placement', note: 'Head tilt and chin lift, then looking for normal breathing; the guideline allows no more than 10 s, 7 s is ours.' },
+    effect: { kind: 'instantaneous', assess: 'breathing' },
+  },
+  {
+    id: 'assess.mouth',
+    label: { en: 'Look in his mouth', de: 'In den Mund schauen' },
+    phrases: { en: ['look in the mouth', 'check the mouth', 'inspect the airway', 'anything in his mouth'], de: ['mund inspizieren', 'in den mund schauen', 'mundraum kontrollieren', 'fremdkörper'] },
+    duration: { seconds: 3 },
+    timing: { status: 'placement', note: 'Opening the mouth and looking in; not measured.' },
+    effect: { kind: 'instantaneous', assess: 'mouth' },
+  },
+  {
+    id: 'airway.clear',
+    label: { en: 'Clear the airway (suction, Magill forceps)', de: 'Atemweg freimachen (Absaugen, Magill-Zange)' },
+    phrases: { en: ['suction', 'clear the airway', 'magill forceps', 'remove the foreign body', 'suck him out'], de: ['absaugen', 'atemweg freimachen', 'magill-zange', 'fremdkörper entfernen'] },
+    needs: { equipment: ['airway-kit'] },
+    duration: { min: 10, max: 20 },
+    timing: { status: 'placement', note: 'Suction, or a laryngoscope and Magill forceps for a bolus; not measured.' },
+    effect: { kind: 'instantaneous', clearAirway: true },
+  },
   /* Chest compressions (ADR-018 step 2): held by whoever compresses. The learner taps each compression; a team member
-     keeps a steady rate. */
+     keeps a steady rate. On a flat bed only: on a raised head end the force goes into the mattress and he slides. */
   {
     id: 'cpr.compressions',
     label: { en: 'Chest compressions', de: 'Thoraxkompressionen' },
     phrases: { en: ['start compressions', 'chest compressions', 'start cpr', 'compressions', 'cardiac massage'], de: ['herzdruckmassage', 'thoraxkompressionen', 'mit der herzdruckmassage beginnen', 'reanimation beginnen', 'drücken'] },
+    needs: { position: ['supine'] },
     duration: { seconds: 2 },
     timing: { status: 'placement', note: 'Kneeling at the side and placing the hands on the lower half of the sternum; not measured.' },
     effect: { kind: 'continuous', slot: 'compressions', inputs: {}, handsWhileHeld: true, driver: 'compressions' },
@@ -109,7 +145,7 @@ export const INTERVENTIONS: InterventionDef[] = [
     phrases: { en: ['get the arrest trolley', 'fetch the crash trolley', 'get the defibrillator', 'bring the trolley'], de: ['notfallwagen holen', 'reawagen holen', 'defi holen', 'hol den notfallwagen'] },
     duration: { seconds: 0 },
     timing: { status: 'placement', note: 'Away 60 s: the trolley within a ward’s reach (a placement; hospitals set their own standard).' },
-    effect: { kind: 'instantaneous', fetch: { equipment: ['defibrillator', 'cannula-kit', 'drugs'], seconds: 60 } },
+    effect: { kind: 'instantaneous', fetch: { equipment: ['defibrillator', 'cannula-kit', 'drugs', 'airway-kit'], seconds: 60 } },
   },
   /* The rhythm check (ADR-018 step 5): compressions paused, the rhythm read off the defibrillator. Whoever is free looks;
      the pause is whatever the hands on the chest make of it. */

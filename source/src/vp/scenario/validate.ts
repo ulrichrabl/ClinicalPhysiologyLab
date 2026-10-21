@@ -48,7 +48,7 @@ export function validateInterventions(list: InterventionDef[], cat: Catalog): Is
         checkPath(w.path, w.set ?? w.add, `${p}.effect.change`, out);
       }
       if (e.dose && !(DRUG_IDS.includes(e.dose.drug) && e.dose.mg > 0)) out.push({ level: 'error', path: `${p}.effect.dose`, message: `${e.dose.drug} ${e.dose.mg} mg: not a drug the model has, or not a dose` });
-      if (!e.change?.length && !e.grants?.length && !e.state && !e.airway && !e.defib && !e.dose && !e.assess && !e.fetch) out.push({ level: 'warning', path: `${p}.effect`, message: 'does nothing' });
+      if (!e.change?.length && !e.grants?.length && !e.state && !e.airway && !e.defib && !e.dose && !e.assess && !e.fetch && !e.clearAirway) out.push({ level: 'warning', path: `${p}.effect`, message: 'does nothing' });
     }
     /* Sharing an id with a manoeuvre means the same act: it must leave the patient in the same state. */
     const m = cat.manoeuvres[x.id];
@@ -75,6 +75,8 @@ export function validateScenario(s: ScenarioDef, ctx: { cases: CaseDef[]; interv
     for (const x of team.equipment) if (!kit.has(x)) out.push({ level: 'error', path: `${p}.scene.team`, message: `no equipment ${x}` });
     if (!(team.afterSeconds >= 0 && team.lateWithoutWhere >= 0 && team.callSeconds >= 0)) out.push({ level: 'error', path: `${p}.scene.team`, message: 'times must be 0 or more' });
   }
+  const ob = s.scene.airway;
+  if (ob && (ob.obstruction !== 'bolus' || !(ob.chance >= 0 && ob.chance <= 1))) out.push({ level: 'error', path: `${p}.scene.airway`, message: 'an obstruction is a bolus with a chance from 0 to 1' });
   const slots = new Set(Object.values(ctx.interventions).flatMap((x) => (x.effect.kind === 'continuous' ? [x.effect.slot] : [])));
 
   const when = (w: SceneWhen, path: string) => {

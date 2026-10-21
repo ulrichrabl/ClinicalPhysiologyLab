@@ -23,6 +23,8 @@ export interface RunRecord {
   trace: TraceRow[];
   /** The run's clock at the end (s). */
   t: number;
+  /** What was in the room from the start; when absent, everything is taken to have been. */
+  startEquipment?: string[];
 }
 
 type Span = [number, number];
@@ -245,6 +247,27 @@ function judge(k: Check, c: Ctx): Judged {
         i = j + 1;
       }
       return { status: at.length ? 'missed' : 'met', at };
+    }
+    case 'breathing-checked': {
+      if (c.onset == null) return NA;
+      const first = c.measures.firstCompression == null ? c.end : c.onset + c.measures.firstCompression;
+      const look = c.run.events.find((e) => e.kind === 'assessed' && e.what === 'breathing' && e.t >= c.onset! - 1e-9 && e.t <= first + 1e-9);
+      return look ? { status: 'met', value: r1(look.t - c.onset), at: [] } : { status: 'missed', at: [r1(first)] };
+    }
+    case 'obstruction-cleared': {
+      const ev = c.run.events;
+      const blocked = ev.find((e) => e.kind === 'obstruction' && e.what);
+      if (!blocked || c.onset == null) return NA;
+      const cleared = ev.find((e) => e.kind === 'obstruction' && !e.what && e.t >= blocked.t);
+      /* the clock starts with the first breath that went nowhere, or when the airway kit came if that was later */
+      const tried = ev.find((e) => e.kind === 'breath' && e.rise === false && e.t >= c.onset!);
+      if (!tried) return NA;
+      const kitAt = !c.run.startEquipment || c.run.startEquipment.includes('airway-kit') ? 0 : ev.find((e) => e.kind === 'arrive' && e.equipment.includes('airway-kit'))?.t ?? Infinity;
+      const from = Math.max(tried.t, kitAt);
+      /* the kit never came (or only at the end): nobody could have cleared it */
+      if (from >= c.end && !cleared) return NA;
+      const ok = cleared != null && cleared.t - from <= k.within;
+      return { status: ok ? 'met' : 'missed', value: cleared ? r1(Math.max(0, cleared.t - from)) : undefined, at: ok ? [] : [r1(from + k.within)] };
     }
     case 'breath': {
       const v = median(c.measures.breaths);

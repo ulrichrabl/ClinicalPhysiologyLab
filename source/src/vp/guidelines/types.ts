@@ -43,7 +43,12 @@ export type Check =
   /** The person compressing changes at least every `every` + `tolerance` s, once two people could share it. */
   | { kind: 'rotation'; every: number; tolerance: number }
   /** Each breath the learner gives lasts this long, by its median. */
-  | { kind: 'breath'; min: number; max: number };
+  | { kind: 'breath'; min: number; max: number }
+  /** Breathing looked at (with the airway opened) after the collapse and before the first compression. */
+  | { kind: 'breathing-checked' }
+  /** Something blocking the airway taken out within `within` s of the first breath that could not get past it (or of the
+      airway kit's arrival, if that was later). */
+  | { kind: 'obstruction-cleared'; within: number };
 
 export interface GuidelineRule {
   id: string;

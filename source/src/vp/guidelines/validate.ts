@@ -6,7 +6,7 @@ import type { GuidelineDef } from './types.ts';
 /* Checks for a guideline file (ADR-018 decision 3): every rule says where it comes from, every text is in English and German,
    and every number that is ours (a placement) says what it rests on. */
 
-const KINDS = ['call', 'roles', 'rotation', 'first-compression', 'measure', 'cycle', 'peri-shock', 'rhythm-checks', 'dose-after-shock', 'dose-interval', 'no-hazard', 'breath'];
+const KINDS = ['call', 'roles', 'rotation', 'first-compression', 'measure', 'cycle', 'peri-shock', 'rhythm-checks', 'dose-after-shock', 'dose-interval', 'no-hazard', 'breath', 'breathing-checked', 'obstruction-cleared'];
 
 export function validateGuideline(g: GuidelineDef): Issue[] {
   const out: Issue[] = [];

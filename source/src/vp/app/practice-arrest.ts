@@ -1,5 +1,5 @@
 import { tr, type LocalizedText } from '../model/i18n.ts';
-import { ScenarioRun, TICK_S } from '../scenario/run.ts';
+import { breathingOf, ScenarioRun, TICK_S, type Breathing } from '../scenario/run.ts';
 import type { ScenarioDef } from '../scenario/types.ts';
 import { FREE_CASE } from './free-case.ts';
 import arrestPractice from '../scenarios/arrest-practice.json';
@@ -70,8 +70,9 @@ const T: Record<string, LocalizedText> = {
   nCpr: L('Take over compressions', 'Kompressionen übernehmen'), nBag: L('Take the bag', 'Beutel nehmen'), nTwo: L('Two breaths', 'Zwei Beatmungen'), nStop: L('Stop what you are doing', 'Aufhören'),
   busy: L('busy', 'beschäftigt'), free: L('free', 'frei'),
   nDoingCpr: L('compressing', 'drückt'), nDoingBag: L('holding the bag', 'hält den Beutel'),
-  breathing: L('Breathing', 'Atmung'), bNormal: L('breathing', 'atmet'), bGasping: L('gasping: agonal breaths, not breathing', 'Schnappatmung: agonale Atemzüge, keine Atmung'), bNone: L('not breathing', 'atmet nicht'),
-  logGasp: L('gasps', 'schnappt nach Luft'), logApnoea: L('stops breathing', 'hört auf zu atmen'), logBreath: L('gives a breath', 'beatmet'),
+  breathing: L('Breathing', 'Atmung'), bNormal: L('breathing', 'atmet'), bGasping: L('gasping: agonal breaths, not breathing', 'Schnappatmung: agonale Atemzüge, keine Atmung'), bNone: L('not breathing', 'atmet nicht'), bFailing: L('slow, shallow breaths: not normal breathing', 'langsame, flache Atemzüge: keine normale Atmung'),
+  notChecked: L('not checked yet', 'noch nicht geprüft'), checkedAt: L('checked at {t}', 'geprüft um {t}'),
+  logGasp: L('gasps', 'schnappt nach Luft'), logBreath: L('gives a breath', 'beatmet'),
   why: L('Why it works', 'Warum es wirkt'),
   trend: L('The last two minutes', 'Die letzten zwei Minuten'),
   whyCpp: L('Between compressions the aorta is still under pressure while the right atrium is not: that difference, the coronary perfusion pressure, is what fills the heart’s own arteries. It builds over several compressions and is gone within seconds of stopping. In people, a return of circulation was seen only when it reached 15 mmHg or more (Paradis 1990).',
@@ -102,6 +103,31 @@ const T: Record<string, LocalizedText> = {
   oNone: L('no effect: not a shockable rhythm', 'keine Wirkung: kein schockbarer Rhythmus'), oStill: L('VF goes on', 'das Kammerflimmern geht weiter'),
   oOrg: L('VF ends: an organised rhythm', 'Kammerflimmern endet: ein organisierter Rhythmus'), oAsys: L('VF ends: asystole', 'Kammerflimmern endet: Asystolie'), oUncharged: L('not charged', 'nicht geladen'),
   logRefib: L('VF is back', 'das Kammerflimmern ist zurück'), logLeave: L('runs for the arrest trolley', 'läuft zum Notfallwagen'), away: L('away', 'weg'),
+  first: L('First: the bed and the airway', 'Zuerst: Bett und Atemweg'),
+  firstHint: L('He slumped where he sat. Compressions need him flat on a firm surface; look at his breathing with the airway opened.', 'Er ist im Sitzen zusammengesackt. Für Kompressionen muss er flach auf fester Unterlage liegen; die Atmung bei geöffnetem Atemweg prüfen.'),
+  xBed: L('Lay the bed flat', 'Bett flach stellen'), xBreathing: L('Check breathing', 'Atmung prüfen'), xMouth: L('Look in the mouth', 'In den Mund schauen'), xClear: L('Suction / Magill forceps', 'Absaugen / Magill-Zange'),
+  bedRaised: L('head of the bed raised', 'Kopfteil hochgestellt'), bedFlat: L('lying flat', 'liegt flach'), bedLowering: L('lowering the bed…', 'Bett wird flach gestellt…'),
+  reasons_position_supine: L('he is not lying flat: lay the bed flat first', 'er liegt nicht flach: zuerst das Bett flach stellen'),
+  reasons_equipment_airway_kit: L('suction and forceps are on the arrest trolley', 'Absaugung und Zange sind am Notfallwagen'),
+  reasons_equipment_defibrillator: L('the defibrillator is on the arrest trolley', 'der Defibrillator ist am Notfallwagen'),
+  reasons_equipment_drugs: L('the drugs are on the arrest trolley', 'die Medikamente sind am Notfallwagen'),
+  reasons_equipment_cannula_kit: L('the cannulas are on the arrest trolley', 'die Kanülen sind am Notfallwagen'),
+  reasons_already_called: L('the team is already called', 'das Team ist schon alarmiert'),
+  logBreathingNone: L('opens the airway, looks and listens: not breathing', 'öffnet den Atemweg, sieht und hört: keine Atmung'),
+  logBreathingGasp: L('opens the airway, looks and listens: only gasps, not normal breathing', 'öffnet den Atemweg, sieht und hört: nur Schnappatmung, keine normale Atmung'),
+  logBreathingNormal: L('opens the airway, looks and listens: breathing normally', 'öffnet den Atemweg, sieht und hört: atmet normal'),
+  logBreathingFailing: L('opens the airway, looks and listens: a few slow, shallow breaths, not normal breathing', 'öffnet den Atemweg, sieht und hört: einzelne langsame, flache Atemzüge, keine normale Atmung'),
+  logMouthClear: L('looks in his mouth: nothing in it', 'schaut in den Mund: nichts darin'),
+  logMouthBolus: L('looks in his mouth: a bolus of food in his throat', 'schaut in den Mund: ein Speisebrocken im Rachen'),
+  logCleared: L('takes the bolus out: the airway is clear', 'entfernt den Brocken: der Atemweg ist frei'),
+  logNoRise: L('the chest does not rise', 'der Thorax hebt sich nicht'),
+  logFlat: L('lays the bed flat', 'stellt das Bett flach'),
+  logPulse: L('a pulse: a circulation is back', 'Puls tastbar: ein Kreislauf ist zurück'), logNoPulse: L('no pulse: pulseless electrical activity', 'kein Puls: pulslose elektrische Aktivität'),
+  tNoRise: L('No chest rise: something blocks the airway?', 'Keine Thoraxhebung: ist der Atemweg verlegt?'),
+  tBolus: L('A bolus of food in his throat: take it out (suction, Magill forceps)', 'Ein Speisebrocken im Rachen: entfernen (Absaugen, Magill-Zange)'),
+  tNotBreathing: L('Not breathing normally: start compressions', 'Keine normale Atmung: mit den Kompressionen beginnen'),
+  tShockable: L('Shockable rhythm', 'Schockbarer Rhythmus'), tNonShockable: L('Not shockable', 'Nicht schockbar'),
+  sBusyFor: L('busy, {s} s', 'beschäftigt, {s} s'),
   hazard: L('Unsafe', 'Gefährlich'), hzComp: L('shock with hands on the chest', 'Schock mit Händen am Thorax'), hzVent: L('shock while bagging', 'Schock während der Beatmung'), hzNon: L('shock of a rhythm that is not shockable', 'Schock eines nicht schockbaren Rhythmus'),
 };
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
@@ -138,13 +164,19 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   /* the log; `whoId` and `speech` put what someone said in a bubble over them in the scene */
   const log: Array<{ t: number; who: string; text: string; fromEvent?: boolean; whoId?: string; speech?: string }> = [];
   let lastBreathing = '';
+  let lastNoRise = -1e9;
+  /** who put the bag down to look in the mouth or clear it, and takes it up again when done */
+  let rebag: string | null = null;
 
   const runT = () => (paused ? pausedAt : (performance.now() - wall0 - pausedTotal) / 1000);
 
   const start = () => {
+    /* forget the old run first: wiring the new page must not reach for the old run's controls (it threw, and the new
+       patient was never made) */
+    run = null; debrief = false;
     host.innerHTML = `${head()}<p class="muted" data-preparing>${t('preparing')}</p>`;
     wire();
-    run = null; debrief = false; lastCompressor = null; teamSig = ''; sceneCache = null; buf = []; paw = []; trend = []; taps = []; sinceBreaths = 0; lastBreath = null; squeezeAt = null; seenEvents = 0; log.length = 0; curArr = null; idx = 0; lastBreathing = '';
+    lastCompressor = null; teamSig = ''; sceneCache = null; buf = []; paw = []; trend = []; taps = []; sinceBreaths = 0; lastBreath = null; squeezeAt = null; seenEvents = 0; rebag = null; lastNoRise = -1e9; log.length = 0; curArr = null; idx = 0; lastBreathing = '';
     setTimeout(() => {
       if (stopped) return;
       /* a fresh seed each time: chance (gasping, the heart's noise) differs from run to run, as in life */
@@ -166,6 +198,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       <div class="ar-grid">
         <section class="panel ar-scene" aria-label="${t('scene')}">
           <svg class="ar-scene-svg" viewBox="${SCENE_VIEWBOX}" role="img" aria-label="${t('scene')}"></svg>
+          <div class="ar-toasts" data-toasts aria-live="assertive"></div>
         </section>
         <section class="panel ar-monitor" aria-labelledby="ar-mon-h">
           <div class="st-row"><div><h2 id="ar-mon-h">${t('monitor')}</h2><div class="muted small ar-mon-note">${t(aline ? 'monitorNote' : 'monitorNoteWard')}</div></div>
@@ -176,6 +209,10 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
         </section>
         <section class="panel ar-hands" aria-labelledby="ar-hands-h">
           <h2 id="ar-hands-h">${t('hands')}</h2>
+          <h3>${t('first')} <span class="muted small" data-bed-state></span></h3>
+          <p class="muted small">${t('firstHint')}</p>
+          <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-x="bed.flat">${t('xBed')}</button><button type="button" class="ghost small" data-x="assess.breathing">${t('xBreathing')}</button>
+            <button type="button" class="ghost small" data-x="assess.mouth">${t('xMouth')}</button><button type="button" class="ghost small" data-x="airway.clear">${t('xClear')}</button></div>
           <div class="ar-row"><button type="button" class="primary" data-cpr></button><button type="button" class="ghost" data-bag></button></div>
           <dl class="ar-feedback" data-feedback></dl>
           <p class="muted small">${t('target')}</p>
@@ -241,9 +278,22 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const learnerHolds = (slot: string) => held(slot)?.by === 'learner';
   /** An input lands at the run's current tick: bring the run up to now first. */
   const now = () => { if (!run) return 0; run.advanceTo(Math.floor(runT() / TICK_S) * TICK_S); return run.t; };
+  /** A message over the scene, where the eyes are: what was refused and why, and what was found. */
+  const toast = (text: string, tone: 'warn' | 'good' | 'info' = 'info') => {
+    const box = host.querySelector<HTMLElement>('[data-toasts]');
+    if (!box) return;
+    const el = document.createElement('div');
+    el.className = `ar-toast ${tone}`; el.textContent = text;
+    box.appendChild(el);
+    while (box.children.length > 3) box.firstElementChild!.remove();
+    setTimeout(() => el.classList.add('gone'), 3200);
+    setTimeout(() => el.remove(), 3800);
+  };
+  const reasonText = (reason: string) => tr(T[`reasons_${reason.replace(/[^a-z]/g, '_')}`] ?? L(reason, reason), lang);
   const blocked = () => {
     const b = run?.events.filter((e) => e.kind === 'blocked').at(-1) as { reason: string } | undefined;
-    note(`${t('blocked')}: ${b ? tr(T[`reasons_${b.reason.replace(/[^a-z]/g, '_')}`] ?? L(b.reason, b.reason), lang) : ''}`);
+    const x = `${t('blocked')}: ${b ? reasonText(b.reason) : ''}`;
+    note(x); toast(x, 'warn');
   };
   const act = (fn: () => boolean) => { if (!run || paused) return; now(); if (!fn()) blocked(); else note(''); };
   const push = () => {
@@ -259,7 +309,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const breath = (by: string) => {
     if (!run) return false;
     const ok = run.ventilate(run.t, 1, by);
-    if (ok) { sinceBreaths = 0; log.push({ t: run.t, who: who(by), text: t('logBreath') }); }
+    if (ok) sinceBreaths = 0;
     return ok;
   };
   const onKey = (e: KeyboardEvent) => {
@@ -272,7 +322,8 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   document.addEventListener('keydown', onKey);
 
   const wire = () => {
-    host.querySelector<HTMLButtonElement>('[data-leave]')!.onclick = () => o.onLeave();
+    const lv = host.querySelector<HTMLButtonElement>('[data-leave]');
+    if (lv) lv.onclick = () => o.onLeave();
     const rs = host.querySelector<HTMLButtonElement>('[data-restart]');
     if (rs) rs.onclick = () => start();
     const pb = host.querySelector<HTMLButtonElement>('[data-pause]');
@@ -326,11 +377,35 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       if (!run || paused) return;
       now();
       const w = doer(role);
-      if (!w) { note(`${t('blocked')}: ${t('noTask')}`); return; }
+      if (!w) { note(`${t('blocked')}: ${t('noTask')}`); toast(`${t('blocked')}: ${t('noTask')}`, 'warn'); return; }
       act(() => run!.intervene(id, w));
     };
     host.querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) => b.onclick = () => viaRole('defibrillator', b.dataset.d === 'pads' ? 'defib.pads' : b.dataset.d === 'charge' ? 'defib.charge' : b.dataset.d === 'check' ? 'check.rhythm' : 'defib.shock'));
     host.querySelectorAll<HTMLButtonElement>('[data-g]').forEach((b) => b.onclick = () => viaRole('drugs', b.dataset.g!));
+    /* The first steps: done by the learner with free hands, else by whoever has the airway, else by anyone free. */
+    const anyFree = (prefer: Array<string | null>): string | null => {
+      for (const p of [...prefer, 'learner', 'nurse', 'nurse2', 'doctor']) {
+        const a = p ? run!.actors[p] : null;
+        if (a?.present && !a.hands && a.busyUntil <= run!.tick) return p;
+      }
+      return null;
+    };
+    host.querySelectorAll<HTMLButtonElement>('[data-x]').forEach((b) => b.onclick = () => {
+      if (!run || paused) return;
+      now();
+      const id = b.dataset.x!;
+      const kit = (INTERVENTION_BY_ID[id].needs?.equipment ?? []).find((e) => !run!.equipment.has(e));
+      if (kit) { const x = `${t('blocked')}: ${reasonText(`equipment:${kit}`)}`; note(x); toast(x, 'warn'); return; }
+      /* the mouth is the airway's: whoever holds the bag puts it down to look or to clear it, and takes it up again after */
+      const airway = run.roles.airway, bagger = run.held.get('ventilation')?.by;
+      if (id !== 'bed.flat' && id !== 'assess.breathing' && airway && bagger === airway && run.actors[airway]?.present) {
+        act(() => { if (!run!.release('ventilation', airway)) return false; if (!run!.intervene(id, airway)) return false; rebag = airway; return true; });
+        return;
+      }
+      const w = anyFree(id === 'bed.flat' ? [] : [airway]);
+      if (!w) { const x = `${t('blocked')}: ${t('noFree')}`; note(x); toast(x, 'warn'); return; }
+      act(() => run!.intervene(id, w));
+    });
     /* calling the team, saying what the boxes say */
     host.querySelectorAll<HTMLButtonElement>('[data-callby]').forEach((b) => b.onclick = () => {
       const says = Array.from(host.querySelectorAll<HTMLInputElement>('[data-say]')).filter((x) => x.checked).map((x) => x.dataset.say as CallContent);
@@ -501,17 +576,26 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       gs.textContent = parts.join(' · ');
       host.querySelectorAll<HTMLButtonElement>('[data-g]').forEach((b) => { b.disabled = !here || (b.dataset.g === 'access.iv' ? line : !line); });
     }
+    const bst = host.querySelector<HTMLElement>('[data-bed-state]');
+    if (bst) {
+      const flatNow = run.session.state.position === 'supine';
+      const lowering = run.events.some((e: any) => e.kind === 'begin' && e.id === 'bed.flat' && e.until > run!.t);
+      bst.textContent = flatNow ? t('bedFlat') : lowering ? t('bedLowering') : t('bedRaised');
+      const bb = host.querySelector<HTMLButtonElement>('[data-x="bed.flat"]'); if (bb) bb.disabled = flatNow || lowering;
+    }
     renderTeam();
-    /* what the patient's breathing is: the learner should see gasping for what it is */
-    const state = r.gasping ? 'gasp' : (r.RR ?? 0) - (r.givenRate ?? 0) > 0.5 ? 'normal' : 'none';
+    /* Gasps are seen and heard from across the room, so they are logged as they come; whether he breathes otherwise is
+       known only by looking (the breathing check), so the line shows the last check and when it was. */
+    const state = breathingOf(r as any);
     if (state !== lastBreathing) {
-      if (lastBreathing && state === 'gasp') log.push({ t: run.t, who: t('patient'), text: t('logGasp') });
-      if (lastBreathing && state === 'none') log.push({ t: run.t, who: t('patient'), text: t('logApnoea') });
+      if (lastBreathing && state === 'gasping') log.push({ t: run.t, who: t('patient'), text: t('logGasp') });
       lastBreathing = state;
     }
     const bs = host.querySelector<HTMLElement>('[data-breathing]');
-    if (bs) { bs.innerHTML = `<span class="muted">${t('breathing')}:</span> <b class="${state === 'normal' ? '' : 'abn'}">${t(state === 'gasp' ? 'bGasping' : state === 'normal' ? 'bNormal' : 'bNone')}</b>`; }
+    const seen = [...run.events].reverse().find((e) => e.kind === 'assessed' && e.what === 'breathing') as { t: number; breathing: Breathing } | undefined;
+    if (bs) bs.innerHTML = `<span class="muted">${t('breathing')}:</span> ${seen ? `<b class="${seen.breathing === 'normal' ? '' : 'abn'}">${t(bKey(seen.breathing))}</b> <span class="muted small">(${t('checkedAt').replace('{t}', fmtT(seen.t))})</span>` : `<b>${t('notChecked')}</b>`}`;
   };
+  const bKey = (b: Breathing) => (b === 'gasping' ? 'bGasping' : b === 'normal' ? 'bNormal' : b === 'failing' ? 'bFailing' : 'bNone');
   const who = (x: string) => (x === 'learner' ? t('you') : x === 'nurse' ? t('nurseName') : x === 'doctor' ? t('doctorName') : x === 'nurse2' ? t('nurse2Name') : x === 'patient' ? t('patient') : x);
   const roleName = (r: TeamRole) => t(`role${r[0].toUpperCase()}${r.slice(1)}`);
   const label = (id: string) => (INTERVENTION_BY_ID[id] ? tr(INTERVENTION_BY_ID[id].label, lang) : id);
@@ -525,6 +609,10 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     if (h === 'ventilation') return 'airway';
     const call = run.events.find((e) => e.kind === 'call' && e.by === id);
     if (call && a.busyUntil > run.tick && run.t - call.t < 20) return 'calling';
+    /* what they are in the middle of (an errand begun and not yet done) */
+    const doing = [...run.events].reverse().find((e) => e.kind === 'begin' && e.by === id && e.until > run!.t) as { id: string } | undefined;
+    if (doing?.id === 'bed.flat') return 'bed';
+    if (doing && (doing.id.startsWith('assess.') || doing.id === 'airway.clear')) return 'look';
     for (const r of TEAM_ROLES) if (run.roles[r] === id && (r === 'defibrillator' || r === 'drugs')) return r;
     return 'idle';
   };
@@ -536,7 +624,8 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     if (cs) cs.textContent = call ? t('called').replace('{t}', fmtT(call.arriveAt)) : '';
     host.querySelectorAll<HTMLButtonElement>('[data-callby]').forEach((b) => { b.disabled = r.called || !r.actors[b.dataset.callby!]?.present; });
     const fb = host.querySelector<HTMLButtonElement>('[data-fetch]'); if (fb) fb.disabled = r.equipment.has('defibrillator') || !r.actors.nurse?.present;
-    const sig = JSON.stringify([PEOPLE.map((p) => [r.actors[p]?.present, taskOf(p), r.actors[p]?.busyUntil > r.tick]), r.roles, lang]);
+    const left = (p: string) => Math.max(0, Math.ceil((r.actors[p]?.busyUntil - r.tick) / 10));
+    const sig = JSON.stringify([PEOPLE.map((p) => [r.actors[p]?.present, taskOf(p), left(p)]), r.roles, lang]);
     if (sig === teamSig) return;
     teamSig = sig;
     const box = host.querySelector<HTMLElement>('[data-team]');
@@ -544,7 +633,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     box.innerHTML = PEOPLE.filter((p) => r.actors[p]).map((p) => {
       const a = r.actors[p];
       const mine = TEAM_ROLES.filter((x) => r.roles[x] === p);
-      const state = !a.present ? t('sAway') : taskOf(p) === 'calling' ? t('sCalling') : mine.length ? mine.map(roleName).join(', ') : a.busyUntil > r.tick ? t('sBusy') : t('sFree');
+      const state = !a.present ? t('sAway') : taskOf(p) === 'calling' ? t('sCalling') : mine.length ? mine.map(roleName).join(', ') : a.busyUntil > r.tick ? t('sBusyFor').replace('{s}', String(left(p))) : t('sFree');
       const buttons = !a.present ? '' : TEAM_ROLES.map((x) => `<button type="button" class="ghost small${r.roles[x] === p ? ' on' : ''}" data-assign="${x}:${p}" aria-pressed="${r.roles[x] === p}">${roleName(x)}</button>`).join('')
         + (p !== 'learner' && r.roles.airway === p ? `<button type="button" class="ghost small" data-two="${p}">${t('nTwo')}</button>` : '');
       return `<div class="ar-person ${a.present ? '' : 'away'}" data-person="${p}"><span class="ar-dot" style="background:${LOOK[p].scrub}"></span><b>${who(p)}</b> <span class="muted small">${state}</span>${buttons ? `<div class="ar-row ar-wrap">${buttons}</div>` : ''}</div>`;
@@ -562,14 +651,18 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     if (!svg || !run) return;
     const r = run;
     const onset = (r.events.find((e) => e.kind === 'scene' && e.state === 'arrest') as { t: number } | undefined)?.t;
-    const u = onset == null ? 0 : Math.min(1, (r.t - onset) / 1.4);
-    const pose = collapsePose(u < 1 ? 0.5 - 0.5 * Math.cos(Math.PI * u) : 1);
+    /* he slumps where he sits; the bed goes flat only when someone lowers it, over the time that takes */
+    const ease = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : 0.5 - 0.5 * Math.cos(Math.PI * x));
+    const slump = onset == null ? 0 : ease((r.t - onset) / 1.2);
+    const lower = [...r.events].reverse().find((e) => e.kind === 'begin' && e.id === 'bed.flat') as { t: number; until: number } | undefined;
+    const flat = r.session.state.position === 'supine' ? 1 : lower ? ease((r.t - lower.t) / Math.max(0.1, lower.until - lower.t)) : 0;
+    const pose = collapsePose(slump, flat);
     const last = r.trace.at(-1);
     const pulse = last && last.rhythm === 'organised' && last.Psys >= 50;
     const grey = onset != null && r.t - onset > 20 && !pulse;
     const bagging = r.held.has('ventilation') && r.did.has('vent.bag');
     const bare = r.compressions.length > 0 || r.access.has('pads');
-    const key = `${u.toFixed(2)}|${grey}|${bagging}|${bare}`;
+    const key = `${slump.toFixed(2)},${flat.toFixed(2)}|${grey}|${bagging}|${bare}`;
     if (!sceneCache || sceneCache.key !== key) {
       const look = figureLookFor(FREE_CASE.patient, { exposure: bare ? ['chest'] : [], oxygen: bagging ? { device: 'bag-valve mask', fio2: 1 } : undefined }, 7, { colour: grey ? 'grey' : 'normal' });
       sceneCache = { key, layer: patientLayer(pose, look) };
@@ -591,9 +684,28 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       if (e.kind === 'say') log.push({ t: e.t, who: who(e.who), text: tr(e.text, lang), fromEvent: true });
       else if (e.kind === 'breath') {
         if (e.by === 'learner') lastBreath = { seconds: e.seconds, volume: e.volume };
-        log.push({ fromEvent: true, t: e.t, who: who(e.by), text: `${t('logBreath')} (${e.seconds.toFixed(1)} ${t('s')}, ${Math.round(e.volume * 1000)} mL)` });
+        log.push({ fromEvent: true, t: e.t, who: who(e.by), text: `${t('logBreath')} (${e.seconds.toFixed(1)} ${t('s')}${e.rise === false ? `: ${t('logNoRise')}` : `, ${Math.round(e.volume * 1000)} mL`})` });
+        if (!all && e.rise === false && e.t - lastNoRise > 6) { lastNoRise = e.t; toast(t('tNoRise'), 'warn'); }
       }
-      else if (e.kind === 'assessed') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: `${t('logCheck')}: ${t(e.rhythm === 'vf' ? 'rVf' : e.rhythm === 'vt' ? 'rVt' : e.rhythm === 'asystole' ? 'rAsystole' : 'rOrganised')}` });
+      else if (e.kind === 'assessed' && e.what === 'breathing') {
+        log.push({ fromEvent: true, t: e.t, who: who(e.by), text: t(e.breathing === 'none' ? 'logBreathingNone' : e.breathing === 'gasping' ? 'logBreathingGasp' : e.breathing === 'failing' ? 'logBreathingFailing' : 'logBreathingNormal') });
+        if (!all) toast(e.breathing === 'normal' ? t('logBreathingNormal') : t('tNotBreathing'), e.breathing === 'normal' ? 'good' : 'warn');
+      }
+      else if (e.kind === 'assessed' && e.what === 'mouth') {
+        log.push({ fromEvent: true, t: e.t, who: who(e.by), text: t(e.mouth === 'bolus' ? 'logMouthBolus' : 'logMouthClear') });
+        if (!all) toast(e.mouth === 'bolus' ? t('tBolus') : t('logMouthClear'), e.mouth === 'bolus' ? 'warn' : 'info');
+      }
+      else if (e.kind === 'assessed') {
+        const rh = t(e.rhythm === 'vf' ? 'rVf' : e.rhythm === 'vt' ? 'rVt' : e.rhythm === 'asystole' ? 'rAsystole' : 'rOrganised');
+        const pulse = e.pulse == null ? '' : ` — ${t(e.pulse ? 'logPulse' : 'logNoPulse')}`;
+        log.push({ fromEvent: true, t: e.t, who: who(e.by), text: `${t('logCheck')}: ${rh}${pulse}` });
+        if (!all) toast(`${rh}${pulse || ` — ${t(e.rhythm === 'vf' || e.rhythm === 'vt' ? 'tShockable' : 'tNonShockable')}`}`, e.pulse ? 'good' : 'warn');
+      }
+      if (!all && rebag && e.kind === 'done' && e.by === rebag && (e.id === 'assess.mouth' || e.id === 'airway.clear')) {
+        const w = rebag; rebag = null;
+        if (run.actors[w]?.present && !run.held.get('ventilation')) run.assign('airway', w);
+      }
+      if (e.kind === 'obstruction' && !e.what) { log.push({ fromEvent: true, t: e.t, who: who(e.by), text: t('logCleared') }); if (!all) toast(t('logCleared'), 'good'); }
       else if (e.kind === 'dose') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: t('logDose').replace('{drug}', t(e.drug === 'adrenaline' ? 'nameAdr' : 'nameAmio')).replace('{mg}', String(e.mg)) });
       else if (e.kind === 'assigned' && e.to && e.to !== 'learner') {
         /* structured communication: the order, and the read-back */
@@ -610,16 +722,20 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
         const x = t('onIt').replace('{label}', label(e.id));
         log.push({ fromEvent: true, t: e.t, who: who(e.by), whoId: e.by, text: `“${x}”`, speech: x });
       }
-      else if (e.kind === 'done' && e.by !== 'learner' && !['cpr.compressions', 'vent.bag', 'fetch.trolley', 'defib.shock', 'check.rhythm'].includes(e.id) && !e.id.startsWith('drug.')) {
+      else if (e.kind === 'done' && e.by !== 'learner' && !['cpr.compressions', 'vent.bag', 'fetch.trolley', 'defib.shock', 'check.rhythm', 'airway.clear'].includes(e.id) && !e.id.startsWith('drug.') && !e.id.startsWith('assess.')) {
         const x = t('doneIt').replace('{label}', label(e.id));
         log.push({ fromEvent: true, t: e.t, who: who(e.by), whoId: e.by, text: `“${x}”`, speech: x });
       }
-      else if (e.kind === 'arrive' && e.people.includes('doctor')) log.push({ fromEvent: true, t: e.t, who: who('doctor'), whoId: 'doctor', text: t('teamArrive') });
-      else if (e.kind === 'done' && e.id !== 'defib.shock' && e.id !== 'check.rhythm' && e.id !== 'fetch.trolley' && !e.id.startsWith('drug.')) log.push({ fromEvent: true, t: e.t, who: who(e.by), text: e.id === 'defib.pads' ? t('logPads') : e.id === 'defib.charge' ? t('logCharged') : e.id === 'access.iv' ? t('logIv') : tr(e.id === 'cpr.compressions' ? L('starts compressions', 'beginnt mit den Kompressionen') : e.id === 'vent.bag' ? L('has the bag on the face', 'hat die Maske aufgesetzt') : L(e.id, e.id), lang) });
+      else if (e.kind === 'arrive' && e.people.includes('doctor')) { log.push({ fromEvent: true, t: e.t, who: who('doctor'), whoId: 'doctor', text: t('teamArrive') }); if (!all) toast(t('teamArrive'), 'info'); }
+      else if (e.kind === 'done' && e.id !== 'defib.shock' && e.id !== 'check.rhythm' && e.id !== 'fetch.trolley' && !e.id.startsWith('drug.') && !e.id.startsWith('assess.') && e.id !== 'airway.clear') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: e.id === 'defib.pads' ? t('logPads') : e.id === 'defib.charge' ? t('logCharged') : e.id === 'access.iv' ? t('logIv') : e.id === 'bed.flat' ? t('logFlat') : tr(e.id === 'cpr.compressions' ? L('starts compressions', 'beginnt mit den Kompressionen') : e.id === 'vent.bag' ? L('has the bag on the face', 'hat die Maske aufgesetzt') : INTERVENTION_BY_ID[e.id]?.label ?? L(e.id, e.id), lang) });
       else if (e.kind === 'arrive' && e.equipment.includes('defibrillator')) log.push({ fromEvent: true, t: e.t, who: who(e.people[0] ?? 'nurse'), text: t('logArrive') });
       else if (e.kind === 'leave') log.push({ fromEvent: true, t: e.t, who: who(e.people[0]), whoId: e.people[0], text: t('logLeave'), speech: t('getTrolley') });
-      else if (e.kind === 'shock') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: `${t('logShock')}: ${t(e.joules === 0 ? 'oUncharged' : e.outcome === 'no-effect' ? 'oNone' : e.outcome === 'not-terminated' ? 'oStill' : e.outcome === 'organised' ? 'oOrg' : 'oAsys')}` });
-      else if (e.kind === 'refibrillation') log.push({ fromEvent: true, t: e.t, who: t('patient'), text: t('logRefib') });
+      else if (e.kind === 'shock') {
+        const x = `${t('logShock')}: ${t(e.joules === 0 ? 'oUncharged' : e.outcome === 'no-effect' ? 'oNone' : e.outcome === 'not-terminated' ? 'oStill' : e.outcome === 'organised' ? 'oOrg' : 'oAsys')}`;
+        log.push({ fromEvent: true, t: e.t, who: who(e.by), text: x });
+        if (!all) toast(`⚡ ${x}`, e.outcome === 'organised' ? 'good' : 'warn');
+      }
+      else if (e.kind === 'refibrillation') { log.push({ fromEvent: true, t: e.t, who: t('patient'), text: t('logRefib') }); if (!all) toast(t('logRefib'), 'warn'); }
       else if (e.kind === 'hazard') log.push({ fromEvent: true, t: e.t, who: `⚠ ${t('hazard')}`, text: t(e.code === 'shock-while-compressing' ? 'hzComp' : e.code === 'shock-while-ventilating' ? 'hzVent' : 'hzNon') });
       else if (e.kind === 'release') log.push({ fromEvent: true, t: e.t, who: who(e.by), text: tr(e.slot === 'compressions' ? L('stops compressions', 'beendet die Kompressionen') : L('puts the bag down', 'legt den Beutel ab'), lang) });
     }

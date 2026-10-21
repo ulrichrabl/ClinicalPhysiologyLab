@@ -22,6 +22,8 @@ const caseOf = (id) => [...S.CASES, S.FREE_CASE].find((c) => c.id === id);
 const scenarioOf = (id) => S.SCENARIOS.find((s) => s.id === id);
 const COPD = scenarioOf('copd-ed-oxygen'), VEST = scenarioOf('vestibular-ed-course');
 const start = (def, seed, caseDef = caseOf(def.caseId), more = {}) => new S.ScenarioRun(def, { seed, caseDef, ...more });
+/** The case lying flat from the start: for tests of the compressions themselves, not of laying the bed flat. */
+const lying = (c) => ({ ...c, initialState: { ...c.initialState, position: 'supine' } });
 /* What a replay must reproduce: everything that followed, the encounter, the model and the patient's values. */
 const fingerprint = (run) => J({
   events: run.events, log: run.log, encounter: run.session.encounter.events, state: run.session.state, model: run.live.model,
@@ -157,7 +159,7 @@ console.log('\nChest compressions in a scenario (ADR-018 step 2)');
     'test.vf': { id: 'test.vf', label: { en: 'x', de: 'x' }, duration: { seconds: 0 }, timing: { status: 'placement', note: 'test' }, effect: { kind: 'instantaneous', change: [{ path: 'electrical.ventricular', set: 'vf' }] } } };
   /* On the vestibular patient, whose breathing is quiet: the lungs do not yet stop breathing in arrest (step 2b), and a
      breathless patient's pleural swings would pump a little blood on their own. */
-  const run = start(VEST, 11, undefined, { interventions: own });
+  const run = start(VEST, 11, lying(caseOf(VEST.caseId)), { interventions: own });
   run.intervene('test.vf', 'nurse');
   ok('a model input can be a rhythm: the heart fibrillates', run.live.model.electrical.ventricular === 'vf');
   run.advanceTo(20);
@@ -181,7 +183,7 @@ console.log('\nChest compressions in a scenario (ADR-018 step 2)');
   run.advanceTo(95);
   const n = run.live.snap.metrics;
   ok('…which makes flow too', n.CPP > 5 && n.CO > 0.2, `CPP ${n.CPP?.toFixed(1)} mmHg, CO ${n.CO.toFixed(2)} L/min`);
-  const R = S.replay(VEST, { seed: 11, caseDef: caseOf('vestibular-neuritis-left'), interventions: own, log: run.log, until: run.t });
+  const R = S.replay(VEST, { seed: 11, caseDef: lying(caseOf('vestibular-neuritis-left')), interventions: own, log: run.log, until: run.t });
   ok('a run with tapped compressions replays exactly from its seed and taps', fingerprint(R) === fingerprint(run));
 }
 
@@ -221,7 +223,7 @@ console.log('\nTaking over (ADR-018 step 2b)');
   const def = structuredClone(COPD);
   def.scene.equipment.push({ id: 'bag-mask', label: { en: 'Bag-valve-mask', de: 'Beatmungsbeutel mit Maske' }, present: true },
     { id: 'airway-kit', label: { en: 'Airway kit', de: 'Atemwegsset' }, present: true });
-  const r = start(def, 9);
+  const r = start(def, 9, lying(caseOf(def.caseId)));
   r.intervene('cpr.compressions');
   r.advanceTo(3);
   ok('the nurse takes over the compressions the learner was doing', r.intervene('cpr.compressions', 'nurse'));
@@ -276,7 +278,9 @@ console.log('\nThe team (ADR-018 step 5, decision 8)');
   r.advanceTo(6);
   ok('the nurse calls the arrest team, saying where: her hands are busy for the call', r.call(['where', 'arrest', 'defibrillator'], 'nurse') && r.actors.nurse.busyUntil === r.tick + 150 && kinds(r, 'call')[0]?.arriveAt === 126);
   ok('a second call is refused', !r.call(['where'], 'learner') && kinds(r, 'blocked').at(-1)?.reason === 'already-called');
-  ok('the learner gives himself the compressions: he holds them, and the task is his', r.assign('compressions', 'learner') && (r.advanceTo(9), r.held.get('compressions')?.by === 'learner' && r.roles.compressions === 'learner'));
+  ok('no compressions while he slumps on the raised head of the bed', !r.assign('compressions', 'learner') && kinds(r, 'blocked').at(-1)?.reason === 'position:supine' && !r.held.get('compressions'));
+  ok('the learner lays the bed flat: 3 s, and he lies supine', r.intervene('bed.flat') && r.session.state.position !== 'supine' && (r.advanceTo(9.1), r.session.state.position === 'supine'));
+  ok('the learner gives himself the compressions: he holds them, and the task is his', r.assign('compressions', 'learner') && (r.advanceTo(12), r.held.get('compressions')?.by === 'learner' && r.roles.compressions === 'learner'));
   r.advanceTo(30);
   ok('the nurse takes the airway: the bag goes on', r.assign('airway', 'nurse') && (r.advanceTo(36), r.held.get('ventilation')?.by === 'nurse'));
   r.advanceTo(126.1);
@@ -317,7 +321,7 @@ console.log('\nThe defibrillator (ADR-018 step 3)');
 
   /* Safety: a shock with someone compressing, and a shock of a rhythm that is not shockable, are recorded as hazards. */
   const h = start(P, 22, S.FREE_CASE);
-  h.advanceTo(5); h.intervene('defib.pads', 'nurse'); h.intervene('cpr.compressions');
+  h.advanceTo(5); h.intervene('defib.pads', 'nurse'); h.intervene('bed.flat'); h.advanceTo(8.1); h.intervene('cpr.compressions');
   h.advanceTo(30); h.intervene('defib.charge', 'nurse'); h.advanceTo(40); h.intervene('defib.shock', 'nurse');
   ok('a shock while someone is compressing is given, and recorded as a hazard', kinds(h, 'hazard').some((e) => e.code === 'shock-while-compressing' && e.by === 'learner'));
   /* A beating heart (the scene's arrest never comes): a shock does nothing to it, and is a hazard. */
@@ -360,6 +364,7 @@ console.log('\nDrugs (ADR-018 step 4)');
   r.advanceTo(5);
   ok('no drug without a vein: adrenaline needs IV access first', !r.intervene('drug.adrenaline') && kinds(r, 'blocked').at(-1)?.reason === 'access:iv');
   ok('the nurse puts in a cannula', r.intervene('access.iv', 'nurse'));
+  r.intervene('bed.flat'); r.advanceTo(8.1);
   r.intervene('cpr.compressions');
   r.advanceTo(70);
   ok('…and then gives adrenaline 1 mg', r.access.has('iv') && r.intervene('drug.adrenaline', 'nurse'));
@@ -405,6 +410,53 @@ console.log('\nDrugs (ADR-018 step 4)');
   const bad = structuredClone(S.INTERVENTIONS);
   bad.find((x) => x.id === 'drug.adrenaline').effect.dose.mg = 0;
   ok('the validator refuses a dose that is not one', errors(S.validateInterventions(bad, S.CATALOG)).some((i) => /not a drug the model has, or not a dose/.test(i.message)));
+}
+
+console.log('\nBefore the first compression: the bed, the breathing, the mouth (ADR-018 step 5, second pass)');
+{
+  const P = scenarioOf('arrest-practice');
+  /* the bolus is drawn from its own stream: find a run with one and a run without */
+  let withBolus = null, without = null;
+  for (let seed = 1; seed < 80 && !(withBolus && without); seed++) {
+    const r = start(P, seed, S.FREE_CASE);
+    const draw = kinds(r, 'chance').find((e) => e.stream === 'obstruction');
+    if (!draw || (draw.value < 0.25) !== !!r.obstruction) { ok('the obstruction follows its draw', false, `seed ${seed}`); break; }
+    if (r.obstruction && !withBolus) withBolus = seed; else if (!r.obstruction && !without) without = seed;
+  }
+  ok('the scenario puts a bolus in his pharynx in some runs and not in others, by the seed', withBolus != null && without != null, `bolus with seed ${withBolus}, none with ${without}`);
+
+  const c = start(P, without, S.FREE_CASE);
+  c.advanceTo(10);
+  ok('he slumps where he sat: the head of the bed is still raised', c.session.state.position === 'reclined-45');
+  ok('the learner opens the airway and looks for breathing: 7 s', c.intervene('assess.breathing') && c.actors.learner.busyUntil === c.tick + 70);
+  c.advanceTo(17.1);
+  const look = kinds(c, 'assessed').at(-1);
+  ok('…and finds him not breathing normally (a failing centre’s last shallow breaths, gasping, or nothing)', look?.what === 'breathing' && ['failing', 'gasping', 'none'].includes(look.breathing), look?.breathing);
+  ok('before the collapse what a look would see is normal breathing (a look takes 7 s, longer than he talks)', (() => { const q = start(P, without, S.FREE_CASE); q.advanceTo(3); return S.breathingOf(q.live.snap.resp) === 'normal'; })());
+  ok('a look in his mouth: nothing there', c.intervene('assess.mouth') && (c.advanceTo(20.2), kinds(c, 'assessed').at(-1)?.mouth === 'clear'));
+
+  const b = start(P, withBolus, S.FREE_CASE);
+  b.advanceTo(6);
+  b.intervene('vent.bag');
+  b.advanceTo(12);
+  b.ventilate(b.t, 1);
+  ok('with a bolus in the pharynx a breath goes nowhere: the chest does not rise', kinds(b, 'breath').at(-1)?.rise === false && b.ventilator.reach() === 0);
+  b.release('ventilation');
+  ok('a look in his mouth shows it', b.intervene('assess.mouth') && (b.advanceTo(15.1), kinds(b, 'assessed').at(-1)?.mouth === 'bolus'));
+  ok('without the airway kit (it is on the trolley) it cannot be taken out', !b.intervene('airway.clear') && kinds(b, 'blocked').at(-1)?.reason === 'equipment:airway-kit');
+
+  const K = structuredClone(P);
+  for (const e of K.scene.equipment) e.present = true;
+  K.machine.states.arrest.enter = K.machine.states.arrest.enter.filter((d) => !('leave' in d) && !('arrive' in d));
+  const k = start(K, withBolus, S.FREE_CASE);
+  k.advanceTo(6); k.intervene('vent.bag'); k.advanceTo(12); k.ventilate(k.t, 1);
+  ok('with the kit, suction and Magill forceps take it out (10–20 s), and the next breath gets in', k.intervene('airway.clear', 'nurse') && (k.advanceTo(33), !k.obstruction && k.ventilate(k.t, 1) && kinds(k, 'breath').at(-1)?.rise === true && kinds(k, 'obstruction').at(-1)?.what === null));
+  ok('a supraglottic airway does not get past a bolus either', (() => { const q = start(K, withBolus, S.FREE_CASE); q.advanceTo(6); q.intervene('airway.supraglottic'); q.advanceTo(27); q.intervene('vent.bag'); q.advanceTo(33); q.ventilate(q.t, 1); return kinds(q, 'breath').at(-1)?.rise === false; })());
+  const R = S.replay(K, { seed: withBolus, caseDef: S.FREE_CASE, log: k.log, until: k.t });
+  ok('a run with a bolus cleared replays exactly', fingerprint(R) === fingerprint(k) && R.obstruction === null && J(kinds(R, 'obstruction')) === J(kinds(k, 'obstruction')));
+
+  const bad = structuredClone(P); bad.scene.airway.chance = 2;
+  ok('the validator refuses an obstruction chance outside 0–1', errors(S.validateScenario(bad, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).some((i) => /obstruction/.test(i.message)));
 }
 
 console.log('\nThe case’s course on the scenario’s clock');
