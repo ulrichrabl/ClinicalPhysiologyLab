@@ -1116,6 +1116,7 @@ export function mount(root: HTMLElement) {
     if (m.sets?.position) return st.position === m.sets.position;
     if (m.sets?.oxygen) return (st.oxygen?.fio2 ?? 0.21) <= 0.21 ? m.sets.oxygen.fio2 <= 0.21 : st.oxygen?.device === m.sets.oxygen.device;
     if (m.verb === 'expose') return (st.exposure ?? []).includes(m.target);
+    if (m.verb === 'cover') return (m.clears?.exposure ?? []).every((area) => !(st.exposure ?? []).includes(area));
     return false;
   };
   const renderCare = () => {
