@@ -128,6 +128,12 @@ const T: Record<string, LocalizedText> = {
   tNotBreathing: L('Not breathing normally: start compressions', 'Keine normale Atmung: mit den Kompressionen beginnen'),
   tShockable: L('Shockable rhythm', 'Schockbarer Rhythmus'), tNonShockable: L('Not shockable', 'Nicht schockbar'),
   sBusyFor: L('busy, {s} s', 'beschäftigt, {s} s'),
+  tHands: L('Hands', 'Hände'), tAirway: L('Airway', 'Atemweg'), tDefib: L('Defib', 'Defi'), tDrugs: L('Drugs', 'Medis'), tTeam: L('Team', 'Team'), tMonitor: L('Monitor', 'Monitor'),
+  finishShort: L('Debrief', 'Debriefing'), close: L('Close', 'Schließen'),
+  idleHint: L('Tap the patient or someone in the scene, or use the tabs below.', 'Tippen Sie auf den Patienten oder eine Person in der Szene, oder nutzen Sie die Reiter unten.'),
+  mHead: L('His head and airway', 'Kopf und Atemweg'), mChest: L('His chest', 'Thorax'), mBed: L('The bed', 'Das Bett'), mArm: L('His arm', 'Sein Arm'), mDefib: L('The defibrillator', 'Der Defibrillator'),
+  mCall: L('Call the arrest team…', 'Reanimationsteam alarmieren…'), mTake: L('Take: {task}', 'Übernehmen: {task}'),
+  stCompress: L('Compressions: {who}', 'Kompressionen: {who}'), stNone: L('No one compressing', 'Niemand drückt'), stBag: L('bag: {who}', 'Beutel: {who}'),
   hazard: L('Unsafe', 'Gefährlich'), hzComp: L('shock with hands on the chest', 'Schock mit Händen am Thorax'), hzVent: L('shock while bagging', 'Schock während der Beatmung'), hzNon: L('shock of a rhythm that is not shockable', 'Schock eines nicht schockbaren Rhythmus'),
 };
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
@@ -192,42 +198,29 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       <span class="ar-head-buttons">${debrief ? '' : `<button type="button" class="ghost" data-pause>${paused ? t('resume') : t('pause')}</button><button type="button" class="ghost" data-finish>${t('finish')}</button><button type="button" class="ghost" data-restart>${t('restart')}</button>`}</span>
     </div>`;
 
-  const render = () => {
-    host.innerHTML = `${head()}
-      <p class="ar-draft muted small" role="note">${t('draft')}</p>
-      <div class="ar-grid">
-        <section class="panel ar-scene" aria-label="${t('scene')}">
-          <svg class="ar-scene-svg" viewBox="${SCENE_VIEWBOX}" role="img" aria-label="${t('scene')}"></svg>
-          <div class="ar-toasts" data-toasts aria-live="assertive"></div>
-        </section>
-        <section class="panel ar-monitor" aria-labelledby="ar-mon-h">
-          <div class="st-row"><div><h2 id="ar-mon-h">${t('monitor')}</h2><div class="muted small ar-mon-note">${t(aline ? 'monitorNote' : 'monitorNoteWard')}</div></div>
+  /* The controls, as fragments: the desk lays them out as panels; the phone puts them in sheets behind a tab bar. Both carry
+     the same data attributes, so one wiring serves both. */
+  const sceneHtml = () => `<svg class="ar-scene-svg" viewBox="${SCENE_VIEWBOX}" role="img" aria-label="${t('scene')}"></svg>
+          <div class="ar-toasts" data-toasts aria-live="assertive"></div><div class="ar-menu" data-menu hidden></div>`;
+  const monitorHtml = () => `<div class="st-row"><div><h2 id="ar-mon-h">${t('monitor')}</h2><div class="muted small ar-mon-note">${t(aline ? 'monitorNote' : 'monitorNoteWard')}</div></div>
             <button type="button" class="ghost small" data-aline aria-pressed="${aline}">${t('aline')}: ${t(aline ? 'on' : 'off')}</button></div>
           <canvas class="ar-strip" aria-label="${t(aline ? 'monitorNote' : 'monitorNoteWard')}"></canvas>
           <dl class="ar-nums" data-nums></dl>
-          <p class="ar-breathing" data-breathing role="status"></p>
-        </section>
-        <section class="panel ar-hands" aria-labelledby="ar-hands-h">
-          <h2 id="ar-hands-h">${t('hands')}</h2>
-          <h3>${t('first')} <span class="muted small" data-bed-state></span></h3>
-          <p class="muted small">${t('firstHint')}</p>
+          <p class="ar-breathing" data-breathing role="status"></p>`;
+  const firstHtml = (hint = true) => `<h3>${t('first')} <span class="muted small" data-bed-state></span></h3>
+          ${hint ? `<p class="muted small">${t('firstHint')}</p>` : ''}
           <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-x="bed.flat">${t('xBed')}</button><button type="button" class="ghost small" data-x="assess.breathing">${t('xBreathing')}</button>
-            <button type="button" class="ghost small" data-x="assess.mouth">${t('xMouth')}</button><button type="button" class="ghost small" data-x="airway.clear">${t('xClear')}</button></div>
-          <div class="ar-row"><button type="button" class="primary" data-cpr></button><button type="button" class="ghost" data-bag></button></div>
-          <dl class="ar-feedback" data-feedback></dl>
-          <p class="muted small">${t('target')}</p>
-          <button type="button" class="ar-pad" data-push aria-describedby="ar-push-hint">${t('push')}</button>
-          <p id="ar-push-hint" class="muted small">${t('pushHint')}</p>
-          <button type="button" class="ghost ar-breath" data-breath aria-describedby="ar-breath-hint">${t('breath')}</button>
-          <p id="ar-breath-hint" class="muted small">${t('breathHint')}</p>
-          <h3>${t('defib')} <span class="muted small" data-defib-state></span></h3>
+            <button type="button" class="ghost small" data-x="assess.mouth">${t('xMouth')}</button><button type="button" class="ghost small" data-x="airway.clear">${t('xClear')}</button></div>`;
+  const holdHtml = () => `<div class="ar-row"><button type="button" class="primary" data-cpr></button><button type="button" class="ghost" data-bag></button></div>`;
+  const feedbackHtml = () => `<dl class="ar-feedback" data-feedback></dl>`;
+  const defibHtml = () => `<h3>${t('defib')} <span class="muted small" data-defib-state></span></h3>
           <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-d="pads">${t('pads')}</button><button type="button" class="ghost small" data-d="charge">${t('charge')}</button>
-            <button type="button" class="ghost small" data-d="check">${t('check')}</button><button type="button" class="primary small ar-shock" data-d="shock">${t('shockNow')}</button></div>
-          <h3>${t('drugs')} <span class="muted small" data-drug-state></span></h3>
+            <button type="button" class="ghost small" data-d="check">${t('check')}</button><button type="button" class="primary small ar-shock" data-d="shock">${t('shockNow')}</button></div>`;
+  const drugsHtml = () => `<h3>${t('drugs')} <span class="muted small" data-drug-state></span></h3>
           <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-g="access.iv">${t('iv')}</button><button type="button" class="ghost small" data-g="drug.adrenaline">${t('adr')}</button>
-            <button type="button" class="ghost small" data-g="drug.amiodarone.300">${t('amio300')}</button><button type="button" class="ghost small" data-g="drug.amiodarone.150">${t('amio150')}</button></div>
-          <h3>${t('team')}</h3>
-          <p class="muted small">${t('teamHint')}</p>
+            <button type="button" class="ghost small" data-g="drug.amiodarone.300">${t('amio300')}</button><button type="button" class="ghost small" data-g="drug.amiodarone.150">${t('amio150')}</button></div>`;
+  const teamHtml = (hint = true) => `<h3>${t('team')}</h3>
+          ${hint ? `<p class="muted small">${t('teamHint')}</p>` : ''}
           <div class="ar-call" data-call>
             <div class="small"><b>${t('call')}</b> <span class="muted" data-call-state></span></div>
             <label class="small"><input type="checkbox" data-say="where"> ${t('sayWhere')}</label>
@@ -237,23 +230,97 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
               <button type="button" class="ghost small" data-fetch>${t('fetch').replace('{name}', t('nurseName'))}</button></div>
           </div>
           <div class="ar-row"><button type="button" class="ghost small" data-handsoff>${t('cmdHandsOff')}</button><button type="button" class="ghost small" data-resume>${t('resumeCpr')}</button></div>
-          <div class="ar-team" data-team></div>
-          <span class="st-note" role="status" data-note></span>
-        </section>
-        <section class="panel ar-why" aria-labelledby="ar-why-h">
-          <h2 id="ar-why-h">${t('why')}</h2>
+          <div class="ar-team" data-team></div>`;
+  const whyHtml = () => `<h2 id="ar-why-h">${t('why')}</h2>
           <div class="muted small">${t('trend')}</div>
           <canvas class="ar-trend" aria-label="${t('trend')}"></canvas>
           <p class="ar-legend small">${aline ? `<span class="ar-key cpp"></span>${t('cpp')} (mmHg) ` : ''}<span class="ar-key co2"></span>${t('etco2')} (mmHg)${aline ? ' <span class="muted">· 15 mmHg: Paradis</span>' : ''}</p>
-          <p>${t('whyCpp')}</p><p>${t('whyCo2')}</p>
+          <p>${t('whyCpp')}</p><p>${t('whyCo2')}</p>`;
+  const logHtml = () => `<h2 id="ar-log-h">${t('events')}</h2>
+          <ol class="ar-events small" data-events aria-live="polite"></ol>`;
+
+  /** The layout drawn last: the phone's is one screen with sheets, the desk's a grid of panels. */
+  let phoneLayout = false;
+  /** The phone's open sheet, if any. */
+  let sheet: string | null = null;
+  const SHEETS: Array<[string, string]> = [['hands', 'tHands'], ['airway', 'tAirway'], ['defib', 'tDefib'], ['drugs', 'tDrugs'], ['team', 'tTeam'], ['monitor', 'tMonitor']];
+
+  const render = () => {
+    phoneLayout = phone();
+    if (phoneLayout) { renderPhone(); return; }
+    host.innerHTML = `${head()}
+      <p class="ar-draft muted small" role="note">${t('draft')}</p>
+      <div class="ar-grid">
+        <section class="panel ar-scene" aria-label="${t('scene')}">${sceneHtml()}</section>
+        <section class="panel ar-monitor" aria-labelledby="ar-mon-h">${monitorHtml()}</section>
+        <section class="panel ar-hands" aria-labelledby="ar-hands-h">
+          <h2 id="ar-hands-h">${t('hands')}</h2>
+          ${firstHtml()}
+          ${holdHtml()}
+          ${feedbackHtml()}
+          <p class="muted small">${t('target')}</p>
+          <button type="button" class="ar-pad" data-push aria-describedby="ar-push-hint">${t('push')}</button>
+          <p id="ar-push-hint" class="muted small">${t('pushHint')}</p>
+          <button type="button" class="ghost ar-breath" data-breath aria-describedby="ar-breath-hint">${t('breath')}</button>
+          <p id="ar-breath-hint" class="muted small">${t('breathHint')}</p>
+          ${defibHtml()}
+          ${drugsHtml()}
+          ${teamHtml()}
+          <span class="st-note" role="status" data-note></span>
         </section>
-        <section class="panel ar-log" aria-labelledby="ar-log-h">
-          <h2 id="ar-log-h">${t('events')}</h2>
-          <ol class="ar-events small" data-events aria-live="polite"></ol>
-        </section>
+        <section class="panel ar-why" aria-labelledby="ar-why-h">${whyHtml()}</section>
+        <section class="panel ar-log" aria-labelledby="ar-log-h">${logHtml()}</section>
       </div>`;
     wire();
     renderEvents(true);
+  };
+
+  /* The phone (owner, 2026-10-21: "on the phone it is rather unplayable"): one screen, no page scroll. The scene with the
+     numbers over it and a small strip of the ECG; one line of who does what; the pad (compressions, or the bag's squeeze)
+     under the thumb; a tab bar whose sheets hold everything else. People and the patient in the scene can be tapped too. */
+  const renderPhone = () => {
+    const tab = (id: string, k: string) => `<button type="button" class="arp-tab${sheet === id ? ' on' : ''}" data-tab="${id}" aria-expanded="${sheet === id}">${t(k)}</button>`;
+    const part = (id: string, html: string) => `<div class="arp-part" data-part="${id}"${sheet === id ? '' : ' hidden'}>${html}</div>`;
+    host.innerHTML = `<div class="arp">
+      <div class="arp-head">
+        <button type="button" class="ghost small" data-leave>←</button>
+        <b class="arp-title">${t('title')}</b>
+        <span class="arp-time" data-clock>0:00</span>
+        <button type="button" class="ghost small" data-pause>${paused ? t('resume') : t('pause')}</button>
+        <button type="button" class="ghost small" data-finish>${t('finishShort')}</button>
+        <button type="button" class="ghost small" data-restart aria-label="${t('restart')}">↺</button>
+      </div>
+      <section class="arp-scene ar-scene" aria-label="${t('scene')}">${sceneHtml()}<div class="arp-hud" data-hud></div></section>
+      <canvas class="arp-mini" aria-hidden="true"></canvas>
+      <p class="arp-status" data-status role="status"></p>
+      <div class="arp-pad">
+        <button type="button" class="ar-pad" data-push>${t('push')}</button>
+        <button type="button" class="ghost ar-breath" data-breath>${t('breath')}</button>
+        <p class="arp-idle muted" data-idle>${t('idleHint')}</p>
+      </div>
+      <div class="arp-sheet" data-sheet${sheet ? '' : ' hidden'}>
+        <button type="button" class="arp-close ghost small" data-close aria-label="${t('close')}">✕</button>
+        ${part('hands', `${holdHtml()}${feedbackHtml()}<p class="muted small">${t('target')}</p>`)}
+        ${part('airway', firstHtml(false))}
+        ${part('defib', defibHtml())}
+        ${part('drugs', drugsHtml())}
+        ${part('team', teamHtml(false))}
+        ${part('monitor', `${monitorHtml()}${whyHtml()}${logHtml()}`)}
+        <span class="st-note" role="status" data-note></span>
+      </div>
+      <nav class="arp-tabs">${SHEETS.map(([id, k]) => tab(id, k)).join('')}</nav>
+    </div>`;
+    wire();
+    renderEvents(true);
+  };
+  const openSheet = (id: string | null) => {
+    sheet = sheet === id ? null : id;
+    if (!phoneLayout) return;
+    const box = host.querySelector<HTMLElement>('[data-sheet]');
+    if (box) box.hidden = !sheet;
+    host.querySelectorAll<HTMLElement>('[data-part]').forEach((p) => { p.hidden = p.dataset.part !== sheet; });
+    host.querySelectorAll<HTMLElement>('[data-tab]').forEach((b) => { const on = b.dataset.tab === sheet; b.classList.toggle('on', on); b.setAttribute('aria-expanded', String(on)); });
+    if (sheet === 'monitor') { drawStrip(); drawTrend(); }
   };
 
   /* ---- the debrief (ADR-018 step 5) ----------------------------------------------------------- */
@@ -336,6 +403,17 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     const fin = host.querySelector<HTMLButtonElement>('[data-finish]');
     if (fin) fin.onclick = () => { if (!run) return; now(); if (!paused) { pausedAt = runT(); pauseWall = performance.now(); paused = true; } openDebrief(); };
     if (!run || debrief) return;
+    /* the phone's tabs and sheet */
+    host.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.onclick = () => openSheet(b.dataset.tab!));
+    const cl = host.querySelector<HTMLButtonElement>('[data-close]'); if (cl) cl.onclick = () => openSheet(null);
+    /* the scene answers a tap: on a person, what they can be told; on the patient, what can be done there */
+    const svg = host.querySelector<SVGSVGElement>('.ar-scene-svg');
+    if (svg) svg.onclick = (ev) => {
+      const hit = (ev.target as Element).closest<SVGElement>('[data-hit]');
+      if (!hit || !run) { closeMenu(); return; }
+      const box = (svg.parentElement as HTMLElement).getBoundingClientRect();
+      menuFor(hit.dataset.hit!, (ev as MouseEvent).clientX - box.left, (ev as MouseEvent).clientY - box.top);
+    };
     host.querySelector<HTMLButtonElement>('[data-aline]')!.onclick = () => {
       aline = !aline;
       try { localStorage.setItem('cpl.arrest.aline', aline ? 'on' : 'off'); } catch { /* not remembered */ }
@@ -345,7 +423,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       const starting = !learnerHolds('compressions');
       act(() => (learnerHolds('compressions') ? run!.release('compressions') : run!.assign('compressions', 'learner')));
       /* on a phone, bring the monitor to the top: it, your rate and the pad then fit on one screen */
-      if (starting && phone()) host.querySelector('.ar-monitor')?.scrollIntoView({ block: 'start' });
+      if (starting && !phoneLayout && phone()) host.querySelector('.ar-monitor')?.scrollIntoView({ block: 'start' });
     };
     host.querySelector<HTMLButtonElement>('[data-bag]')!.onclick = () => act(() => (learnerHolds('ventilation') ? run!.release('ventilation') : run!.assign('airway', 'learner')));
     host.querySelector<HTMLButtonElement>('[data-push]')!.addEventListener('pointerdown', (e) => { e.preventDefault(); push(); });
@@ -439,6 +517,69 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     };
   };
 
+  /* ---- the scene's menu (tap a person or the patient) ----------------------------------------- */
+  const closeMenu = () => { const m = host.querySelector<HTMLElement>('[data-menu]'); if (m) { m.hidden = true; m.innerHTML = ''; } };
+  const menuFor = (hit: string, x: number, y: number) => {
+    const m = host.querySelector<HTMLElement>('[data-menu]');
+    if (!m || !run) return;
+    const r = run;
+    /* each item stands for a control that already exists (in a panel or a sheet): same rules, same refusals */
+    type Item = { label: string; sel?: string; sheet?: string };
+    const btn = (sel: string): Item => ({ label: (host.querySelector(sel)?.textContent ?? '').trim(), sel });
+    let title = '';
+    let items: Item[] = [];
+    if (hit.startsWith('person:')) {
+      const p = hit.slice(7);
+      title = who(p);
+      if (p === 'learner') items = [btn('[data-cpr]'), btn('[data-bag]')];
+      else {
+        items = TEAM_ROLES.map((role) => ({ label: t('mTake').replace('{task}', roleName(role)), sel: `[data-assign="${role}:${p}"]` }));
+        if (host.querySelector(`[data-two="${p}"]`)) items.unshift(btn(`[data-two="${p}"]`));
+        if (r.held.get('compressions')?.by === p) items.unshift(btn('[data-handsoff]'));
+      }
+      if (p === 'learner' || p === 'nurse') { if (!r.called) items.push({ label: t('mCall'), sheet: 'team' }); }
+      if (p === 'nurse' && !r.equipment.has('defibrillator')) items.push(btn('[data-fetch]'));
+    } else if (hit === 'head') { title = t('mHead'); items = [btn('[data-x="assess.breathing"]'), btn('[data-x="assess.mouth"]'), btn('[data-x="airway.clear"]'), btn('[data-bag]')]; }
+    else if (hit === 'chest') { title = t('mChest'); items = [btn('[data-cpr]'), btn('[data-resume]'), btn('[data-d="pads"]'), btn('[data-d="check"]')]; }
+    else if (hit === 'bed') { title = t('mBed'); items = [btn('[data-x="bed.flat"]')]; }
+    else if (hit === 'arm') { title = t('mArm'); items = ['access.iv', 'drug.adrenaline', 'drug.amiodarone.300', 'drug.amiodarone.150'].map((g) => btn(`[data-g="${g}"]`)); }
+    else if (hit === 'defib') { title = t('mDefib'); items = ['pads', 'charge', 'check', 'shock'].map((d) => btn(`[data-d="${d}"]`)); }
+    items = items.filter((i) => i.label);
+    if (!items.length) { closeMenu(); return; }
+    m.innerHTML = `<div class="ar-menu-title">${esc(title)}</div>${items.map((i, k) => {
+      const off = i.sel ? !!(host.querySelector<HTMLButtonElement>(i.sel)?.disabled) : false;
+      return `<button type="button" class="ar-menu-item" data-k="${k}"${off ? ' disabled' : ''}>${esc(i.label)}</button>`;
+    }).join('')}`;
+    m.hidden = false;
+    const W = (m.parentElement as HTMLElement).clientWidth, H = (m.parentElement as HTMLElement).clientHeight;
+    m.style.left = `${Math.max(4, Math.min(W - m.offsetWidth - 4, x - m.offsetWidth / 2))}px`;
+    m.style.top = `${Math.max(4, Math.min(H - m.offsetHeight - 4, y + 8))}px`;
+    m.onclick = (ev) => {
+      const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-k]');
+      if (!b) return;
+      const it = items[Number(b.dataset.k)];
+      closeMenu();
+      if (it.sheet) { if (phoneLayout) openSheet(it.sheet); else host.querySelector('[data-call]')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+      host.querySelector<HTMLButtonElement>(it.sel!)?.click();
+    };
+  };
+
+  /** The phone's small strip under the scene: the last 4 s of lead II (and the arterial line, when it is on). */
+  const drawMini = () => {
+    const c = host.querySelector<HTMLCanvasElement>('.arp-mini');
+    if (!c || !run || !c.clientWidth) return;
+    const { g, w } = sizeCanvas(c, 46);
+    const tNow = (run.live.run.sim as any).t as number, span = 4, from = tNow - span;
+    const x = (T: number) => ((T - from) / span) * w;
+    const line = (get: (s: Sample) => number, lo: number, hi: number, top: number, hgt: number, color: string) => {
+      g.strokeStyle = color; g.lineWidth = 1.4; g.beginPath(); let first = true;
+      for (let i = 0; i < buf.length; i += 2) { const s = buf[i]; if (s.T < from) continue; const y = top + hgt - ((get(s) - lo) / (hi - lo)) * hgt; if (first) { g.moveTo(x(s.T), y); first = false; } else g.lineTo(x(s.T), y); }
+      g.stroke();
+    };
+    line((s) => s.ecg, -1.2, 1.6, 2, aline ? 24 : 42, css('--trace'));
+    if (aline) line((s) => s.Pa, 0, Math.max(80, ...buf.map((s) => s.Pa)) + 5, 26, 18, '#c0392b');
+  };
+
   /* ---- reading the model ------------------------------------------------------------------------ */
   const readSamples = () => {
     if (!run) return;
@@ -474,7 +615,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   };
   const drawStrip = () => {
     const c = host.querySelector<HTMLCanvasElement>('.ar-strip');
-    if (!c || !run) return;
+    if (!c || !run || !c.clientWidth) return;
     const h = Math.round(Math.max(phone() ? 170 : 240, Math.min(340, c.clientWidth * 0.42)));
     const { g, w } = sizeCanvas(c, h);
     const fg = css('--trace'), muted = css('--muted'), line = css('--grid'), art = '#c0392b', acc = css('--accent');
@@ -510,7 +651,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   };
   const drawTrend = () => {
     const c = host.querySelector<HTMLCanvasElement>('.ar-trend');
-    if (!c || !run) return;
+    if (!c || !run || !c.clientWidth) return;
     const h = 150;
     const { g, w } = sizeCanvas(c, h);
     g.fillStyle = css('--surface'); g.fillRect(0, 0, w, h);
@@ -559,6 +700,24 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     if (bag) { bag.textContent = fitting ? t('fitting') : learnerHolds('ventilation') ? t('dropBag') : t('takeBag'); bag.disabled = fitting; }
     const pad = host.querySelector<HTMLButtonElement>('[data-push]'); if (pad) pad.disabled = !learnerHolds('compressions');
     const br = host.querySelector<HTMLButtonElement>('[data-breath]'); if (br) br.disabled = !learnerHolds('ventilation');
+    if (phoneLayout) {
+      /* under the thumb: whatever the learner's hands hold */
+      const comp = learnerHolds('compressions'), bagging = learnerHolds('ventilation');
+      if (pad) pad.hidden = !comp;
+      if (br) br.hidden = comp || !bagging;
+      const idle = host.querySelector<HTMLElement>('[data-idle]'); if (idle) idle.hidden = comp || bagging;
+      const ck = host.querySelector<HTMLElement>('[data-clock]'); if (ck) ck.textContent = fmtT(run.t);
+      const hud = host.querySelector<HTMLElement>('[data-hud]');
+      if (hud) hud.innerHTML = `<span>${t('etco2').replace('End-tidal ', 'Et').replace('Endtidales ', 'Et')} <b>${breaths ? Math.round((r.EtCO2 ?? 0) * MMHG) : '—'}</b></span>${aline ? `<span>CPP <b>${m.CPP != null ? Math.round(m.CPP) : '—'}</b></span><span>${t('art').slice(0, 3)} <b>${Number.isFinite(sys) ? `${Math.round(sys)}/${Math.round(dia)}` : '—'}</b></span>` : ''}`;
+      const st = host.querySelector<HTMLElement>('[data-status]');
+      if (st) {
+        const c = held('compressions'), v = held('ventilation');
+        const parts = [c ? t('stCompress').replace('{who}', who(c.by)) : t('stNone')];
+        if (comp) parts.push(`${rate != null ? Math.round(rate) : '—'}/min`, `${sinceBreaths}/30`);
+        if (v) parts.push(t('stBag').replace('{who}', who(v.by)));
+        st.innerHTML = parts.map((x, i) => (i === 1 && rate != null && (rate < 100 || rate > 120)) || (i === 2 && comp && sinceBreaths > 30) ? `<b class="abn">${esc(x)}</b>` : esc(x)).join(' · ');
+      }
+    }
     const ds = host.querySelector<HTMLElement>('[data-defib-state]');
     if (ds) {
       const charging = run.events.some((e: any) => e.kind === 'begin' && e.id === 'defib.charge' && e.until > run!.t);
@@ -752,14 +911,18 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     /* the scene's end: the debrief opens by itself */
     if (run.over) { if (!paused) { pausedAt = runT(); pauseWall = performance.now(); paused = true; } openDebrief(); return; }
     drawStrip();
+    if (phoneLayout) drawMini();
     if (tick % 2 === 0) drawScene();
     if (tick++ % 6 === 0) { renderNumbers(); renderEvents(); drawTrend(); }
   };
 
+  /* turning a tablet, or resizing a window across the phone's width, changes the layout */
+  const onResize = () => { if (run && !debrief && phone() !== phoneLayout) render(); };
+  window.addEventListener('resize', onResize);
   start();
   raf = requestAnimationFrame(frame);
   return {
-    stop: () => { stopped = true; cancelAnimationFrame(raf); document.removeEventListener('keydown', onKey); },
+    stop: () => { stopped = true; cancelAnimationFrame(raf); document.removeEventListener('keydown', onKey); window.removeEventListener('resize', onResize); },
     setLang: (l: Lang) => { lang = l; if (run && debrief) openDebrief(); else if (run) render(); else start(); },
   };
 }
