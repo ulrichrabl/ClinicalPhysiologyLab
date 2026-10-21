@@ -200,5 +200,16 @@ export function sceneSvg(s: SceneState, patient: { svg: string; marks: Marks }):
     kit.push(`<path d="M${f(pole)} 372 L${f(pole)} 78 M${f(pole - 10)} 78 L${f(pole + 10)} 78" stroke="#8d989e" stroke-width="2.4"/>`);
     kit.push(`<rect x="${f(pole - 8)}" y="80" width="16" height="26" rx="3" fill="#dceef5" stroke="#9cc5d6"/><path d="M${f(pole)} 106 C${f(pole)} 170, ${f(m.wrist.x - 8)} 200, ${f(m.wrist.x - 3)} ${f(m.wrist.y - 4)}" fill="none" stroke="#9cc5d6" stroke-width="1.4"/>`);
   }
-  return `<g class="scene-back">${back.join('')}</g><g class="scene-kit">${kit.join('')}</g><g class="scene-patient">${patient.svg}</g><g class="scene-front">${front.join('')}</g><g class="scene-over">${over.join('')}</g>`;
+  /* Where a tap lands (transparent, drawn last): the bed, the people (head and trunk, above the trolley), his arm, his
+     chest, his head, and the defibrillator. Later ones win where they overlap. */
+  const hits: string[] = [];
+  const hr = (id: string, x: number, y: number, w: number, h: number) => hits.push(`<rect data-hit="${id}" x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" fill="transparent"/>`);
+  hr('bed', 0, Math.min(m.neck[1], m.chest[1]) - 30, 330, 120);
+  placed.forEach(({ p, x }) => { const sy = SHOULDER; hr(`person:${p.id}`, x - 34, sy - 52, 68, 130); });
+  hr('arm', m.wrist.x - 22, m.wrist.y - 18, 44, 30);
+  hr('chest', m.chest[0] - 4, m.chest[1] - 16, m.chest[2] - m.chest[0] + 8, 34);
+  /* the head, from the neck's landmarks: it works sitting up and lying flat */
+  hits.push(`<circle data-hit="head" cx="${f((m.neck[0] + m.neck[2]) / 2)}" cy="${f(m.neck[1] - 8)}" r="30" fill="transparent"/>`);
+  if (s.defibrillator) hr('defib', 334, 204, 66, 168);
+  return `<g class="scene-back">${back.join('')}</g><g class="scene-kit">${kit.join('')}</g><g class="scene-patient">${patient.svg}</g><g class="scene-front">${front.join('')}</g><g class="scene-over">${over.join('')}</g><g class="scene-hit">${hits.join('')}</g>`;
 }

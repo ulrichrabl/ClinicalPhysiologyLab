@@ -466,6 +466,30 @@ Step 5 is built in parts: (1) the guideline file, scoring and the debrief; (2) t
   - suction at the bedside (many wards have wall suction) is not in the room;
   - his eyes stay open in the figure when he is unconscious.
 
+## The phone layout (2026-10-21)
+
+**Owner, after the second pass:** "on the phone it is rather unplayable". The page was about 4,060 px tall on a 390 × 844 phone. The scene was at the bottom, and the pad was 930 px below the monitor.
+
+- **One screen, no page scroll** (under 600 px wide; `renderPhone` in `app/practice-arrest.ts`). From top to bottom:
+  - a compact header (back, time, pause, debrief, start again);
+  - the scene, with EtCO₂ (and CPP and arterial pressure while the arterial line is on) in a corner;
+  - a 4 s strip of lead II (and the arterial line);
+  - one status line (who compresses, the learner's rate and count, who has the bag);
+  - the pad under the thumb: the compression pad or the bag's squeeze, whichever the learner holds, else a hint;
+  - a tab bar.
+- **The tabs** (Hands, Airway, Defib, Drugs, Team, Monitor) open a sheet that slides up over the pad with that part's controls. The full monitor, the trends, "Why it works" and the log are in Monitor.
+- **The scene answers a tap,** on the phone and on the desk:
+  - a person: give them a task, two breaths, hands off, call the team, fetch the trolley;
+  - the head: breathing, mouth, suction, the bag;
+  - the chest: compressions, pads, rhythm check;
+  - the bed: lay it flat;
+  - the arm: line and drugs;
+  - the defibrillator: pads, charge, check, shock.
+
+  Each menu item stands for a control that already exists, so the same rules and refusals apply. An item is greyed when its control is disabled.
+- **The desk layout is unchanged.** One set of HTML fragments with the same data attributes serves both layouts, and crossing 600 px re-renders.
+- **On the phone while playing:** the layout covers the page, so the language switch is reached from the ward or the debrief. The report button moves to the scene's empty top corner.
+
 ## A first practice screen (draft, after step 2)
 
 Asked for by the owner (2026-10-20) before step 3, to try the hands on a running patient. `app/practice-arrest.ts`, opened from the Ward:
