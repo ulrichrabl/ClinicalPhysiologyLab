@@ -1,5 +1,6 @@
 import { tr, type LocalizedText } from '../model/i18n.ts';
 import { breathingOf, ScenarioRun, TICK_S, type Breathing } from '../scenario/run.ts';
+import type { NudgeId } from '../scenario/types.ts';
 import type { ScenarioDef } from '../scenario/types.ts';
 import { FREE_CASE } from './free-case.ts';
 import arrestPractice from '../scenarios/arrest-practice.json';
@@ -134,6 +135,10 @@ const T: Record<string, LocalizedText> = {
   mHead: L('His head and airway', 'Kopf und Atemweg'), mChest: L('His chest', 'Thorax'), mBed: L('The bed', 'Das Bett'), mArm: L('His arm', 'Sein Arm'), mDefib: L('The defibrillator', 'Der Defibrillator'),
   mCall: L('Call the arrest team…', 'Reanimationsteam alarmieren…'), mTake: L('Take: {task}', 'Übernehmen: {task}'),
   stCompress: L('Compressions: {who}', 'Kompressionen: {who}'), stNone: L('No one compressing', 'Niemand drückt'), stBag: L('bag: {who}', 'Beutel: {who}'),
+  chooseH: L('How do you want to practise?', 'Wie möchten Sie üben?'),
+  cSurprise: L('Surprise me', 'Überraschen Sie mich'), cSurpriseNote: L('Maybe a set-up lesson, maybe pure chance. You find out in the debrief.', 'Vielleicht eine angelegte Lektion, vielleicht reiner Zufall. Sie erfahren es in der Nachbesprechung.'),
+  cChance: L('Pure chance', 'Reiner Zufall'), cChanceNote: L('Nothing set up: what happens is the model and its dice.', 'Nichts angelegt: Was geschieht, sind das Modell und seine Würfel.'),
+  cLesson: L('Choose a lesson', 'Eine Lektion wählen'), cLessonNote: L('You will know what is coming; the surprise is gone, the practice is not.', 'Sie wissen, was kommt; die Überraschung ist weg, die Übung nicht.'),
   hazard: L('Unsafe', 'Gefährlich'), hzComp: L('shock with hands on the chest', 'Schock mit Händen am Thorax'), hzVent: L('shock while bagging', 'Schock während der Beatmung'), hzNon: L('shock of a rhythm that is not shockable', 'Schock eines nicht schockbaren Rhythmus'),
 };
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
@@ -176,7 +181,31 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
 
   const runT = () => (paused ? pausedAt : (performance.now() - wall0 - pausedTotal) / 1000);
 
+  /* How this run is set up (ADR-018 decision 6c): a surprise (a set-up lesson or pure chance, revealed in the debrief),
+     pure chance, or a lesson the learner chose. */
+  let setup: { choice: 'surprise' | 'chance' | 'lesson'; nudge: NudgeId | null } = { choice: 'surprise', nudge: null };
+  const lessons = () => def.nudges ?? [];
   const start = () => {
+    run = null; debrief = false;
+    const ls = lessons();
+    host.innerHTML = `${head()}
+      <section class="ar-choose" aria-labelledby="ar-choose-h">
+        <h2 id="ar-choose-h">${t('chooseH')}</h2>
+        <button type="button" class="primary" data-choose="surprise"><b>${t('cSurprise')}</b><span>${t('cSurpriseNote')}</span></button>
+        <button type="button" class="ghost" data-choose="chance"><b>${t('cChance')}</b><span>${t('cChanceNote')}</span></button>
+        ${ls.length ? `<details><summary>${t('cLesson')}</summary><p class="muted small">${t('cLessonNote')}</p><div class="ar-lessons">${ls.map((n) => `<button type="button" class="ghost" data-lesson="${n.id}"><b>${esc(tr(n.label, lang))}</b></button>`).join('')}</div></details>` : ''}
+      </section>`;
+    wire();
+    host.querySelectorAll<HTMLButtonElement>('[data-choose]').forEach((b) => b.onclick = () => {
+      const c = b.dataset.choose as 'surprise' | 'chance';
+      /* a surprise is a lesson two times in three, pure chance otherwise; the learner is told which in the debrief */
+      const nudge = c === 'surprise' && ls.length && Math.random() < 2 / 3 ? ls[Math.floor(Math.random() * ls.length)].id : null;
+      begin({ choice: c, nudge });
+    });
+    host.querySelectorAll<HTMLButtonElement>('[data-lesson]').forEach((b) => b.onclick = () => begin({ choice: 'lesson', nudge: b.dataset.lesson as NudgeId }));
+  };
+  const begin = (s: typeof setup) => {
+    setup = s;
     /* forget the old run first: wiring the new page must not reach for the old run's controls (it threw, and the new
        patient was never made) */
     run = null; debrief = false;
@@ -186,7 +215,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     setTimeout(() => {
       if (stopped) return;
       /* a fresh seed each time: chance (gasping, the heart's noise) differs from run to run, as in life */
-      run = new ScenarioRun(def, { seed: (Date.now() % 1e9) | 0, caseDef: FREE_CASE, settleSeconds: 20 });
+      run = new ScenarioRun(def, { seed: (Date.now() % 1e9) | 0, caseDef: FREE_CASE, settleSeconds: 20, nudge: setup.nudge });
       wall0 = performance.now(); pausedTotal = 0; paused = false;
       render();
     }, 30);
@@ -195,7 +224,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const head = () => `<div class="st-head">
       <button type="button" class="ghost" data-leave>← ${o.backLabel ? tr(o.backLabel, lang) : t('back')}</button>
       <div class="st-title"><div class="eyebrow">${t('eyebrow')}</div><h1>${t('title')}</h1><p class="lede">${t('lede')}</p></div>
-      <span class="ar-head-buttons">${debrief ? '' : `<button type="button" class="ghost" data-pause>${paused ? t('resume') : t('pause')}</button><button type="button" class="ghost" data-finish>${t('finish')}</button><button type="button" class="ghost" data-restart>${t('restart')}</button>`}</span>
+      <span class="ar-head-buttons">${debrief || !run ? '' : `<button type="button" class="ghost" data-pause>${paused ? t('resume') : t('pause')}</button><button type="button" class="ghost" data-finish>${t('finish')}</button><button type="button" class="ghost" data-restart>${t('restart')}</button>`}</span>
     </div>`;
 
   /* The controls, as fragments: the desk lays them out as panels; the phone puts them in sheets behind a tab bar. Both carry
@@ -329,7 +358,8 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     debrief = true;
     if (squeezeAt != null) { squeezeAt = null; run.bag('release', run.t); }
     const rep = scoreRun(guideline, run);
-    host.innerHTML = `${head()}${debriefHtml(rep, guideline, run, lang, { canReturn: !run.over })}`;
+    const n = lessons().find((x) => x.id === setup.nudge);
+    host.innerHTML = `${head()}${debriefHtml(rep, guideline, run, lang, { canReturn: !run.over, setup: { choice: setup.choice, nudge: n ? { label: n.label, explain: n.explain } : null } })}`;
     wire();
     const back = host.querySelector<HTMLButtonElement>('[data-db-back]');
     if (back) back.onclick = () => { debrief = false; if (paused) { pausedTotal += performance.now() - pauseWall; paused = false; } render(); };

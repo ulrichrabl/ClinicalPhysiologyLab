@@ -4,7 +4,7 @@ import type { Catalog } from '../data/catalog.ts';
 import type { Issue } from '../engine/validate.ts';
 import { healthyModel } from '../physiology/state.ts';
 import { DRUG_IDS } from '../physiology/drugs/drugs.ts';
-import type { InterventionDef, ScenarioDef, SceneWhen } from './types.ts';
+import { NUDGE_IDS, type InterventionDef, type ScenarioDef, type SceneWhen } from './types.ts';
 
 /* Checks for the intervention registry and for scenarios (ADR-018). Every learner-facing text in English and German. */
 
@@ -74,6 +74,11 @@ export function validateScenario(s: ScenarioDef, ctx: { cases: CaseDef[]; interv
     for (const x of team.people) if (!people.has(x)) out.push({ level: 'error', path: `${p}.scene.team`, message: `no one called ${x}` });
     for (const x of team.equipment) if (!kit.has(x)) out.push({ level: 'error', path: `${p}.scene.team`, message: `no equipment ${x}` });
     if (!(team.afterSeconds >= 0 && team.lateWithoutWhere >= 0 && team.callSeconds >= 0)) out.push({ level: 'error', path: `${p}.scene.team`, message: 'times must be 0 or more' });
+  }
+  for (const n of s.nudges ?? []) {
+    if (!(NUDGE_IDS as readonly string[]).includes(n.id)) out.push({ level: 'error', path: `${p}.nudges.${n.id}`, message: 'not a nudge the run knows' });
+    if (n.id === 'bolus' && !s.scene.airway) out.push({ level: 'error', path: `${p}.nudges.bolus`, message: 'a bolus nudge needs scene.airway' });
+    text(n.label, `${p}.nudges.${n.id}.label`, out); text(n.explain, `${p}.nudges.${n.id}.explain`, out);
   }
   const ob = s.scene.airway;
   if (ob && (ob.obstruction !== 'bolus' || !(ob.chance >= 0 && ob.chance <= 1))) out.push({ level: 'error', path: `${p}.scene.airway`, message: 'an obstruction is a bolus with a chance from 0 to 1' });

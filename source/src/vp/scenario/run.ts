@@ -14,7 +14,7 @@ import { CPR } from '../evidence/cpr.ts';
 import { LUNG } from '../evidence/lung.ts';
 import { ARREST } from '../evidence/arrest.ts';
 import { Ventilator, type AirwayRoute } from '../physiology/lung/ventilation.ts';
-import type { InterventionDef, ScenarioDef, ScenarioEvent, ScenarioInput, SceneWhen } from './types.ts';
+import type { InterventionDef, NudgeId, ScenarioDef, ScenarioEvent, ScenarioInput, SceneWhen } from './types.ts';
 
 /* ===========================================================================
    A scenario, running (ADR-018 step 1).
@@ -46,6 +46,8 @@ export interface RunOptions {
   interventions?: Record<string, InterventionDef>;
   catalog?: Catalog;
   registry?: Registry;
+  /** A teaching nudge the scenario offers (ADR-018 decision 6c): it fixes one chance draw. Part of the run, like the seed. */
+  nudge?: NudgeId | null;
 }
 
 interface Actor { present: boolean; busyUntil: number; hands?: string }
@@ -91,19 +93,24 @@ export class ScenarioRun {
     this.seed = opts.seed;
     this.interventions = opts.interventions ?? INTERVENTION_BY_ID;
     this.chance = new Chance(opts.seed);
+    if (opts.nudge && !def.nudges?.some((n) => n.id === opts.nudge)) throw new Error(`scenario ${def.id} offers no nudge ${opts.nudge}`);
+    this.nudge = opts.nudge ?? null;
+    /* refractory VF: how many shocks fail, drawn from the nudge's own stream so it is not always the first (1 to 3) */
+    if (this.nudge === 'refractory-vf') this.failShocks = 1 + Math.floor(this.chance.uniform('nudge') * 3);
     this.live = new LivePatient(modelFromCase(opts.caseDef));
     this.live.run.heart.seedChance(this.chance.seedFor('heart'));
     /* Whether this patient gasps if the brain loses its blood supply, and for how long (Clark 1992, Bobrow 2008). Drawn now,
        so it does not depend on when, or whether, the arrest comes. */
     const g = this.chance.uniform('gasp');
-    const gaspFor = g < LUNG.gaspChanceVf ? -Math.log(1 - this.chance.uniform('gasp-duration')) * LUNG.gaspMeanSeconds : 0;
+    const gasps = g < LUNG.gaspChanceVf || this.nudge === 'gasping';
+    const gaspFor = gasps ? -Math.log(1 - this.chance.uniform('gasp-duration')) * LUNG.gaspMeanSeconds : 0;
     this.live.run.resp.gaspFor = gaspFor;
     /* Something in his airway (a teaching variant, not a physiological rate): drawn now, from its own stream. */
     const ob = def.scene.airway;
     if (ob) {
       const u = this.chance.uniform('obstruction');
-      this.obstruction = u < ob.chance ? ob.obstruction : null;
-      this.pendingChance.push({ t: 0, kind: 'chance', stream: 'obstruction', value: u, use: this.obstruction ? `a ${ob.obstruction} in his airway` : 'nothing in his airway' });
+      this.obstruction = u < ob.chance || this.nudge === 'bolus' ? ob.obstruction : null;
+      this.pendingChance.push({ t: 0, kind: 'chance', stream: 'obstruction', value: u, use: (this.obstruction ? `a ${ob.obstruction} in his airway` : 'nothing in his airway') + (this.nudge === 'bolus' ? ' (set up)' : '') });
       if (this.obstruction) this.pendingChance.push({ t: 0, kind: 'obstruction', what: this.obstruction });
     }
     this.live.settleNow(opts.settleSeconds ?? 20);
@@ -112,7 +119,8 @@ export class ScenarioRun {
     for (const p of def.scene.people) this.actors[p.id] = { present: p.present, busyUntil: 0 };
     for (const e of def.scene.equipment) if (e.present) { this.equipment.add(e.id); this.startEquipment.push(e.id); }
     this.sync();
-    this.events.push({ t: 0, kind: 'chance', stream: 'gasp', value: g, use: gaspFor > 0 ? `gasps for ${gaspFor.toFixed(0)} s if the brain loses its blood supply` : 'does not gasp' });
+    if (this.nudge) this.events.push({ t: 0, kind: 'nudge', id: this.nudge });
+    this.events.push({ t: 0, kind: 'chance', stream: 'gasp', value: g, use: (gaspFor > 0 ? `gasps for ${gaspFor.toFixed(0)} s if the brain loses its blood supply` : 'does not gasp') + (this.nudge === 'gasping' ? ' (set up)' : '') });
     this.events.push(...this.pendingChance);
     this.enter(def.machine.start);
   }
@@ -306,6 +314,22 @@ export class ScenarioRun {
   shocks = 0;
   /** When (tick) VF comes back after the last terminating shock, if it will. */
   private refibAt: number | null = null;
+  /** The teaching nudge this run carries, if any (ADR-018 decision 6c). */
+  readonly nudge: NudgeId | null;
+  private failShocks = 0;
+  private nudgeSpent = false;
+  /** Good CPR for the nudge that rewards it: compressions over at least 80 % of the last two minutes (or of the time since
+      the collapse, if shorter, and at least 30 s), counting gaps of up to 2 s as compressing. The thresholds are the
+      guideline file's (fraction 80 %, a pause longer than 2 s). */
+  private goodCpr(): boolean {
+    const onset = (this.events.find((e) => e.kind === 'scene' && e.state === 'arrest') as { t: number } | undefined)?.t ?? 0;
+    const from = Math.max(onset, this.t - 120), span = this.t - from;
+    if (span < 30) return false;
+    const on = this.compressions.map((c) => c.at).filter((a) => a >= from - 2 && a <= this.t);
+    let covered = 0;
+    for (let i = 1; i < on.length; i++) if (on[i] - on[i - 1] <= 2) covered += Math.max(0, on[i] - Math.max(from, on[i - 1]));
+    return covered / span >= 0.8;
+  }
 
   /** Deliver the charged shock (ADR-018 step 3). Whether it ends the fibrillation, and what follows, is drawn from the run's
       seed; the heart's own state sets the odds. A shock given uncharged does nothing; one given with hands on the patient,
@@ -323,8 +347,13 @@ export class ScenarioRun {
       return;
     }
     const uT = this.chance.uniform('shock'), uR = this.chance.uniform('shock-rhythm');
-    const outcome = this.live.run.arrest.shock(uT, uR);
-    this.events.push({ t: this.t, kind: 'chance', stream: 'shock', value: uT, use: `shock ${this.shocks}: ${outcome === 'not-terminated' ? 'the fibrillation goes on' : 'the fibrillation ends'}` });
+    let outcome = this.live.run.arrest.shock(uT, uR);
+    /* The teaching nudges that act on a shock (the draws are taken all the same, so the streams stay in step). */
+    let setUp = '', forceRecurrence = false, noRecurrence = false;
+    if (this.nudge === 'refractory-vf' && this.shocks <= this.failShocks) { outcome = 'not-terminated'; setUp = ' (set up)'; }
+    if (this.nudge === 'vf-returns' && !this.nudgeSpent) { outcome = 'organised'; forceRecurrence = true; this.nudgeSpent = true; setUp = ' (set up)'; }
+    if (this.nudge === 'rosc-for-good-cpr' && !this.nudgeSpent && this.goodCpr()) { outcome = 'organised'; noRecurrence = true; this.nudgeSpent = true; setUp = ' (set up: good CPR before it)'; }
+    this.events.push({ t: this.t, kind: 'chance', stream: 'shock', value: uT, use: `shock ${this.shocks}: ${outcome === 'not-terminated' ? 'the fibrillation goes on' : 'the fibrillation ends'}${setUp}` });
     if (outcome !== 'not-terminated') this.events.push({ t: this.t, kind: 'chance', stream: 'shock-rhythm', value: uR, use: `then ${outcome === 'organised' ? 'an organised rhythm' : 'asystole'} (chance of organised ${(this.live.run.arrest.organisedChance() * 100).toFixed(0)} %)` });
     if (outcome === 'organised') this.writeModel([['electrical.ventricular', 'none']]);
     if (outcome === 'asystole') this.writeModel([['electrical.ventricular', 'asystole']]);
@@ -333,7 +362,7 @@ export class ScenarioRun {
     const uF = this.chance.uniform('refibrillation'), uFt = this.chance.uniform('refibrillation-time');
     /* Amiodarone on board makes it less likely (ADR-018 step 4). */
     const recurrence = ARREST.refibrillationChance * this.live.run.drugs.recurrenceMult();
-    if (outcome !== 'not-terminated' && uF < recurrence) {
+    if (outcome !== 'not-terminated' && !noRecurrence && (uF < recurrence || forceRecurrence)) {
       const after = -Math.log(1 - uFt) * ARREST.refibrillationMedian / Math.LN2;
       this.refibAt = this.tick + Math.max(1, Math.round(after / TICK_S));
       this.events.push({ t: this.t, kind: 'chance', stream: 'refibrillation', value: uF, use: `VF will come back after ${after.toFixed(0)} s` });

@@ -162,6 +162,11 @@ console.log('\nWhat the debrief says about the end (the outcome follows the cour
   const rec2 = { ...rec, trace: back };
   const html2 = S.debriefHtml(S.scoreRun(G, rec2), G, rec2, 'de', { canReturn: false });
   ok('VF back in the last 40 s: still in arrest, and the course shows the circulation that came and went (German)', /Am Ende ist er noch im Kreislaufstillstand/.test(html2) && !/Am Ende hat er einen Kreislauf/.test(html2) && J(S.heartCourse(4, G, back).map((c) => c.state).slice(-2)) === J(['pulse', 'vf']));
+  const nudge = S.SCENARIOS.find((x) => x.id === 'arrest-practice').nudges.find((n) => n.id === 'refractory-vf');
+  const withSet = S.debriefHtml(S.scoreRun(G, rec), G, rec, 'en', { canReturn: false, setup: { choice: 'surprise', nudge: { label: nudge.label, explain: nudge.explain } } });
+  const without = S.debriefHtml(S.scoreRun(G, rec), G, rec, 'de', { canReturn: false, setup: { choice: 'chance', nudge: null } });
+  ok('a set-up run says so in the debrief (the surprise revealed), and a run of pure chance says nothing was set up (German)',
+    withSet.includes('The surprise: this run was set up.') && withSet.includes(nudge.label.en) && without.includes('Reiner Zufall') && !without.includes(nudge.label.de));
 }
 
 console.log('\nA run on the clock (the practice arrest, scripted)');

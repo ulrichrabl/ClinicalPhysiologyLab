@@ -580,6 +580,13 @@ body:has(.arp) .report-btn { top: calc(60px + env(safe-area-inset-top, 0px)); bo
 .ar-db-card.has-miss { border-left-color: var(--abn); }
 .ar-db-card h4 { margin: 2px 0 6px; font-size: 14px; }
 .ar-db-rules { list-style: none; padding: 0; margin: 0; display: grid; gap: 2px; }
+.ar-db-setup { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--sunk); line-height: 1.5; }
+.ar-db-setup.set { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.ar-choose { max-width: 640px; margin: 18px auto; display: grid; gap: 10px; }
+.ar-choose button { text-align: left; padding: 12px 14px; border-radius: 12px; }
+.ar-choose button b { display: block; font-size: 16px; }
+.ar-choose button span { display: block; font-size: 13px; color: inherit; opacity: .8; margin-top: 2px; }
+.ar-lessons { display: grid; gap: 8px; margin-top: 4px; }
 .ar-db-rule summary { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: start; cursor: pointer; list-style: none; padding: 3px 0; }
 .ar-db-rule summary::-webkit-details-marker { display: none; }
 .ar-db-rule details[open] summary { font-weight: 600; }

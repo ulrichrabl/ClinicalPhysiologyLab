@@ -440,6 +440,28 @@ Step 5 is built in parts: (1) the guideline file, scoring and the debrief; (2) t
   - the 4 H's and 4 T's;
   - placing hands and pads by dragging (the chest view, `render/thorax.ts`).
 
+## Step 5, part 3, as built: teaching nudges
+
+**Owner (2026-10-22):** surprise helps learning, so a nudge is not announced before the run; it is revealed in the debrief, as decision 6c asks ("recorded with the run and stated in the debrief").
+
+- **Where nudges live:** the scenario's `nudges`, each with an id the run knows (`NUDGE_IDS`) and an EN/DE label and explanation. The run takes it as an option, like the seed (`RunOptions.nudge`). It records a `nudge` event at the start, marks every draw it overrules "(set up)" in that draw's chance event, and replays exactly.
+- **The five nudges:**
+  - **The shocks do not work at first** (`refractory-vf`): the first one to three shocks fail. How many is drawn from the nudge's own stream, so it is not always the first.
+  - **The first shock works, then VF comes back** (`vf-returns`): the first shock ends the fibrillation in an organised rhythm, and a recurrence is drawn at the usual time (van Alem's median).
+  - **Good CPR is rewarded** (`rosc-for-good-cpr`): the first shock after good CPR ends the fibrillation in an organised rhythm, without a recurrence. Good means compressions over at least 80 % of the preceding two minutes (at least 30 s), with gaps of 2 s at most: the guideline file's own thresholds. Whether that rhythm makes a pulse is still the model's.
+  - **He gasps** (`gasping`): he gasps even if his draw said he would not; the duration is drawn as usual.
+  - **Something in his airway** (`bolus`): the bolus is there even if its draw said it would not be.
+- **Every draw is still taken,** so the other streams stay in step with an un-nudged run of the same seed.
+- **Choosing,** before each run (and on "Start again"):
+  - **Surprise me:** a lesson two times in three, pure chance otherwise, revealed in the debrief.
+  - **Pure chance:** nothing set up.
+  - **Choose a lesson:** the learner knows what is coming.
+- **The debrief says which:** "The surprise: this run was set up. The shocks do not work at first. …", or "Pure chance: everything that happened by chance … was the model's own draw".
+- **Never used:** in assessment (not built yet), or in the population runs that validate the model.
+- **Tests:**
+  - `scenario.test.mjs`: each nudge does what it says and overrules a draw that said otherwise; a shock without CPR before it is left to chance; an unknown nudge is refused by the run and the validator; replay is exact.
+  - `debrief.test.mjs`: the reveal, in English and German.
+
 ## Step 5, second pass, as built: the bed, the airway, and playability
 
 **Owner (2026-10-21), after playing:** the debrief's layout broke in German; it said "still in arrest (VF)" when he was breathing with a sinus rhythm at the end; "Start again" hung on "Preparing the patient…"; the interface felt illogical and unresponsive at times; he lay down flat by himself; nobody set the bed up for CPR or checked the airway ("What if he has a bolus in his throat?").

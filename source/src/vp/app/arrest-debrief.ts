@@ -20,6 +20,9 @@ const T: Record<string, LocalizedText> = {
     'Was Sie getan haben, gemessen an der ERC-Leitlinie 2025, auf einer Zeitachse mit dem, was der Patient tat. Bewertet wird, wie genau Sie der Leitlinie gefolgt sind, nicht ob er überlebt hat: sein Verlauf ist der des Modells und zum Teil Zufall.'),
   outcomeRosc: L('He has a circulation at the end.', 'Am Ende hat er einen Kreislauf.'),
   outcomeNone: L('He is still in arrest at the end.', 'Am Ende ist er noch im Kreislaufstillstand.'),
+  setSurprise: L('The surprise: this run was set up.', 'Die Überraschung: Dieser Durchgang war angelegt.'), setLesson: L('The lesson you chose:', 'Die gewählte Lektion:'),
+  setSurpriseNone: L('The surprise: nothing was set up.', 'Die Überraschung: Nichts war angelegt.'), setChance: L('Pure chance:', 'Reiner Zufall:'),
+  setNone: L('Everything that happened by chance (shocks, recurrence, gasping, what was in his airway) was the model’s own draw.', 'Alles, was vom Zufall abhing (Schocks, Rückfall, Schnappatmung, was im Atemweg war), war die eigene Ziehung des Modells.'),
   sVf: L('VF', 'Kammerflimmern'), sVt: L('VT', 'Kammertachykardie'), sAsys: L('asystole', 'Asystolie'), sPea: L('organised rhythm, no pulse', 'organisierter Rhythmus ohne Puls'), sPulse: L('circulation (pulse)', 'Kreislauf (Puls)'),
   atEnd: L('At the end ({t}): {state}, {breath}.', 'Am Ende ({t}): {state}, {breath}.'),
   bNormal: L('breathing on his own', 'atmet selbst'), bGasping: L('gasping', 'Schnappatmung'), bNone: L('not breathing', 'keine Eigenatmung'), bFailing: L('a few slow, shallow breaths', 'einzelne langsame, flache Atemzüge'),
@@ -64,7 +67,17 @@ export function heartCourse(onset: number | null, g: GuidelineDef, trace: TraceR
   return out;
 }
 
-export function debriefHtml(rep: GuidelineReport, g: GuidelineDef, run: DebriefRun, lang: Lang, opts: { canReturn: boolean }): string {
+/** How the run was chosen, and the nudge it carried (ADR-018 decision 6c): said in the debrief, never before. */
+export interface DebriefSetup { choice: 'surprise' | 'chance' | 'lesson'; nudge: { label: LocalizedText; explain: LocalizedText } | null }
+
+const setupHtml = (s: DebriefSetup | undefined, lang: Lang): string => {
+  if (!s) return '';
+  const t = (k: string) => tr(T[k], lang);
+  if (s.nudge) return `<div class="ar-db-setup set" role="note"><b>${s.choice === 'surprise' ? t('setSurprise') : t('setLesson')}</b> ${tr(s.nudge.label, lang)}. ${tr(s.nudge.explain, lang)}</div>`;
+  return `<div class="ar-db-setup" role="note"><b>${s.choice === 'surprise' ? t('setSurpriseNone') : t('setChance')}</b> ${t('setNone')}</div>`;
+};
+
+export function debriefHtml(rep: GuidelineReport, g: GuidelineDef, run: DebriefRun, lang: Lang, opts: { canReturn: boolean; setup?: DebriefSetup }): string {
   const t = (k: string) => tr(T[k], lang);
   const last = run.trace.at(-1);
   const course = heartCourse(rep.onset, g, run.trace);
@@ -105,6 +118,7 @@ export function debriefHtml(rep: GuidelineReport, g: GuidelineDef, run: DebriefR
   return `<section class="panel ar-debrief" aria-labelledby="ar-db-h">
       <div class="st-row"><div><h2 id="ar-db-h">${t('title')}</h2><p class="muted small">${t('lede')}</p></div>
         <span class="ar-head-buttons">${opts.canReturn ? `<button type="button" class="ghost" data-db-back>${t('back')}</button>` : ''}<button type="button" class="primary" data-db-again>${t('again')}</button></span></div>
+      ${setupHtml(opts.setup, lang)}
       <div class="ar-db-top">${ring}<div><p class="ar-db-outcome"><b>${outcome}</b></p><p class="small">${endLine}</p>${courseLine ? `<p class="muted small">${t('course')}: ${courseLine}</p>` : ''}<p class="muted small">${t('ringNote')}</p></div></div>
       <h3>${t('measures')}</h3>
       <dl class="ar-nums">

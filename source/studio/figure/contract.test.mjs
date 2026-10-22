@@ -39,7 +39,10 @@ const patients = readdirSync(src).filter((f) => f.endsWith('.json')).map((f) => 
 patients.push({ age: 28, sex: 'M', appearance: { skinTone: 6, hair: 'black, short curly', build: 'average' } }, { age: 55, sex: 'F', appearance: { skinTone: 5, hair: 'black, braids', build: 'heavy' } });
 const states = [{ exposure: [] }, { exposure: ['chest', 'neck', 'arm'] }, { exposure: ['abdomen'] }, { exposure: [], oxygen: { device: 'nasal cannula 2 L/min', fio2: 0.28 } }];
 
-const parse = (markup) => new JSDOM(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 380"><g id="fig">${markup}</g></svg>`, { contentType: 'image/svg+xml' }).window.document;
+/* One window's XML parser for every drawing: a new JSDOM window per drawing was never freed, and the hundreds of them ran
+   the default Node heap (about 2 GB on an 8 GB machine) out of memory. The parse is the same: XML, with parsererror. */
+const { DOMParser } = new JSDOM('').window;
+const parse = (markup) => new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 380"><g id="fig">${markup}</g></svg>`, 'image/svg+xml');
 const REGIONS = [['head'], ['neck'], ['chest'], ['abdomen'], ['arm', 'R'], ['arm', 'L'], ['legs', 'R'], ['legs', 'L']];
 const problems = [];
 for (const [pi, p] of patients.entries()) for (const st of states) for (const k of APP_POSES) {
