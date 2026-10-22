@@ -1293,6 +1293,16 @@ console.log('\nThe ECG against human data');
   const rrS = 60 / fast.HR, sagie = 385 - 154 * (1 - rrS);
   ok('QT shortens with rate as in Framingham (Sagie: QT = QT₁ − 154·(1 − RR)), so Bazett’s QTc reads longer at a fast rate',
     Math.abs(fast.QT - sagie) < 15 && fast.QTc > H.QTc, `HR ${fast.HR}: QT ${fast.QT} (Sagie ${sagie.toFixed(0)}), QTc ${fast.QTc} vs ${H.QTc} at rest`);
+  /* The axes as the standard 12-lead ECG reads them (I and aVF on Einthoven's circle: ADR-017, 9c), against Rijnbeek 2014
+     (13,354 healthy Dutch adults, MEANS; men 40–49, median (2nd, 98th percentile)): QRS 69° (−40, 97), P 61° (−1, 82),
+     T 54° (−2, 81). The healthy model is a man of 45. A median is matched within half the distance to its nearer limit. */
+  const R = { qrs: [69, -40, 97], p: [61, -1, 82], t: [54, -2, 81] };
+  const near = ([m, lo, hi], v) => Math.abs(v - m) <= Math.min(m - lo, hi - m) / 2;
+  ok('the axes within Rijnbeek 2014’s limits for men of 40–49 (2nd to 98th percentile): QRS −40° to 97°, P −1° to 82°, T −2° to 81°',
+    H.qrsAxis >= -40 && H.qrsAxis <= 97 && H.pAxis >= -1 && H.pAxis <= 82 && H.tAxis >= -2 && H.tAxis <= 81, `QRS ${H.qrsAxis}°, P ${H.pAxis}°, T ${H.tAxis}°`);
+  ok('the QRS axis at Rijnbeek’s median for men of 40–49 (69°)', near(R.qrs, H.qrsAxis), `${H.qrsAxis}° (the vector's own frontal angle, which is not the ECG axis: ${H.vcgAxis}°)`);
+  gap('the P axis at Rijnbeek’s median for men of 40–49 (61°)', near(R.p, H.pAxis), `${H.pAxis}°`);
+  gap('the T axis at Rijnbeek’s median for men of 40–49 (54°)', near(R.t, H.tAxis), `${H.tAxis}°`);
 }
 
 console.log('\nThe lungs against human data');

@@ -123,6 +123,25 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
   - fascicular blocks (left anterior and posterior);
   - an old infarct with Q waves: its infarcts are acute. The inferior infarct is therefore not among the "see it move" buttons; the text says so.
 
+### 9c. One axis (owner, 2026-10-21: "merge it, then separate PR")
+
+- **The axis is the standard 12-lead ECG's reading everywhere.** It is read from leads I and aVF on Einthoven's ideal circle, as a machine or a reader takes it (`axisFromIandAvf` in `measurements/ecg.ts`): I = |M| cos θ, aVF = (√3/2)|M| sin θ. This is used for:
+  - the electrical model's metrics (`qrsAxis`, `pAxis`, `tAxis`; `standardAxisOf` on Dower's standard lead vectors);
+  - the machine's measurement on a recorded tracing (`measuredAxis`, which had used atan2(aVF, I) without the √3/2);
+  - the station's axis pane;
+  - the observables' normal example.
+- **The vector's own direction** in Frank's frontal plane (what a vectorcardiogram shows) is kept as `vcgAxis` and is not called "the axis". Dower's lead vectors see the chest askew (lead I at about −20°), so the two differ: healthy, 71° against 46°. The station no longer shows the second number; the "Why a lead sees what it sees" text explains the difference.
+- **Against human data** (Rijnbeek 2014, 13,354 healthy Dutch adults, men 40–49, median (2nd, 98th percentile)):
+
+  | Axis | Reference | Model | Result |
+  |---|---|---|---|
+  | QRS | 69° (−40, 97) | 71° | matches |
+  | P | 61° (−1, 82) | 80° | within the limits but 19° above the median: known gap 33 |
+  | T | 54° (−2, 81) | 72° | within the limits but 18° above the median: known gap 34 |
+
+  The old body-frame QRS angle (46°) would have been 23° below the median. Nothing was tuned.
+- **What moved:** under the one definition the presets read: LVH 59°, RVH 102°, LBBB 4°, RBBB 89°, WPW 77°, VT −104°, complete heart block's escape −63°.
+
 ## Steps
 
 1. **The ECG station, Explore** (this PR): the activation log in the electrical model, with tests; the station screen with settings, strip, ladder, cursor, conduction heart and explanations in EN and DE; a Stations card on the Ward.

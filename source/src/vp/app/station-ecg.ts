@@ -96,7 +96,6 @@ const T: Record<string, LocalizedText> = {
   quick: L('Lead I {i}, aVF {f}.', 'Ableitung I {i}, aVF {f}.'), pos: L('positive', 'positiv'), neg: L('negative', 'negativ'),
   iso: L('Most nearly isoelectric: {lead} ({ang}); the axis lies at right angles to it, towards the more positive side.', 'Am ehesten isoelektrisch: {lead} ({ang}); die Achse steht senkrecht dazu, zur positiveren Seite hin.'),
   misread: L('With the electrodes in their standard places this ECG would read {true}; through these electrodes it reads {read}. The machine assumes the standard positions.', 'Mit den Elektroden an ihren Standardpositionen läge die Achse bei {true}; über diese Elektroden gelesen zeigt das EKG {read}. Das Gerät nimmt die Standardpositionen an.'),
-  ownDir: L('(The heart’s own mean vector, in the model’s body coordinates: {a}; the leads see it a little askew, see “Why a lead sees what it sees”.)', '(Der mittlere Vektor des Herzens selbst, in den Körperkoordinaten des Modells: {a}; die Ableitungen sehen ihn etwas schief, siehe „Warum eine Ableitung sieht, was sie sieht“.)'),
   focusLine: L('{lead} sees the vector’s shadow on its axis: {sign}.', '{lead} sieht den Schatten des Vektors auf seiner Achse: {sign}.'),
   shadowPos: L('positive, towards its positive pole', 'positiv, zu ihrem positiven Pol hin'), shadowNeg: L('negative, away from it', 'negativ, von ihm weg'),
   tryH: L('See it move', 'Sehen, wie sie wandert'), swapArms: L('Swap the arm electrodes', 'Armelektroden vertauschen'), standardEl: L('Electrodes back to standard', 'Elektroden auf Standard'),
@@ -115,8 +114,8 @@ const T: Record<string, LocalizedText> = {
   axHowH: L('Reading it in ten seconds', 'Sie in zehn Sekunden ablesen'),
   axHow: L('Look at I and aVF. Both positive: normal. I positive, aVF negative: left, unless II is still positive (then normal, down to −30°). I negative, aVF positive: right. Both negative: extreme. Then find the lead whose QRS is most nearly isoelectric: the axis is at right angles to it, on the side of the lead whose QRS is most positive.',
     'Schauen Sie auf I und aVF. Beide positiv: normal. I positiv, aVF negativ: links, es sei denn, II ist noch positiv (dann normal, bis −30°). I negativ, aVF positiv: rechts. Beide negativ: extrem. Dann suchen Sie die Ableitung, deren QRS am ehesten isoelektrisch ist: Die Achse steht senkrecht dazu, auf der Seite der Ableitung mit dem positivsten QRS.'),
-  axIdeal: L('The circle is Einthoven’s ideal one. In a real chest the leads look a little askew (Burger’s triangle is not equilateral): in this model’s torso, lead I points at {I}, aVF at {F}. The axis an ECG machine reports, and the one read here, assumes the ideal circle; the heart’s own direction can differ by some degrees.',
-    'Der Kreis ist Einthovens ideales Schema. In einem echten Thorax blicken die Ableitungen etwas schief (Burgers Dreieck ist nicht gleichseitig): im Thorax dieses Modells zeigt Ableitung I auf {I}, aVF auf {F}. Die Achse, die ein EKG-Gerät angibt und die hier abgelesen wird, setzt den idealen Kreis voraus; die Richtung des Herzens selbst kann um einige Grad abweichen.'),
+  axIdeal: L('The circle is Einthoven’s ideal one. In a real chest the leads look a little askew (Burger’s triangle is not equilateral): in this model’s torso, lead I points at {I}, aVF at {F}. The axis an ECG machine reports, and the one read here and everywhere in this app, assumes the ideal circle; the vector’s own direction in the chest (what a vectorcardiogram shows) differs from it by some degrees.',
+    'Der Kreis ist Einthovens ideales Schema. In einem echten Thorax blicken die Ableitungen etwas schief (Burgers Dreieck ist nicht gleichseitig): im Thorax dieses Modells zeigt Ableitung I auf {I}, aVF auf {F}. Die Achse, die ein EKG-Gerät angibt und die hier und überall in dieser Anwendung abgelesen wird, setzt den idealen Kreis voraus; die eigene Richtung des Vektors im Thorax (was ein Vektorkardiogramm zeigt) weicht um einige Grad davon ab.'),
   axSource: L('Ranges: AHA/ACCF/HRS recommendations for the standardization and interpretation of the ECG (2009).', 'Bereiche: AHA/ACCF/HRS-Empfehlungen zur Standardisierung und Interpretation des EKG (2009).'),
 };
 /* The patterns Identify hides: the station's presets, with a healthy heart among them. Ventricular fibrillation is left
@@ -609,7 +608,6 @@ export function mountEcgStation(host: HTMLElement, o: StationOptions): StationHa
       t('iso').replace('{lead}', `<b>${iso.name}</b>`).replace('{ang}', signDeg(angleOf(iso.a, iso.b))),
     ];
     if (misread) parts.push(`<span class="abn">${t('misread').replace('{true}', signDeg(stdAx)).replace('{read}', signDeg(readAx))}</span>`);
-    else parts.push(`<span class="muted">${t('ownDir').replace('{a}', signDeg(trueAx))}</span>`);
     if (f) parts.push(t('focusLine').replace('{lead}', `<b>${f.name}</b>`).replace('{sign}', t(f.area >= 0 ? 'shadowPos' : 'shadowNeg')));
     const box = host.querySelector<HTMLElement>('[data-axis-now]'); if (box) box.innerHTML = parts.join(' ');
   };
