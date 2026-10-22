@@ -459,6 +459,54 @@ console.log('\nBefore the first compression: the bed, the breathing, the mouth (
   ok('the validator refuses an obstruction chance outside 0–1', errors(S.validateScenario(bad, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).some((i) => /obstruction/.test(i.message)));
 }
 
+console.log('\nTeaching nudges (ADR-018 decision 6c): a set-up fixes one chance draw, and is recorded');
+{
+  const K = structuredClone(scenarioOf('arrest-practice'));
+  for (const e of K.scene.equipment) e.present = true;
+  K.machine.states.arrest.enter = K.machine.states.arrest.enter.filter((d) => !('leave' in d) && !('arrive' in d));
+  const shockOnce = (r) => { r.intervene('defib.charge', 'nurse'); r.advanceTo(r.t + 7.2); r.intervene('defib.shock', 'nurse'); r.advanceTo(r.t + 0.2); return kinds(r, 'shock').at(-1); };
+  const padsOn = (r) => { r.advanceTo(5); r.intervene('defib.pads', 'nurse'); r.advanceTo(25); };
+
+  ok('a run refuses a nudge its scenario does not offer', (() => { try { start(scenarioOf('copd-ed-oxygen'), 1, undefined, { nudge: 'gasping' }); return false; } catch { return true; } })());
+  const bad = structuredClone(K); bad.nudges.push({ id: 'magic', label: { en: 'x', de: 'x' }, explain: { en: 'x', de: 'x' } });
+  ok('the validator refuses a nudge the run does not know', errors(S.validateScenario(bad, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).some((i) => /not a nudge/.test(i.message)));
+
+  /* refractory VF: the first one to three shocks fail, however the draws fall */
+  const rf = start(K, 7, S.FREE_CASE, { nudge: 'refractory-vf' });
+  padsOn(rf);
+  const outs = []; for (let k = 0; k < 4; k++) { if (rf.rhythm() !== 'vf') break; outs.push(shockOnce(rf).outcome); rf.advanceTo(rf.t + 2); }
+  const fails = kinds(rf, 'chance').filter((e) => e.stream === 'shock' && /set up/.test(e.use)).length;
+  ok('refractory VF: the run says it was set up, and that many shocks (1 to 3) fail, each marked "set up"', kinds(rf, 'nudge')[0]?.id === 'refractory-vf' && fails >= 1 && fails <= 3 && outs.slice(0, fails).every((o) => o === 'not-terminated'), J(outs));
+
+  /* VF returns: the first shock ends it, and it comes back */
+  const vr = start(K, 8, S.FREE_CASE, { nudge: 'vf-returns' });
+  padsOn(vr);
+  const first = shockOnce(vr);
+  vr.advanceTo(vr.t + 400);
+  ok('VF returns: the first shock ends the fibrillation in an organised rhythm, and VF comes back', first.outcome === 'organised' && kinds(vr, 'refibrillation').length >= 1, `${first.outcome}, ${kinds(vr, 'refibrillation').length} recurrence`);
+
+  /* good CPR rewarded: not without CPR, and yes after two minutes of it */
+  const no = start(K, 9, S.FREE_CASE, { nudge: 'rosc-for-good-cpr' });
+  padsOn(no);
+  shockOnce(no);
+  ok('good CPR rewarded: a shock without CPR before it is left to chance (not marked set up)', !kinds(no, 'chance').some((e) => e.stream === 'shock' && /set up/.test(e.use)));
+  const yes = start(K, 9, S.FREE_CASE, { nudge: 'rosc-for-good-cpr' });
+  yes.advanceTo(5); yes.intervene('bed.flat', 'nurse'); yes.advanceTo(8.2); yes.assign('compressions', 'nurse'); yes.intervene('defib.pads', 'learner');
+  yes.advanceTo(140); yes.intervene('defib.charge', 'learner'); yes.advanceTo(147.4); yes.release('compressions', 'nurse'); yes.advanceTo(148); yes.intervene('defib.shock', 'learner'); yes.advanceTo(148.4);
+  const ys = kinds(yes, 'shock').at(-1);
+  ok('…and after two minutes of good compressions the shock ends it in an organised rhythm, without a recurrence', ys?.outcome === 'organised' && (yes.advanceTo(400), kinds(yes, 'refibrillation').length === 0), J(ys));
+
+  /* gasping and the bolus: the draws that would have said no are overruled, and say so */
+  let noGasp = null; for (let seed = 1; seed < 60 && noGasp == null; seed++) { if (!(start(K, seed, S.FREE_CASE).live.run.resp.gaspFor > 0)) noGasp = seed; }
+  const ga = start(K, noGasp, S.FREE_CASE, { nudge: 'gasping' });
+  ok('gasping: a patient whose draw said he would not gasp, gasps', ga.live.run.resp.gaspFor > 0 && /set up/.test(kinds(ga, 'chance').find((e) => e.stream === 'gasp').use), `seed ${noGasp}`);
+  let clear = null; for (let seed = 1; seed < 60 && clear == null; seed++) { if (!start(K, seed, S.FREE_CASE).obstruction) clear = seed; }
+  ok('the bolus: a run whose draw had none has one', start(K, clear, S.FREE_CASE, { nudge: 'bolus' }).obstruction === 'bolus');
+
+  const R = S.replay(K, { seed: 7, caseDef: S.FREE_CASE, nudge: 'refractory-vf', log: rf.log, until: rf.t });
+  ok('a nudged run replays exactly, nudge and all', fingerprint(R) === fingerprint(rf) && J(kinds(R, 'shock')) === J(kinds(rf, 'shock')));
+}
+
 console.log('\nThe case’s course on the scenario’s clock');
 {
   const run = start(VEST, 1);

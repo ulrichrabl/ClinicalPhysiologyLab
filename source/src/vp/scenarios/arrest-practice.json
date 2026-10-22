@@ -1,7 +1,7 @@
 {
   "schema": "vp.scenario/1",
   "id": "arrest-practice",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "status": "draft",
   "title": {
     "en": "Practice: cardiac arrest",
@@ -171,5 +171,62 @@
         "final": true
       }
     }
-  }
+  },
+  "nudges": [
+    {
+      "id": "refractory-vf",
+      "label": {
+        "en": "The shocks do not work at first",
+        "de": "Die Schocks wirken zunächst nicht"
+      },
+      "explain": {
+        "en": "This run was set up so that the first one to three shocks (drawn) do not end the fibrillation: refractory VF. The lesson is to keep the two-minute cycles going, give adrenaline after the third shock and amiodarone with it, and keep the compressions good between shocks.",
+        "de": "Dieser Durchgang war so angelegt, dass die ersten ein bis drei Schocks (gezogen) das Flimmern nicht beenden: therapierefraktäres Kammerflimmern. Die Lektion: die Zwei-Minuten-Zyklen fortführen, nach dem dritten Schock Adrenalin und Amiodaron geben und zwischen den Schocks gut drücken."
+      }
+    },
+    {
+      "id": "vf-returns",
+      "label": {
+        "en": "The first shock works, then VF comes back",
+        "de": "Der erste Schock wirkt, dann kommt das Kammerflimmern zurück"
+      },
+      "explain": {
+        "en": "This run was set up so that the first shock ended the fibrillation and it came back. The lesson is to recognise the recurrence at the next rhythm check (or on the monitor) and to shock again; it counts towards the shocks for amiodarone.",
+        "de": "Dieser Durchgang war so angelegt, dass der erste Schock das Flimmern beendete und es zurückkam. Die Lektion: das Wiederauftreten bei der nächsten Rhythmuskontrolle (oder am Monitor) erkennen und erneut schocken; es zählt zu den Schocks für Amiodaron."
+      }
+    },
+    {
+      "id": "rosc-for-good-cpr",
+      "label": {
+        "en": "Good CPR is rewarded",
+        "de": "Gute Reanimation wird belohnt"
+      },
+      "explain": {
+        "en": "This run was set up so that the first shock given after good CPR (compressions over at least 80 % of the preceding two minutes) ends the fibrillation in an organised rhythm, without a recurrence. Whether that rhythm makes a pulse is still the model's: it depends on how well the heart muscle was perfused.",
+        "de": "Dieser Durchgang war so angelegt, dass der erste Schock nach guter Reanimation (Kompressionen in mindestens 80 % der vorangegangenen zwei Minuten) das Flimmern in einen organisierten Rhythmus beendet, ohne Rückfall. Ob dieser Rhythmus einen Puls macht, entscheidet weiterhin das Modell: es hängt davon ab, wie gut der Herzmuskel durchblutet war."
+      }
+    },
+    {
+      "id": "gasping",
+      "label": {
+        "en": "He gasps",
+        "de": "Er hat Schnappatmung"
+      },
+      "explain": {
+        "en": "This run was set up so that he gasps after the collapse. Gasping is not breathing: an unresponsive patient who gasps is in cardiac arrest, and compressions should start without delay.",
+        "de": "Dieser Durchgang war so angelegt, dass er nach dem Kollaps Schnappatmung hat. Schnappatmung ist keine Atmung: Ein reaktionsloser Patient mit Schnappatmung hat einen Kreislaufstillstand, und die Kompressionen sollten ohne Verzögerung beginnen."
+      }
+    },
+    {
+      "id": "bolus",
+      "label": {
+        "en": "Something in his airway",
+        "de": "Etwas in seinem Atemweg"
+      },
+      "explain": {
+        "en": "This run was set up with a bolus of food in his pharynx. The lesson is to notice that the chest does not rise, look in the mouth, and take it out (suction, Magill forceps) as soon as the kit is there.",
+        "de": "Dieser Durchgang war mit einem Speisebrocken im Rachen angelegt. Die Lektion: bemerken, dass sich der Thorax nicht hebt, in den Mund schauen und ihn entfernen (Absaugen, Magill-Zange), sobald das Material da ist."
+      }
+    }
+  ]
 }
