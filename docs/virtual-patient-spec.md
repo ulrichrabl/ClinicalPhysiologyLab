@@ -182,7 +182,7 @@ honestly.
 ```
 action      := verb  target?  qualifier*
 verb        := inspect | palpate | percuss | auscultate | measure | test
-             | ask | instruct | position | expose | order | give
+             | ask | instruct | position | expose | cover | order | give
 target      := body site   (from the anatomical site ontology, with side)
 qualifier   := side (left | right | both)
              | instrument (diaphragm | bell | tendon hammer | tuning fork 128/512 Hz

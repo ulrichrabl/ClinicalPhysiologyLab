@@ -135,9 +135,12 @@ export function perform(s: Session, manoeuvreId: string, side?: Side, extra: Exa
     push(s, { t: s.t, kind: 'hazard', code: 'no-consent', byManoeuvre: m.id });
   }
 
-  if (m.sets) {
+  if (m.sets || m.clears) {
     const change: Partial<PatientState> = { ...m.sets };
-    if (m.sets.exposure) change.exposure = [...new Set([...(s.state.exposure ?? []), ...m.sets.exposure])];
+    if (m.sets?.exposure || m.clears?.exposure) {
+      const remaining = (s.state.exposure ?? []).filter((area) => !(m.clears?.exposure ?? []).includes(area));
+      change.exposure = [...new Set([...remaining, ...(m.sets?.exposure ?? [])])];
+    }
     Object.assign(s.state, change);
     push(s, { t: s.t, kind: 'state', change });
   }

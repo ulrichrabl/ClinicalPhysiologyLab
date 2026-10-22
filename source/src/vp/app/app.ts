@@ -1116,6 +1116,7 @@ export function mount(root: HTMLElement) {
     if (m.sets?.position) return st.position === m.sets.position;
     if (m.sets?.oxygen) return (st.oxygen?.fio2 ?? 0.21) <= 0.21 ? m.sets.oxygen.fio2 <= 0.21 : st.oxygen?.device === m.sets.oxygen.device;
     if (m.verb === 'expose') return (st.exposure ?? []).includes(m.target);
+    if (m.verb === 'cover') return (m.clears?.exposure ?? []).every((area) => !(st.exposure ?? []).includes(area));
     return false;
   };
   const renderCare = () => {
@@ -1306,7 +1307,7 @@ export function mount(root: HTMLElement) {
     const name = `<button type="button" class="chip" data-sign="${it.ref}">${present ? '' : `${esc(t('absentSign'))} `}${esc(signLabel(it.ref))}${esc(sideWord(it.side))}</button>`;
     const testName = (id: string) => esc(tr(CATALOG.manoeuvres[id]?.label ?? CATALOG.investigations[id]?.label ?? { en: id, de: id }, lang));
     const showing = [...new Set([...testsForSign(KNOWLEDGE, CATALOG, it.ref), ...Object.values(KNOWLEDGE.presentations).filter((p) => p.signs.includes(it.ref)).flatMap((p) => p.tests)])]
-      .filter((id) => !['position', 'give', 'expose'].includes(CATALOG.manoeuvres[id]?.verb ?? ''));
+      .filter((id) => !['position', 'give', 'expose', 'cover'].includes(CATALOG.manoeuvres[id]?.verb ?? ''));
     const how = e.elicited
       ? (e.shown ? `${t(present ? 'foundWith' : 'lookedForBy')}: ${testName(e.shown.test)}${esc(sideWord(e.shown.side))}` : `${t('foundWith')}: ${showing.filter((id) => s!.done.has(id)).map(testName).join(', ')}`)
       : `${t('shownBy')}: ${showing.map(testName).join(', ') || '—'}`;

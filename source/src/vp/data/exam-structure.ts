@@ -88,9 +88,9 @@ export const EXAM_SYSTEMS: ExamSystemDef[] = [
   {
     id: 'care', label: { en: 'Position and treat', de: 'Lagern und behandeln' },
     sections: [
-      { id: 'care.position', label: { en: 'Position and expose', de: 'Lagern und freimachen' }, kind: 'intervene', layout: 'chips',
+      { id: 'care.position', label: { en: 'Position, expose and cover', de: 'Lagern, freimachen und zudecken' }, kind: 'intervene', layout: 'chips',
         manoeuvres: ['position.supine', 'position.reclined-45', 'position.sitting', 'position.sitting-forward', 'position.left-lateral', 'position.standing',
-          'expose.chest', 'expose.abdomen'] },
+          'expose.chest', 'expose.abdomen', 'cover.chest', 'cover.abdomen'] },
       { id: 'care.oxygen', label: { en: 'Oxygen', de: 'Sauerstoff' }, kind: 'intervene', layout: 'select',
         manoeuvres: ['give.oxygen.nasal-2', 'give.oxygen.venturi-28', 'give.oxygen.venturi-35', 'give.oxygen.mask-6', 'give.oxygen.nrb-15', 'give.oxygen.off'] },
     ],
@@ -107,6 +107,8 @@ export const SHORT_LABELS: Record<string, { en: string; de: string }> = {
   'position.standing': { en: 'Standing', de: 'Stehend' },
   'expose.chest': { en: 'Expose chest', de: 'Thorax frei' },
   'expose.abdomen': { en: 'Expose abdomen', de: 'Abdomen frei' },
+  'cover.chest': { en: 'Cover chest', de: 'Thorax bedecken' },
+  'cover.abdomen': { en: 'Cover abdomen', de: 'Abdomen bedecken' },
   'give.oxygen.nasal-2': { en: 'Nasal 2 L', de: 'Nasenbrille 2 l' },
   'give.oxygen.venturi-28': { en: 'Venturi 28 %', de: 'Venturi 28 %' },
   'give.oxygen.venturi-35': { en: 'Venturi 35 %', de: 'Venturi 35 %' },

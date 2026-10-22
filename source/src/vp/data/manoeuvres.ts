@@ -590,4 +590,16 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     phrases: { en: ['expose the abdomen', 'uncover the tummy'], de: ['bauch freimachen', 'abdomen freimachen'] },
     reveals: [], sets: { exposure: ['abdomen'] }, requires: { consent: 'verbal' }, durationSeconds: 15,
   },
+  {
+    id: 'cover.chest', verb: 'cover', target: 'chest',
+    label: { en: 'Cover the chest', de: 'Thorax wieder bedecken' },
+    phrases: { en: ['cover the chest', 'cover chest', 'drape the chest', 'put the shirt back on'], de: ['thorax bedecken', 'oberkörper bedecken', 'brustkorb bedecken', 'wieder zudecken'] },
+    reveals: [], clears: { exposure: ['chest', 'neck', 'arm'] }, durationSeconds: 15,
+  },
+  {
+    id: 'cover.abdomen', verb: 'cover', target: 'abdomen',
+    label: { en: 'Cover the abdomen', de: 'Abdomen wieder bedecken' },
+    phrases: { en: ['cover the abdomen', 'cover abdomen', 'drape the abdomen'], de: ['abdomen bedecken', 'bauch bedecken', 'abdomen zudecken', 'bauch zudecken'] },
+    reveals: [], clears: { exposure: ['abdomen'] }, durationSeconds: 10,
+  },
 ];
