@@ -7,6 +7,7 @@ import { FREE_CASE } from './free-case.ts';
 import arrestPractice from '../scenarios/arrest-practice.json';
 import arrestPe from '../scenarios/arrest-pe.json';
 import arrestTension from '../scenarios/arrest-tension.json';
+import arrestBleeding from '../scenarios/arrest-bleeding.json';
 import ercAls2025 from '../guidelines/erc-2025-als.json';
 import type { GuidelineDef } from '../guidelines/types.ts';
 import { scoreRun } from '../guidelines/score.ts';
@@ -87,11 +88,12 @@ const T: Record<string, LocalizedText> = {
   you: L('You', 'Sie'), nurseName: L('Nurse', 'Pflegekraft'), patient: L('Patient', 'Patient'),
   blocked: L('Not now', 'Jetzt nicht'),
   reasons_busy: L('your hands are busy', 'Ihre Hände sind beschäftigt'), reasons_absent: L('not here yet', 'noch nicht da'),
-  draft: L('Draft for review: the physiology is from ADR-018 steps 1–4 (compressions, breathing in arrest, given breaths, the heart in arrest and the shock, adrenaline and amiodarone; alteplase dissolving a pulmonary embolism; a tension pneumothorax and its decompression); the scene, the wording and the layout are first attempts. The monitor’s labels and the numbers are the model’s own.',
-    'Entwurf zur Durchsicht: die Physiologie stammt aus ADR-018, Schritte 1–4 (Kompressionen, Atmung im Stillstand, Beatmung, das Herz im Stillstand und der Schock, Adrenalin und Amiodaron; Alteplase, die eine Lungenembolie auflöst; ein Spannungspneumothorax und seine Entlastung); Szene, Wortlaut und Gestaltung sind erste Versuche. Beschriftungen und Zahlen des Monitors stammen aus dem Modell.'),
+  draft: L('Draft for review: the physiology is from ADR-018 steps 1–4 (compressions, breathing in arrest, given breaths, the heart in arrest and the shock, adrenaline and amiodarone; alteplase dissolving a pulmonary embolism; a tension pneumothorax and its decompression; blood loss and fluids); the scene, the wording and the layout are first attempts. The monitor’s labels and the numbers are the model’s own.',
+    'Entwurf zur Durchsicht: die Physiologie stammt aus ADR-018, Schritte 1–4 (Kompressionen, Atmung im Stillstand, Beatmung, das Herz im Stillstand und der Schock, Adrenalin und Amiodaron; Alteplase, die eine Lungenembolie auflöst; ein Spannungspneumothorax und seine Entlastung; Blutverlust und Volumen); Szene, Wortlaut und Gestaltung sind erste Versuche. Beschriftungen und Zahlen des Monitors stammen aus dem Modell.'),
   drugs: L('Line and drugs', 'Zugang und Medikamente'), gNotHere: L('on the trolley, on its way', 'auf dem Notfallwagen, unterwegs'), gNoLine: L('no line yet', 'noch kein Zugang'), gLine: L('line in', 'Zugang liegt'),
   gAdrAgo: L('adrenaline {n} mg, last {t} ago', 'Adrenalin {n} mg, zuletzt vor {t}'), gAmio: L('amiodarone {n} mg', 'Amiodaron {n} mg'),
-  iv: L('IV cannula', 'Venenzugang legen'), adr: L('Adrenaline 1 mg', 'Adrenalin 1 mg'), amio300: L('Amiodarone 300 mg', 'Amiodaron 300 mg'), amio150: L('Amiodarone 150 mg', 'Amiodaron 150 mg'), lysis: L('Alteplase 50 mg (lysis)', 'Alteplase 50 mg (Lyse)'),
+  iv: L('IV cannula', 'Venenzugang legen'), adr: L('Adrenaline 1 mg', 'Adrenalin 1 mg'), amio300: L('Amiodarone 300 mg', 'Amiodaron 300 mg'), amio150: L('Amiodarone 150 mg', 'Amiodaron 150 mg'), lysis: L('Alteplase 50 mg (lysis)', 'Alteplase 50 mg (Lyse)'), fluid: L('Fluid bolus 500 mL', 'Volumenbolus 500 mL'),
+  gFluid: L('{n} mL fluid', '{n} mL Volumen'), reasons_equipment_fluids: L('the fluids are on the arrest trolley', 'die Infusionen sind am Notfallwagen'),
   gLysis: L('alteplase given', 'Alteplase gegeben'),
   logIv: L('has a line in', 'hat einen Venenzugang gelegt'), logDose: L('gives {drug} {mg} mg IV', 'gibt {drug} {mg} mg i.v.'),
   nameAdr: L('adrenaline', 'Adrenalin'), nameAmio: L('amiodarone', 'Amiodaron'),
@@ -162,7 +164,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const t = (k: string) => tr(T[k], lang);
   /* The arrests to practise (owner, 2026-10-23: every PEA situation). A surprise or pure chance picks one, so the learner
      meets the arrest without being told its cause; the debrief reveals it. Equal chances are a placement. */
-  const ARRESTS = [arrestPractice, arrestPe, arrestTension] as unknown as ScenarioDef[];
+  const ARRESTS = [arrestPractice, arrestPe, arrestTension, arrestBleeding] as unknown as ScenarioDef[];
   let def = ARRESTS[0];
   let run: ScenarioRun | null = null;
   let raf = 0, stopped = false, paused = false, debrief = false;
@@ -269,7 +271,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const drugsHtml = () => `<h3>${t('drugs')} <span class="muted small" data-drug-state></span></h3>
           <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-g="access.iv">${t('iv')}</button><button type="button" class="ghost small" data-g="drug.adrenaline">${t('adr')}</button>
             <button type="button" class="ghost small" data-g="drug.amiodarone.300">${t('amio300')}</button><button type="button" class="ghost small" data-g="drug.amiodarone.150">${t('amio150')}</button>
-            <button type="button" class="ghost small" data-g="drug.alteplase">${t('lysis')}</button></div>`;
+            <button type="button" class="ghost small" data-g="drug.alteplase">${t('lysis')}</button><button type="button" class="ghost small" data-g="fluid.bolus">${t('fluid')}</button></div>`;
   const teamHtml = (hint = true) => `<h3>${t('team')}</h3>
           ${hint ? `<p class="muted small">${t('teamHint')}</p>` : ''}
           <div class="ar-call" data-call>
@@ -605,7 +607,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     } else if (hit === 'head') { title = t('mHead'); items = [btn('[data-x="assess.breathing"]'), btn('[data-x="assess.mouth"]'), btn('[data-x="airway.clear"]'), btn('[data-bag]')]; }
     else if (hit === 'chest') { title = t('mChest'); items = [btn('[data-cpr]'), btn('[data-resume]'), btn('[data-d="pads"]'), btn('[data-d="check"]'), btn('[data-x="assess.chest"]'), btn('[data-x="decompress.left"]'), btn('[data-x="decompress.right"]')]; }
     else if (hit === 'bed') { title = t('mBed'); items = [btn('[data-x="bed.flat"]')]; }
-    else if (hit === 'arm') { title = t('mArm'); items = ['access.iv', 'drug.adrenaline', 'drug.amiodarone.300', 'drug.amiodarone.150', 'drug.alteplase'].map((g) => btn(`[data-g="${g}"]`)); }
+    else if (hit === 'arm') { title = t('mArm'); items = ['access.iv', 'drug.adrenaline', 'drug.amiodarone.300', 'drug.amiodarone.150', 'drug.alteplase', 'fluid.bolus'].map((g) => btn(`[data-g="${g}"]`)); }
     else if (hit === 'defib') { title = t('mDefib'); items = ['pads', 'charge', 'check', 'shock'].map((d) => btn(`[data-d="${d}"]`)); }
     items = items.filter((i) => i.label);
     if (!items.length) { closeMenu(); return; }
@@ -796,8 +798,10 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       if (adr.length) parts.push(t('gAdrAgo').replace('{n}', String(adr.reduce((a, d) => a + d.mg, 0))).replace('{t}', fmtT(run.t - adr.at(-1)!.t)));
       if (amio) parts.push(t('gAmio').replace('{n}', String(amio)));
       if (doses.some((d) => d.drug === 'alteplase')) parts.push(t('gLysis'));
+      const fluid = run.events.filter((e) => e.kind === 'done' && e.id === 'fluid.bolus').length * 500;
+      if (fluid) parts.push(t('gFluid').replace('{n}', String(fluid)));
       gs.textContent = parts.join(' · ');
-      host.querySelectorAll<HTMLButtonElement>('[data-g]').forEach((b) => { b.disabled = (b.dataset.g === 'drug.alteplase' ? !run!.equipment.has('thrombolytic') : !here) || (b.dataset.g === 'access.iv' ? line : !line); });
+      host.querySelectorAll<HTMLButtonElement>('[data-g]').forEach((b) => { b.disabled = (b.dataset.g === 'drug.alteplase' ? !run!.equipment.has('thrombolytic') : b.dataset.g === 'fluid.bolus' ? !run!.equipment.has('fluids') : !here) || (b.dataset.g === 'access.iv' ? line : !line); });
     }
     const bst = host.querySelector<HTMLElement>('[data-bed-state]');
     if (bst) {

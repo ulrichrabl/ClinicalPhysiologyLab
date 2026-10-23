@@ -1,0 +1,221 @@
+{
+  "schema": "vp.scenario/1",
+  "id": "arrest-bleeding",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": {
+    "en": "Practice: cardiac arrest from blood loss",
+    "de": "Übung: Herz-Kreislauf-Stillstand durch Blutverlust"
+  },
+  "caseId": "free-patient",
+  "purpose": "A non-shockable arrest with a reversible cause (owner, 2026-10-23: all PEA situations). A man with a duodenal ulcer vomits blood: for 45 s before he collapses he has lost about a third of his blood (3200 mL left, 74/60, heart rate 111) and then, with a second large vomit, half (2500 mL): his circulation empties below its unstressed volumes, no blood returns to the heart, and it keeps an organised rhythm without a pulse (PEA). Both volumes are placements inside what the model gives (since the vessels can collapse, a loss of about half stops the circulation; people decompensate earlier, at about 30 %, gap 38). The lesson: no shock, compressions, a large line, and fluids fast (500 mL boluses through a pressure bag; ERC: fluids only when the arrest is caused by hypovolaemia); about 1000 mL brings a pulse back. Stopping the bleeding (endoscopy) is outside the scene.",
+  "scene": {
+    "place": {
+      "en": "A side room on the medical ward",
+      "de": "Ein Nebenzimmer auf der internistischen Station"
+    },
+    "people": [
+      {
+        "id": "nurse",
+        "role": {
+          "en": "Nurse",
+          "de": "Pflegekraft"
+        },
+        "present": true
+      },
+      {
+        "id": "doctor",
+        "role": {
+          "en": "Doctor (arrest team)",
+          "de": "Ärztin (Reanimationsteam)"
+        },
+        "present": false
+      },
+      {
+        "id": "nurse2",
+        "role": {
+          "en": "Nurse (arrest team)",
+          "de": "Pflegekraft (Reanimationsteam)"
+        },
+        "present": false
+      }
+    ],
+    "equipment": [
+      {
+        "id": "bag-mask",
+        "label": {
+          "en": "Bag-valve-mask on the wall",
+          "de": "Beatmungsbeutel mit Maske an der Wand"
+        },
+        "present": true
+      },
+      {
+        "id": "defibrillator",
+        "label": {
+          "en": "Arrest trolley with a defibrillator",
+          "de": "Notfallwagen mit Defibrillator"
+        },
+        "present": false
+      },
+      {
+        "id": "cannula-kit",
+        "label": {
+          "en": "IV cannulas on the arrest trolley",
+          "de": "Venenverweilkanülen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "drugs",
+        "label": {
+          "en": "Adrenaline and amiodarone on the arrest trolley",
+          "de": "Adrenalin und Amiodaron am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "airway-kit",
+        "label": {
+          "en": "Suction, Magill forceps and airways on the arrest trolley",
+          "de": "Absaugung, Magill-Zange und Atemwegshilfen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "thrombolytic",
+        "label": {
+          "en": "Alteplase (thrombolytic), brought with the arrest team",
+          "de": "Alteplase (Thrombolytikum), vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "fluids",
+        "label": {
+          "en": "Warmed saline and a pressure bag, on the arrest trolley",
+          "de": "Angewärmte Kochsalzlösung und Druckbeutel, am Notfallwagen"
+        },
+        "present": false
+      }
+    ],
+    "team": {
+      "people": [
+        "doctor",
+        "nurse2"
+      ],
+      "equipment": [
+        "defibrillator",
+        "cannula-kit",
+        "drugs",
+        "airway-kit",
+        "thrombolytic",
+        "fluids"
+      ],
+      "afterSeconds": 120,
+      "lateWithoutWhere": 90,
+      "callSeconds": 15
+    },
+    "cause": "hypovolaemia"
+  },
+  "reveal": {
+    "label": {
+      "en": "Blood loss",
+      "de": "Blutverlust"
+    },
+    "explain": {
+      "en": "His ulcer bled: two large vomits of blood took about half of his blood volume. With so little left his veins collapsed, no blood returned to his heart, and it kept an organised rhythm without a pulse (PEA), with nothing to shock. Compressions move almost nothing through an empty circulation and adrenaline cannot fill it: what helps is volume, fast, through a large line (and then stopping the bleeding). About a litre brings a pulse back.",
+      "de": "Sein Ulkus hat geblutet: zwei große Bluterbrechen haben etwa die Hälfte seines Blutvolumens gekostet. Mit so wenig Blut kollabierten seine Venen, kein Blut kam mehr zum Herzen, und es behielt einen organisierten Rhythmus ohne Puls (PEA), nichts zu schocken. Kompressionen bewegen in einem leeren Kreislauf fast nichts, und Adrenalin kann ihn nicht füllen: Was hilft, ist Volumen, schnell, über einen großen Zugang (und dann die Blutung stillen). Etwa ein Liter bringt den Puls zurück."
+    }
+  },
+  "machine": {
+    "start": "bleeding",
+    "states": {
+      "bleeding": {
+        "label": {
+          "en": "Bleeding",
+          "de": "Blutung"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "circulation.bloodVolume",
+                "set": 3200
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "patient",
+              "text": {
+                "en": "I was sick again… it was all blood, dark and lots of it. I feel faint.",
+                "de": "Ich musste wieder erbrechen … alles Blut, dunkel und ganz viel. Mir wird schwarz vor Augen."
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "inStateFor": 45
+            },
+            "to": "arrest"
+          }
+        ]
+      },
+      "arrest": {
+        "label": {
+          "en": "Cardiac arrest",
+          "de": "Herz-Kreislauf-Stillstand"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "circulation.bloodVolume",
+                "set": 2500
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "He’s collapsed! He vomited blood again, a lot of it. He isn’t responding. What shall I do?",
+                "de": "Er ist zusammengebrochen! Er hat wieder Blut erbrochen, sehr viel. Er reagiert nicht. Was soll ich tun?"
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "at": 1200
+            },
+            "to": "end"
+          }
+        ]
+      },
+      "end": {
+        "label": {
+          "en": "Twenty minutes",
+          "de": "Zwanzig Minuten"
+        },
+        "final": true
+      }
+    }
+  },
+  "nudges": [
+    {
+      "id": "gasping",
+      "label": {
+        "en": "He gasps",
+        "de": "Er hat Schnappatmung"
+      },
+      "explain": {
+        "en": "This run was set up so that he gasps after the collapse. Gasping is not breathing: an unresponsive patient who gasps is in cardiac arrest, and compressions should start without delay.",
+        "de": "Dieser Durchgang war so angelegt, dass er nach dem Kollaps Schnappatmung hat. Schnappatmung ist keine Atmung: Ein reaktionsloser Patient mit Schnappatmung hat einen Kreislaufstillstand, und die Kompressionen sollten ohne Verzögerung beginnen."
+      }
+    }
+  ]
+}

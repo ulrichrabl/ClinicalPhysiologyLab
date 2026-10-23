@@ -560,6 +560,8 @@ export class ScenarioRun {
         if (this.ventilator) this.ventilator.obstructed = false;
         this.events.push({ t: this.t, kind: 'obstruction', what: null, by: p.by });
       }
+      /* fluids when the arrest is not from blood loss: given, and recorded as a hazard (ERC: only in hypovolaemia) */
+      if (x.id === 'fluid.bolus' && this.def.scene.cause !== 'hypovolaemia') this.events.push({ t: this.t, kind: 'hazard', code: 'fluids-not-hypovolaemia', by: p.by });
       if (e.dose) { this.live.run.drugs.give(e.dose.drug, e.dose.mg); this.events.push({ t: this.t, kind: 'dose', drug: e.dose.drug, mg: e.dose.mg, by: p.by }); }
       if (e.state) this.setState(e.state);
     }

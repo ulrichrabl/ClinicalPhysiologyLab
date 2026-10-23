@@ -213,6 +213,17 @@ export const INTERVENTIONS: InterventionDef[] = [
     timing: { status: 'placement', note: 'As the first dose; not measured.' },
     effect: { kind: 'instantaneous', dose: { drug: 'amiodarone', mg: 150 } },
   },
+  /* Fluids when the arrest is caused by hypovolaemia (ERC 2025 ALS: "Give fluids during CPR only if cardiac arrest is
+     caused by hypovolaemia"; isotonic saline or a balanced crystalloid). */
+  {
+    id: 'fluid.bolus',
+    label: { en: 'Fluid bolus 500 mL IV (pressure bag)', de: 'Volumenbolus 500 mL i.v. (Druckbeutel)' },
+    phrases: { en: ['fluid bolus', 'give fluids', 'run in 500', 'saline bolus', 'crystalloid', 'open the fluids'], de: ['volumenbolus', 'volumen geben', '500 ml laufen lassen', 'kristalloid', 'infusion auf'] },
+    needs: { equipment: ['fluids'], access: ['iv'] },
+    duration: { min: 90, max: 150 },
+    timing: { status: 'placement', note: 'Spiking the bag, a pressure bag and 500 mL through a large cannula: a few minutes; the volume is counted in when it has run. Not measured.' },
+    effect: { kind: 'instantaneous', change: [{ path: 'circulation.bloodVolume', add: 500 }] },
+  },
   /* Thrombolysis when pulmonary embolism is the suspected or confirmed cause (ERC 2025 ALS: thrombolytic drugs). */
   {
     id: 'drug.alteplase',

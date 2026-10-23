@@ -610,5 +610,33 @@ console.log('\nAn arrest with a cause: tension pneumothorax');
   ok('scored: only the side of the tension counts', rep.rules.find((x) => x.id === 'decompress-tension').status === 'missed');
 }
 
+console.log('\nAn arrest with a cause: blood loss');
+{
+  const P = scenarioOf('arrest-bleeding');
+  ok('the bleeding practice validates, with its cause', errors(S.validateScenario(P, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).length === 0 && P.scene.cause === 'hypovolaemia');
+  const Q = structuredClone(P);
+  for (const e of Q.scene.equipment) e.present = true;
+  const r = start(Q, 11, lying(S.FREE_CASE), { settleSeconds: 20 });
+  r.advanceTo(40);
+  ok('a third of his blood lost: hypotensive and fast, with a pulse', r.scene === 'bleeding' && r.live.snap.metrics.Psys > 50 && r.live.snap.metrics.Psys < 90, `${Math.round(r.live.snap.metrics.Psys)} mmHg`);
+  r.advanceTo(80);
+  ok('half lost: an organised rhythm without a pulse (PEA)', r.rhythm() === 'organised' && r.live.snap.metrics.Psys < 50, `${Math.round(r.live.snap.metrics.Psys)} mmHg`);
+  r.assign('compressions', 'nurse'); r.advanceTo(85);
+  r.intervene('access.iv'); r.advanceTo(160);
+  r.intervene('fluid.bolus'); r.advanceTo(320); r.intervene('fluid.bolus'); r.advanceTo(480);
+  r.release('compressions', 'nurse'); r.advanceTo(540);
+  ok('two boluses (1000 mL) bring a pulse back', r.live.snap.metrics.Psys > 60, `${Math.round(r.live.snap.metrics.Psys)}/${Math.round(r.live.snap.metrics.Pdia)} mmHg`);
+  const rep = S.scoreRun(S.GUIDELINES[0], r), rule = (id) => rep.rules.find((x) => x.id === id);
+  ok('scored: fluids for hypovolaemia, and no hazard from them here', rule('fluids-hypovolaemia').status === 'met' && rule('fluids-only-hypovolaemia').status === 'met', J([rule('fluids-hypovolaemia'), rule('fluids-only-hypovolaemia')]));
+}
+{
+  const P = structuredClone(scenarioOf('arrest-pe'));
+  for (const e of P.scene.equipment) e.present = true;
+  const r = start(P, 11, lying(S.FREE_CASE), { settleSeconds: 20 });
+  r.advanceTo(40); r.intervene('access.iv'); r.advanceTo(120); r.intervene('fluid.bolus'); r.advanceTo(300);
+  const rep = S.scoreRun(S.GUIDELINES[0], r), rule = (id) => rep.rules.find((x) => x.id === id);
+  ok('fluids in an arrest that is not from blood loss are a hazard (ERC: only in hypovolaemia), and the fluids rule does not apply', rule('fluids-only-hypovolaemia').status === 'missed' && rule('fluids-hypovolaemia').status === 'not-applicable');
+}
+
 console.log(`\n${pass} passed, ${fail} failed, 0 known gaps`);
 if (fail) process.exit(1);
