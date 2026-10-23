@@ -205,7 +205,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     host.querySelectorAll<HTMLButtonElement>('[data-lesson]').forEach((b) => b.onclick = () => begin({ choice: 'lesson', nudge: b.dataset.lesson as NudgeId }));
   };
   const begin = (s: typeof setup) => {
-    setup = s;
+    setup = s; trail = [];
     /* forget the old run first: wiring the new page must not reach for the old run's controls (it threw, and the new
        patient was never made) */
     run = null; debrief = false;
@@ -366,6 +366,34 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     host.querySelector<HTMLButtonElement>('[data-db-again]')!.onclick = () => start();
     const c = host.querySelector<HTMLCanvasElement>('.ar-db-timeline');
     if (c) drawDebrief(c, rep, guideline, run, css);
+    host.querySelector<HTMLButtonElement>('[data-db-save]')?.addEventListener('click', saveRun);
+  };
+
+  /* ---- a playtest (owner, 2026-10-23): the run, and what the learner did on the screen, as a file ---------- */
+  /** What the learner tapped and what the screen answered, on the run's clock: the run's own log says what reached the
+      patient; this says how the learner got there (tabs, menus, refusals, messages). */
+  let trail: Array<{ t: number; ui: string }> = [];
+  const mark = (ui: string) => { if (run) { trail.push({ t: Math.round(run.t * 10) / 10, ui }); if (trail.length > 5000) trail.shift(); } };
+  host.addEventListener('click', (ev) => {
+    const b = (ev.target as HTMLElement).closest<HTMLElement>('button, summary, [data-hit]');
+    if (!b) return;
+    const attr = Array.from(b.attributes).find((a) => a.name.startsWith('data-') && a.name !== 'data-k');
+    mark(`tap ${attr ? `${attr.name.slice(5)}${attr.value ? `=${attr.value}` : ''}` : b.tagName.toLowerCase()}`);
+  }, true);
+  const saveRun = () => {
+    if (!run) return;
+    const file = {
+      schema: 'vp.playtest-run/1', saved: new Date().toISOString(), app: 'ClinicalPhysiologyLab',
+      scenario: `${def.id}@${def.version}`, guideline: `${guideline.id}@${guideline.version}`,
+      seed: run.seed, nudge: setup.nudge, choice: setup.choice, lang, layout: phoneLayout ? 'phone' : 'desk',
+      screen: { w: window.innerWidth, h: window.innerHeight, touch: 'ontouchstart' in window },
+      t: run.t, log: run.log, trail,
+    };
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(file)], { type: 'application/json' }));
+    a.download = `arrest-run-${file.saved.slice(0, 16).replace(/[:T]/g, '-')}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
 
   /* ---- inputs ---------------------------------------------------------------------------------- */
@@ -381,6 +409,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     if (!box) return;
     const el = document.createElement('div');
     el.className = `ar-toast ${tone}`; el.textContent = text;
+    mark(`message: ${text}`);
     box.appendChild(el);
     while (box.children.length > 3) box.firstElementChild!.remove();
     setTimeout(() => el.classList.add('gone'), 3200);
@@ -390,7 +419,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const blocked = () => {
     const b = run?.events.filter((e) => e.kind === 'blocked').at(-1) as { reason: string } | undefined;
     const x = `${t('blocked')}: ${b ? reasonText(b.reason) : ''}`;
-    note(x); toast(x, 'warn');
+    note(x); toast(x, 'warn'); mark(`refused: ${b?.reason ?? ''}`);
   };
   const act = (fn: () => boolean) => { if (!run || paused) return; now(); if (!fn()) blocked(); else note(''); };
   const push = () => {

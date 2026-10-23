@@ -42,6 +42,8 @@ const T: Record<string, LocalizedText> = {
   met: L('met', 'erfüllt'), missed: L('missed', 'verfehlt'), na: L('did not apply', 'nicht zutreffend'),
   ours: L('our threshold', 'unsere Schwelle'), oursHint: L('The guideline gives no number here, or we added a tolerance; the note says what it rests on.', 'Die Leitlinie nennt hier keine Zahl, oder wir haben eine Toleranz ergänzt; die Anmerkung sagt, worauf sie beruht.'),
   source: L('Source', 'Quelle'), back: L('Back to the patient', 'Zurück zum Patienten'), again: L('Start again', 'Neu beginnen'),
+  save: L('Save this run', 'Diesen Durchgang speichern'),
+  saveNote: L('A small file with what was done and when (no name, nothing personal), for a playtest: it replays this run exactly.', 'Eine kleine Datei mit dem, was wann getan wurde (kein Name, nichts Persönliches), für einen Spieltest: Sie spielt diesen Durchgang genau nach.'),
   draft: L('Draft: what is scored and how it is shown are first attempts, for review.', 'Entwurf: was bewertet wird und wie es gezeigt wird, sind erste Versuche, zur Durchsicht.'),
 };
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
@@ -136,6 +138,7 @@ export function debriefHtml(rep: GuidelineReport, g: GuidelineDef, run: DebriefR
       <div class="ar-db-cards">${cards}</div>
       <p class="muted small">${t('source')}: ${esc(g.source.citation)}${g.source.doi ? ` doi:${esc(g.source.doi)}` : ''}</p>
       <p class="muted small">${t('draft')}</p>
+      <div class="ar-db-save"><button type="button" class="ghost small" data-db-save>${t('save')}</button> <span class="muted small">${t('saveNote')}</span></div>
     </section>`;
 }
 
