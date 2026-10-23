@@ -683,7 +683,9 @@ console.log('\nHeart sounds timed by the circulation (ADR-017 step 3)');
     `${widen.toFixed(0)} ms (Curtiss 27.2): the ventricles' share is in (Q–O ${dQO >= 0 ? '+' : ''}${dQO.toFixed(1)}, Q–A2 ${dQA2.toFixed(1)} ms); the pulmonary hangout's share (O–P2) is missing`);
   const tamp = healthyModel(); tamp.circulation.pericardialFluid = 500;
   const tb = breathe(tamp);
-  const para = Math.max(...tb.beats.map((b) => b.Psys)) - Math.min(...tb.beats.map((b) => b.Psys));
+  /* by the breath: late-inspiratory beats against late-expiratory ones (a beat-to-beat range alone can be irregularity) */
+  const late = (ph) => tb.beats.filter((b) => b.breath?.phase === ph && b.breath.frac >= 0.5);
+  const para = mean(late('exp'), (b) => b.Psys) - mean(late('insp'), (b) => b.Psys);
   gap('tamponade: pulsus paradoxus, systolic pressure falling more than 10 mmHg in inspiration (Spodick 2003)', para > 10,
     `${para.toFixed(1)} mmHg with 500 mL of pericardial fluid: the ventricles compete too little for the shared space when the right one fills`);
 }
