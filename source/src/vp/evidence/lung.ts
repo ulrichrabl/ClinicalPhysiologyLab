@@ -122,6 +122,9 @@ export const LUNG = defineConstants('lung', {
   gaspVolume: { value: 0.5, unit: 'L', status: 'assumed', means: 'Volume of an agonal gasp.',
     derivation: 'A placement, about a resting tidal volume. Gasps are brief and can move useful volumes (Manole 2006, mostly animal data).' },
   /* --- breaths given at the airway (ADR-018 step 2b) ------------------------------- */
+  tensionTransmission: { value: 1, unit: 'fraction', status: 'assumed', refs: ['roberts2015'],
+    means: 'Share of a tension pneumothorax’s pressure that reaches the heart and the great veins in the chest.',
+    derivation: 'A placement: the mediastinum is mobile, and the trapped air pushes it over until the other side and the heart are compressed too, so the whole pressure is taken to act around the heart. No human measurement of the pressure in a tension pneumothorax, or of how much of it reaches the heart, was found; animal models define tension from a pleural pressure of +1 mmHg with falls of 20–30 % in output. Roberts 2015 (183 human cases) reports what it does, not its pressure.' },
   bagVolume: { value: 0.5, unit: 'L', status: 'assumed', means: 'Volume a rescuer squeezes from a self-inflating bag for one breath.',
     derivation: 'Resuscitation guidelines teach a breath that makes the chest rise visibly, about 500\u2013600 mL for an adult; the lower end. Not measured on rescuers.' },
   bagInspiration: { value: 1, unit: 's', status: 'assumed', means: 'Duration of a given breath.', derivation: 'The guidelines\u2019 \u201ceach breath over about 1 second\u201d.' },

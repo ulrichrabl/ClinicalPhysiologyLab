@@ -1,0 +1,217 @@
+{
+  "schema": "vp.scenario/1",
+  "id": "arrest-tension",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": {
+    "en": "Practice: cardiac arrest from a tension pneumothorax",
+    "de": "Übung: Herz-Kreislauf-Stillstand durch Spannungspneumothorax"
+  },
+  "caseId": "free-patient",
+  "purpose": "A non-shockable arrest with a reversible cause (owner, 2026-10-23: all PEA situations). An hour after a central line was put in under his left collarbone, a man becomes breathless: his left lung has collapsed and air is trapped under pressure (8 mmHg). He collapses as it reaches 25 mmHg: above his mean filling pressure, so no blood returns to his heart, which keeps an organised rhythm without a pulse (PEA). Both pressures are placements inside what the model gives (from about 15 mmHg the pressure falls below a palpable pulse; LUNG.tensionTransmission is 1). The lesson: look at and listen to the chest (the left side silent, the trachea pushed over), and decompress the left side with a cannula from the arrest trolley; then his circulation returns at once. Not modelled: the tension building with each positive-pressure breath (Roberts 2015: arrest is far more likely when ventilated; gap 39).",
+  "scene": {
+    "place": {
+      "en": "A side room on the medical ward",
+      "de": "Ein Nebenzimmer auf der internistischen Station"
+    },
+    "people": [
+      {
+        "id": "nurse",
+        "role": {
+          "en": "Nurse",
+          "de": "Pflegekraft"
+        },
+        "present": true
+      },
+      {
+        "id": "doctor",
+        "role": {
+          "en": "Doctor (arrest team)",
+          "de": "Ärztin (Reanimationsteam)"
+        },
+        "present": false
+      },
+      {
+        "id": "nurse2",
+        "role": {
+          "en": "Nurse (arrest team)",
+          "de": "Pflegekraft (Reanimationsteam)"
+        },
+        "present": false
+      }
+    ],
+    "equipment": [
+      {
+        "id": "bag-mask",
+        "label": {
+          "en": "Bag-valve-mask on the wall",
+          "de": "Beatmungsbeutel mit Maske an der Wand"
+        },
+        "present": true
+      },
+      {
+        "id": "defibrillator",
+        "label": {
+          "en": "Arrest trolley with a defibrillator",
+          "de": "Notfallwagen mit Defibrillator"
+        },
+        "present": false
+      },
+      {
+        "id": "cannula-kit",
+        "label": {
+          "en": "IV cannulas on the arrest trolley",
+          "de": "Venenverweilkanülen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "drugs",
+        "label": {
+          "en": "Adrenaline and amiodarone on the arrest trolley",
+          "de": "Adrenalin und Amiodaron am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "airway-kit",
+        "label": {
+          "en": "Suction, Magill forceps and airways on the arrest trolley",
+          "de": "Absaugung, Magill-Zange und Atemwegshilfen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "thrombolytic",
+        "label": {
+          "en": "Alteplase (thrombolytic), brought with the arrest team",
+          "de": "Alteplase (Thrombolytikum), vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      }
+    ],
+    "team": {
+      "people": [
+        "doctor",
+        "nurse2"
+      ],
+      "equipment": [
+        "defibrillator",
+        "cannula-kit",
+        "drugs",
+        "airway-kit",
+        "thrombolytic"
+      ],
+      "afterSeconds": 120,
+      "lateWithoutWhere": 90,
+      "callSeconds": 15
+    },
+    "cause": "tension-pneumothorax",
+    "causeSide": "left"
+  },
+  "reveal": {
+    "label": {
+      "en": "A tension pneumothorax",
+      "de": "Ein Spannungspneumothorax"
+    },
+    "explain": {
+      "en": "The central line put in under his left collarbone had punctured the lung. Air collected around it under pressure, collapsed the lung and pushed on the heart and the great veins until no blood came back to the heart: an organised rhythm without a pulse (PEA), with nothing to shock. The left chest was silent and the trachea pushed to the right. A cannula through the left chest wall lets the air out, and the circulation returns within seconds; compressions and adrenaline cannot do it while the air is trapped.",
+      "de": "Der zentrale Venenkatheter unter dem linken Schlüsselbein hatte die Lunge verletzt. Luft sammelte sich unter Druck, ließ die Lunge kollabieren und drückte auf Herz und große Venen, bis kein Blut mehr zum Herzen zurückkam: ein organisierter Rhythmus ohne Puls (PEA), nichts zu schocken. Links war kein Atemgeräusch zu hören, die Trachea war nach rechts verlagert. Eine Kanüle durch die linke Thoraxwand lässt die Luft entweichen, und der Kreislauf kehrt in Sekunden zurück; Kompressionen und Adrenalin können das nicht, solange die Luft gefangen ist."
+    }
+  },
+  "machine": {
+    "start": "breathless",
+    "states": {
+      "breathless": {
+        "label": {
+          "en": "Breathless",
+          "de": "Atemnot"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "respiratory.ptxL",
+                "set": 1
+              },
+              {
+                "path": "respiratory.tensionL",
+                "set": 8
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "patient",
+              "text": {
+                "en": "Since they put that line in under my collarbone… my chest hurts on the left, and I can’t get my breath.",
+                "de": "Seit sie den Zugang unter dem Schlüsselbein gelegt haben … tut mir die linke Brust weh, und ich bekomme keine Luft."
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "inStateFor": 6
+            },
+            "to": "arrest"
+          }
+        ]
+      },
+      "arrest": {
+        "label": {
+          "en": "Cardiac arrest",
+          "de": "Herz-Kreislauf-Stillstand"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "respiratory.tensionL",
+                "set": 25
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "He’s collapsed! The doctors put a central line in this morning. He isn’t responding. What shall I do?",
+                "de": "Er ist zusammengebrochen! Heute Morgen wurde ihm ein zentraler Zugang gelegt. Er reagiert nicht. Was soll ich tun?"
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "at": 1200
+            },
+            "to": "end"
+          }
+        ]
+      },
+      "end": {
+        "label": {
+          "en": "Twenty minutes",
+          "de": "Zwanzig Minuten"
+        },
+        "final": true
+      }
+    }
+  },
+  "nudges": [
+    {
+      "id": "gasping",
+      "label": {
+        "en": "He gasps",
+        "de": "Er hat Schnappatmung"
+      },
+      "explain": {
+        "en": "This run was set up so that he gasps after the collapse. Gasping is not breathing: an unresponsive patient who gasps is in cardiac arrest, and compressions should start without delay.",
+        "de": "Dieser Durchgang war so angelegt, dass er nach dem Kollaps Schnappatmung hat. Schnappatmung ist keine Atmung: Ein reaktionsloser Patient mit Schnappatmung hat einen Kreislaufstillstand, und die Kompressionen sollten ohne Verzögerung beginnen."
+      }
+    }
+  ]
+}

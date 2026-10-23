@@ -577,5 +577,38 @@ console.log('\nAn arrest with a cause: massive pulmonary embolism (owner, 2026-1
   ok('alteplase is there in the VF practice too (the controls do not give the arrest away), and dissolves nothing to change', P.scene.team.equipment.includes('thrombolytic'));
 }
 
+console.log('\nAn arrest with a cause: tension pneumothorax');
+{
+  const P = scenarioOf('arrest-tension');
+  ok('the tension practice validates, with its cause and side', errors(S.validateScenario(P, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).length === 0 && P.scene.cause === 'tension-pneumothorax' && P.scene.causeSide === 'left');
+  const Q = structuredClone(P);
+  for (const e of Q.scene.equipment) e.present = true;
+  const r = start(Q, 9, lying(S.FREE_CASE), { settleSeconds: 20 });
+  r.advanceTo(3);
+  ok('before the collapse he is breathless with a pulse', r.scene === 'breathless' && r.live.snap.metrics.Psys > 80, `${Math.round(r.live.snap.metrics.Psys)} mmHg`);
+  r.advanceTo(40);
+  ok('after it: an organised rhythm without a pulse (PEA)', r.rhythm() === 'organised' && r.live.snap.metrics.Psys < 50, `${Math.round(r.live.snap.metrics.Psys)} mmHg`);
+  r.assign('compressions', 'nurse'); r.advanceTo(45);
+  r.intervene('assess.chest'); r.advanceTo(60);
+  const c = kinds(r, 'assessed').at(-1);
+  ok('the chest: silent on the left, the trachea pushed over by the left side', c?.what === 'chest' && c.chest.left === 'silent' && c.chest.right === 'normal' && c.chest.tension === 'left', J(c));
+  r.intervene('decompress.right'); r.advanceTo(90);
+  ok('decompressing the wrong side changes nothing', r.live.snap.metrics.Psys < 50);
+  r.intervene('decompress.left'); r.advanceTo(150);
+  r.release('compressions', 'nurse'); r.advanceTo(200);
+  ok('decompressing the left side brings the circulation back', r.live.snap.metrics.Psys > 80, `${Math.round(r.live.snap.metrics.Psys)}/${Math.round(r.live.snap.metrics.Pdia)} mmHg`);
+  const rep = S.scoreRun(S.GUIDELINES[0], r), rule = (id) => rep.rules.find((x) => x.id === id);
+  ok('scored: the decompression of the tension’s side, within its time', rule('decompress-tension').status === 'met', J(rule('decompress-tension')));
+  ok('scored: thrombolysis does not apply here', rule('thrombolysis-pe').status === 'not-applicable');
+}
+{
+  const P = structuredClone(scenarioOf('arrest-tension'));
+  for (const e of P.scene.equipment) e.present = true;
+  const r = start(P, 9, lying(S.FREE_CASE), { settleSeconds: 20 });
+  r.advanceTo(40); r.intervene('decompress.right'); r.advanceTo(200);
+  const rep = S.scoreRun(S.GUIDELINES[0], r);
+  ok('scored: only the side of the tension counts', rep.rules.find((x) => x.id === 'decompress-tension').status === 'missed');
+}
+
 console.log(`\n${pass} passed, ${fail} failed, 0 known gaps`);
 if (fail) process.exit(1);

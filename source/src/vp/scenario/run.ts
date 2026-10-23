@@ -72,6 +72,7 @@ export class ScenarioRun {
   readonly startEquipment: string[] = [];
   /** The scene's reversible cause, for the rules that apply to one cause (guidelines/score.ts). */
   get cause(): string | undefined { return this.def.scene.cause; }
+  get causeSide(): string | undefined { return this.def.scene.causeSide; }
   readonly access = new Set<string>();
   /** Continuous interventions held now, by slot, with what they replaced. */
   readonly held = new Map<string, Held>();
@@ -545,6 +546,13 @@ export class ScenarioRun {
       if (e.assess === 'breathing') {
         const r = this.live.snap.resp as any;
         this.events.push({ t: this.t, kind: 'assessed', what: 'breathing', by: p.by, breathing: breathingOf(r) });
+      }
+      if (e.assess === 'chest') {
+        /* half a lung or more collapsed is silent on that side; trapped air under pressure pushes the trachea away */
+        const q = this.live.model.respiratory;
+        const side = (ptx: number) => (ptx >= 0.5 ? 'silent' : 'normal') as 'silent' | 'normal';
+        const tension = q.tensionL > 0 || q.tensionR > 0 ? (q.tensionL >= q.tensionR ? 'left' : 'right') : null;
+        this.events.push({ t: this.t, kind: 'assessed', what: 'chest', by: p.by, chest: { left: side(q.ptxL), right: side(q.ptxR), tension } });
       }
       if (e.assess === 'mouth') this.events.push({ t: this.t, kind: 'assessed', what: 'mouth', by: p.by, mouth: this.obstruction ? 'bolus' : 'clear' });
       if (e.clearAirway && this.obstruction) {

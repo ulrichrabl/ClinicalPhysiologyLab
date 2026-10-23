@@ -9,6 +9,7 @@ import { INF } from '../evidence/inflammation.ts';
 import { CPR } from '../evidence/cpr.ts';
 import type { Compressor } from '../physiology/cpr/compressions.ts';
 import type { Ventilator } from '../physiology/lung/ventilation.ts';
+import { LUNG } from '../evidence/lung.ts';
 import { MyocardialState } from '../physiology/heart/arrest.ts';
 import { Drugs } from '../physiology/drugs/drugs.ts';
 const CMH2O_TO_MMHG = 0.7356;
@@ -171,7 +172,10 @@ export function createCirculation(m: PatientModel): CirculationRun {
     /* The reference follows normal breathing only: when the centre fails or breaths are given, the change of pleural
        pressure from what normal breathing averaged is itself what acts on the heart (apnoea, positive pressure). */
     if (resp.eupnoeic() || !Number.isFinite(pplMean)) pplMean = Number.isFinite(pplMean) ? pplMean + (r.Ppl - pplMean) * (1 - Math.exp(-COUPLE_S / PPL_MEAN_TAU_S)) : r.Ppl;
-    sim.dPpl = (r.Ppl - pplMean) * CMH2O_TO_MMHG;
+    /* A tension pneumothorax: the trapped air's pressure pushes the mediastinum over and raises the pressure around the
+       heart and the great veins (LUNG.tensionTransmission), on top of the breath's swing. */
+    const tension = Math.max(model.respiratory.tensionL ?? 0, model.respiratory.tensionR ?? 0);
+    sim.dPpl = (r.Ppl - pplMean) * CMH2O_TO_MMHG + tension * LUNG.tensionTransmission;
     /* where in the breath the circulation now is, so each beat can say which phase its heart sounds fell in */
     sim.breath = { t: r.breathT, Ti: r.Ti, Te: r.Te, at: sim.t };
     milieu.setInputs({

@@ -27,6 +27,8 @@ export interface RunRecord {
   startEquipment?: string[];
   /** The scene's reversible cause, when it has one (ScenarioDef.scene.cause). */
   cause?: string;
+  /** Its side, for a one-sided cause. */
+  causeSide?: string;
 }
 
 type Span = [number, number];
@@ -216,6 +218,17 @@ function judge(k: Check, c: Ctx): Judged {
       if (from >= c.end) return NA;
       const ok = dose != null && dose.t - from <= k.within;
       return { status: ok ? 'met' : 'missed', value: dose ? r1(Math.max(0, dose.t - from)) : undefined, at: ok ? [] : [r1(from + k.within)] };
+    }
+    case 'done-for-cause': {
+      if (c.run.cause !== k.cause || c.onset == null) return NA;
+      const id = k.id.replace('{side}', c.run.causeSide ?? '');
+      const kit = arrivedAt(c, k.kit);
+      const done = doneAt(c, id);
+      if (kit == null) return done != null ? { status: 'met', at: [] } : NA;
+      const from = Math.max(c.onset, kit);
+      if (from >= c.end) return NA;
+      const ok = done != null && done - from <= k.within;
+      return { status: ok ? 'met' : 'missed', value: done != null ? r1(Math.max(0, done - from)) : undefined, at: ok ? [] : [r1(from + k.within)] };
     }
     case 'dose-interval': {
       const doses = c.run.events.filter((e) => e.kind === 'dose' && e.drug === k.drug).map((e) => e.t);

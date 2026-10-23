@@ -62,6 +62,33 @@ export const INTERVENTIONS: InterventionDef[] = [
     timing: { status: 'placement', note: 'Opening the mouth and looking in; not measured.' },
     effect: { kind: 'instantaneous', assess: 'mouth' },
   },
+  /* The chest (a tension pneumothorax): listened to and looked at, and decompressed with a cannula on either side. */
+  {
+    id: 'assess.chest',
+    label: { en: 'Look at and listen to the chest', de: 'Thorax inspizieren und auskultieren' },
+    phrases: { en: ['listen to the chest', 'breath sounds', 'auscultate', 'check the chest', 'is the chest rising on both sides'], de: ['thorax auskultieren', 'atemgeräusche', 'abhören', 'thorax ansehen', 'hebt sich der thorax beidseits'] },
+    duration: { seconds: 8 },
+    timing: { status: 'placement', note: 'Watching both sides rise with a breath and listening under each clavicle and in each axilla; not measured.' },
+    effect: { kind: 'instantaneous', assess: 'chest' },
+  },
+  {
+    id: 'decompress.left',
+    label: { en: 'Needle decompression, left chest', de: 'Nadeldekompression, linker Thorax' },
+    phrases: { en: ['decompress the left chest', 'needle the left chest', 'left needle decompression', 'needle thoracocentesis left'], de: ['links entlasten', 'nadeldekompression links', 'entlastungspunktion links'] },
+    needs: { equipment: ['cannula-kit'] },
+    duration: { min: 15, max: 30 },
+    timing: { status: 'placement', note: 'A large cannula into the second intercostal space in the midclavicular line (or the fourth or fifth in the anterior axillary line); not measured.' },
+    effect: { kind: 'instantaneous', change: [{ path: 'respiratory.tensionL', set: 0 }] },
+  },
+  {
+    id: 'decompress.right',
+    label: { en: 'Needle decompression, right chest', de: 'Nadeldekompression, rechter Thorax' },
+    phrases: { en: ['decompress the right chest', 'needle the right chest', 'right needle decompression', 'needle thoracocentesis right'], de: ['rechts entlasten', 'nadeldekompression rechts', 'entlastungspunktion rechts'] },
+    needs: { equipment: ['cannula-kit'] },
+    duration: { min: 15, max: 30 },
+    timing: { status: 'placement', note: 'As on the left; not measured.' },
+    effect: { kind: 'instantaneous', change: [{ path: 'respiratory.tensionR', set: 0 }] },
+  },
   {
     id: 'airway.clear',
     label: { en: 'Clear the airway (suction, Magill forceps)', de: 'Atemweg freimachen (Absaugen, Magill-Zange)' },
