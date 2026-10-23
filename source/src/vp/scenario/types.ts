@@ -106,6 +106,12 @@ export interface SceneState {
 export const NUDGE_IDS = ['refractory-vf', 'vf-returns', 'rosc-for-good-cpr', 'gasping', 'bolus'] as const;
 export type NudgeId = typeof NUDGE_IDS[number];
 
+/** Reversible causes of cardiac arrest (ERC 2025 ALS: hypoxia, hypovolaemia, hypo-/hyperkalaemia and other metabolic
+    causes, hypothermia; thrombosis (coronary or pulmonary), tension pneumothorax, tamponade, toxins). Only those a scenario
+    uses are listed. */
+export const ARREST_CAUSES = ['pulmonary-embolism'] as const;
+export type ArrestCause = (typeof ARREST_CAUSES)[number];
+
 export interface ScenarioDef {
   schema: 'vp.scenario/1';
   id: string;
@@ -124,7 +130,12 @@ export interface ScenarioDef {
     /** Something in the airway (a teaching variant, drawn from the seed with this chance): no breath given reaches the lungs
         until it is cleared. */
     airway?: { obstruction: 'bolus'; chance: number };
+    /** The reversible cause of an arrest in this scene, as the guideline names its causes (the 4 Hs and 4 Ts): rules that
+        apply to one cause only (thrombolysis for pulmonary embolism) read it. Absent: a primary cardiac arrest. */
+    cause?: ArrestCause;
   };
+  /** What the debrief reveals about the arrest's cause when the learner did not choose it (a surprise or pure chance). */
+  reveal?: { label: LocalizedText; explain: LocalizedText };
   /** The parts that are not physiology: who arrives, what is said, when the scene moves on. */
   machine: { start: string; states: Record<string, SceneState> };
   /** Teaching nudges (ADR-018 decision 6c): set-ups a practice run may carry, each fixing one chance draw so the run

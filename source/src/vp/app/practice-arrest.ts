@@ -5,6 +5,7 @@ import { note, recordRun } from './session-record.ts';
 import type { ScenarioDef } from '../scenario/types.ts';
 import { FREE_CASE } from './free-case.ts';
 import arrestPractice from '../scenarios/arrest-practice.json';
+import arrestPe from '../scenarios/arrest-pe.json';
 import ercAls2025 from '../guidelines/erc-2025-als.json';
 import type { GuidelineDef } from '../guidelines/types.ts';
 import { scoreRun } from '../guidelines/score.ts';
@@ -85,11 +86,12 @@ const T: Record<string, LocalizedText> = {
   you: L('You', 'Sie'), nurseName: L('Nurse', 'Pflegekraft'), patient: L('Patient', 'Patient'),
   blocked: L('Not now', 'Jetzt nicht'),
   reasons_busy: L('your hands are busy', 'Ihre Hände sind beschäftigt'), reasons_absent: L('not here yet', 'noch nicht da'),
-  draft: L('Draft for review: the physiology is from ADR-018 steps 1–4 (compressions, breathing in arrest, given breaths, the heart in arrest and the shock, adrenaline and amiodarone); the scene, the wording and the layout are first attempts. The monitor’s labels and the numbers are the model’s own.',
-    'Entwurf zur Durchsicht: die Physiologie stammt aus ADR-018, Schritte 1–4 (Kompressionen, Atmung im Stillstand, Beatmung, das Herz im Stillstand und der Schock, Adrenalin und Amiodaron); Szene, Wortlaut und Gestaltung sind erste Versuche. Beschriftungen und Zahlen des Monitors stammen aus dem Modell.'),
+  draft: L('Draft for review: the physiology is from ADR-018 steps 1–4 (compressions, breathing in arrest, given breaths, the heart in arrest and the shock, adrenaline and amiodarone; alteplase dissolving a pulmonary embolism); the scene, the wording and the layout are first attempts. The monitor’s labels and the numbers are the model’s own.',
+    'Entwurf zur Durchsicht: die Physiologie stammt aus ADR-018, Schritte 1–4 (Kompressionen, Atmung im Stillstand, Beatmung, das Herz im Stillstand und der Schock, Adrenalin und Amiodaron; Alteplase, die eine Lungenembolie auflöst); Szene, Wortlaut und Gestaltung sind erste Versuche. Beschriftungen und Zahlen des Monitors stammen aus dem Modell.'),
   drugs: L('Line and drugs', 'Zugang und Medikamente'), gNotHere: L('on the trolley, on its way', 'auf dem Notfallwagen, unterwegs'), gNoLine: L('no line yet', 'noch kein Zugang'), gLine: L('line in', 'Zugang liegt'),
   gAdrAgo: L('adrenaline {n} mg, last {t} ago', 'Adrenalin {n} mg, zuletzt vor {t}'), gAmio: L('amiodarone {n} mg', 'Amiodaron {n} mg'),
-  iv: L('IV cannula', 'Venenzugang legen'), adr: L('Adrenaline 1 mg', 'Adrenalin 1 mg'), amio300: L('Amiodarone 300 mg', 'Amiodaron 300 mg'), amio150: L('Amiodarone 150 mg', 'Amiodaron 150 mg'),
+  iv: L('IV cannula', 'Venenzugang legen'), adr: L('Adrenaline 1 mg', 'Adrenalin 1 mg'), amio300: L('Amiodarone 300 mg', 'Amiodaron 300 mg'), amio150: L('Amiodarone 150 mg', 'Amiodaron 150 mg'), lysis: L('Alteplase 50 mg (lysis)', 'Alteplase 50 mg (Lyse)'),
+  gLysis: L('alteplase given', 'Alteplase gegeben'),
   logIv: L('has a line in', 'hat einen Venenzugang gelegt'), logDose: L('gives {drug} {mg} mg IV', 'gibt {drug} {mg} mg i.v.'),
   nameAdr: L('adrenaline', 'Adrenalin'), nameAmio: L('amiodarone', 'Amiodaron'),
   reasons_not_ventilating: L('you are not holding the bag', 'Sie halten den Beutel nicht'), fitting: L('Putting the mask on…', 'Maske wird aufgesetzt…'),
@@ -114,6 +116,7 @@ const T: Record<string, LocalizedText> = {
   reasons_equipment_defibrillator: L('the defibrillator is on the arrest trolley', 'der Defibrillator ist am Notfallwagen'),
   reasons_equipment_drugs: L('the drugs are on the arrest trolley', 'die Medikamente sind am Notfallwagen'),
   reasons_equipment_cannula_kit: L('the cannulas are on the arrest trolley', 'die Kanülen sind am Notfallwagen'),
+  reasons_equipment_thrombolytic: L('the arrest team brings the alteplase', 'das Reanimationsteam bringt die Alteplase mit'),
   reasons_already_called: L('the team is already called', 'das Team ist schon alarmiert'),
   logBreathingNone: L('opens the airway, looks and listens: not breathing', 'öffnet den Atemweg, sieht und hört: keine Atmung'),
   logBreathingGasp: L('opens the airway, looks and listens: only gasps, not normal breathing', 'öffnet den Atemweg, sieht und hört: nur Schnappatmung, keine normale Atmung'),
@@ -152,7 +155,10 @@ interface Sample { T: number; ecg: number; Pa: number; Pchest: number }
 export function mountArrestPractice(host: HTMLElement, o: StationOptions): StationHandle {
   let lang = o.lang;
   const t = (k: string) => tr(T[k], lang);
-  const def = arrestPractice as unknown as ScenarioDef;
+  /* The arrests to practise (owner, 2026-10-23: every PEA situation). A surprise or pure chance picks one, so the learner
+     meets the arrest without being told its cause; the debrief reveals it. Equal chances are a placement. */
+  const ARRESTS = [arrestPractice, arrestPe] as unknown as ScenarioDef[];
+  let def = ARRESTS[0];
   let run: ScenarioRun | null = null;
   let raf = 0, stopped = false, paused = false, debrief = false;
   let lastCompressor: string | null = null, teamSig = '';
@@ -184,29 +190,36 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
 
   /* How this run is set up (ADR-018 decision 6c): a surprise (a set-up lesson or pure chance, revealed in the debrief),
      pure chance, or a lesson the learner chose. */
-  let setup: { choice: 'surprise' | 'chance' | 'lesson'; nudge: NudgeId | null } = { choice: 'surprise', nudge: null };
+  let setup: { choice: 'surprise' | 'chance' | 'lesson'; nudge: NudgeId | null; scenario: string } = { choice: 'surprise', nudge: null, scenario: ARRESTS[0].id };
   const lessons = () => def.nudges ?? [];
+  const pick = <X,>(xs: X[]) => xs[Math.floor(Math.random() * xs.length)];
   const start = () => {
     run = null; debrief = false;
-    const ls = lessons();
+    /* the lessons: an arrest with a cause of its own is a lesson in itself; the primary arrest's set-up nudges are its
+       lessons (an arrest with a cause keeps its nudges for the surprise) */
+    const ls = ARRESTS.flatMap((a) => a.scene.cause && a.reveal ? [{ scenario: a.id, nudge: '', label: a.reveal.label }]
+      : (a.nudges ?? []).map((n) => ({ scenario: a.id, nudge: n.id as string, label: n.label })));
     host.innerHTML = `${head()}
       <section class="ar-choose" aria-labelledby="ar-choose-h">
         <h2 id="ar-choose-h">${t('chooseH')}</h2>
         <button type="button" class="primary" data-choose="surprise"><b>${t('cSurprise')}</b><span>${t('cSurpriseNote')}</span></button>
         <button type="button" class="ghost" data-choose="chance"><b>${t('cChance')}</b><span>${t('cChanceNote')}</span></button>
-        ${ls.length ? `<details><summary>${t('cLesson')}</summary><p class="muted small">${t('cLessonNote')}</p><div class="ar-lessons">${ls.map((n) => `<button type="button" class="ghost" data-lesson="${n.id}"><b>${esc(tr(n.label, lang))}</b></button>`).join('')}</div></details>` : ''}
+        ${ls.length ? `<details><summary>${t('cLesson')}</summary><p class="muted small">${t('cLessonNote')}</p><div class="ar-lessons">${ls.map((n) => `<button type="button" class="ghost" data-lesson="${n.nudge}" data-scenario="${n.scenario}"><b>${esc(tr(n.label, lang))}</b></button>`).join('')}</div></details>` : ''}
       </section>`;
     wire();
     host.querySelectorAll<HTMLButtonElement>('[data-choose]').forEach((b) => b.onclick = () => {
       const c = b.dataset.choose as 'surprise' | 'chance';
-      /* a surprise is a lesson two times in three, pure chance otherwise; the learner is told which in the debrief */
-      const nudge = c === 'surprise' && ls.length && Math.random() < 2 / 3 ? ls[Math.floor(Math.random() * ls.length)].id : null;
-      begin({ choice: c, nudge });
+      /* which arrest is chance either way; a surprise is then a set-up lesson two times in three (when the arrest has any),
+         pure chance otherwise. The learner is told which in the debrief. */
+      const a = pick(ARRESTS), ns = a.nudges ?? [];
+      const nudge = c === 'surprise' && ns.length && Math.random() < 2 / 3 ? pick(ns).id : null;
+      begin({ choice: c, nudge, scenario: a.id });
     });
-    host.querySelectorAll<HTMLButtonElement>('[data-lesson]').forEach((b) => b.onclick = () => begin({ choice: 'lesson', nudge: b.dataset.lesson as NudgeId }));
+    host.querySelectorAll<HTMLButtonElement>('[data-lesson]').forEach((b) => b.onclick = () => begin({ choice: 'lesson', nudge: (b.dataset.lesson || null) as NudgeId | null, scenario: b.dataset.scenario! }));
   };
   const begin = (s: typeof setup) => {
     setup = s;
+    def = ARRESTS.find((a) => a.id === s.scenario) ?? ARRESTS[0];
     /* forget the old run first: wiring the new page must not reach for the old run's controls (it threw, and the new
        patient was never made) */
     run = null; debrief = false;
@@ -248,7 +261,8 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
             <button type="button" class="ghost small" data-d="check">${t('check')}</button><button type="button" class="primary small ar-shock" data-d="shock">${t('shockNow')}</button></div>`;
   const drugsHtml = () => `<h3>${t('drugs')} <span class="muted small" data-drug-state></span></h3>
           <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-g="access.iv">${t('iv')}</button><button type="button" class="ghost small" data-g="drug.adrenaline">${t('adr')}</button>
-            <button type="button" class="ghost small" data-g="drug.amiodarone.300">${t('amio300')}</button><button type="button" class="ghost small" data-g="drug.amiodarone.150">${t('amio150')}</button></div>`;
+            <button type="button" class="ghost small" data-g="drug.amiodarone.300">${t('amio300')}</button><button type="button" class="ghost small" data-g="drug.amiodarone.150">${t('amio150')}</button>
+            <button type="button" class="ghost small" data-g="drug.alteplase">${t('lysis')}</button></div>`;
   const teamHtml = (hint = true) => `<h3>${t('team')}</h3>
           ${hint ? `<p class="muted small">${t('teamHint')}</p>` : ''}
           <div class="ar-call" data-call>
@@ -360,7 +374,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     if (squeezeAt != null) { squeezeAt = null; run.bag('release', run.t); }
     const rep = scoreRun(guideline, run);
     const n = lessons().find((x) => x.id === setup.nudge);
-    host.innerHTML = `${head()}${debriefHtml(rep, guideline, run, lang, { canReturn: !run.over, setup: { choice: setup.choice, nudge: n ? { label: n.label, explain: n.explain } : null } })}`;
+    host.innerHTML = `${head()}${debriefHtml(rep, guideline, run, lang, { canReturn: !run.over, setup: { choice: setup.choice, nudge: n ? { label: n.label, explain: n.explain } : null, cause: setup.choice !== 'lesson' || !setup.nudge ? def.reveal ?? null : null } })}`;
     wire();
     const back = host.querySelector<HTMLButtonElement>('[data-db-back]');
     if (back) back.onclick = () => { debrief = false; if (paused) { pausedTotal += performance.now() - pauseWall; paused = false; } render(); };
@@ -584,7 +598,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     } else if (hit === 'head') { title = t('mHead'); items = [btn('[data-x="assess.breathing"]'), btn('[data-x="assess.mouth"]'), btn('[data-x="airway.clear"]'), btn('[data-bag]')]; }
     else if (hit === 'chest') { title = t('mChest'); items = [btn('[data-cpr]'), btn('[data-resume]'), btn('[data-d="pads"]'), btn('[data-d="check"]')]; }
     else if (hit === 'bed') { title = t('mBed'); items = [btn('[data-x="bed.flat"]')]; }
-    else if (hit === 'arm') { title = t('mArm'); items = ['access.iv', 'drug.adrenaline', 'drug.amiodarone.300', 'drug.amiodarone.150'].map((g) => btn(`[data-g="${g}"]`)); }
+    else if (hit === 'arm') { title = t('mArm'); items = ['access.iv', 'drug.adrenaline', 'drug.amiodarone.300', 'drug.amiodarone.150', 'drug.alteplase'].map((g) => btn(`[data-g="${g}"]`)); }
     else if (hit === 'defib') { title = t('mDefib'); items = ['pads', 'charge', 'check', 'shock'].map((d) => btn(`[data-d="${d}"]`)); }
     items = items.filter((i) => i.label);
     if (!items.length) { closeMenu(); return; }
@@ -774,8 +788,9 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       const parts = [!here ? t('gNotHere') : line ? t('gLine') : t('gNoLine')];
       if (adr.length) parts.push(t('gAdrAgo').replace('{n}', String(adr.reduce((a, d) => a + d.mg, 0))).replace('{t}', fmtT(run.t - adr.at(-1)!.t)));
       if (amio) parts.push(t('gAmio').replace('{n}', String(amio)));
+      if (doses.some((d) => d.drug === 'alteplase')) parts.push(t('gLysis'));
       gs.textContent = parts.join(' · ');
-      host.querySelectorAll<HTMLButtonElement>('[data-g]').forEach((b) => { b.disabled = !here || (b.dataset.g === 'access.iv' ? line : !line); });
+      host.querySelectorAll<HTMLButtonElement>('[data-g]').forEach((b) => { b.disabled = (b.dataset.g === 'drug.alteplase' ? !run!.equipment.has('thrombolytic') : !here) || (b.dataset.g === 'access.iv' ? line : !line); });
     }
     const bst = host.querySelector<HTMLElement>('[data-bed-state]');
     if (bst) {

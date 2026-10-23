@@ -4,7 +4,7 @@ import type { Catalog } from '../data/catalog.ts';
 import type { Issue } from '../engine/validate.ts';
 import { healthyModel } from '../physiology/state.ts';
 import { DRUG_IDS } from '../physiology/drugs/drugs.ts';
-import { NUDGE_IDS, type InterventionDef, type ScenarioDef, type SceneWhen } from './types.ts';
+import { ARREST_CAUSES, NUDGE_IDS, type InterventionDef, type ScenarioDef, type SceneWhen } from './types.ts';
 
 /* Checks for the intervention registry and for scenarios (ADR-018). Every learner-facing text in English and German. */
 
@@ -80,6 +80,8 @@ export function validateScenario(s: ScenarioDef, ctx: { cases: CaseDef[]; interv
     if (n.id === 'bolus' && !s.scene.airway) out.push({ level: 'error', path: `${p}.nudges.bolus`, message: 'a bolus nudge needs scene.airway' });
     text(n.label, `${p}.nudges.${n.id}.label`, out); text(n.explain, `${p}.nudges.${n.id}.explain`, out);
   }
+  if (s.scene.cause !== undefined && !(ARREST_CAUSES as readonly string[]).includes(s.scene.cause)) out.push({ level: 'error', path: `${p}.scene.cause`, message: `${s.scene.cause} is not a cause the rules know` });
+  if (s.reveal) { text(s.reveal.label, `${p}.reveal.label`, out); text(s.reveal.explain, `${p}.reveal.explain`, out); }
   const ob = s.scene.airway;
   if (ob && (ob.obstruction !== 'bolus' || !(ob.chance >= 0 && ob.chance <= 1))) out.push({ level: 'error', path: `${p}.scene.airway`, message: 'an obstruction is a bolus with a chance from 0 to 1' });
   const slots = new Set(Object.values(ctx.interventions).flatMap((x) => (x.effect.kind === 'continuous' ? [x.effect.slot] : [])));

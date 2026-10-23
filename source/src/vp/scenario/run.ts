@@ -70,6 +70,8 @@ export class ScenarioRun {
   readonly equipment = new Set<string>();
   /** What was in the room from the start (for the debrief: what could be used from the beginning). */
   readonly startEquipment: string[] = [];
+  /** The scene's reversible cause, for the rules that apply to one cause (guidelines/score.ts). */
+  get cause(): string | undefined { return this.def.scene.cause; }
   readonly access = new Set<string>();
   /** Continuous interventions held now, by slot, with what they replaced. */
   readonly held = new Map<string, Held>();

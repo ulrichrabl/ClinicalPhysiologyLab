@@ -1,7 +1,7 @@
 {
   "schema": "vp.guideline/1",
   "id": "erc-2025-als",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "title": {
     "en": "ERC 2025: adult advanced life support",
     "de": "ERC 2025: Erweiterte lebensrettende Maßnahmen bei Erwachsenen"
@@ -344,6 +344,28 @@
       "group": "drugs"
     },
     {
+      "id": "adrenaline-non-shockable",
+      "title": {
+        "en": "Adrenaline 1 mg as soon as possible in a non-shockable rhythm",
+        "de": "Adrenalin 1 mg so früh wie möglich bei nicht schockbarem Rhythmus"
+      },
+      "why": {
+        "en": "Without a shockable rhythm there is nothing to shock: adrenaline is the one drug that can raise the pressure the compressions make, so it comes as soon as there is a line.",
+        "de": "Ohne schockbaren Rhythmus gibt es nichts zu defibrillieren: Adrenalin ist das eine Medikament, das den Druck der Kompressionen erhöhen kann, also kommt es, sobald ein Zugang liegt."
+      },
+      "section": "ALS: medication and fluids, vasopressor drugs (\"Give adrenaline 1 mg as soon as possible for adult patients in cardiac arrest with a non-shockable rhythm.\")",
+      "basis": "placement",
+      "note": "Only in arrests whose rhythm was not shockable at the first look. The guideline says as soon as possible; 60 s from when it became possible (the rhythm seen, the drugs in the room, a cannula in) is ours: the time to draw up and give a prefilled syringe.",
+      "unit": "s",
+      "check": {
+        "kind": "dose-non-shockable",
+        "drug": "adrenaline",
+        "mg": 1,
+        "within": 60
+      },
+      "group": "drugs"
+    },
+    {
       "id": "adrenaline-repeat",
       "title": {
         "en": "Adrenaline repeated every 3–5 minutes",
@@ -404,6 +426,29 @@
         "drug": "amiodarone",
         "mg": 150,
         "afterShock": 5
+      },
+      "group": "drugs"
+    },
+    {
+      "id": "thrombolysis-pe",
+      "title": {
+        "en": "Thrombolysis when a pulmonary embolism is the suspected cause",
+        "de": "Thrombolyse bei vermuteter Lungenembolie als Ursache"
+      },
+      "why": {
+        "en": "A clot in the lungs is a reversible cause, but only a lytic dissolves it, and slowly: give it early, then keep up CPR (the guideline says 60–90 min may be needed).",
+        "de": "Ein Gerinnsel in der Lunge ist eine reversible Ursache, aber nur eine Lyse löst es auf, und zwar langsam: früh geben, dann die Reanimation fortführen (die Leitlinie nennt 60–90 min)."
+      },
+      "section": "ALS: medication and fluids, thrombolytic drugs (\"Consider immediate thrombolytic drug therapy when pulmonary embolism is the suspected or confirmed cause of cardiac arrest.\" \"In select patients with suspected pulmonary embolism, consider CPR for 60–90 min after administration of thrombolytic drugs.\")",
+      "basis": "placement",
+      "note": "Only in scenes whose cause is a pulmonary embolism. The guideline says immediate; 5 min from when it became possible (the collapse, the lytic in the room, a cannula in) is ours, to leave time to think of the cause.",
+      "unit": "s",
+      "check": {
+        "kind": "dose-for-cause",
+        "cause": "pulmonary-embolism",
+        "drug": "alteplase",
+        "kit": "thrombolytic",
+        "within": 300
       },
       "group": "drugs"
     }

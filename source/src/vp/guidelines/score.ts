@@ -25,6 +25,8 @@ export interface RunRecord {
   t: number;
   /** What was in the room from the start; when absent, everything is taken to have been. */
   startEquipment?: string[];
+  /** The scene's reversible cause, when it has one (ScenarioDef.scene.cause). */
+  cause?: string;
 }
 
 type Span = [number, number];
@@ -130,6 +132,13 @@ interface Ctx {
 type Judged = Omit<RuleResult, 'id'>;
 const NA: Judged = { status: 'not-applicable', at: [] };
 const needAt = (c: Ctx, t: number) => c.needCpr.some(([a, b]) => t >= a - 1e-9 && t <= b + 1e-9);
+/** The rhythm the trace shows at t (each row stands for the second before it). */
+const rhythmAt = (c: Ctx, t: number) => c.run.trace.find((r) => r.t >= t - 1e-9)?.rhythm ?? c.run.trace.at(-1)?.rhythm;
+const shockableAt = (c: Ctx, t: number) => { const r = rhythmAt(c, t); return r === 'vf' || r === 'vt'; };
+/** When the arrival of a piece of kit made something possible: at once if it was in the room from the start. */
+const arrivedAt = (c: Ctx, kit: string) => !c.run.startEquipment || c.run.startEquipment.includes(kit) ? 0
+  : c.run.events.find((e) => e.kind === 'arrive' && e.equipment.includes(kit))?.t;
+const doneAt = (c: Ctx, id: string) => c.run.events.find((e) => e.kind === 'done' && e.id === id)?.t;
 
 function judge(k: Check, c: Ctx): Judged {
   const m = c.measures;
@@ -178,12 +187,35 @@ function judge(k: Check, c: Ctx): Judged {
       const shockable = c.shocks.filter((e) => e.joules > 0 && (e.rhythm === 'vf' || e.rhythm === 'vt'));
       const doses = c.run.events.filter((e): e is Extract<ScenarioEvent, { kind: 'dose' }> => e.kind === 'dose' && e.drug === k.drug && e.mg === k.mg);
       const nth = shockable[k.afterShock - 1];
-      const early = doses.filter((d) => (!nth || d.t < nth.t) && needAt(c, d.t));
+      /* early: given before the nth shock while the rhythm was shockable (in a non-shockable rhythm a dose is due at once) */
+      const early = doses.filter((d) => (!nth || d.t < nth.t) && needAt(c, d.t) && shockableAt(c, d.t));
       if (!nth) return early.length ? { status: 'missed', at: early.map((d) => d.t) } : NA;
       const next = shockable[k.afterShock]?.t ?? c.end;
       const inWindow = doses.some((d) => d.t > nth.t && d.t <= next);
       const at = [...early.map((d) => d.t), ...(inWindow ? [] : [r1(next)])];
       return { status: at.length ? 'missed' : 'met', at };
+    }
+    case 'dose-non-shockable': {
+      /* the arrest's first rhythm, as the first look at it found it while CPR was needed */
+      const look = c.run.events.find((e): e is Extract<ScenarioEvent, { kind: 'assessed' }> => e.kind === 'assessed' && e.what === 'rhythm' && needAt(c, e.t));
+      if (!look || look.rhythm === 'vf' || look.rhythm === 'vt') return NA;
+      const kit = arrivedAt(c, 'drugs'), line = doneAt(c, 'access.iv');
+      const dose = c.run.events.find((e) => e.kind === 'dose' && e.drug === k.drug && e.mg === k.mg && e.t >= look.t - 1e-9);
+      if (kit == null || line == null) return dose ? { status: 'met', at: [] } : NA;
+      const from = Math.max(look.t, kit, line);
+      if (from >= c.end) return NA;
+      const ok = dose != null && dose.t - from <= k.within;
+      return { status: ok ? 'met' : 'missed', value: dose ? r1(Math.max(0, dose.t - from)) : undefined, at: ok ? [] : [r1(from + k.within)] };
+    }
+    case 'dose-for-cause': {
+      if (c.run.cause !== k.cause || c.onset == null) return NA;
+      const kit = arrivedAt(c, k.kit), line = doneAt(c, 'access.iv');
+      const dose = c.run.events.find((e) => e.kind === 'dose' && e.drug === k.drug);
+      if (kit == null || line == null) return dose ? { status: 'met', at: [] } : NA;
+      const from = Math.max(c.onset, kit, line);
+      if (from >= c.end) return NA;
+      const ok = dose != null && dose.t - from <= k.within;
+      return { status: ok ? 'met' : 'missed', value: dose ? r1(Math.max(0, dose.t - from)) : undefined, at: ok ? [] : [r1(from + k.within)] };
     }
     case 'dose-interval': {
       const doses = c.run.events.filter((e) => e.kind === 'dose' && e.drug === k.drug).map((e) => e.t);
