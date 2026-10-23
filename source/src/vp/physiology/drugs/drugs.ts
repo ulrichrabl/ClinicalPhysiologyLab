@@ -24,16 +24,18 @@ import { DRUGS } from '../../evidence/drugs.ts';
    bradycardia; alteplase's bleeding, and any lysis of a coronary clot. With no drug given every multiplier is exactly 1.
 =========================================================================== */
 
-export type DrugId = 'adrenaline' | 'amiodarone' | 'alteplase';
-export const DRUG_IDS: DrugId[] = ['adrenaline', 'amiodarone', 'alteplase'];
+export type DrugId = 'adrenaline' | 'amiodarone' | 'alteplase' | 'calcium' | 'insulin';
+export const DRUG_IDS: DrugId[] = ['adrenaline', 'amiodarone', 'alteplase', 'calcium', 'insulin'];
 
 export class Drugs {
   /** mg given and not yet carried to the central circulation. */
-  readonly vein: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0 };
-  /** mg in the central circulation. */
-  readonly central: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0 };
+  readonly vein: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0 };
+  /** mg in the central circulation (calcium in mmol, insulin in units). */
+  readonly central: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0 };
   /** mg given, in all. */
-  readonly given: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0 };
+  readonly given: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0 };
+  /** Seconds since insulin (with its glucose) reached the circulation; NaN before. */
+  insulinFor = NaN;
   /** Fraction of the pulmonary embolic obstruction dissolved so far (0 with no alteplase given). */
   lysed = 0;
 
@@ -51,9 +53,18 @@ export class Drugs {
     }
     if (this.central.adrenaline > 0) this.central.adrenaline *= Math.exp(-Math.LN2 / DRUGS.adrenalineHalfLife * seconds);
     /* the obstruction left falls exponentially while the lytic acts: (1 − lysed) × e^(−k·a·t) */
+    /* calcium leaves the extracellular fluid it spread into (DRUGS.calciumTau) */
+    if (this.central.calcium > 0) this.central.calcium *= Math.exp(-seconds / DRUGS.calciumTau);
+    if (this.central.insulin >= DRUGS.insulinDose * 0.5) this.insulinFor = Number.isFinite(this.insulinFor) ? this.insulinFor + seconds : 0;
     const a = this.lytic();
     if (a > 0) this.lysed = 1 - (1 - this.lysed) * Math.exp(-DRUGS.lysisRate * a * seconds);
   }
+
+  /** Total calcium added to the extracellular fluid by doses given, mmol/L, for an extracellular volume in litres. */
+  calciumRise(ecfL: number): number { return this.central.calcium / Math.max(5, ecfL); }
+
+  /** How far insulin with glucose has lowered plasma potassium by moving it into cells, mmol/L. */
+  potassiumShift(): number { return Number.isFinite(this.insulinFor) ? DRUGS.insulinKFall * (1 - Math.exp(-this.insulinFor / DRUGS.insulinKTau)) : 0; }
 
   /** Alteplase's lytic activity, 0–1: full once a lytic dose has arrived, held for the length of a resuscitation. */
   lytic(): number { return Math.min(1, this.central.alteplase / DRUGS.alteplaseLyticDose); }

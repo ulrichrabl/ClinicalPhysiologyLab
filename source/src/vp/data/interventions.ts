@@ -242,6 +242,26 @@ export const INTERVENTIONS: InterventionDef[] = [
     timing: { status: 'placement', note: 'Spiking the bag, a pressure bag and 500 mL through a large cannula: a few minutes; the volume is counted in when it has run. Not measured.' },
     effect: { kind: 'instantaneous', change: [{ path: 'circulation.bloodVolume', add: 500 }] },
   },
+  /* Hyperkalaemia (ERC 2025 Special circumstances): "Use IV 10 mL 10 % calcium chloride for patients with severe
+     hyperkalaemia with ECG changes"; "Give 10 units soluble insulin and 25 g glucose IV". */
+  {
+    id: 'drug.calcium',
+    label: { en: 'Calcium chloride 10 % 10 mL IV', de: 'Calciumchlorid 10 % 10 mL i.v.' },
+    phrases: { en: ['calcium', 'calcium chloride', 'give calcium', '10 ml calcium chloride'], de: ['calcium', 'calciumchlorid', 'calcium geben', '10 ml calciumchlorid'] },
+    needs: { equipment: ['drugs'], access: ['iv'] },
+    duration: { min: 15, max: 30 },
+    timing: { status: 'placement', note: 'A prefilled syringe, by rapid bolus, and a flush; not measured.' },
+    effect: { kind: 'instantaneous', dose: { drug: 'calcium', mg: 6.8 } },
+  },
+  {
+    id: 'drug.insulin',
+    label: { en: 'Insulin 10 units with 25 g glucose IV', de: 'Insulin 10 IE mit 25 g Glucose i.v.' },
+    phrases: { en: ['insulin', 'insulin and glucose', 'insulin dextrose', '10 units of insulin'], de: ['insulin', 'insulin glucose', 'insulin und glukose', '10 ie insulin'] },
+    needs: { equipment: ['drugs'], access: ['iv'] },
+    duration: { min: 60, max: 120 },
+    timing: { status: 'placement', note: 'Drawing up soluble insulin and giving it with 50 mL of 50 % glucose; not measured.' },
+    effect: { kind: 'instantaneous', dose: { drug: 'insulin', mg: 10 } },
+  },
   /* Thrombolysis when pulmonary embolism is the suspected or confirmed cause (ERC 2025 ALS: thrombolytic drugs). */
   {
     id: 'drug.alteplase',

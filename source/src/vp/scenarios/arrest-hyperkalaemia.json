@@ -1,0 +1,239 @@
+{
+  "schema": "vp.scenario/1",
+  "id": "arrest-hyperkalaemia",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": {
+    "en": "Practice: cardiac arrest from hyperkalaemia",
+    "de": "Übung: Herz-Kreislauf-Stillstand durch Hyperkaliämie"
+  },
+  "caseId": "free-patient",
+  "purpose": "A non-shockable arrest with a metabolic cause (owner, 2026-10-23: all PEA situations). A man on haemodialysis who missed two sessions: potassium 8.6 mmol/L (clamped by the scene) for 30 s, the sinus impulse blocked and a slow, wide ventricular escape at about 27/min (Durfey 2017: bradycardia and escape rhythms precede the events); then 10.0, and no focus escapes: asystole. The thresholds (block 8.0, standstill 9.5 effective potassium) are placements around Durfey's 7.5 ± 0.7. The lesson: no shock; calcium chloride 10 % 10 mL (it offsets potassium on the membrane, ECG.calciumKOffset, ungrounded) brings an escape rhythm and a pulse back within a minute or two; insulin with glucose lowers potassium (0.78 mmol/L at 60 min, Harel 2016); dialysis is the definitive treatment and outside the scene. Ventricular fibrillation from hyperkalaemia is not modelled.",
+  "scene": {
+    "place": {
+      "en": "A side room on the renal ward",
+      "de": "Ein Nebenzimmer auf der nephrologischen Station"
+    },
+    "people": [
+      {
+        "id": "nurse",
+        "role": {
+          "en": "Nurse",
+          "de": "Pflegekraft"
+        },
+        "present": true
+      },
+      {
+        "id": "doctor",
+        "role": {
+          "en": "Doctor (arrest team)",
+          "de": "Ärztin (Reanimationsteam)"
+        },
+        "present": false
+      },
+      {
+        "id": "nurse2",
+        "role": {
+          "en": "Nurse (arrest team)",
+          "de": "Pflegekraft (Reanimationsteam)"
+        },
+        "present": false
+      }
+    ],
+    "equipment": [
+      {
+        "id": "bag-mask",
+        "label": {
+          "en": "Bag-valve-mask on the wall",
+          "de": "Beatmungsbeutel mit Maske an der Wand"
+        },
+        "present": true
+      },
+      {
+        "id": "defibrillator",
+        "label": {
+          "en": "Arrest trolley with a defibrillator",
+          "de": "Notfallwagen mit Defibrillator"
+        },
+        "present": false
+      },
+      {
+        "id": "cannula-kit",
+        "label": {
+          "en": "IV cannulas on the arrest trolley",
+          "de": "Venenverweilkanülen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "drugs",
+        "label": {
+          "en": "Adrenaline and amiodarone on the arrest trolley",
+          "de": "Adrenalin und Amiodaron am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "airway-kit",
+        "label": {
+          "en": "Suction, Magill forceps and airways on the arrest trolley",
+          "de": "Absaugung, Magill-Zange und Atemwegshilfen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "thrombolytic",
+        "label": {
+          "en": "Alteplase (thrombolytic), brought with the arrest team",
+          "de": "Alteplase (Thrombolytikum), vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "fluids",
+        "label": {
+          "en": "Warmed saline and a pressure bag, on the arrest trolley",
+          "de": "Angewärmte Kochsalzlösung und Druckbeutel, am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "ultrasound",
+        "label": {
+          "en": "An ultrasound machine, brought with the arrest team",
+          "de": "Ein Ultraschallgerät, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "pericardiocentesis",
+        "label": {
+          "en": "A pericardiocentesis set, brought with the arrest team",
+          "de": "Ein Perikardpunktionsset, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      }
+    ],
+    "team": {
+      "people": [
+        "doctor",
+        "nurse2"
+      ],
+      "equipment": [
+        "defibrillator",
+        "cannula-kit",
+        "drugs",
+        "airway-kit",
+        "thrombolytic",
+        "fluids",
+        "ultrasound",
+        "pericardiocentesis"
+      ],
+      "afterSeconds": 120,
+      "lateWithoutWhere": 90,
+      "callSeconds": 15
+    },
+    "cause": "hyperkalaemia"
+  },
+  "reveal": {
+    "label": {
+      "en": "Hyperkalaemia",
+      "de": "Hyperkaliämie"
+    },
+    "explain": {
+      "en": "He depends on dialysis and had missed two sessions: his potassium had risen to 10 mmol/L. First the sinus impulse no longer reached his ventricles and a slow, wide escape rhythm took over; then no focus fired at all: asystole, with nothing to shock. Calcium chloride lets the heart’s cells work again within a minute or two, though the potassium is unchanged; insulin with glucose moves potassium into the cells over the next hour; dialysis removes it.",
+      "de": "Er ist dialysepflichtig und hatte zwei Dialysen verpasst: sein Kalium war auf 10 mmol/L gestiegen. Zuerst erreichte der Sinusimpuls seine Ventrikel nicht mehr, und ein langsamer, breiter Ersatzrhythmus übernahm; dann schlug kein Zentrum mehr: Asystolie, nichts zu schocken. Calciumchlorid lässt die Herzzellen in ein, zwei Minuten wieder arbeiten, obwohl das Kalium gleich bleibt; Insulin mit Glucose verschiebt Kalium in der folgenden Stunde in die Zellen; die Dialyse entfernt es."
+    }
+  },
+  "machine": {
+    "start": "breathless",
+    "states": {
+      "breathless": {
+        "label": {
+          "en": "Weak and slow",
+          "de": "Schwach und bradykard"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "chemistry.potassium",
+                "set": 8.6
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "patient",
+              "text": {
+                "en": "I missed dialysis twice… my legs feel heavy and I feel so weak.",
+                "de": "Ich habe zweimal die Dialyse verpasst … meine Beine sind schwer, und ich fühle mich so schwach."
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "inStateFor": 30
+            },
+            "to": "arrest"
+          }
+        ]
+      },
+      "arrest": {
+        "label": {
+          "en": "Cardiac arrest",
+          "de": "Herz-Kreislauf-Stillstand"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "chemistry.potassium",
+                "set": 10.0
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "He’s collapsed! He’s a dialysis patient, he missed his sessions. He isn’t responding. What shall I do?",
+                "de": "Er ist zusammengebrochen! Er ist Dialysepatient und hat seine Termine verpasst. Er reagiert nicht. Was soll ich tun?"
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "at": 1200
+            },
+            "to": "end"
+          }
+        ]
+      },
+      "end": {
+        "label": {
+          "en": "Twenty minutes",
+          "de": "Zwanzig Minuten"
+        },
+        "final": true
+      }
+    }
+  },
+  "nudges": [
+    {
+      "id": "gasping",
+      "label": {
+        "en": "He gasps",
+        "de": "Er hat Schnappatmung"
+      },
+      "explain": {
+        "en": "This run was set up so that he gasps after the collapse. Gasping is not breathing: an unresponsive patient who gasps is in cardiac arrest, and compressions should start without delay.",
+        "de": "Dieser Durchgang war so angelegt, dass er nach dem Kollaps Schnappatmung hat. Schnappatmung ist keine Atmung: Ein reaktionsloser Patient mit Schnappatmung hat einen Kreislaufstillstand, und die Kompressionen sollten ohne Verzögerung beginnen."
+      }
+    }
+  ]
+}

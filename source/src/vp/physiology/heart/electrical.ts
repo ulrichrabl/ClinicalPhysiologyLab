@@ -308,6 +308,13 @@ export class HeartElectrical {
   }
 
   private rate(): number { return Math.max(25, Math.min(220, this.rateSource())); }
+  /** Potassium as the membrane feels it: calcium raises the threshold and offsets part of its depolarising effect. */
+  kEffective(): number { return this.K - ECG.calciumKOffset * Math.max(0, this.Ca - ECG.calciumRef); }
+  /** Severe hyperkalaemia: the atria and the conducting system no longer carry the sinus impulse; a slow, wide ventricular
+      escape takes over (Durfey 2017: bradycardia, junctional and ventricular escape rhythms precede the adverse events). */
+  hyperKBlock(): boolean { return this.kEffective() >= ECG.hyperKBlock; }
+  /** Higher still, no focus escapes: ventricular standstill (asystole), until calcium or a lower potassium brings it back. */
+  hyperKStandstill(): boolean { return this.kEffective() >= ECG.hyperKStandstill; }
   /** What drives this heart from outside, now: the rate the sinus node (or the AV node in AF) is driven at, potassium and
       calcium. With the parameters, enough to record the same heart elsewhere (measurements/ecg-reading.ts). */
   drive(): { rate: number; K: number; Ca: number } { return { rate: this.rate(), K: this.K, Ca: this.Ca }; }
@@ -344,7 +351,7 @@ export class HeartElectrical {
         const atria = this.atrialBeat(t);
         const pr = this.prInterval();
         if (p.ventricular === 'none') {
-          let conduct = p.avBlock !== 'complete';
+          let conduct = p.avBlock !== 'complete' && !this.hyperKBlock();
           let prNow = pr;
           if (p.avBlock === 'wenckebach') {
             /* Each beat finds the node less recovered: the PR lengthens by smaller steps until one fails. */
@@ -353,7 +360,7 @@ export class HeartElectrical {
             this.mobitz = (this.mobitz + 1) % 3;
             if (this.mobitz === 0) conduct = false;
           }
-          if (!conduct) atria.notConducted = p.avBlock === 'complete' ? 'complete-block' : 'dropped';
+          if (!conduct) atria.notConducted = p.avBlock === 'complete' || this.hyperKBlock() ? 'complete-block' : 'dropped';
           else if (this.queue(t + prNow, 'conducted', prNow)) atria.conductedAt = t + prNow;
           else atria.notConducted = 'refractory';
         } else atria.notConducted = 'dissociated';
@@ -363,11 +370,14 @@ export class HeartElectrical {
       }
     }
     // Escape: a ventricle left without a conducted beat for 1.5 s activates by itself.
-    if (p.ventricular === 'none') {
+    if (p.ventricular === 'none' && !this.hyperKStandstill()) {
       const lastQueued = this.pending.length ? this.pending[this.pending.length - 1].t : this.lastVentricularMs;
       /* Below the AV node a ventricular focus fires at about 40/min if nothing reaches it; with intact conduction
          a long pause (a dropped beat, sinus arrest) is rescued later, by the junction. */
-      const escapeAt = Math.max(lastQueued, this.lastVentricularMs) + (p.avBlock === 'complete' ? ECG.ventricularEscape : ECG.junctionalEscape);
+      const block = p.avBlock === 'complete' || this.hyperKBlock();
+      /* in hyperkalaemia the escape focus itself slows as the potassium rises */
+      const slow = this.hyperKBlock() ? 1 + ECG.hyperKEscapeSlowing * (this.kEffective() - ECG.hyperKBlock) : 1;
+      const escapeAt = Math.max(lastQueued, this.lastVentricularMs) + (block ? ECG.ventricularEscape * slow : ECG.junctionalEscape);
       if (escapeAt <= end + 1) {
         const conductedSoon = this.pending.some((b) => b.t <= escapeAt + 1);
         if (!conductedSoon) this.queue(escapeAt, 'escape', null);
@@ -433,7 +443,7 @@ export class HeartElectrical {
 
     const origin = kind;
     // A junctional escape (conduction intact, the sinus paused) is narrow; below a complete block it is ventricular, and wide.
-    if (kind === 'escape' && p.avBlock !== 'complete') kind = 'conducted';
+    if (kind === 'escape' && p.avBlock !== 'complete' && !this.hyperKBlock()) kind = 'conducted';
     if (kind === 'vt') {
       k.push({ t: t + 35 * w, sl: 22, sr: 22, v: scale(norm([-0.4, -0.55, -0.7]), 1.3) });
       k.push({ t: t + 95 * w, sl: 30, sr: 26, v: scale(norm([-0.6, -0.7, -0.1]), 1.9) });

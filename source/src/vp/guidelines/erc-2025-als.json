@@ -1,7 +1,7 @@
 {
   "schema": "vp.guideline/1",
   "id": "erc-2025-als",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "title": {
     "en": "ERC 2025: adult advanced life support",
     "de": "ERC 2025: Erweiterte lebensrettende Maßnahmen bei Erwachsenen"
@@ -541,6 +541,52 @@
         "within": 300
       },
       "group": "airway"
+    },
+    {
+      "id": "calcium-hyperkalaemia",
+      "title": {
+        "en": "Calcium for a hyperkalaemic arrest",
+        "de": "Calcium beim hyperkaliämischen Stillstand"
+      },
+      "why": {
+        "en": "Calcium does not lower the potassium, but within minutes it lets the heart's cells work again despite it: the bridge until the potassium falls.",
+        "de": "Calcium senkt das Kalium nicht, aber es lässt die Herzzellen innerhalb von Minuten trotz des Kaliums wieder arbeiten: die Brücke, bis das Kalium fällt."
+      },
+      "section": "ERC 2025 Special circumstances (Lott et al.), hyperkalaemia: \"Use IV 10 mL 10 % calcium chloride for patients with severe hyperkalaemia with ECG changes\"; \"the ERC continues to recommend the administration of IV calcium to patients with hyperkalaemic cardiac arrest in all settings\"; \"Give 10 units soluble insulin and 25 g glucose IV for treatment of moderate and severe hyperkalaemia.\"",
+      "basis": "placement",
+      "note": "Only in scenes whose cause is hyperkalaemia. The guideline gives no time; within 3 min of when it became possible (the collapse, the drugs in the room, a line in) is ours.",
+      "unit": "s",
+      "check": {
+        "kind": "dose-for-cause",
+        "cause": "hyperkalaemia",
+        "drug": "calcium",
+        "kit": "drugs",
+        "within": 180
+      },
+      "group": "drugs"
+    },
+    {
+      "id": "insulin-hyperkalaemia",
+      "title": {
+        "en": "Insulin with glucose to lower the potassium",
+        "de": "Insulin mit Glucose, um das Kalium zu senken"
+      },
+      "why": {
+        "en": "Insulin with glucose moves potassium into the cells: the most effective and reliable way to lower it quickly, though it takes tens of minutes.",
+        "de": "Insulin mit Glucose verschiebt Kalium in die Zellen: der wirksamste und verlässlichste Weg, es rasch zu senken, auch wenn es Dutzende Minuten dauert."
+      },
+      "section": "ERC 2025 Special circumstances (Lott et al.), hyperkalaemia: \"Use IV 10 mL 10 % calcium chloride for patients with severe hyperkalaemia with ECG changes\"; \"the ERC continues to recommend the administration of IV calcium to patients with hyperkalaemic cardiac arrest in all settings\"; \"Give 10 units soluble insulin and 25 g glucose IV for treatment of moderate and severe hyperkalaemia.\"",
+      "basis": "placement",
+      "note": "Only in scenes whose cause is hyperkalaemia. Within 5 min of when it became possible is ours.",
+      "unit": "s",
+      "check": {
+        "kind": "dose-for-cause",
+        "cause": "hyperkalaemia",
+        "drug": "insulin",
+        "kit": "drugs",
+        "within": 300
+      },
+      "group": "drugs"
     }
   ]
 }
