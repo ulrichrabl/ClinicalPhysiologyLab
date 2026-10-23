@@ -442,6 +442,9 @@ export const REFERENCES: Record<string, Reference> = Object.fromEntries([
     journal: 'JAMA', year: 1999, volume: '281', pages: '1182–8', doi: '10.1001/jama.281.13.1182', pmid: '10199427', verified: 'abstract',
     note: 'Abstract: about 90 s of CPR before the shock; survival 24 % → 30 %, mostly where the response took 4 min or longer (17 % → 27 %).' }),
   /* ADR-018 step 4: adrenaline and amiodarone */
+  R({ id: 'guyton1957', authors: 'Guyton AC, Lindsey AW, Abernathy B, Richardson T', title: 'Venous return at various right atrial pressures and the normal venous return curve',
+    journal: 'Am J Physiol', year: 1957, volume: '189', pages: '609–15', doi: '10.1152/ajplegacy.1957.189.3.609', pmid: '13458395', verified: 'record',
+    note: 'Record only (no abstract). Dogs: the venous return curve, flow against right atrial pressure, reaching zero at the mean systemic filling pressure and levelling off below a right atrial pressure of about 0 as the great veins collapse.' }),
   R({ id: 'dallavolta1992', authors: 'Dalla-Volta S, Palla A, Santolicandro A, et al.', title: 'PAIMS 2: alteplase combined with heparin versus heparin in the treatment of acute pulmonary embolism. Plasminogen activator Italian multicenter study 2',
     journal: 'J Am Coll Cardiol', year: 1992, volume: '20', pages: '520–6', doi: '10.1016/0735-1097(92)90002-5', pmid: '1512328', verified: 'abstract',
     note: 'Abstract, 36 people with angiographically documented pulmonary embolism. Alteplase (10 mg bolus, 90 mg over 2 h) then heparin, n = 20: Miller index 28.3 ± 2.9 → 24.8 ± 5.2 at 2 h; mean pulmonary artery pressure 30.2 ± 7.8 → 21.4 ± 6.7 mmHg. Heparin alone, n = 16: 25.3 ± 5.3 → 25.2 ± 5.4; 22.3 ± 10.5 → 24.8 ± 11.2 mmHg. Bleeding in 14 of 20 with alteplase.' }),

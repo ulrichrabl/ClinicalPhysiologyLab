@@ -425,5 +425,26 @@ console.log('\nMassive pulmonary embolism: an arrest with a cause (Wood 2002; PA
     `lysed ${(r.run.drugs.lysed * 100).toFixed(1)} %, PVR ×${before.toFixed(2)} → ×${after.toFixed(2)}; systolic ${Math.round(r.run.sim.metrics.Psys)}. Slow, as the guideline’s 60–90 min of CPR after thrombolysis expects.`);
 }
 
+console.log('\nVenous return when the circulation empties (Guyton 1957; Schadt & Ludbrook 1991)');
+{
+  /* A healthy adult, bled to a volume (or with the pressure in the chest raised) and given two minutes. */
+  const at = ({ bv = 5000, chest = 0 }) => {
+    const m = S.healthyModel(), run = S.createCirculation(m); run.settle(20);
+    if (chest) { run.sim.chestCardiacExtra = 0; run.sim.chest = () => chest; }
+    run.apply({ ...m, circulation: { ...m.circulation, bloodVolume: bv } }); run.advance(120);
+    const x = run.sim.metrics;
+    return { ...x, MAP: x.Pmean, Pmsf: run.sim.meanFillingPressure(), Pra: run.sim.Pra };
+  };
+  const base = at({}), b20 = at({ bv: 4000 }), b30 = at({ bv: 3500 }), b50 = at({ bv: 2500 });
+  const show = (x) => `${Math.round(x.Psys)}/${Math.round(x.Pdia)}, CO ${x.CO.toFixed(1)}`;
+  ok('validated: a 20 % loss keeps arterial pressure near normal, the reflex matching the fall in output with resistance (Schadt & Ludbrook 1991, phase 1)', Math.abs(b20.MAP - base.MAP) / base.MAP < 0.15,
+    `mean ${base.MAP.toFixed(0)} → ${b20.MAP.toFixed(0)} mmHg; ${show(base)} → ${show(b20)}`);
+  gap('…and at about 30 % a second phase sets in: the sympathetic drive withdraws, the heart slows and the pressure falls profoundly (Schadt & Ludbrook 1991)', b30.MAP < 0.6 * base.MAP && b30.HRbeat < base.HRbeat + 10,
+    `30 %: ${show(b30)}, HR ${Math.round(b30.HRbeat)}: the reflex here only ever adds sympathetic drive; the decompensating phase is not modelled`);
+  ok('a circulation emptied below its unstressed volumes stops: half the blood lost leaves no palpable pulse', b50.Psys < 50 && b50.CO < 1, show(b50));
+  const c20 = at({ chest: 20 });
+  ok('pressure in the chest above the mean filling pressure stops venous return: no output (Guyton 1957)', c20.CO < 0.2 && c20.Pmsf < 20, `+20 mmHg in the chest: ${show(c20)}, filling pressure ${c20.Pmsf.toFixed(1)} mmHg`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);
