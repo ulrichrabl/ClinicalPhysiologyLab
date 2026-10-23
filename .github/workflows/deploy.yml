@@ -35,6 +35,9 @@ jobs:
         run: |
           mkdir -p _site
           cp source/dist/lab.html _site/index.html
+          # The playtest copy: the same app, which records what the person does on their device (session-record.ts).
+          mkdir -p _site/playtest
+          cp source/dist/lab.html _site/playtest/index.html
           touch _site/.nojekyll
           cd _site
           git init -q -b gh-pages

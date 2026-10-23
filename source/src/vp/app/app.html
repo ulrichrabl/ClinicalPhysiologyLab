@@ -390,6 +390,14 @@ details.grp > summary { cursor: pointer; padding: 8px 14px; font-weight: 700; co
 .lang-footer { text-align: center; padding: 24px 0 8px; margin-top: 32px; border-top: 1px solid var(--line); }
 .lang-footer .langbtn { font: 400 0.82rem/1 var(--font-mono); color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; cursor: pointer; letter-spacing: .02em; }
 .lang-footer .langbtn:hover { color: var(--fg); border-color: var(--fg); }
+/* the playtest copy (session-record.ts): a thin bar on top that says it records, and saves */
+.pt-bar { position: fixed; top: 0; left: 0; right: 0; height: 30px; z-index: 70; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 0 10px;
+  background: #7a3b8f; color: #fff; font-size: 12.5px; box-sizing: border-box; }
+.pt-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pt-bar span::before { content: '● '; color: #ff8a8a; }
+.pt-bar button { padding: 3px 10px; min-height: 0; font-size: 12px; background: #fff; color: #7a3b8f; border: 0; border-radius: 8px; flex: none; }
+body.playtest { padding-top: 30px; }
+body.playtest .arp { top: 30px; }
 /* report a problem (report.ts) */
 .report-btn { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 60;
   font: 500 13px var(--font-mono); background: var(--surface); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
