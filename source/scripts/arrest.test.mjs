@@ -460,5 +460,18 @@ console.log('\nTension pneumothorax (Roberts 2015)');
     'the trapped air’s pressure is set by the scene; nothing adds air with each breath given (gap 39)');
 }
 
+console.log('\nTamponade (Reddy 1978)');
+{
+  const m = S.healthyModel(), run = S.createCirculation(m); run.settle(20);
+  const at = (f) => { run.apply({ ...m, circulation: { ...m.circulation, pericardialFluid: f } }); run.advance(60); const x = run.sim.metrics; return { ...x, Pperi: run.sim.Pperi }; };
+  const t500 = at(500), t400 = at(400), t0 = at(0);
+  ok('in tamponade the right atrial, left atrial and pericardial pressures equalise (Reddy 1978: right ventricular filling pressure equal to pericardial pressure in every patient)',
+    Math.abs(t500.CVPmean - t500.PlaMean) < 2 && Math.abs(t500.CVPmean - t500.Pperi) < 2, `RA ${t500.CVPmean.toFixed(1)}, LA ${t500.PlaMean.toFixed(1)}, pericardium ${t500.Pperi.toFixed(1)} mmHg; ${Math.round(t500.Psys)}/${Math.round(t500.Pdia)}`);
+  ok('the first drainage does the most: 100 mL out of 500 brings much of the output back (Reddy 1978: the improvement lies where filling and pericardial pressure are still equal)',
+    t400.CO > 5 * t500.CO && t400.CO < t0.CO, `CO ${t500.CO.toFixed(2)} → ${t400.CO.toFixed(2)} (none: ${t0.CO.toFixed(2)}) L/min`);
+  gap('…at Reddy’s right atrial pressure in tamponade (16 ± 4 mmHg) the output is still 3.9 L/min', false,
+    `the model loses its output by a right atrial pressure of about 12 mmHg (${t500.CVPmean.toFixed(1)} mmHg, CO ${t500.CO.toFixed(2)}). Reddy's patients had subacute effusions, their volume status unreported; the model's pericardial constants are ungrounded and its patient has a normal blood volume (gap 40).`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);

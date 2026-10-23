@@ -554,6 +554,15 @@ export class ScenarioRun {
         const tension = q.tensionL > 0 || q.tensionR > 0 ? (q.tensionL >= q.tensionR ? 'left' : 'right') : null;
         this.events.push({ t: this.t, kind: 'assessed', what: 'chest', by: p.by, chest: { left: side(q.ptxL), right: side(q.ptxR), tension } });
       }
+      if (e.assess === 'echo') {
+        /* what a focused ultrasound shows, read from the patient as the model has him (thresholds are placements) */
+        const c = this.live.model.circulation, q = this.live.model.respiratory;
+        const emb = (q.embRUL + q.embRML + q.embRLL + q.embLUL + q.embLLL) / 5;
+        this.events.push({ t: this.t, kind: 'assessed', what: 'echo', by: p.by, echo: {
+          effusion: c.pericardialFluid >= 150 ? 'large' : c.pericardialFluid >= 50 ? 'small' : 'none',
+          rvDilated: emb >= 0.5, empty: (this.live.run.sim.bloodVolume ?? 5000) < 3500,
+          sliding: { left: q.ptxL < 0.5, right: q.ptxR < 0.5 } } });
+      }
       if (e.assess === 'mouth') this.events.push({ t: this.t, kind: 'assessed', what: 'mouth', by: p.by, mouth: this.obstruction ? 'bolus' : 'clear' });
       if (e.clearAirway && this.obstruction) {
         this.obstruction = null;

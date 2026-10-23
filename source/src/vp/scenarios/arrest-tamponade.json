@@ -1,0 +1,239 @@
+{
+  "schema": "vp.scenario/1",
+  "id": "arrest-tamponade",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": {
+    "en": "Practice: cardiac arrest from a tamponade",
+    "de": "Übung: Herz-Kreislauf-Stillstand durch Perikardtamponade"
+  },
+  "caseId": "free-patient",
+  "purpose": "A non-shockable arrest with a reversible cause (owner, 2026-10-23: all PEA situations). The day after a pacemaker was put in, its right-ventricular lead has perforated: blood collects in the pericardium. With 400 mL he is hypotensive (77/63, heart rate 103) with a raised venous pressure; at 500 mL the pressures inside the heart equalise with the pericardial pressure (Reddy 1978), it cannot fill, and it keeps an organised rhythm without a pulse (PEA). Both volumes are placements inside what the model gives; its pericardial constants are ungrounded (gap 40). The lesson: a focused ultrasound in the pause shows the fluid; a pericardiocentesis (to 200 mL left, a placement) brings the circulation back. The bleeding goes on in life; here it does not re-accumulate.",
+  "scene": {
+    "place": {
+      "en": "A side room on the cardiology ward",
+      "de": "Ein Nebenzimmer auf der kardiologischen Station"
+    },
+    "people": [
+      {
+        "id": "nurse",
+        "role": {
+          "en": "Nurse",
+          "de": "Pflegekraft"
+        },
+        "present": true
+      },
+      {
+        "id": "doctor",
+        "role": {
+          "en": "Doctor (arrest team)",
+          "de": "Ärztin (Reanimationsteam)"
+        },
+        "present": false
+      },
+      {
+        "id": "nurse2",
+        "role": {
+          "en": "Nurse (arrest team)",
+          "de": "Pflegekraft (Reanimationsteam)"
+        },
+        "present": false
+      }
+    ],
+    "equipment": [
+      {
+        "id": "bag-mask",
+        "label": {
+          "en": "Bag-valve-mask on the wall",
+          "de": "Beatmungsbeutel mit Maske an der Wand"
+        },
+        "present": true
+      },
+      {
+        "id": "defibrillator",
+        "label": {
+          "en": "Arrest trolley with a defibrillator",
+          "de": "Notfallwagen mit Defibrillator"
+        },
+        "present": false
+      },
+      {
+        "id": "cannula-kit",
+        "label": {
+          "en": "IV cannulas on the arrest trolley",
+          "de": "Venenverweilkanülen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "drugs",
+        "label": {
+          "en": "Adrenaline and amiodarone on the arrest trolley",
+          "de": "Adrenalin und Amiodaron am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "airway-kit",
+        "label": {
+          "en": "Suction, Magill forceps and airways on the arrest trolley",
+          "de": "Absaugung, Magill-Zange und Atemwegshilfen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "thrombolytic",
+        "label": {
+          "en": "Alteplase (thrombolytic), brought with the arrest team",
+          "de": "Alteplase (Thrombolytikum), vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "fluids",
+        "label": {
+          "en": "Warmed saline and a pressure bag, on the arrest trolley",
+          "de": "Angewärmte Kochsalzlösung und Druckbeutel, am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "ultrasound",
+        "label": {
+          "en": "An ultrasound machine, brought with the arrest team",
+          "de": "Ein Ultraschallgerät, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "pericardiocentesis",
+        "label": {
+          "en": "A pericardiocentesis set, brought with the arrest team",
+          "de": "Ein Perikardpunktionsset, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      }
+    ],
+    "team": {
+      "people": [
+        "doctor",
+        "nurse2"
+      ],
+      "equipment": [
+        "defibrillator",
+        "cannula-kit",
+        "drugs",
+        "airway-kit",
+        "thrombolytic",
+        "fluids",
+        "ultrasound",
+        "pericardiocentesis"
+      ],
+      "afterSeconds": 120,
+      "lateWithoutWhere": 90,
+      "callSeconds": 15
+    },
+    "cause": "tamponade"
+  },
+  "reveal": {
+    "label": {
+      "en": "A cardiac tamponade",
+      "de": "Eine Perikardtamponade"
+    },
+    "explain": {
+      "en": "The pacemaker lead put in yesterday had gone through the wall of his right ventricle, and blood collected in the pericardium. The stiff sac squeezed the heart until it could not fill: the pressures inside it equalised with the pericardial pressure, and it beat on without a pulse (PEA), with nothing to shock. A focused ultrasound in the pause shows the fluid. Draining it, even a little, lets the heart fill again; compressions push on a heart that has nothing in it.",
+      "de": "Die gestern gelegte Schrittmachersonde hatte die Wand seines rechten Ventrikels durchstoßen, und Blut sammelte sich im Perikard. Der steife Beutel drückte das Herz zusammen, bis es sich nicht mehr füllen konnte: die Drücke darin glichen sich dem Perikarddruck an, und es schlug ohne Puls weiter (PEA), nichts zu schocken. Ein fokussierter Ultraschall in der Pause zeigt die Flüssigkeit. Sie abzulassen, schon ein wenig, lässt das Herz sich wieder füllen; Kompressionen drücken auf ein Herz, das nichts enthält."
+    }
+  },
+  "machine": {
+    "start": "breathless",
+    "states": {
+      "breathless": {
+        "label": {
+          "en": "Unwell",
+          "de": "Unwohl"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "circulation.pericardialFluid",
+                "set": 400
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "patient",
+              "text": {
+                "en": "I feel awful… dizzy, and there’s a pressure in my chest since this morning.",
+                "de": "Mir geht es furchtbar … schwindelig, und seit heute Morgen drückt es in der Brust."
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "inStateFor": 30
+            },
+            "to": "arrest"
+          }
+        ]
+      },
+      "arrest": {
+        "label": {
+          "en": "Cardiac arrest",
+          "de": "Herz-Kreislauf-Stillstand"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "circulation.pericardialFluid",
+                "set": 500
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "He’s collapsed! He had his pacemaker put in yesterday. He isn’t responding. What shall I do?",
+                "de": "Er ist zusammengebrochen! Er hat gestern einen Schrittmacher bekommen. Er reagiert nicht. Was soll ich tun?"
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "at": 1200
+            },
+            "to": "end"
+          }
+        ]
+      },
+      "end": {
+        "label": {
+          "en": "Twenty minutes",
+          "de": "Zwanzig Minuten"
+        },
+        "final": true
+      }
+    }
+  },
+  "nudges": [
+    {
+      "id": "gasping",
+      "label": {
+        "en": "He gasps",
+        "de": "Er hat Schnappatmung"
+      },
+      "explain": {
+        "en": "This run was set up so that he gasps after the collapse. Gasping is not breathing: an unresponsive patient who gasps is in cardiac arrest, and compressions should start without delay.",
+        "de": "Dieser Durchgang war so angelegt, dass er nach dem Kollaps Schnappatmung hat. Schnappatmung ist keine Atmung: Ein reaktionsloser Patient mit Schnappatmung hat einen Kreislaufstillstand, und die Kompressionen sollten ohne Verzögerung beginnen."
+      }
+    }
+  ]
+}

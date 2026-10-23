@@ -1,7 +1,7 @@
 {
   "schema": "vp.scenario/1",
   "id": "arrest-bleeding",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "status": "draft",
   "title": {
     "en": "Practice: cardiac arrest from blood loss",
@@ -96,6 +96,22 @@
           "de": "Angewärmte Kochsalzlösung und Druckbeutel, am Notfallwagen"
         },
         "present": false
+      },
+      {
+        "id": "ultrasound",
+        "label": {
+          "en": "An ultrasound machine, brought with the arrest team",
+          "de": "Ein Ultraschallgerät, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "pericardiocentesis",
+        "label": {
+          "en": "A pericardiocentesis set, brought with the arrest team",
+          "de": "Ein Perikardpunktionsset, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
       }
     ],
     "team": {
@@ -109,7 +125,9 @@
         "drugs",
         "airway-kit",
         "thrombolytic",
-        "fluids"
+        "fluids",
+        "ultrasound",
+        "pericardiocentesis"
       ],
       "afterSeconds": 120,
       "lateWithoutWhere": 90,

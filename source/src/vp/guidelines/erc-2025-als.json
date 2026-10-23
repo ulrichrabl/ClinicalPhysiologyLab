@@ -1,7 +1,7 @@
 {
   "schema": "vp.guideline/1",
   "id": "erc-2025-als",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "title": {
     "en": "ERC 2025: adult advanced life support",
     "de": "ERC 2025: Erweiterte lebensrettende Maßnahmen bei Erwachsenen"
@@ -518,6 +518,29 @@
         ]
       },
       "group": "drugs"
+    },
+    {
+      "id": "pericardiocentesis-tamponade",
+      "title": {
+        "en": "A tamponade drained",
+        "de": "Perikardtamponade entlastet"
+      },
+      "why": {
+        "en": "Blood in the pericardium squeezes the heart until it cannot fill: compressions push on an empty heart. Draining even a little brings the filling back.",
+        "de": "Blut im Perikard drückt das Herz zusammen, bis es sich nicht mehr füllen kann: Kompressionen drücken auf ein leeres Herz. Schon eine kleine Entlastung bringt die Füllung zurück."
+      },
+      "section": "ERC 2025 Special circumstances (Lott et al.): \"Always address hypoxia, hypovolaemia, electrolyte disorders, hypothermia, cardiac tamponade, tension pneumothorax, thrombosis, and toxic agents\"; in traumatic arrest, \"patients with a cardiac tamponade need urgent thoracotomy\"; ALS (Soar et al.): \"POCUS may help identify treatable causes of cardiac arrest such as cardiac tamponade and tension pneumothorax.\"",
+      "basis": "placement",
+      "note": "Only in scenes whose cause is a tamponade. The guideline gives no time and, outside trauma, no procedure; a pericardiocentesis begun within 5 min of when it became possible (the collapse, the kit in the room) is ours.",
+      "unit": "s",
+      "check": {
+        "kind": "done-for-cause",
+        "cause": "tamponade",
+        "id": "pericardiocentesis",
+        "kit": "pericardiocentesis",
+        "within": 300
+      },
+      "group": "airway"
     }
   ]
 }
