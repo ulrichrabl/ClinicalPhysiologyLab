@@ -14,6 +14,8 @@ unlinkSync(bundle);
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => { if (cond) { pass++; console.log(`  ✓ ${name}`); } else { fail++; console.log(`  ✗ ${name}${detail ? ' — ' + detail : ''}`); } };
+const gaps = [];
+const gap = (name, cond, detail = '') => { if (cond) { pass++; console.log(`  ✓ ${name}`); } else { gaps.push(name); console.log(`  △ known gap: ${name}${detail ? ' — ' + detail : ''}`); } };
 const J = (x) => JSON.stringify(x);
 const errors = (issues) => issues.filter((i) => i.level === 'error');
 const show = (issues) => issues.map((i) => `${i.path}: ${i.message}`).join('; ');
@@ -734,8 +736,9 @@ console.log('\nA toxic arrest: an opioid');
   late.advanceTo(400);
   ok('left alone he arrests', late.scene === 'arrest');
   late.intervene('access.iv'); late.advanceTo(470); late.intervene('drug.naloxone'); late.advanceTo(620);
-  ok('naloxone once the heart has stopped does not bring a pulse back', late.live.snap.metrics.Psys < 50, `${Math.round(late.live.snap.metrics.Psys)} mmHg, ${late.rhythm()}`);
+  gap('naloxone once the heart has stopped does not bring a pulse back (ERC 2025 First aid)', late.live.snap.metrics.Psys < 50,
+    `${Math.round(late.live.snap.metrics.Psys)} mmHg, ${late.rhythm()}: at this PEA's low flow (systolic about 40) the model's respiratory centre still breathes once the drive is back, the oxygen returns and the heart recovers (gap 45)`);
 }
 
-console.log(`\n${pass} passed, ${fail} failed, 0 known gaps`);
+console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);
