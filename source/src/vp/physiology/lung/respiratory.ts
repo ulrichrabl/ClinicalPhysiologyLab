@@ -85,6 +85,9 @@ export interface RespiratoryParams {
   embRUL: number; embRML: number; embRLL: number; embLUL: number; embLLL: number;
   /* pleura */
   effusionL: number; effusionR: number; ptxL: number; ptxR: number;
+  /** Trapped air under pressure in that pleural space (a tension pneumothorax): mmHg above atmospheric, 0 normally. It acts
+      on the heart and the vessels in the chest (engine/circulation-host.ts). */
+  tensionL: number; tensionR: number;
 }
 
 export const RESPIRATORY_DEFAULTS: RespiratoryParams = {
@@ -95,7 +98,7 @@ export const RESPIRATORY_DEFAULTS: RespiratoryParams = {
   consRUL: 0, consRML: 0, consRLL: 0, consLUL: 0, consLLL: 0,
   collRUL: 0, collRML: 0, collRLL: 0, collLUL: 0, collLLL: 0,
   embRUL: 0, embRML: 0, embRLL: 0, embLUL: 0, embLLL: 0,
-  effusionL: 0, effusionR: 0, ptxL: 0, ptxR: 0,
+  effusionL: 0, effusionR: 0, ptxL: 0, ptxR: 0, tensionL: 0, tensionR: 0,
 };
 
 /** What the respiratory model needs from the rest of the patient. */

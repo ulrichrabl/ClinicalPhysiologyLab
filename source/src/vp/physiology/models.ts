@@ -958,6 +958,8 @@ const MECHANICS: ModelDef = {
     RP('mechanics', 'pleura', 'effusionL', 'E_L', L('Pleural effusion, left', 'Pleuraerguss links'), 'mL', 0, 4000, 50),
     RP('mechanics', 'pleura', 'ptxR', 'ptx_R', L('Pneumothorax, right (fraction of lung collapsed)', 'Pneumothorax rechts (kollabierter Anteil)'), '0–1', 0, 1, 0.05),
     RP('mechanics', 'pleura', 'ptxL', 'ptx_L', L('Pneumothorax, left (fraction of lung collapsed)', 'Pneumothorax links (kollabierter Anteil)'), '0–1', 0, 1, 0.05),
+    RP('mechanics', 'pleura', 'tensionR', 'P_{tens,R}', L('Tension pneumothorax, right (pressure of the trapped air)', 'Spannungspneumothorax rechts (Druck der gefangenen Luft)'), 'mmHg', 0, 40, 1),
+    RP('mechanics', 'pleura', 'tensionL', 'P_{tens,L}', L('Tension pneumothorax, left (pressure of the trapped air)', 'Spannungspneumothorax links (Druck der gefangenen Luft)'), 'mmHg', 0, 40, 1),
     RP('mechanics', 'muscles', 'muscleStrength', 's_{mus}', L('Respiratory muscle strength', 'Kraft der Atemmuskulatur'), '× normal', 0.05, 1.2, 0.05),
     state('mechanics', { key: 'V', symbol: 'V', label: L('Lung volume above relaxed FRC', 'Lungenvolumen über der entspannten FRC'), unit: 'L', digits: 2 }),
     state('mechanics', { key: 'flow', symbol: 'V̇', label: L('Airflow (+ in)', 'Atemstrom (+ ein)'), unit: 'L/s', digits: 2 }),

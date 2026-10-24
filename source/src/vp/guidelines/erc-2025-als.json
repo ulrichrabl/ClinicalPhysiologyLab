@@ -1,7 +1,7 @@
 {
   "schema": "vp.guideline/1",
   "id": "erc-2025-als",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "title": {
     "en": "ERC 2025: adult advanced life support",
     "de": "ERC 2025: Erweiterte lebensrettende Maßnahmen bei Erwachsenen"
@@ -451,6 +451,29 @@
         "within": 300
       },
       "group": "drugs"
+    },
+    {
+      "id": "decompress-tension",
+      "title": {
+        "en": "A tension pneumothorax decompressed",
+        "de": "Spannungspneumothorax entlastet"
+      },
+      "why": {
+        "en": "Air trapped under pressure in the chest stops the blood returning to the heart: no compressions or drugs help until it is let out. A cannula through the chest wall on that side does it in seconds.",
+        "de": "Unter Druck gefangene Luft im Thorax hält das Blut vom Herzen fern: Kompressionen und Medikamente helfen erst, wenn sie entweicht. Eine Kanüle durch die Thoraxwand auf dieser Seite schafft das in Sekunden."
+      },
+      "section": "ERC 2025 Special circumstances (Lott et al.): \"Always address hypoxia, hypovolaemia, electrolyte disorders, hypothermia, cardiac tamponade, tension pneumothorax, thrombosis, and toxic agents\"; in traumatic arrest, \"Early and aggressive management of reversible causes (e.g. haemorrhage control, airway management, chest decompression) is essential for survival.\"",
+      "basis": "placement",
+      "note": "Only in scenes whose cause is a tension pneumothorax, and only the decompression of its side counts. The guideline gives no time; 2 min from when it became possible (the collapse, a cannula in the room) is ours. Read through a partial copy of the guideline: the chapter is to be read in full.",
+      "unit": "s",
+      "check": {
+        "kind": "done-for-cause",
+        "cause": "tension-pneumothorax",
+        "id": "decompress.{side}",
+        "kit": "cannula-kit",
+        "within": 120
+      },
+      "group": "airway"
     }
   ]
 }

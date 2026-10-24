@@ -442,6 +442,12 @@ export const REFERENCES: Record<string, Reference> = Object.fromEntries([
     journal: 'JAMA', year: 1999, volume: '281', pages: '1182–8', doi: '10.1001/jama.281.13.1182', pmid: '10199427', verified: 'abstract',
     note: 'Abstract: about 90 s of CPR before the shock; survival 24 % → 30 %, mostly where the response took 4 min or longer (17 % → 27 %).' }),
   /* ADR-018 step 4: adrenaline and amiodarone */
+  R({ id: 'roberts2015', authors: 'Roberts DJ, Leigh-Smith S, Faris PD, et al.', title: 'Clinical presentation of patients with tension pneumothorax: a systematic review',
+    journal: 'Ann Surg', year: 2015, volume: '261', pages: '1068–78', doi: '10.1097/SLA.0000000000001073', pmid: '25563887', verified: 'abstract',
+    note: 'Abstract: 5 cohorts (310 patients) and 183 case reports (86 breathing unassisted, 97 ventilated). Hypoxia in 50 % unassisted against 92 % ventilated; respiratory arrest in 9.3 % of the unassisted. Hypotension and cardiac arrest far more likely with assisted ventilation (adjusted OR 12.6, 5.8–27.5, and 17.7, 4.0–78.4); in one cohort none breathing unassisted against 39.6 % ventilated presented without a pulse; 70 % of the ventilated who became hypotensive or arrested did so within minutes.' }),
+  R({ id: 'lott2025', authors: 'Lott C, Karageorgos V, Abelairas-Gomez C, et al.', title: 'European Resuscitation Council Guidelines 2025: Special Circumstances in Resuscitation',
+    journal: 'Resuscitation', year: 2025, volume: '215', pages: '110753', doi: '10.1016/j.resuscitation.2025.110753', verified: 'secondary',
+    note: 'Read through a fetch of a redistributed PDF that quoted only parts: "Always address hypoxia, hypovolaemia, electrolyte disorders, hypothermia, cardiac tamponade, tension pneumothorax, thrombosis, and toxic agents"; in traumatic arrest, "Early and aggressive management of reversible causes (e.g. haemorrhage control, airway management, chest decompression) is essential for survival." To be read in full.' }),
   R({ id: 'guyton1957', authors: 'Guyton AC, Lindsey AW, Abernathy B, Richardson T', title: 'Venous return at various right atrial pressures and the normal venous return curve',
     journal: 'Am J Physiol', year: 1957, volume: '189', pages: '609–15', doi: '10.1152/ajplegacy.1957.189.3.609', pmid: '13458395', verified: 'record',
     note: 'Record only (no abstract). Dogs: the venous return curve, flow against right atrial pressure, reaching zero at the mean systemic filling pressure and levelling off below a right atrial pressure of about 0 as the great veins collapse.' }),

@@ -446,5 +446,19 @@ console.log('\nVenous return when the circulation empties (Guyton 1957; Schadt &
   ok('pressure in the chest above the mean filling pressure stops venous return: no output (Guyton 1957)', c20.CO < 0.2 && c20.Pmsf < 20, `+20 mmHg in the chest: ${show(c20)}, filling pressure ${c20.Pmsf.toFixed(1)} mmHg`);
 }
 
+console.log('\nTension pneumothorax (Roberts 2015)');
+{
+  const m = S.healthyModel(), run = S.createCirculation(m); run.settle(20);
+  const set = (o) => run.apply({ ...m, respiratory: { ...m.respiratory, ...o } });
+  set({ ptxL: 1, tensionL: 25 }); run.advance(90);
+  const t = run.sim.metrics, rhythm = run.heart.p.ventricular;
+  ok('trapped air at a pressure above the mean filling pressure stops the blood returning: PEA', rhythm === 'none' && t.Psys < 50 && t.CO < 0.5, `${Math.round(t.Psys)}/${Math.round(t.Pdia)} mmHg, CO ${t.CO.toFixed(2)}`);
+  set({ ptxL: 1, tensionL: 0 }); run.advance(60);
+  const d = run.sim.metrics;
+  ok('letting the air out (the lung still collapsed) brings the circulation back at once', d.Psys > 90 && d.CO > 3, `${Math.round(d.Psys)}/${Math.round(d.Pdia)} mmHg, CO ${d.CO.toFixed(2)}`);
+  gap('positive-pressure breaths build the tension: arrest is far more likely when the patient is ventilated (Roberts 2015: adjusted OR 17.7)', false,
+    'the trapped air’s pressure is set by the scene; nothing adds air with each breath given (gap 39)');
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);
