@@ -4,6 +4,9 @@
 const S_VLV = 0, S_VLA = 1, S_VRV = 2, S_VRA = 3,
       S_VSA = 4, S_VSV = 5, S_VPA = 6, S_VPV = 7,
       S_SS = 8, S_SP = 9, N_STATE = 10;
+/** Where each compartment's outflow goes: LV→aorta, LA→LV, RV→pulmonary artery, RA→RV, arteries→veins, veins→RA,
+    pulmonary artery→pulmonary veins, pulmonary veins→LA. */
+const DOWNSTREAM = [4, 0, 6, 2, 5, 3, 7, 1];
 
 import type { EcgEngine } from '../ecg-engine/engine.ts';
 import { CIRC, BARO } from '../../../vp/evidence/circulation.ts';
@@ -362,22 +365,40 @@ export class Circulation {
     /* The thoracic aorta is inside the chest: a compression raises its pressure directly, by the share of the arterial
        compliance that lies there. (The breath's pleural swing does not yet reach it: that belongs to the heart–lung
        chain, which is paused.) */
-    const Psa = (Vsa - this.V0sa) / this.Csa + PcTh * (this.aortaChestShare ?? 0);
-    const Psv = (Vsv - this.effV0sv) / this.Csv;
-    const Ppa = (Vpa - this.V0pa) / this.Cpa + dPpl;
-    const Ppv = (Vpv - this.V0pv) / this.Cpv + dPpl;
+    /* Below its unstressed volume a vessel collapses: its cross-section flattens at almost no further fall of pressure
+       (the tube law), so its pressure goes only slightly below zero instead of falling as if it were still round. */
+    const tube = (V: number, V0: number, C: number) => (V >= V0 ? (V - V0) / C : (V - V0) / (C * CIRC.collapseCompliance));
+    const Psa = tube(Vsa, this.V0sa, this.Csa) + PcTh * (this.aortaChestShare ?? 0);
+    const Psv = tube(Vsv, this.effV0sv, this.Csv);
+    const Ppa = tube(Vpa, this.V0pa, this.Cpa) + dPpl;
+    const Ppv = tube(Vpv, this.V0pv, this.Cpv) + dPpl;
 
     // --- valves ------------------------------------------------------------
-    const Qao  = this.valveFlow(Plv, Psa, this.Raortic, this.regAortic, REG_BASE_LEFT);
-    const Qmit = this.valveFlow(Pla, Plv, this.Rmitral, this.regMitral, REG_BASE_LEFT);
-    const Qpv2 = this.valveFlow(Prv, Ppa, this.Rpulmonic, this.regPulmonic, REG_BASE_RIGHT);
-    const Qtri = this.valveFlow(Pra, Prv, this.Rtricuspid, this.regTricuspid, REG_BASE_RIGHT);
+    let Qao  = this.valveFlow(Plv, Psa, this.Raortic, this.regAortic, REG_BASE_LEFT);
+    let Qmit = this.valveFlow(Pla, Plv, this.Rmitral, this.regMitral, REG_BASE_LEFT);
+    let Qpv2 = this.valveFlow(Prv, Ppa, this.Rpulmonic, this.regPulmonic, REG_BASE_RIGHT);
+    let Qtri = this.valveFlow(Pra, Prv, this.Rtricuspid, this.regTricuspid, REG_BASE_RIGHT);
 
     // --- vascular flows ----------------------------------------------------
-    const Qsys = (Psa - Psv) / this.effRsys;       // through the arterioles
-    const Qven = (Psv - Pra) / this.Rven;          // venous return
-    const Qpulcap = (Ppa - Ppv) / this.Rpul;       // through the lung
-    const Qpvret = (Ppv - Pla) / this.Rpv;         // pulmonary venous return
+    /* Through the arterioles. Collapsed veins downstream (below atmospheric) draw no more through them, and nothing flows
+       back from the veins into the arteries. */
+    let Qsys = Math.max(0, Psa - Math.max(Psv, CIRC.venousCollapsePressure)) / this.effRsys;
+    /* Venous return, with the great veins' waterfall (Guyton 1957): where they enter the chest the veins are surrounded
+       by atmospheric pressure, so when right atrial pressure falls below it they collapse at the inlet and flow no longer
+       rises: it is set by the upstream pressure alone. A low or sucking right atrium (haemorrhage, a deep inspiration)
+       cannot draw more blood than the veins can deliver. */
+    let Qven = (Psv - Math.max(Pra, CIRC.venousCollapsePressure)) / this.Rven;
+    let Qpulcap = (Ppa - Ppv) / this.Rpul;       // through the lung
+    let Qpvret = (Ppv - Pla) / this.Rpv;         // pulmonary venous return
+
+    /* Nothing flows out of an empty compartment. A chamber or vessel at its floor can still hold a pressure (the chest's
+       around it, its own wall's elastance below its unstressed volume) that would drive blood it does not have; each flow
+       is closed off over the last few millilitres of whichever side it leaves. The volumes then stay above the floor by
+       themselves, and nothing is created or carried by a backstop. */
+    const vol = [y[S_VLV], y[S_VLA], y[S_VRV], y[S_VRA], Vsa, Vsv, Vpa, Vpv];
+    const gate = (Q: number, from: number, to: number) => Q * Math.max(0, Math.min(1, ((Q >= 0 ? vol[from] : vol[to]) - CIRC.emptyVolume) / CIRC.emptyVolume));
+    Qao = gate(Qao, S_VLV, S_VSA); Qmit = gate(Qmit, S_VLA, S_VLV); Qpv2 = gate(Qpv2, S_VRV, S_VPA); Qtri = gate(Qtri, S_VRA, S_VRV);
+    Qsys = gate(Qsys, S_VSA, S_VSV); Qven = gate(Qven, S_VSV, S_VRA); Qpulcap = gate(Qpulcap, S_VPA, S_VPV); Qpvret = gate(Qpvret, S_VPV, S_VLA);
 
     const firing = this.baroFiring(Psa);
     const norm = Math.max(0, Math.min(1, (firing - BARO.firingMin) / (BARO.firingMax - BARO.firingMin)));
@@ -493,7 +514,11 @@ export class Circulation {
     // Floors: a chamber may empty but not invert.
     /* Backstops only. With pressures free to go negative these should never
        fire; if one does, blood is being created and conservation is broken. */
-    for (let i = 0; i < 8; i++) if (y0[i] < 1) y0[i] = 1;
+    /* A chamber driven below its floor was emptied by whatever drew from it downstream (a ventricle sucking an empty
+       atrium): the blood that did not exist is taken back from that downstream compartment, so nothing is created and
+       nothing is carried. (Taking it from the systemic veins, as the drift correction below does, would move blood from
+       veins to an empty atrium whatever the pressures: a pump that kept a bled circulation going.) */
+    for (let i = 0; i < 8; i++) if (y0[i] < 1) { const d = 1 - y0[i]; y0[i] = 1; y0[DOWNSTREAM[i]] -= d; this.floorFired = (this.floorFired ?? 0) + 1; }
 
     /* The derivatives sum to zero analytically, so any drift in the total is
        integrator residue (or a backstop firing). Project it back out through
