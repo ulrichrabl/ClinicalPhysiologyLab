@@ -1,7 +1,7 @@
 {
   "schema": "vp.guideline/1",
   "id": "erc-2025-als",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "title": {
     "en": "ERC 2025: adult advanced life support",
     "de": "ERC 2025: Erweiterte lebensrettende Maßnahmen bei Erwachsenen"
@@ -598,6 +598,29 @@
         "kind": "dose-for-cause",
         "cause": "hyperkalaemia",
         "drug": "insulin",
+        "kit": "drugs",
+        "within": 300
+      },
+      "group": "drugs"
+    },
+    {
+      "id": "potassium-hypokalaemia",
+      "title": {
+        "en": "Potassium for a hypokalaemic arrest",
+        "de": "Kalium beim hypokaliämischen Stillstand"
+      },
+      "why": {
+        "en": "With too little potassium, ventricular fibrillation keeps coming back after the shocks that end it. Potassium chloride, 20 mmol over 2–3 min and then 10 mmol, raises it while the algorithm goes on.",
+        "de": "Bei zu wenig Kalium kehrt das Kammerflimmern nach den Schocks, die es beenden, immer wieder zurück. Kaliumchlorid, 20 mmol über 2–3 min und dann 10 mmol, hebt es an, während der Algorithmus weiterläuft."
+      },
+      "section": "ERC 2025 Special circumstances (Lott et al.), hypokalaemia: \"Give 20 mmol potassium chloride IV/IO over 2-3 min, followed by 10 mmol over 2 min in hypokalaemic cardiac arrest\"; \"Where appropriate, replace potassium and correct magnesium deficit concurrently.\"",
+      "basis": "placement",
+      "note": "Only in scenes whose cause is hypokalaemia. Read through the Resuscitation Council UK text that cites the ERC. The guideline gives no time; the first 20 mmol run in within 5 min of when it became possible (the collapse, the drugs in the room, a line in) is ours: begun within 2–3 min. The follow-up 10 mmol is not scored.",
+      "unit": "s",
+      "check": {
+        "kind": "dose-for-cause",
+        "cause": "hypokalaemia",
+        "drug": "potassium",
         "kit": "drugs",
         "within": 300
       },

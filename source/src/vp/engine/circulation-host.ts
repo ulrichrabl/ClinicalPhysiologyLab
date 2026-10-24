@@ -156,12 +156,12 @@ export function createCirculation(m: PatientModel): CirculationRun {
     const ar = milieu.adrenergicResponse();
     sim.gR = model.circulation.gR * (1 - INF.reflexResistanceLoss * vp) * ar; sim.gV = model.circulation.gV * (1 - INF.reflexVenousLoss * vp) * ar;
     sim.HR = model.circulation.HR * milieu.hrMult();
-    /* calcium and insulin given in an arrest act on the heart through the calcium and potassium it sees */
+    /* calcium, insulin and potassium chloride given in an arrest act on the heart through the calcium and potassium it sees */
     const caNow = out.Ca + drugs.calciumRise(0.2 * model.patient.weightKg);
     if (!(Math.abs(caNow - lastCa) < 0.01)) { heart.setCalcium(caNow); lastCa = caNow; }
     const bv = milieu.bloodVolume();
     if (Math.abs(bv - sim.bloodVolume) > 0.5) sim.setBloodVolume(Math.max(1500, bv));
-    const kNow = out.K - drugs.potassiumShift();
+    const kNow = out.K - drugs.potassiumShift() + drugs.potassiumRise(0.2 * model.patient.weightKg);
     if (!(Math.abs(kNow - lastK) < 0.02)) { heart.setPotassium(kNow); sim.K = heart.K; lastK = kNow; }
     /* The right ventricle's own blood supply. Its coronary perfusion pressure is aortic pressure minus the
        pressure in its wall; its demand rises with the pressure it must generate. When supply falls short it

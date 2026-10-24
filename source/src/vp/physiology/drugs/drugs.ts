@@ -18,22 +18,27 @@ import { DRUGS } from '../../evidence/drugs.ts';
        a measured fraction per hour while it acts (`lysed`, read by the
        lungs as a smaller embolic obstruction in every lobe).
 
+   Calcium and potassium spread through the extracellular fluid; potassium chloride then moves on into the cells.
+
    Not modelled: adrenaline's β effects (rate, contractility, β2
    vasodilation at low levels), its venoconstriction, its effect on the
    fibrillating myocardium's oxygen use; amiodarone's hypotension and
    bradycardia; alteplase's bleeding, and any lysis of a coronary clot. With no drug given every multiplier is exactly 1.
 =========================================================================== */
 
-export type DrugId = 'adrenaline' | 'amiodarone' | 'alteplase' | 'calcium' | 'insulin';
-export const DRUG_IDS: DrugId[] = ['adrenaline', 'amiodarone', 'alteplase', 'calcium', 'insulin'];
+export type DrugId = 'adrenaline' | 'amiodarone' | 'alteplase' | 'calcium' | 'insulin' | 'potassium';
+export const DRUG_IDS: DrugId[] = ['adrenaline', 'amiodarone', 'alteplase', 'calcium', 'insulin', 'potassium'];
 
 export class Drugs {
   /** mg given and not yet carried to the central circulation. */
-  readonly vein: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0 };
-  /** mg in the central circulation (calcium in mmol, insulin in units). */
-  readonly central: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0 };
+  readonly vein: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0 };
+  /** mg in the central circulation (calcium and potassium in mmol, insulin in units). Potassium here is what is still in
+      the extracellular fluid. */
+  readonly central: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0 };
   /** mg given, in all. */
-  readonly given: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0 };
+  readonly given: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0 };
+  /** Potassium (mmol) that has reached the circulation, in all. */
+  potassiumArrived = 0;
   /** Seconds since insulin (with its glucose) reached the circulation; NaN before. */
   insulinFor = NaN;
   /** Core temperature, °C: below 30 °C adrenaline is cleared more slowly and accumulates (ERC 2025). */
@@ -51,7 +56,12 @@ export class Drugs {
   step(seconds: number): void {
     const carried = 1 - Math.exp(-seconds / DRUGS.arrivalTau);
     for (const d of DRUG_IDS) {
-      if (this.vein[d] > 0) { const x = this.vein[d] * carried; this.vein[d] -= x; this.central[d] += x; }
+      if (this.vein[d] > 0) { const x = this.vein[d] * carried; this.vein[d] -= x; this.central[d] += x; if (d === 'potassium') this.potassiumArrived += x; }
+    }
+    /* potassium given moves on into the cells, down to the part that stays in the extracellular fluid (Kruse 1990) */
+    if (this.potassiumArrived > 0) {
+      const stays = DRUGS.potassiumRetained * this.potassiumArrived;
+      this.central.potassium = stays + (this.central.potassium - stays) * Math.exp(-seconds / DRUGS.potassiumTau);
     }
     const cold = this.temperature < 30 ? DRUGS.adrenalineColdSlowing : 1;
     if (this.central.adrenaline > 0) this.central.adrenaline *= Math.exp(-Math.LN2 / (DRUGS.adrenalineHalfLife * cold) * seconds);
@@ -65,6 +75,9 @@ export class Drugs {
 
   /** Total calcium added to the extracellular fluid by doses given, mmol/L, for an extracellular volume in litres. */
   calciumRise(ecfL: number): number { return this.central.calcium / Math.max(5, ecfL); }
+
+  /** How far potassium chloride given has raised plasma potassium, mmol/L, for an extracellular volume in litres. */
+  potassiumRise(ecfL: number): number { return this.central.potassium / Math.max(5, ecfL); }
 
   /** How far insulin with glucose has lowered plasma potassium by moving it into cells, mmol/L. */
   potassiumShift(): number { return Number.isFinite(this.insulinFor) ? DRUGS.insulinKFall * (1 - Math.exp(-this.insulinFor / DRUGS.insulinKTau)) : 0; }

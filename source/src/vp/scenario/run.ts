@@ -393,11 +393,14 @@ export class ScenarioRun {
     this.refibAt = null;
     const uF = this.chance.uniform('refibrillation'), uFt = this.chance.uniform('refibrillation-time');
     /* Amiodarone on board makes it less likely (ADR-018 step 4). */
-    const recurrence = ARREST.refibrillationChance * this.live.run.drugs.recurrenceMult();
+    let recurrence = ARREST.refibrillationChance * this.live.run.drugs.recurrenceMult();
+    /* Low potassium makes it come back sooner and more often (Nordrehaug 1983, by analogy: gap 47). */
+    const hk = this.live.run.heart.K <= ARREST.hypoKBelow ? ARREST.hypoKRecurrenceHazard : 1;
+    recurrence = 1 - Math.pow(1 - recurrence, hk);
     if (outcome !== 'not-terminated' && !noRecurrence && (uF < recurrence || forceRecurrence)) {
-      const after = -Math.log(1 - uFt) * ARREST.refibrillationMedian / Math.LN2;
+      const after = -Math.log(1 - uFt) * ARREST.refibrillationMedian / Math.LN2 / hk;
       this.refibAt = this.tick + Math.max(1, Math.round(after / TICK_S));
-      this.events.push({ t: this.t, kind: 'chance', stream: 'refibrillation', value: uF, use: `VF will come back after ${after.toFixed(0)} s` });
+      this.events.push({ t: this.t, kind: 'chance', stream: 'refibrillation', value: uF, use: `VF will come back after ${after.toFixed(0)} s${hk > 1 ? ' (low potassium)' : ''}` });
     }
     this.events.push({ t: this.t, kind: 'shock', by, rhythm, outcome, joules });
   }

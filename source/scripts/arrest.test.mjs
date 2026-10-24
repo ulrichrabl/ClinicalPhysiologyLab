@@ -485,6 +485,11 @@ console.log('\nHyperkalaemia (Durfey 2017; Harel 2016)');
   ok('calcium brings an escape rhythm back within two minutes (Durfey 2017: every hyperkalaemic bradycardia improved after calcium)', !run.heart.hyperKStandstill() && run.sim.metrics.HRbeat > 10, `HR ${Math.round(run.sim.metrics.HRbeat)}, ${Math.round(run.sim.metrics.Psys)} mmHg`);
   const d = new S.Drugs(); d.give('insulin', 10); for (let i = 0; i < 3600; i++) d.step(1);
   ok('derived: insulin with glucose lowers potassium by 0.78 mmol/L at 60 min (Harel 2016)', Math.abs(d.potassiumShift() - 0.78) < 0.05, `${d.potassiumShift().toFixed(2)} mmol/L (the arrival into the circulation adds a little delay)`);
+  /* potassium chloride: what stays in the extracellular fluid, and how much a bolus raises it first */
+  const k = new S.Drugs(); k.give('potassium', 20);
+  let peak = 0; for (let i = 0; i < 3600; i++) { k.step(1); peak = Math.max(peak, k.potassiumRise(14)); }
+  ok('derived: 20 mmol potassium chloride leaves potassium 0.25 mmol/L higher once it has spread into cells (Kruse 1990, over 14 L)', Math.abs(k.potassiumRise(14) - 0.25) < 0.02, `${k.potassiumRise(14).toFixed(2)} mmol/L at 60 min`);
+  ok('a bolus first raises it by about 1 mmol/L, short of its whole 1.4 over 14 L, since the cells take it up as it arrives', peak > 0.8 && peak < 1.43, `peak ${peak.toFixed(2)} mmol/L`);
   gap('the thresholds of block and standstill and calcium’s offset are measured', false, 'block at an effective 8.0 mmol/L, standstill at 9.5 and calcium’s offset (2.2 per mmol/L) are placements; hyperkalaemic fibrillation is not modelled (gap 41)');
 }
 
