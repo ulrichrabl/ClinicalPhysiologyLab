@@ -356,6 +356,8 @@ export class ScenarioRun {
       this.events.push({ t: this.t, kind: 'shock', by, rhythm, outcome: 'no-effect', joules });
       return;
     }
+    /* ERC 2025: below 30 °C no more than three shocks until the patient is warmer */
+    if (this.def.scene.cause === 'hypothermia' && this.live.run.arrest.temperature < 30 && this.shocks > 3) this.events.push({ t: this.t, kind: 'hazard', code: 'shock-hypothermia-beyond-3', by });
     const uT = this.chance.uniform('shock'), uR = this.chance.uniform('shock-rhythm');
     let outcome = this.live.run.arrest.shock(uT, uR);
     /* The teaching nudges that act on a shock (the draws are taken all the same, so the streams stay in step). */
@@ -583,6 +585,8 @@ export class ScenarioRun {
       }
       /* fluids when the arrest is not from blood loss: given, and recorded as a hazard (ERC: only in hypovolaemia) */
       if (x.id === 'fluid.bolus' && this.def.scene.cause !== 'hypovolaemia') this.events.push({ t: this.t, kind: 'hazard', code: 'fluids-not-hypovolaemia', by: p.by });
+      /* ERC 2025: below 30 °C adrenaline accumulates and is withheld */
+      if (e.dose?.drug === 'adrenaline' && this.live.run.arrest.temperature < 30) this.events.push({ t: this.t, kind: 'hazard', code: 'adrenaline-below-30', by: p.by });
       if (e.dose) { this.live.run.drugs.give(e.dose.drug, e.dose.mg); this.events.push({ t: this.t, kind: 'dose', drug: e.dose.drug, mg: e.dose.mg, by: p.by }); }
       if (e.state) this.setState(e.state);
     }

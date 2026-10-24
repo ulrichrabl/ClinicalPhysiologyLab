@@ -17,7 +17,7 @@ const text = (x: LocalizedText | LocalizedList | undefined, path: string, out: I
     model. The body's parameters act over hours and would re-run the illness's course. */
 const WRITABLE = ['circulation', 'respiratory', 'electrical', 'chemistry'];
 /** Chemistry a scene may clamp, as a learner can (the body's own value is then not used). */
-const CHEMISTRY_PINS = ['potassium', 'calcium', 'bicarbonate', 'haemoglobin', 'albumin'];
+const CHEMISTRY_PINS = ['potassium', 'calcium', 'bicarbonate', 'haemoglobin', 'albumin', 'temperature'];
 
 function checkPath(path: string, v: unknown, where: string, out: Issue[]) {
   const [sec, key, ...rest] = path.split('.');

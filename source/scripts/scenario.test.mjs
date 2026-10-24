@@ -740,5 +740,31 @@ console.log('\nA toxic arrest: an opioid');
     `${Math.round(late.live.snap.metrics.Psys)} mmHg, ${late.rhythm()}: at this PEA's low flow (systolic about 40) the model's respiratory centre still breathes once the drive is back, the oxygen returns and the heart recovers (gap 45)`);
 }
 
+console.log('\nAn arrest in hypothermia: the algorithm changes');
+{
+  const P = scenarioOf('arrest-hypothermia');
+  ok('the hypothermia practice validates; a scene may clamp the temperature', errors(S.validateScenario(P, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).length === 0 && P.scene.cause === 'hypothermia');
+  const Q = structuredClone(P); for (const e of Q.scene.equipment) e.present = true;
+  Q.machine.states.arrest.enter = Q.machine.states.arrest.enter.filter((d) => !('leave' in d) && !('arrive' in d));
+  const r = start(Q, 29, lying(S.FREE_CASE), { settleSeconds: 20 });
+  r.advanceTo(12);
+  ok('at 26 °C his heart fibrillates; a cold heart needs less oxygen', r.rhythm() === 'vf' && r.live.run.arrest.temperature === 26 && r.live.run.arrest.demand() < 0.4, `demand ${r.live.run.arrest.demand().toFixed(2)}`);
+  r.assign('compressions', 'nurse'); r.advanceTo(15); r.intervene('defib.pads'); r.advanceTo(40);
+  for (let i = 0; i < 4; i++) { r.intervene('defib.charge'); r.advanceTo(r.t + 10); r.intervene('defib.shock'); r.advanceTo(r.t + 20); if (r.rhythm() !== 'vf') r.writeModel?.([['electrical.ventricular', 'vf']]); }
+  r.intervene('access.iv'); r.advanceTo(r.t + 70); r.intervene('drug.adrenaline'); r.advanceTo(r.t + 30);
+  r.intervene('call.ecls'); r.advanceTo(r.t + 70);
+  const rep = S.scoreRun(S.GUIDELINES[0], r), rule = (id) => rep.rules.find((x) => x.id === id);
+  ok('scored: a fourth shock below 30 °C and adrenaline below 30 °C are missed; the ECLS call is met', rule('hypothermia-shocks').status === 'missed' && rule('hypothermia-adrenaline').status === 'missed' && rule('ecls-hypothermia').status === 'met',
+    J([rule('hypothermia-shocks'), rule('hypothermia-adrenaline'), rule('ecls-hypothermia')]));
+  ok('…and the normothermic drug rules do not apply', ['adrenaline-first', 'adrenaline-repeat', 'amiodarone-300'].every((id) => rule(id).status === 'not-applicable'));
+}
+{
+  /* in the VF practice the hypothermia rules do not apply */
+  const P = structuredClone(scenarioOf('arrest-practice')); for (const e of P.scene.equipment) e.present = true;
+  const r = start(P, 29, lying(S.FREE_CASE)); r.advanceTo(30);
+  const rep = S.scoreRun(S.GUIDELINES[0], r);
+  ok('the hypothermia rules apply only in hypothermia', ['hypothermia-shocks', 'hypothermia-adrenaline', 'ecls-hypothermia'].every((id) => rep.rules.find((x) => x.id === id).status === 'not-applicable'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);

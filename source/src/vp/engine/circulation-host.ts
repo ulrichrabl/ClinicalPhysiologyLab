@@ -97,7 +97,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
   const bodyOut = () => {
     const c = milieu.conc();
     const pin = model.chemistry;
-    return { Hb: pin.haemoglobin ?? c.Hb, sbc: pin.bicarbonate ?? Math.max(3, c.SBC), albumin: pin.albumin ?? c.alb, K: pin.potassium ?? Math.min(9.5, c.K), Ca: pin.calcium ?? milieu.s.Ca };
+    return { Hb: pin.haemoglobin ?? c.Hb, sbc: pin.bicarbonate ?? Math.max(3, c.SBC), albumin: pin.albumin ?? c.alb, K: pin.potassium ?? Math.min(9.5, c.K), Ca: pin.calcium ?? milieu.s.Ca, T: (pin as any).temperature ?? milieu.s.T };
   };
 
   let pplMean = NaN;
@@ -129,6 +129,8 @@ export function createCirculation(m: PatientModel): CirculationRun {
     if (!((sim.Pchest ?? 0) > 0)) coronaryP = Number.isFinite(coronaryP) ? coronaryP + (perf - coronaryP) * (1 - Math.exp(-COUPLE_S / BRAIN_TAU_S)) : perf;
     /* the myocardium is supplied by the oxygen the coronary flow carries: hypoxaemia starves it as surely as hypotension */
     const o2 = Math.max(0, Math.min(1, (resp.snapshot().CaO2 ?? ARREST.normalCaO2) / ARREST.criticalCaO2));
+    /* a cold heart needs less oxygen (ERC 2025: 6–7 % per °C), so the same supply goes further */
+    arrest.temperature = out.T; drugs.temperature = out.T;
     if (sim.t > 2) arrest.step(COUPLE_S, coronaryP, arrested(), o2);
     /* an organised heart whose myocardium has run down stops (and starts again only once it has clearly recovered) */
     if (heart.p.ventricular === 'none') heart.myocardialStandstill = heart.myocardialStandstill ? arrest.M < 2 * ARREST.standstillM : arrest.M < ARREST.standstillM;
@@ -141,7 +143,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
          measured, the normal output. */
       CO: mt?.CO != null && Number.isFinite(mt.CO) && sim.t > 2 ? Math.max(0.05, mt.CO) : 5.2, Pla: mt?.PlaMean ?? 7, Ppa: mt?.PpaMean ?? 15,
       brainPerfusion: sim.t > 2 ? brainP : undefined,
-      Hb: out.Hb, sbc: out.sbc, albumin: out.albumin, temp: milieu.s.T, sysDrive: milieu.ventilatoryDrive(), metabolicMult: milieu.metabolicMult(),
+      Hb: out.Hb, sbc: out.sbc, albumin: out.albumin, temp: out.T, sysDrive: milieu.ventilatoryDrive(), metabolicMult: milieu.metabolicMult(),
     });
     sim.Rpul = model.circulation.Rpul * resp.rpulMult();
     /* Blood viscosity rises with haematocrit: anaemic blood flows more easily, so resistance falls and output rises.

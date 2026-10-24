@@ -1,0 +1,239 @@
+{
+  "schema": "vp.scenario/1",
+  "id": "arrest-hypothermia",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": {
+    "en": "Practice: cardiac arrest in hypothermia",
+    "de": "Übung: Herz-Kreislauf-Stillstand bei Hypothermie"
+  },
+  "caseId": "free-patient",
+  "purpose": "A shockable arrest whose cause changes the algorithm (owner, 2026-10-24: all CPR situations). A man found outside in the snow, brought to the emergency department unconscious, core temperature 26 °C (clamped by the scene: no rewarming within the run); his heart fibrillates. The lesson (ERC 2025): continuous CPR, up to three shocks and then no more below 30 °C, no adrenaline below 30 °C, and VA-ECMO rewarming. In the model a cold heart needs less oxygen (6.5 % per °C, ERC), so his myocardium runs down slowly; a shock ends VF at 30 % of the normal rate below 30 °C (ungrounded) and adrenaline accumulates (half-life doubled, ungrounded). Bradycardia, J waves and cold-induced arrhythmias are not modelled (gap 46).",
+  "scene": {
+    "place": {
+      "en": "The resuscitation room of the emergency department",
+      "de": "Der Schockraum der Notaufnahme"
+    },
+    "people": [
+      {
+        "id": "nurse",
+        "role": {
+          "en": "Nurse",
+          "de": "Pflegekraft"
+        },
+        "present": true
+      },
+      {
+        "id": "doctor",
+        "role": {
+          "en": "Doctor (arrest team)",
+          "de": "Ärztin (Reanimationsteam)"
+        },
+        "present": false
+      },
+      {
+        "id": "nurse2",
+        "role": {
+          "en": "Nurse (arrest team)",
+          "de": "Pflegekraft (Reanimationsteam)"
+        },
+        "present": false
+      }
+    ],
+    "equipment": [
+      {
+        "id": "bag-mask",
+        "label": {
+          "en": "Bag-valve-mask on the wall",
+          "de": "Beatmungsbeutel mit Maske an der Wand"
+        },
+        "present": true
+      },
+      {
+        "id": "defibrillator",
+        "label": {
+          "en": "Arrest trolley with a defibrillator",
+          "de": "Notfallwagen mit Defibrillator"
+        },
+        "present": false
+      },
+      {
+        "id": "cannula-kit",
+        "label": {
+          "en": "IV cannulas on the arrest trolley",
+          "de": "Venenverweilkanülen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "drugs",
+        "label": {
+          "en": "Adrenaline and amiodarone on the arrest trolley",
+          "de": "Adrenalin und Amiodaron am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "airway-kit",
+        "label": {
+          "en": "Suction, Magill forceps and airways on the arrest trolley",
+          "de": "Absaugung, Magill-Zange und Atemwegshilfen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "thrombolytic",
+        "label": {
+          "en": "Alteplase (thrombolytic), brought with the arrest team",
+          "de": "Alteplase (Thrombolytikum), vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "fluids",
+        "label": {
+          "en": "Warmed saline and a pressure bag, on the arrest trolley",
+          "de": "Angewärmte Kochsalzlösung und Druckbeutel, am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "ultrasound",
+        "label": {
+          "en": "An ultrasound machine, brought with the arrest team",
+          "de": "Ein Ultraschallgerät, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "pericardiocentesis",
+        "label": {
+          "en": "A pericardiocentesis set, brought with the arrest team",
+          "de": "Ein Perikardpunktionsset, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      }
+    ],
+    "team": {
+      "people": [
+        "doctor",
+        "nurse2"
+      ],
+      "equipment": [
+        "defibrillator",
+        "cannula-kit",
+        "drugs",
+        "airway-kit",
+        "thrombolytic",
+        "fluids",
+        "ultrasound",
+        "pericardiocentesis"
+      ],
+      "afterSeconds": 120,
+      "lateWithoutWhere": 90,
+      "callSeconds": 15
+    },
+    "cause": "hypothermia"
+  },
+  "reveal": {
+    "label": {
+      "en": "Hypothermia",
+      "de": "Hypothermie"
+    },
+    "explain": {
+      "en": "He had lain in the snow: core temperature 26 °C. A cold heart fibrillates easily and rarely answers shocks or drugs; below 30 °C the guideline stops after three shocks and gives no adrenaline (it accumulates), keeps CPR going without a break, and rewarms him with VA-ECMO. The cold also protects: his heart and brain need far less oxygen, so a long resuscitation is worth it.",
+      "de": "Er hatte im Schnee gelegen: Kerntemperatur 26 °C. Ein kaltes Herz flimmert leicht und spricht selten auf Schocks oder Medikamente an; unter 30 °C hört die Leitlinie nach drei Schocks auf, gibt kein Adrenalin (es reichert sich an), reanimiert ohne Pause weiter und wärmt ihn mit VA-ECMO auf. Die Kälte schützt aber auch: Herz und Gehirn brauchen viel weniger Sauerstoff, also lohnt sich eine lange Reanimation."
+    }
+  },
+  "machine": {
+    "start": "talking",
+    "states": {
+      "talking": {
+        "label": {
+          "en": "Brought in cold",
+          "de": "Unterkühlt eingeliefert"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "chemistry.temperature",
+                "set": 26
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "He was found in the snow, core temperature 26 degrees. He’s barely responsive…",
+                "de": "Er wurde im Schnee gefunden, Kerntemperatur 26 Grad. Er reagiert kaum …"
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "inStateFor": 8
+            },
+            "to": "arrest"
+          }
+        ]
+      },
+      "arrest": {
+        "label": {
+          "en": "Cardiac arrest",
+          "de": "Herz-Kreislauf-Stillstand"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "electrical.ventricular",
+                "set": "vf"
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "He’s gone into VF! What shall I do?",
+                "de": "Er hat Kammerflimmern! Was soll ich tun?"
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "at": 1200
+            },
+            "to": "end"
+          }
+        ]
+      },
+      "end": {
+        "label": {
+          "en": "Twenty minutes",
+          "de": "Zwanzig Minuten"
+        },
+        "final": true
+      }
+    }
+  },
+  "nudges": [
+    {
+      "id": "gasping",
+      "label": {
+        "en": "He gasps",
+        "de": "Er hat Schnappatmung"
+      },
+      "explain": {
+        "en": "This run was set up so that he gasps after the collapse. Gasping is not breathing: an unresponsive patient who gasps is in cardiac arrest, and compressions should start without delay.",
+        "de": "Dieser Durchgang war so angelegt, dass er nach dem Kollaps Schnappatmung hat. Schnappatmung ist keine Atmung: Ein reaktionsloser Patient mit Schnappatmung hat einen Kreislaufstillstand, und die Kompressionen sollten ohne Verzögerung beginnen."
+      }
+    }
+  ]
+}

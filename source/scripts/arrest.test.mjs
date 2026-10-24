@@ -503,5 +503,15 @@ console.log('\nA heart that beats on too little oxygen runs down (gap 26; hypoxi
   gap('…preceded by bradycardia, as hypoxic arrests are', false, 'the chemoreflex makes the model tachycardic until it stops (gap 42)');
 }
 
+console.log('\nHypothermia (ERC 2025 Special circumstances)');
+{
+  const cold = new S.MyocardialState(); cold.temperature = 26;
+  const warm = new S.MyocardialState();
+  for (let i = 0; i < 600; i++) { cold.step(1, 0, true); warm.step(1, 0, true); }
+  ok('validated against the guideline’s figure: at 26 °C the myocardium needs 6–7 % less oxygen per °C, so ten minutes without flow leave it far less run down', Math.abs(cold.demand() - (1 - 0.065 * (36.9 - 26))) < 1e-9 && cold.M > 2 * warm.M,
+    `demand ${cold.demand().toFixed(2)}; after 10 min of VF without flow M ${cold.M.toFixed(2)} against ${warm.M.toFixed(2)} warm`);
+  gap('a cold heart slows, shows J waves and fibrillates of its own below about 28–30 °C', false, 'temperature acts on the myocardium’s demand, on shocks and on adrenaline only (gap 46)');
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);

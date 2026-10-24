@@ -120,7 +120,7 @@ export function scoreRun(g: GuidelineDef, run: RunRecord): GuidelineReport {
 
   const measures = { firstCompression, firstShock, fraction, rate, longestPause, cycles, shocks: shockRows, breaths };
   const ctx: Ctx = { run, g, onset, end, needCpr, measures, checks, shocks, longest: after.reduce<Pause | null>((a, p) => (!a || p.seconds > a.seconds ? p : a), null) };
-  const rules = g.rules.map((rule) => ({ id: rule.id, ...judge(rule.check, ctx) }));
+  const rules = g.rules.map((rule) => ({ id: rule.id, ...(rule.skipCauses?.includes(run.cause ?? '') ? NA : judge(rule.check, ctx)) }));
   return { guideline: `${g.id}@${g.version}`, onset, end, needCpr, measures, pauses, rules };
 }
 
@@ -225,7 +225,7 @@ function judge(k: Check, c: Ctx): Judged {
       if (!causes.includes(c.run.cause ?? '') || (c.onset == null && !k.fromStart)) return NA;
       const start = k.fromStart ? 0 : c.onset!;
       const id = k.id.replace('{side}', c.run.causeSide ?? '');
-      const kit = arrivedAt(c, k.kit);
+      const kit = k.kit ? arrivedAt(c, k.kit) : 0;
       /* when it was begun: a bolus takes minutes to run, a decompression seconds */
       const done = c.run.events.find((e) => (e.kind === 'begin' || e.kind === 'done') && e.id === id)?.t;
       if (kit == null) return done != null ? { status: 'met', at: [] } : NA;
@@ -247,6 +247,7 @@ function judge(k: Check, c: Ctx): Judged {
       return { status: at.length ? 'missed' : 'met', value: doses.length, at };
     }
     case 'no-hazard': {
+      if (k.cause && c.run.cause !== k.cause) return NA;
       const hz = c.run.events.filter((e) => e.kind === 'hazard' && k.codes.includes(e.code));
       return { status: hz.length ? 'missed' : 'met', value: hz.length, at: hz.map((e) => e.t) };
     }
