@@ -15,11 +15,13 @@ const text = (x: LocalizedText | LocalizedList | undefined, path: string, out: I
 
 /** Interventions write only what the running models take as inputs: circulation, lungs and the heart's electrical
     model. The body's parameters act over hours and would re-run the illness's course. */
-const WRITABLE = ['circulation', 'respiratory', 'electrical'];
+const WRITABLE = ['circulation', 'respiratory', 'electrical', 'chemistry'];
+/** Chemistry a scene may clamp, as a learner can (the body's own value is then not used). */
+const CHEMISTRY_PINS = ['potassium', 'calcium', 'bicarbonate', 'haemoglobin', 'albumin'];
 
 function checkPath(path: string, v: unknown, where: string, out: Issue[]) {
   const [sec, key, ...rest] = path.split('.');
-  const base = (healthyModel() as any)[sec];
+  const base = sec === 'chemistry' ? Object.fromEntries(CHEMISTRY_PINS.map((k) => [k, 0])) : (healthyModel() as any)[sec];
   if (!WRITABLE.includes(sec) || rest.length || !key) { out.push({ level: 'error', path: where, message: `${path} is not a model input an intervention may write (${WRITABLE.join(', ')})` }); return; }
   if (!(key in base)) { out.push({ level: 'error', path: where, message: `${path}: no such parameter` }); return; }
   if (v !== undefined && typeof v !== typeof base[key]) out.push({ level: 'error', path: where, message: `${path}: ${typeof v} given, the model holds a ${typeof base[key]}` });

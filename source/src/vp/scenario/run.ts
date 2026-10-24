@@ -383,7 +383,12 @@ export class ScenarioRun {
   }
 
   /** The heart's rhythm as the model runs it: 'vf', 'vt', 'asystole' or 'organised'. */
-  rhythm(): string { const v = this.live.model.electrical.ventricular; return v === 'none' ? 'organised' : v; }
+  rhythm(): string {
+    const v = this.live.model.electrical.ventricular;
+    /* a heart standing still from hyperkalaemia is asystole, whatever its parameters say */
+    if (v === 'none' && this.live.run.heart.hyperKStandstill()) return 'asystole';
+    return v === 'none' ? 'organised' : v;
+  }
 
   /** One breath given by whoever holds the ventilation, beginning at `at` seconds (now or within this tick). */
   ventilate(at: number, seconds = LUNG.bagInspiration, by = 'learner'): boolean {

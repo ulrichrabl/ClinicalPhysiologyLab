@@ -473,5 +473,20 @@ console.log('\nTamponade (Reddy 1978)');
     `the model loses its output by a right atrial pressure of about 12 mmHg (${t500.CVPmean.toFixed(1)} mmHg, CO ${t500.CO.toFixed(2)}). Reddy's patients had subacute effusions, their volume status unreported; the model's pericardial constants are ungrounded and its patient has a normal blood volume (gap 40).`);
 }
 
+console.log('\nHyperkalaemia (Durfey 2017; Harel 2016)');
+{
+  const m = S.healthyModel(), run = S.createCirculation(m); run.settle(20);
+  const at = (k) => { run.apply({ ...m, chemistry: { potassium: k } }); run.advance(60); return { ...run.sim.metrics }; };
+  const k75 = at(7.5), k86 = at(8.6);
+  ok('validated: at 8.6 mmol/L the sinus impulse is blocked and a slow escape takes over, below 50/min (Durfey 2017: bradycardia and escape rhythms at K 7.5 ± 0.7 preceded the events)', k86.HRbeat < 50 && run.heart.hyperKBlock(), `HR ${Math.round(k75.HRbeat)} at 7.5, ${Math.round(k86.HRbeat)} at 8.6`);
+  const k10 = at(10);
+  ok('higher, no focus escapes: standstill', run.heart.hyperKStandstill() && k10.CO < 0.5, `CO ${k10.CO.toFixed(2)}`);
+  run.drugs.give('calcium', 6.8); run.advance(120);
+  ok('calcium brings an escape rhythm back within two minutes (Durfey 2017: every hyperkalaemic bradycardia improved after calcium)', !run.heart.hyperKStandstill() && run.sim.metrics.HRbeat > 10, `HR ${Math.round(run.sim.metrics.HRbeat)}, ${Math.round(run.sim.metrics.Psys)} mmHg`);
+  const d = new S.Drugs(); d.give('insulin', 10); for (let i = 0; i < 3600; i++) d.step(1);
+  ok('derived: insulin with glucose lowers potassium by 0.78 mmol/L at 60 min (Harel 2016)', Math.abs(d.potassiumShift() - 0.78) < 0.05, `${d.potassiumShift().toFixed(2)} mmol/L (the arrival into the circulation adds a little delay)`);
+  gap('the thresholds of block and standstill and calcium’s offset are measured', false, 'block at an effective 8.0 mmol/L, standstill at 9.5 and calcium’s offset (2.2 per mmol/L) are placements; hyperkalaemic fibrillation is not modelled (gap 41)');
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);

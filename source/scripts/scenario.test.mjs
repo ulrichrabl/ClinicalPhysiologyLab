@@ -672,5 +672,27 @@ console.log('\nAn arrest with a cause: tamponade; and what the ultrasound shows 
     pe.rvDilated && !pe.empty && !tp.sliding.left && tp.sliding.right && bl.empty && !bl.rvDilated && vf.effusion === 'none' && !vf.rvDilated && !vf.empty, J({ pe, tp, bl, vf }));
 }
 
+console.log('\nAn arrest with a cause: hyperkalaemia');
+{
+  const P = scenarioOf('arrest-hyperkalaemia');
+  ok('the hyperkalaemia practice validates; a scene may clamp potassium', errors(S.validateScenario(P, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).length === 0 && P.scene.cause === 'hyperkalaemia');
+  const Q = structuredClone(P);
+  for (const e of Q.scene.equipment) e.present = true;
+  const r = start(Q, 17, lying(S.FREE_CASE), { settleSeconds: 20 });
+  r.advanceTo(25);
+  ok('potassium 8.6: a slow escape rhythm below 50, still a pulse (Durfey 2017)', r.scene === 'breathless' && r.live.snap.metrics.HRbeat < 50 && r.live.snap.metrics.Psys > 60, `HR ${Math.round(r.live.snap.metrics.HRbeat)}, ${Math.round(r.live.snap.metrics.Psys)} mmHg`);
+  r.advanceTo(70);
+  ok('potassium 10: standstill, read as asystole', r.rhythm() === 'asystole' && r.live.snap.metrics.Psys < 50, `${r.rhythm()}, ${Math.round(r.live.snap.metrics.Psys)} mmHg`);
+  r.assign('compressions', 'nurse'); r.advanceTo(75);
+  r.intervene('defib.pads'); r.advanceTo(100); r.intervene('check.rhythm'); r.advanceTo(105);
+  ok('the rhythm check says asystole', kinds(r, 'assessed').at(-1)?.rhythm === 'asystole');
+  r.intervene('access.iv'); r.advanceTo(180);
+  r.intervene('drug.calcium'); r.advanceTo(230); r.intervene('drug.insulin'); r.advanceTo(400);
+  r.release('compressions', 'nurse'); r.advanceTo(440);
+  ok('calcium brings an escape rhythm and a pulse back', r.rhythm() === 'organised' && r.live.snap.metrics.Psys > 60, `${r.rhythm()}, ${Math.round(r.live.snap.metrics.Psys)} mmHg`);
+  const rep = S.scoreRun(S.GUIDELINES[0], r), rule = (id) => rep.rules.find((x) => x.id === id);
+  ok('scored: calcium and insulin for hyperkalaemia', rule('calcium-hyperkalaemia').status === 'met' && rule('insulin-hyperkalaemia').status === 'met', J([rule('calcium-hyperkalaemia'), rule('insulin-hyperkalaemia')]));
+}
+
 console.log(`\n${pass} passed, ${fail} failed, 0 known gaps`);
 if (fail) process.exit(1);
