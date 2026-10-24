@@ -340,12 +340,17 @@ console.log('\nThrough the shocks: a cohort (ARREST 1999; PARAMEDIC2 2018)');
    asystole under compressions the coronary perfusion pressure is the model's in CPR (read from the runs above); an
    organised heart perfuses itself (gap 26). Asystole has no way out here, as in the model. A return of circulation at
    the end is the outcome; survival depends on the brain, which the model does not have. */
-const cohort = ({ n, cpp, startM, seconds, doses = [] }) => {
+/* Post-shock stunning (gap 26): an organised rhythm after a shock has a pulse only once the stunned heart has recovered
+   enough under compressions. The time to that, by stunning, is the full model's own, measured by scripts/fit-stunning.mjs
+   (checks every 2 min; Infinity: no pulse within 22 min) and spot-checked below. */
+const STUN_T = __STUN_TABLE__;
+const timeToPulse = (stun) => { for (const [s, T] of STUN_T) if (stun <= s) return T; return Infinity; };
+const cohort = ({ n, cpp, startM, seconds, doses = [], tally }) => {
   let rosc = 0;
   for (let i = 0; i < n; i++) {
     const c = new S.Chance(5000 + i), heart = new S.MyocardialState(), drugs = new S.Drugs();
     heart.M = startM;
-    let rhythm = 'vf', nextShock = 120, refibAt = null;
+    let rhythm = 'vf', nextShock = 120, refibAt = null, organisedAt = 0, stun = 0;
     const due = [...doses];
     for (let t = 0; t < seconds; t++) {
       while (due.length && due[0].at <= t) { const d = due.shift(); drugs.give(d.drug, d.mg); }
@@ -354,13 +359,18 @@ const cohort = ({ n, cpp, startM, seconds, doses = [] }) => {
       heart.step(1, rhythm === 'organised' ? S.ARREST.cppFullFlow : cpp(t), rhythm !== 'organised');
       if (rhythm === 'vf' && t >= nextShock) {
         const out = heart.shock(c.uniform('shock'), c.uniform('shock-rhythm'));
+        const uS = c.uniform('stunning');
         const uF = c.uniform('refibrillation'), uFt = c.uniform('refibrillation-time');
+        if (out === 'organised') { stun = Math.max(stun, uS * S.ARREST.stunMax); organisedAt = t; }
         if (out === 'not-terminated') { nextShock = t + 120; continue; }
         rhythm = out;
         if (out === 'organised' && uF < S.ARREST.refibrillationChance * drugs.recurrenceMult()) refibAt = t + Math.max(1, -Math.log(1 - uFt) * S.ARREST.refibrillationMedian / Math.LN2);
       }
     }
-    if (rhythm === 'organised') rosc++;
+    /* a circulation at the end: organised, and long enough since the shock for the stunned heart to make a pulse */
+    const pulse = rhythm === 'organised' && seconds - organisedAt >= timeToPulse(stun);
+    if (pulse) rosc++;
+    if (tally) tally[pulse ? 'rosc' : rhythm === 'organised' ? 'pea' : rhythm]++;
   }
   return rosc / n;
 };
@@ -521,6 +531,67 @@ console.log('\nHypothermia (ERC 2025 Special circumstances)');
   ok('validated against the guideline’s figure: at 26 °C the myocardium needs 6–7 % less oxygen per °C, so ten minutes without flow leave it far less run down', Math.abs(cold.demand() - (1 - 0.065 * (36.9 - 26))) < 1e-9 && cold.M > 2 * warm.M,
     `demand ${cold.demand().toFixed(2)}; after 10 min of VF without flow M ${cold.M.toFixed(2)} against ${warm.M.toFixed(2)} warm`);
   gap('a cold heart slows, shows J waves and fibrillates of its own below about 28–30 °C', false, 'temperature acts on the myocardium’s demand, on shocks and on adrenaline only (gap 46)');
+}
+
+console.log('\nThe stunned heart after a shock (gap 26; Norvik 2022, 2025; Unneland 2023; Kandori 2025)');
+{
+  /* The ward practice's patient, as scripts/fit-stunning.mjs runs him: 4 min of untreated VF, 6 min of compressions, then a
+     shock that leaves an organised rhythm with a given stunning; compressions go on with a pause to check every so often. */
+  const P = structuredClone(S.SCENARIOS.find((x) => x.id === 'arrest-practice'));
+  for (const e of P.scene.equipment) e.present = true;
+  P.machine.states.arrest.enter = P.machine.states.arrest.enter.filter((d) => !('leave' in d) && !('arrive' in d));
+  const lying = (c) => ({ ...c, initialState: { ...c.initialState, position: 'supine' } });
+  const afterShock = (stun, { every = 120, pause = 5, until = 1320, adrenalineAt = null } = {}) => {
+    const r = new S.ScenarioRun(P, { seed: 7, caseDef: lying(S.FREE_CASE) });
+    r.advanceTo(244); r.assign('compressions', 'nurse'); r.advanceTo(604);
+    r.writeModel([['electrical.ventricular', 'none']]); r.live.run.arrest.stun = stun;
+    const t0 = r.t; let given = false;
+    for (let k = 1; every * k <= until; k++) {
+      if (adrenalineAt != null && !given && every * k > adrenalineAt) { r.advanceTo(t0 + adrenalineAt); r.live.run.drugs.give('adrenaline', 1); given = true; }
+      r.advanceTo(t0 + every * k - pause); r.release('compressions', 'nurse'); r.advanceTo(t0 + every * k);
+      if (r.rhythm() !== 'organised') return Infinity;
+      if (r.live.snap.metrics.Psys >= 50) return every * k;
+      r.assign('compressions', 'nurse');
+    }
+    return Infinity;
+  };
+  const lowS = STUN_T.find(([, T]) => T === 120)[0];
+  ok('the cohort’s table is the full model’s: a stunning it lists as back by the first check is back then', afterShock(lowS, { until: 120 }) === 120, `S ${lowS}`);
+
+  /* Norvik 2022 (the derivation) and Unneland 2023 (a check): from the table, PEA at the first check, followed 20 min. */
+  const follow = (from, to) => { let back = 0, minutes = 0; for (let i = 0; i < 20000; i++) { const T = timeToPulse((i + 0.5) / 20000 * S.ARREST.stunMax) - 120; if (T <= from) continue; minutes += (Math.min(T, to) - from) / 60; if (T <= to) back++; } return back / minutes; };
+  const all = follow(0, 1200), early = follow(0, 240), late = follow(360, 1200);
+  ok('derived: pulseless organised rhythms after a shock come back at Norvik 2022’s 0.15 per minute (PEA after VF/VT)', Math.abs(all - 0.15) < 0.02, `${all.toFixed(3)} per min over 20 min`);
+  ok('validated: the intensity is highest early and falls (Unneland 2023: 0.32 per min at 3 min, then decreasing)', early > late, `${early.toFixed(2)} per min in the first 4 min, ${late.toFixed(2)} from 6 to 20 min (Unneland’s 0.32 at 3 min is higher than the model’s)`);
+
+  /* Norvik 2025: in PEA, ROSC came 45–85 s after the first dose of adrenaline, an intensity ratio of 5.03 (2.16–11.67). The
+     model's adrenaline only constricts arterioles: the coronary perfusion it adds lets the stunned heart recover. Two
+     stunnings (0.76 and 0.80) still pulseless 5 min after the shock, checked every 15 s; to save time each starts from the
+     state the myocardium had at the shock in the runs above (0.30), not from 10 min of arrest. */
+  const quick = (stun, adrenaline) => {
+    const r = new S.ScenarioRun(P, { seed: 7, caseDef: lying(S.FREE_CASE) });
+    r.advanceTo(5); r.writeModel([['electrical.ventricular', 'none']]); r.live.run.arrest.M = 0.3; r.live.run.arrest.stun = stun;
+    r.assign('compressions', 'nurse');
+    for (let t = 15; t <= 420; t += 15) {
+      if (adrenaline && t === 300 + 15) { r.advanceTo(5 + 300); r.live.run.drugs.give('adrenaline', 1); }
+      r.advanceTo(5 + t - 3); r.release('compressions', 'nurse'); r.advanceTo(5 + t);
+      if (r.rhythm() === 'organised' && r.live.snap.metrics.Psys >= 50) return t;
+      r.assign('compressions', 'nurse');
+    }
+    return Infinity;
+  };
+  const pair = [0.76, 0.80].map((s) => ({ s, alone: quick(s, false), adr: quick(s, true) }));
+  ok('validated: a stunned heart still pulseless 5 min after the shock comes back within 85 s of adrenaline, and not in that time without it (Norvik 2025: ROSC 45–85 s after the dose, intensity ratio 5.03, 2.16–11.67)',
+    pair.every((p) => p.adr > 300 && p.adr <= 385 && !(p.alone <= 385)), JSON.stringify(pair));
+  gap('validated: …from 45 s after the dose, as in Norvik 2025', pair.every((p) => p.adr >= 345), `${JSON.stringify(pair)}: in the model the pulse comes 15–30 s after the dose, as soon as it constricts the arterioles; Norvik's window starts at 45 s (detected at the next pause, and adrenaline circulated by compressions).`);
+
+  /* Kandori 2025: initially shockable, witnessed, median no-flow 4 min and low-flow 22 min: on arrival 27.9 % ROSC, 32.8 %
+     shockable, 19.3 % PEA, 20.0 % asystole. The cohort above, from 4 min without flow. */
+  const tally = { rosc: 0, vf: 0, pea: 0, asystole: 0 };
+  cohort({ n: 4000, cpp: () => cppNone, startM: Math.exp(-240 / S.ARREST.depletionTau), seconds: 22 * 60, tally });
+  const pct = (k) => (tally[k] / 40).toFixed(0);
+  gap('validated: after 22 min of resuscitation from VF, about a fifth are in PEA (Kandori 2025: 19.3 %)', Math.abs(tally.pea / 4000 - 0.193) <= 0.08,
+    `ROSC ${pct('rosc')} %, VF ${pct('vf')} %, PEA ${pct('pea')} %, asystole ${pct('asystole')} % (Kandori: 28, 33, 19, 20). The cohort has no adrenaline here and no way out of asystole.`);
 }
 
 console.log('\nPotassium and a local anaesthetic: what is not modelled');

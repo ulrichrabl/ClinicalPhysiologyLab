@@ -32,6 +32,9 @@ export type ShockOutcome = 'not-terminated' | 'organised' | 'asystole';
 export class MyocardialState {
   /** 1 a perfused heart; towards 0 the longer it goes without coronary flow. */
   M = 1;
+  /** Post-ischaemic stunning, 0–1: the share of contractility a heart that has come back from an arrest has lost for now,
+      whatever its energy state (set when a shock leaves an organised rhythm; recovers over a day). */
+  stun = 0;
   /** Core temperature, °C: the myocardium's oxygen demand falls as it cools. */
   temperature = INF.tempBase;
   /** Oxygen demand as a fraction of normothermic (ARREST.demandPerDegree, from ERC 2025's 6–7 % per °C, below the normal
@@ -42,6 +45,7 @@ export class MyocardialState {
       content as a fraction of normal (`o2`). A perfused, oxygenated beating heart stays at 1: nothing here changes a
       patient whose heart is supplied. */
   step(seconds: number, cpp: number, arrested: boolean, o2 = 1): void {
+    if (this.stun > 0) this.stun *= Math.exp(-seconds / ARREST.stunRecoveryTau);
     const delivered = Math.max(0, Math.min(1, (cpp - ARREST.cppNoFlow) / (ARREST.cppFullFlow - ARREST.cppNoFlow))) * Math.max(0, Math.min(1, o2));
     /* what is delivered against what the muscle needs: a cold heart needs less */
     const supply = Math.min(1, delivered / this.demand());
@@ -58,7 +62,7 @@ export class MyocardialState {
   vfScale(): number { return ARREST.vfFineScale + (1 - ARREST.vfFineScale) * this.M; }
 
   /** How strongly an organised heart contracts, as a multiple of its own contractility. */
-  contractility(): number { return ARREST.contractilityFloor + (1 - ARREST.contractilityFloor) * this.M; }
+  contractility(): number { return (ARREST.contractilityFloor + (1 - ARREST.contractilityFloor) * this.M) * (1 - this.stun); }
 
   /** The chance that, once a shock has ended the fibrillation, an organised rhythm follows (rather than asystole). */
   organisedChance(): number { return Math.pow(this.M, ARREST.organisedExponent); }
