@@ -1,6 +1,7 @@
 import { tr, type LocalizedText } from '../model/i18n.ts';
 import { breathingOf, ScenarioRun, TICK_S, type Breathing } from '../scenario/run.ts';
 import type { NudgeId } from '../scenario/types.ts';
+import { note, recordRun } from './session-record.ts';
 import type { ScenarioDef } from '../scenario/types.ts';
 import { FREE_CASE } from './free-case.ts';
 import arrestPractice from '../scenarios/arrest-practice.json';
@@ -366,6 +367,16 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     host.querySelector<HTMLButtonElement>('[data-db-again]')!.onclick = () => start();
     const c = host.querySelector<HTMLCanvasElement>('.ar-db-timeline');
     if (c) drawDebrief(c, rep, guideline, run, css);
+    keepRun();
+  };
+
+  /* ---- the playtest copy (owner, 2026-10-23): each finished run, with what replays it exactly, goes into the session
+     the recorder keeps (session-record.ts); outside the playtest copy nothing is kept. Taps are recorded app-wide. */
+  const mark = (ui: string) => note(ui);
+  const keepRun = () => {
+    if (!run) return;
+    recordRun('arrest', { scenario: `${def.id}@${def.version}`, guideline: `${guideline.id}@${guideline.version}`, seed: run.seed, nudge: setup.nudge, choice: setup.choice,
+      lang, layout: phoneLayout ? 'phone' : 'desk', t: run.t, log: run.log });
   };
 
   /* ---- inputs ---------------------------------------------------------------------------------- */
@@ -381,6 +392,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     if (!box) return;
     const el = document.createElement('div');
     el.className = `ar-toast ${tone}`; el.textContent = text;
+    mark(`message: ${text}`);
     box.appendChild(el);
     while (box.children.length > 3) box.firstElementChild!.remove();
     setTimeout(() => el.classList.add('gone'), 3200);
@@ -390,7 +402,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const blocked = () => {
     const b = run?.events.filter((e) => e.kind === 'blocked').at(-1) as { reason: string } | undefined;
     const x = `${t('blocked')}: ${b ? reasonText(b.reason) : ''}`;
-    note(x); toast(x, 'warn');
+    note(x); toast(x, 'warn'); mark(`refused: ${b?.reason ?? ''}`);
   };
   const act = (fn: () => boolean) => { if (!run || paused) return; now(); if (!fn()) blocked(); else note(''); };
   const push = () => {

@@ -170,6 +170,7 @@ const seedOf = (id: string) => [...id].reduce((a, ch) => (a * 31 + ch.charCodeAt
 
 import { FREE_CASE } from './free-case.ts';
 import { installReport } from './report.ts';
+import { installRecorder, trailTail } from './session-record.ts';
 import { mountEcgStation, type StationHandle } from './station-ecg.ts';
 import { ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION } from '../stations/station.ts';
 type StationId = 'ecg' | 'auscultation' | 'eyes' | 'pulse' | 'arrest';
@@ -362,11 +363,13 @@ export function mount(root: HTMLElement) {
   /* A station opens on a healthy heart from the Ward, or on the patient being examined (ADR-017 step 5). On a patient only
      when the mechanism is no longer a spoiler: in the free lab, or once the learner has committed to a diagnosis. Back returns
      to the screen it was opened from, with the encounter as it was. */
+  let stationNow: StationId | null = null;
   const openStation = (which: StationId, onPatient = false) => {
     const from = (['encounter', 'debrief'] as const).find((x) => !$(`#${x}`).hidden) ?? 'ward';
     const withPatient = onPatient && !!live && !!s && (free || committed);
     if (from === 'ward') stopLive(); else live?.stop();
     show('station');
+    stationNow = which;
     const mount = which === 'ecg' ? mountEcgStation : which === 'eyes' ? mountEyeStation : which === 'pulse' ? mountPulseStation : which === 'arrest' ? mountArrestPractice : mountAuscultationStation;
     station = mount($('#station'), {
       lang,
@@ -1420,8 +1423,9 @@ export function mount(root: HTMLElement) {
   root.querySelectorAll<HTMLButtonElement>('.langbtn').forEach((b) => b.onclick = () => { lang = lang === 'en' ? 'de' : 'en'; setLang(); });
   void observeIn;
 
-  /* Report a problem: the state a report carries (report.ts). The learner's own notes stay out. */
-  installReport({ root, lang: () => lang, app: () => {
+  /* Report a problem: the state a report carries (report.ts). The learner's own notes stay out. In the playtest copy
+     the same state is recorded as the person goes (session-record.ts), and a report carries the trail's last steps. */
+  const appState = () => {
     const screen = ['ward', 'encounter', 'debrief', 'station'].find((x) => !$(`#${x}`).hidden) ?? 'ward';
     const snap = live ? Object.fromEntries(Object.entries(live.snap).filter(([k]) => k !== 'beat')) : null;
     return {
@@ -1432,8 +1436,12 @@ export function mount(root: HTMLElement) {
       state: s?.state ?? null, events: s?.encounter.events ?? [], differential: ddx,
       debrief: debrief ? { correct: debrief.diagnosis.correct, level: debrief.diagnosis.level, rank: debrief.diagnosis.rank } : null,
       model: live?.model ?? null, snapshot: snap, chemistry: live?.chemistry ?? null,
+      station: screen === 'station' ? stationNow : null,
+      ...(trailTail() ? { playtestTrail: trailTail() } : {}),
     };
-  } });
+  };
+  installReport({ root, lang: () => lang, app: appState });
+  installRecorder({ root, lang: () => lang, app: () => { const a = appState(); return { ...a, screen: a.screen === 'station' && stationNow ? `station:${stationNow}` : a.screen }; } });
 
   setLang();
   show('ward');
