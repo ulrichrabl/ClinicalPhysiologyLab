@@ -117,6 +117,13 @@ export class ScenarioRun {
       if (this.obstruction) this.pendingChance.push({ t: 0, kind: 'obstruction', what: this.obstruction });
     }
     this.live.settleNow(opts.settleSeconds ?? 20);
+    /* what happened before the learner arrives, run before the clock starts */
+    if (def.before) {
+      const m = structuredClone(this.live.model);
+      for (const w of def.before.change) setPath(m, w.path, w.set ?? ((getPath(m, w.path) as number) + (w.add ?? 0)));
+      this.live.setModel(m);
+      this.live.settleNow(def.before.seconds);
+    }
     const caseDef = opts.caseDef;
     this.session = startEncounter(opts.catalog ?? CATALOG, opts.registry ?? REGISTRY, caseDef, buildView(caseDef, { circulation: this.live.snap, chemistry: this.live.chemistry }));
     for (const p of def.scene.people) this.actors[p.id] = { present: p.present, busyUntil: 0 };
@@ -386,7 +393,7 @@ export class ScenarioRun {
   rhythm(): string {
     const v = this.live.model.electrical.ventricular;
     /* a heart standing still from hyperkalaemia is asystole, whatever its parameters say */
-    if (v === 'none' && this.live.run.heart.hyperKStandstill()) return 'asystole';
+    if (v === 'none' && this.live.run.heart.standstill()) return 'asystole';
     return v === 'none' ? 'organised' : v;
   }
 

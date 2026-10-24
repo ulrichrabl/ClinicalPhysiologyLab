@@ -109,7 +109,7 @@ export type NudgeId = typeof NUDGE_IDS[number];
 /** Reversible causes of cardiac arrest (ERC 2025 ALS: hypoxia, hypovolaemia, hypo-/hyperkalaemia and other metabolic
     causes, hypothermia; thrombosis (coronary or pulmonary), tension pneumothorax, tamponade, toxins). Only those a scenario
     uses are listed. */
-export const ARREST_CAUSES = ['pulmonary-embolism', 'tension-pneumothorax', 'hypovolaemia', 'tamponade', 'hyperkalaemia'] as const;
+export const ARREST_CAUSES = ['pulmonary-embolism', 'tension-pneumothorax', 'hypovolaemia', 'tamponade', 'hyperkalaemia', 'hypoxia'] as const;
 export type ArrestCause = (typeof ARREST_CAUSES)[number];
 
 export interface ScenarioDef {
@@ -136,6 +136,9 @@ export interface ScenarioDef {
     /** The side of a one-sided cause (a tension pneumothorax). */
     causeSide?: 'left' | 'right';
   };
+  /** What happened before the learner arrives: changes to the patient's model, run for `seconds` before the scene's clock
+      starts (a seizure that has already left him apnoeic for minutes). */
+  before?: { seconds: number; change: ModelWrite[] };
   /** What the debrief reveals about the arrest's cause when the learner did not choose it (a surprise or pure chance). */
   reveal?: { label: LocalizedText; explain: LocalizedText };
   /** The parts that are not physiology: who arrives, what is said, when the scene moves on. */

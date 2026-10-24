@@ -10,6 +10,7 @@ import arrestTension from '../scenarios/arrest-tension.json';
 import arrestBleeding from '../scenarios/arrest-bleeding.json';
 import arrestTamponade from '../scenarios/arrest-tamponade.json';
 import arrestHyperkalaemia from '../scenarios/arrest-hyperkalaemia.json';
+import arrestHypoxia from '../scenarios/arrest-hypoxia.json';
 import ercAls2025 from '../guidelines/erc-2025-als.json';
 import type { GuidelineDef } from '../guidelines/types.ts';
 import { scoreRun } from '../guidelines/score.ts';
@@ -173,7 +174,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const t = (k: string) => tr(T[k], lang);
   /* The arrests to practise (owner, 2026-10-23: every PEA situation). A surprise or pure chance picks one, so the learner
      meets the arrest without being told its cause; the debrief reveals it. Equal chances are a placement. */
-  const ARRESTS = [arrestPractice, arrestPe, arrestTension, arrestBleeding, arrestTamponade, arrestHyperkalaemia] as unknown as ScenarioDef[];
+  const ARRESTS = [arrestPractice, arrestPe, arrestTension, arrestBleeding, arrestTamponade, arrestHyperkalaemia, arrestHypoxia] as unknown as ScenarioDef[];
   let def = ARRESTS[0];
   let run: ScenarioRun | null = null;
   let raf = 0, stopped = false, paused = false, debrief = false;

@@ -32,7 +32,7 @@ export function validateGuideline(g: GuidelineDef): Issue[] {
     if (!KINDS.includes(r.check?.kind)) { out.push({ level: 'error', path: rp, message: `unknown check ${r.check?.kind}` }); continue; }
     const c = r.check as any;
     if ((c.kind === 'dose-after-shock' || c.kind === 'dose-interval' || c.kind === 'dose-non-shockable' || c.kind === 'dose-for-cause') && !DRUG_IDS.includes(c.drug)) out.push({ level: 'error', path: rp, message: `no drug ${c.drug}` });
-    for (const [k, v] of Object.entries(c)) if (k !== 'kind' && k !== 'drug' && k !== 'measure' && k !== 'codes' && k !== 'must' && k !== 'cause' && k !== 'kit' && k !== 'id' && !(typeof v === 'number' && Number.isFinite(v))) out.push({ level: 'error', path: rp, message: `${k} is not a number` });
+    for (const [k, v] of Object.entries(c)) if (k !== 'kind' && k !== 'drug' && k !== 'measure' && k !== 'codes' && k !== 'must' && k !== 'cause' && k !== 'kit' && k !== 'id' && k !== 'fromStart' && !(typeof v === 'number' && Number.isFinite(v))) out.push({ level: 'error', path: rp, message: `${k} is not a number` });
     if ((c.min != null && c.max != null && c.min > c.max) || (c.kind === 'dose-interval' && c.min > c.max)) out.push({ level: 'error', path: rp, message: 'min above max' });
   }
   return out;

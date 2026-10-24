@@ -220,13 +220,15 @@ function judge(k: Check, c: Ctx): Judged {
       return { status: ok ? 'met' : 'missed', value: dose ? r1(Math.max(0, dose.t - from)) : undefined, at: ok ? [] : [r1(from + k.within)] };
     }
     case 'done-for-cause': {
-      if (c.run.cause !== k.cause || c.onset == null) return NA;
+      /* from the collapse, or (fromStart) from the scene's start: a cause treated before it arrests the heart */
+      if (c.run.cause !== k.cause || (c.onset == null && !k.fromStart)) return NA;
+      const start = k.fromStart ? 0 : c.onset!;
       const id = k.id.replace('{side}', c.run.causeSide ?? '');
       const kit = arrivedAt(c, k.kit);
       /* when it was begun: a bolus takes minutes to run, a decompression seconds */
       const done = c.run.events.find((e) => (e.kind === 'begin' || e.kind === 'done') && e.id === id)?.t;
       if (kit == null) return done != null ? { status: 'met', at: [] } : NA;
-      const from = Math.max(c.onset, kit);
+      const from = Math.max(start, kit);
       if (from >= c.end) return NA;
       const ok = done != null && done - from <= k.within;
       return { status: ok ? 'met' : 'missed', value: done != null ? r1(Math.max(0, done - from)) : undefined, at: ok ? [] : [r1(from + k.within)] };
