@@ -715,5 +715,27 @@ console.log('\nA hypoxic arrest: after a long seizure (gap 26: a heart that beat
   ok('scored: breaths given in time, counted from the start of the scene', rep.rules.find((x) => x.id === 'ventilate-hypoxia').status === 'met', J(rep.rules.find((x) => x.id === 'ventilate-hypoxia')));
 }
 
+console.log('\nA toxic arrest: an opioid');
+{
+  const P = scenarioOf('arrest-opioid');
+  ok('the opioid practice validates', errors(S.validateScenario(P, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).length === 0 && P.scene.cause === 'opioid');
+  const Q = structuredClone(P); for (const e of Q.scene.equipment) e.present = true;
+  /* breaths and naloxone early: his own breathing comes back, no arrest */
+  const r = start(Q, 23, lying(S.FREE_CASE), { settleSeconds: 20 });
+  r.advanceTo(3); r.intervene('vent.bag');
+  for (let t = 8; t <= 30; t += 6) { r.advanceTo(t); r.ventilate(r.t); }
+  r.release('ventilation'); r.advanceTo(32); r.intervene('access.iv'); r.advanceTo(95); r.intervene('drug.naloxone'); r.advanceTo(400);
+  const q = r.live.snap.resp;
+  ok('naloxone gives back his own breathing: no arrest, oxygenation recovering', r.scene !== 'arrest' && (q.RR ?? 0) > 6 && q.SaO2 > 0.8 && r.live.snap.metrics.Psys > 80, `RR ${Math.round(q.RR)}, SaO2 ${Math.round(100 * q.SaO2)} %, ${Math.round(r.live.snap.metrics.Psys)} mmHg`);
+  const rep = S.scoreRun(S.GUIDELINES[0], r), rule = (id) => rep.rules.find((x) => x.id === id);
+  ok('scored: breaths and naloxone, counted from the start', rule('ventilate-hypoxia').status === 'met' && rule('naloxone-opioid').status === 'met', J([rule('ventilate-hypoxia'), rule('naloxone-opioid')]));
+  /* naloxone after the arrest: it does not restart the heart (ERC 2025 First aid) */
+  const late = start(Q, 23, lying(S.FREE_CASE), { settleSeconds: 20 });
+  late.advanceTo(400);
+  ok('left alone he arrests', late.scene === 'arrest');
+  late.intervene('access.iv'); late.advanceTo(470); late.intervene('drug.naloxone'); late.advanceTo(620);
+  ok('naloxone once the heart has stopped does not bring a pulse back', late.live.snap.metrics.Psys < 50, `${Math.round(late.live.snap.metrics.Psys)} mmHg, ${late.rhythm()}`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed, 0 known gaps`);
 if (fail) process.exit(1);

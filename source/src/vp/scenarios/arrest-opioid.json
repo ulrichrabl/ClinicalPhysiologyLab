@@ -1,0 +1,241 @@
+{
+  "schema": "vp.scenario/1",
+  "id": "arrest-opioid",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": {
+    "en": "Practice: a patient who stopped breathing on a morphine pump",
+    "de": "Übung: ein Patient, der unter einer Morphinpumpe nicht mehr atmet"
+  },
+  "caseId": "free-patient",
+  "purpose": "A toxic, hypoxic arrest (owner, 2026-10-24: toxins). The day after his operation, with a morphine pump, he has stopped breathing: for 6 min before the learner arrives (drive 0, `before`). He arrives unresponsive, apnoeic and desaturated, with a fast pulse; without breaths his heart runs down into PEA and asystole (as in the hypoxic practice). The lesson: breaths first (they prevent the arrest), naloxone alongside (it gives his own breathing back after a minute or two, ERC 2025 First aid), and, once he has arrested, standard ALS: naloxone does not restart a heart. The model has no opioid as such: the scene takes the breathing drive away, naloxone gives it back (gap 44: pupils, sedation and the opioid's own kinetics are not modelled).",
+  "scene": {
+    "place": {
+      "en": "A side room on the surgical ward",
+      "de": "Ein Nebenzimmer auf der chirurgischen Station"
+    },
+    "people": [
+      {
+        "id": "nurse",
+        "role": {
+          "en": "Nurse",
+          "de": "Pflegekraft"
+        },
+        "present": true
+      },
+      {
+        "id": "doctor",
+        "role": {
+          "en": "Doctor (arrest team)",
+          "de": "Ärztin (Reanimationsteam)"
+        },
+        "present": false
+      },
+      {
+        "id": "nurse2",
+        "role": {
+          "en": "Nurse (arrest team)",
+          "de": "Pflegekraft (Reanimationsteam)"
+        },
+        "present": false
+      }
+    ],
+    "equipment": [
+      {
+        "id": "bag-mask",
+        "label": {
+          "en": "Bag-valve-mask on the wall",
+          "de": "Beatmungsbeutel mit Maske an der Wand"
+        },
+        "present": true
+      },
+      {
+        "id": "defibrillator",
+        "label": {
+          "en": "Arrest trolley with a defibrillator",
+          "de": "Notfallwagen mit Defibrillator"
+        },
+        "present": false
+      },
+      {
+        "id": "cannula-kit",
+        "label": {
+          "en": "IV cannulas on the arrest trolley",
+          "de": "Venenverweilkanülen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "drugs",
+        "label": {
+          "en": "Adrenaline and amiodarone on the arrest trolley",
+          "de": "Adrenalin und Amiodaron am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "airway-kit",
+        "label": {
+          "en": "Suction, Magill forceps and airways on the arrest trolley",
+          "de": "Absaugung, Magill-Zange und Atemwegshilfen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "thrombolytic",
+        "label": {
+          "en": "Alteplase (thrombolytic), brought with the arrest team",
+          "de": "Alteplase (Thrombolytikum), vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "fluids",
+        "label": {
+          "en": "Warmed saline and a pressure bag, on the arrest trolley",
+          "de": "Angewärmte Kochsalzlösung und Druckbeutel, am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "ultrasound",
+        "label": {
+          "en": "An ultrasound machine, brought with the arrest team",
+          "de": "Ein Ultraschallgerät, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "pericardiocentesis",
+        "label": {
+          "en": "A pericardiocentesis set, brought with the arrest team",
+          "de": "Ein Perikardpunktionsset, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      }
+    ],
+    "team": {
+      "people": [
+        "doctor",
+        "nurse2"
+      ],
+      "equipment": [
+        "defibrillator",
+        "cannula-kit",
+        "drugs",
+        "airway-kit",
+        "thrombolytic",
+        "fluids",
+        "ultrasound",
+        "pericardiocentesis"
+      ],
+      "afterSeconds": 120,
+      "lateWithoutWhere": 90,
+      "callSeconds": 15
+    },
+    "cause": "opioid"
+  },
+  "reveal": {
+    "label": {
+      "en": "An opioid overdose",
+      "de": "Eine Opioidüberdosierung"
+    },
+    "explain": {
+      "en": "His morphine pump had given him more than he could take: the opioid switched off his breathing, and his heart, starved of oxygen, ran down. Breaths with the bag bring oxygen back at once; naloxone gives him his own breathing back after a minute or two. Once the heart has stopped naloxone does not restart it: then it is compressions, breaths and the rest of ALS.",
+      "de": "Seine Morphinpumpe hatte ihm mehr gegeben, als er vertrug: das Opioid schaltete seine Atmung ab, und sein Herz erlahmte ohne Sauerstoff. Beutelbeatmung bringt sofort Sauerstoff zurück; Naloxon gibt ihm nach ein, zwei Minuten seine eigene Atmung zurück. Steht das Herz, startet Naloxon es nicht neu: dann Kompressionen, Beatmung und das übrige ALS."
+    }
+  },
+  "machine": {
+    "start": "breathless",
+    "states": {
+      "breathless": {
+        "label": {
+          "en": "Not breathing, a pulse",
+          "de": "Atemstillstand, mit Puls"
+        },
+        "enter": [
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "He’s on a morphine pump since his operation. I can’t wake him, and he’s hardly breathing! What shall I do?",
+                "de": "Er hat seit der Operation eine Morphinpumpe. Ich kann ihn nicht wecken, und er atmet kaum! Was soll ich tun?"
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "value": {
+                "of": "circulation.Psys",
+                "below": 50
+              }
+            },
+            "to": "arrest"
+          },
+          {
+            "when": {
+              "at": 1200
+            },
+            "to": "end"
+          }
+        ]
+      },
+      "arrest": {
+        "label": {
+          "en": "Cardiac arrest",
+          "de": "Herz-Kreislauf-Stillstand"
+        },
+        "enter": [
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "I can’t feel a pulse any more!",
+                "de": "Ich fühle keinen Puls mehr!"
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "at": 1200
+            },
+            "to": "end"
+          }
+        ]
+      },
+      "end": {
+        "label": {
+          "en": "Twenty minutes",
+          "de": "Zwanzig Minuten"
+        },
+        "final": true
+      }
+    }
+  },
+  "nudges": [
+    {
+      "id": "gasping",
+      "label": {
+        "en": "He gasps",
+        "de": "Er hat Schnappatmung"
+      },
+      "explain": {
+        "en": "This run was set up so that he gasps after the collapse. Gasping is not breathing: an unresponsive patient who gasps is in cardiac arrest, and compressions should start without delay.",
+        "de": "Dieser Durchgang war so angelegt, dass er nach dem Kollaps Schnappatmung hat. Schnappatmung ist keine Atmung: Ein reaktionsloser Patient mit Schnappatmung hat einen Kreislaufstillstand, und die Kompressionen sollten ohne Verzögerung beginnen."
+      }
+    }
+  ],
+  "before": {
+    "seconds": 360,
+    "change": [
+      {
+        "path": "respiratory.drive",
+        "set": 0
+      }
+    ]
+  }
+}
