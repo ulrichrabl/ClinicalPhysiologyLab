@@ -242,6 +242,18 @@ export const INTERVENTIONS: InterventionDef[] = [
     timing: { status: 'placement', note: 'Spiking the bag, a pressure bag and 500 mL through a large cannula: a few minutes; the volume is counted in when it has run. Not measured.' },
     effect: { kind: 'instantaneous', change: [{ path: 'circulation.bloodVolume', add: 500 }] },
   },
+  /* Opioid toxicity (ERC 2025 First aid: "Naloxone is a safe and effective antidote that reverses the effects of opioid
+     overdose"; "it can take several minutes to work"; "Naloxone is not effective once cardiac arrest has occurred"). It
+     gives back the breathing drive the opioid took; a heart in arrest it does not touch. */
+  {
+    id: 'drug.naloxone',
+    label: { en: 'Naloxone 0.4 mg IV', de: 'Naloxon 0,4 mg i.v.' },
+    phrases: { en: ['naloxone', 'narcan', 'give naloxone', 'reverse the opioid'], de: ['naloxon', 'narcanti', 'naloxon geben', 'opioid antagonisieren'] },
+    needs: { equipment: ['drugs'], access: ['iv'] },
+    duration: { min: 60, max: 120 },
+    timing: { status: 'placement', note: 'Giving it and waiting for it to act: "it can take several minutes to work" (ERC 2025 First aid); 1–2 min IV is ours.' },
+    effect: { kind: 'instantaneous', change: [{ path: 'respiratory.drive', set: 1 }] },
+  },
   /* Hyperkalaemia (ERC 2025 Special circumstances): "Use IV 10 mL 10 % calcium chloride for patients with severe
      hyperkalaemia with ECG changes"; "Give 10 units soluble insulin and 25 g glucose IV". */
   {

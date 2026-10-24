@@ -1,7 +1,7 @@
 {
   "schema": "vp.guideline/1",
   "id": "erc-2025-als",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "title": {
     "en": "ERC 2025: adult advanced life support",
     "de": "ERC 2025: Erweiterte lebensrettende Maßnahmen bei Erwachsenen"
@@ -600,17 +600,44 @@
       },
       "section": "ERC 2025 Special circumstances (Lott et al.): \"Always address hypoxia, hypovolaemia, electrolyte disorders, …\"; asthma: \"Treat life-threatening hypoxia with 100 % oxygen\"; drowning: \"Start with 5 ventilations using 100 % inspired oxygen when available\".",
       "basis": "placement",
-      "note": "Only in scenes whose cause is hypoxia. Counted from the start of the scene, so breaths before the arrest count; within 60 s is ours.",
+      "note": "Only in scenes whose cause is hypoxia (a seizure, an opioid). Counted from the start of the scene, so breaths before the arrest count; within 60 s is ours.",
       "unit": "s",
       "check": {
         "kind": "done-for-cause",
-        "cause": "hypoxia",
+        "cause": [
+          "hypoxia",
+          "opioid"
+        ],
         "id": "vent.bag",
         "kit": "bag-mask",
         "within": 60,
         "fromStart": true
       },
       "group": "airway"
+    },
+    {
+      "id": "naloxone-opioid",
+      "title": {
+        "en": "Naloxone for an opioid overdose",
+        "de": "Naloxon bei Opioidüberdosierung"
+      },
+      "why": {
+        "en": "Naloxone gives back the breathing the opioid took, but it takes minutes, and once the heart has stopped it does nothing for it: breaths first, naloxone alongside.",
+        "de": "Naloxon gibt die Atmung zurück, die das Opioid genommen hat, aber es braucht Minuten, und wenn das Herz stillsteht, hilft es ihm nicht: zuerst beatmen, Naloxon daneben."
+      },
+      "section": "ERC 2025 First aid (Djärv et al.): \"ERC recommend that first aid providers administer naloxone to individuals with suspected opioid overdose\"; \"Naloxone is only effective for opioid overdoses and it can take several minutes to work\"; \"Naloxone is not effective once cardiac arrest has occurred.\" ERC 2025 Special circumstances: \"Administer antidotes, where available, as soon as possible.\"",
+      "basis": "placement",
+      "note": "Only in scenes whose cause is an opioid. Counted from the start of the scene; within 3 min of when it became possible (the drugs in the room, a line in) is ours. In the scene a second responder can give it intranasally or IM; here IV.",
+      "unit": "s",
+      "check": {
+        "kind": "done-for-cause",
+        "cause": "opioid",
+        "id": "drug.naloxone",
+        "kit": "drugs",
+        "within": 180,
+        "fromStart": true
+      },
+      "group": "drugs"
     }
   ]
 }

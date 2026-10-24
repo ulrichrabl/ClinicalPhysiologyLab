@@ -221,7 +221,8 @@ function judge(k: Check, c: Ctx): Judged {
     }
     case 'done-for-cause': {
       /* from the collapse, or (fromStart) from the scene's start: a cause treated before it arrests the heart */
-      if (c.run.cause !== k.cause || (c.onset == null && !k.fromStart)) return NA;
+      const causes = Array.isArray(k.cause) ? k.cause : [k.cause];
+      if (!causes.includes(c.run.cause ?? '') || (c.onset == null && !k.fromStart)) return NA;
       const start = k.fromStart ? 0 : c.onset!;
       const id = k.id.replace('{side}', c.run.causeSide ?? '');
       const kit = arrivedAt(c, k.kit);
