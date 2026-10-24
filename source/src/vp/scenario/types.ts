@@ -109,7 +109,7 @@ export type NudgeId = typeof NUDGE_IDS[number];
 /** Reversible causes of cardiac arrest (ERC 2025 ALS: hypoxia, hypovolaemia, hypo-/hyperkalaemia and other metabolic
     causes, hypothermia; thrombosis (coronary or pulmonary), tension pneumothorax, tamponade, toxins). Only those a scenario
     uses are listed. */
-export const ARREST_CAUSES = ['pulmonary-embolism', 'tension-pneumothorax', 'hypovolaemia', 'tamponade', 'hyperkalaemia', 'hypoxia', 'opioid'] as const;
+export const ARREST_CAUSES = ['pulmonary-embolism', 'tension-pneumothorax', 'hypovolaemia', 'tamponade', 'hyperkalaemia', 'hypoxia', 'opioid', 'hypothermia'] as const;
 export type ArrestCause = (typeof ARREST_CAUSES)[number];
 
 export interface ScenarioDef {

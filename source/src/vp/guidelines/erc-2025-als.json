@@ -1,7 +1,7 @@
 {
   "schema": "vp.guideline/1",
   "id": "erc-2025-als",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "title": {
     "en": "ERC 2025: adult advanced life support",
     "de": "ERC 2025: Erweiterte lebensrettende Maßnahmen bei Erwachsenen"
@@ -341,7 +341,10 @@
         "mg": 1,
         "afterShock": 3
       },
-      "group": "drugs"
+      "group": "drugs",
+      "skipCauses": [
+        "hypothermia"
+      ]
     },
     {
       "id": "adrenaline-non-shockable",
@@ -363,7 +366,10 @@
         "mg": 1,
         "within": 60
       },
-      "group": "drugs"
+      "group": "drugs",
+      "skipCauses": [
+        "hypothermia"
+      ]
     },
     {
       "id": "adrenaline-repeat",
@@ -384,7 +390,10 @@
         "min": 180,
         "max": 300
       },
-      "group": "drugs"
+      "group": "drugs",
+      "skipCauses": [
+        "hypothermia"
+      ]
     },
     {
       "id": "amiodarone-300",
@@ -406,7 +415,10 @@
         "afterShock": 3
       },
       "note": "Counted over all shocks for VF, whether the VF persisted or came back (the guideline: \"irrespective of whether the shockable rhythms are sequential (refractory) or intermittent (recurrent)\").",
-      "group": "drugs"
+      "group": "drugs",
+      "skipCauses": [
+        "hypothermia"
+      ]
     },
     {
       "id": "amiodarone-150",
@@ -427,7 +439,10 @@
         "mg": 150,
         "afterShock": 5
       },
-      "group": "drugs"
+      "group": "drugs",
+      "skipCauses": [
+        "hypothermia"
+      ]
     },
     {
       "id": "thrombolysis-pe",
@@ -638,6 +653,72 @@
         "fromStart": true
       },
       "group": "drugs"
+    },
+    {
+      "id": "hypothermia-shocks",
+      "title": {
+        "en": "No more than three shocks below 30 °C",
+        "de": "Nicht mehr als drei Schocks unter 30 °C"
+      },
+      "why": {
+        "en": "A cold heart rarely responds to shocks; after three, the next one waits until he is warmer than 30 °C. Compressions go on.",
+        "de": "Ein kaltes Herz spricht selten auf Schocks an; nach dreien wartet der nächste, bis er wärmer als 30 °C ist. Die Kompressionen gehen weiter."
+      },
+      "section": "ERC 2025 Special circumstances (Lott et al.), hypothermia: \"Delay further defibrillation attempts if ventricular fibrillation (VF) persists after three shocks until core temperature is > 30 °C\"; \"Below 30 °C adrenaline will accumulate and may have more detrimental than beneficial effects\"; \"Rewarm hypothermic arrested patients with veno-arterial extracorporeal membrane oxygenation (VA-ECMO).\"",
+      "basis": "guideline",
+      "unit": "",
+      "check": {
+        "kind": "no-hazard",
+        "codes": [
+          "shock-hypothermia-beyond-3"
+        ],
+        "cause": "hypothermia"
+      },
+      "group": "defibrillation"
+    },
+    {
+      "id": "hypothermia-adrenaline",
+      "title": {
+        "en": "No adrenaline below 30 °C",
+        "de": "Kein Adrenalin unter 30 °C"
+      },
+      "why": {
+        "en": "Below 30 °C adrenaline is not cleared: it accumulates and may do more harm than good. It waits until he is warmer.",
+        "de": "Unter 30 °C wird Adrenalin nicht abgebaut: es reichert sich an und schadet womöglich mehr, als es nützt. Es wartet, bis er wärmer ist."
+      },
+      "section": "ERC 2025 Special circumstances (Lott et al.), hypothermia: \"Delay further defibrillation attempts if ventricular fibrillation (VF) persists after three shocks until core temperature is > 30 °C\"; \"Below 30 °C adrenaline will accumulate and may have more detrimental than beneficial effects\"; \"Rewarm hypothermic arrested patients with veno-arterial extracorporeal membrane oxygenation (VA-ECMO).\"",
+      "basis": "guideline",
+      "unit": "",
+      "check": {
+        "kind": "no-hazard",
+        "codes": [
+          "adrenaline-below-30"
+        ],
+        "cause": "hypothermia"
+      },
+      "group": "drugs"
+    },
+    {
+      "id": "ecls-hypothermia",
+      "title": {
+        "en": "Extracorporeal rewarming called for",
+        "de": "Extrakorporale Wiedererwärmung angefordert"
+      },
+      "why": {
+        "en": "A hypothermic heart is rewarmed back into a rhythm, not shocked into one: VA-ECMO rewarms him and carries the circulation meanwhile. Prolonged CPR is worth it, because the cold protects the brain.",
+        "de": "Ein hypothermes Herz wird in einen Rhythmus zurückgewärmt, nicht geschockt: VA-ECMO wärmt ihn auf und übernimmt solange den Kreislauf. Lange Reanimation lohnt sich, weil die Kälte das Gehirn schützt."
+      },
+      "section": "ERC 2025 Special circumstances (Lott et al.), hypothermia: \"Delay further defibrillation attempts if ventricular fibrillation (VF) persists after three shocks until core temperature is > 30 °C\"; \"Below 30 °C adrenaline will accumulate and may have more detrimental than beneficial effects\"; \"Rewarm hypothermic arrested patients with veno-arterial extracorporeal membrane oxygenation (VA-ECMO).\"",
+      "basis": "placement",
+      "note": "Only in scenes whose cause is hypothermia. Within 5 min of the collapse is ours.",
+      "unit": "s",
+      "check": {
+        "kind": "done-for-cause",
+        "cause": "hypothermia",
+        "id": "call.ecls",
+        "within": 300
+      },
+      "group": "team"
     }
   ]
 }

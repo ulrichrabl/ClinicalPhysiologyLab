@@ -36,6 +36,8 @@ export class Drugs {
   readonly given: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0 };
   /** Seconds since insulin (with its glucose) reached the circulation; NaN before. */
   insulinFor = NaN;
+  /** Core temperature, °C: below 30 °C adrenaline is cleared more slowly and accumulates (ERC 2025). */
+  temperature = 37;
   /** Fraction of the pulmonary embolic obstruction dissolved so far (0 with no alteplase given). */
   lysed = 0;
 
@@ -51,7 +53,8 @@ export class Drugs {
     for (const d of DRUG_IDS) {
       if (this.vein[d] > 0) { const x = this.vein[d] * carried; this.vein[d] -= x; this.central[d] += x; }
     }
-    if (this.central.adrenaline > 0) this.central.adrenaline *= Math.exp(-Math.LN2 / DRUGS.adrenalineHalfLife * seconds);
+    const cold = this.temperature < 30 ? DRUGS.adrenalineColdSlowing : 1;
+    if (this.central.adrenaline > 0) this.central.adrenaline *= Math.exp(-Math.LN2 / (DRUGS.adrenalineHalfLife * cold) * seconds);
     /* the obstruction left falls exponentially while the lytic acts: (1 − lysed) × e^(−k·a·t) */
     /* calcium leaves the extracellular fluid it spread into (DRUGS.calciumTau) */
     if (this.central.calcium > 0) this.central.calcium *= Math.exp(-seconds / DRUGS.calciumTau);

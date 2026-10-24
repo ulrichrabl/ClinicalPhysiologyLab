@@ -242,6 +242,15 @@ export const INTERVENTIONS: InterventionDef[] = [
     timing: { status: 'placement', note: 'Spiking the bag, a pressure bag and 500 mL through a large cannula: a few minutes; the volume is counted in when it has run. Not measured.' },
     effect: { kind: 'instantaneous', change: [{ path: 'circulation.bloodVolume', add: 500 }] },
   },
+  /* Hypothermia (ERC 2025): rewarming with VA-ECMO; the call that starts it. */
+  {
+    id: 'call.ecls',
+    label: { en: 'Call the ECLS team for rewarming', de: 'ECLS-Team zur Wiedererwärmung rufen' },
+    phrases: { en: ['call ecmo', 'call the ecls team', 'extracorporeal rewarming', 'ecpr'], de: ['ecmo anrufen', 'ecls-team rufen', 'extrakorporale wiedererwärmung', 'ecpr'] },
+    duration: { min: 30, max: 60 },
+    timing: { status: 'placement', note: 'A phone call; not measured. The team’s arrival and the rewarming are outside the scene.' },
+    effect: { kind: 'instantaneous' },
+  },
   /* Opioid toxicity (ERC 2025 First aid: "Naloxone is a safe and effective antidote that reverses the effects of opioid
      overdose"; "it can take several minutes to work"; "Naloxone is not effective once cardiac arrest has occurred"). It
      gives back the breathing drive the opioid took; a heart in arrest it does not touch. */

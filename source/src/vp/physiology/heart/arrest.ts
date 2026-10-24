@@ -1,4 +1,5 @@
 import { ARREST } from '../../evidence/arrest.ts';
+import { INF } from '../../evidence/inflammation.ts';
 
 /* ===========================================================================
    The heart in an arrest (ADR-018 decision 6c).
@@ -31,17 +32,24 @@ export type ShockOutcome = 'not-terminated' | 'organised' | 'asystole';
 export class MyocardialState {
   /** 1 a perfused heart; towards 0 the longer it goes without coronary flow. */
   M = 1;
+  /** Core temperature, °C: the myocardium's oxygen demand falls as it cools. */
+  temperature = INF.tempBase;
+  /** Oxygen demand as a fraction of normothermic (ARREST.demandPerDegree, from ERC 2025's 6–7 % per °C, below the normal
+      body temperature). */
+  demand(): number { return Math.max(0.2, Math.min(1, 1 - ARREST.demandPerDegree * (INF.tempBase - this.temperature))); }
 
   /** Advance by `seconds` with coronary perfusion pressure `cpp` (mmHg), the heart beating or not, and the arterial oxygen
       content as a fraction of normal (`o2`). A perfused, oxygenated beating heart stays at 1: nothing here changes a
       patient whose heart is supplied. */
   step(seconds: number, cpp: number, arrested: boolean, o2 = 1): void {
-    const supply = Math.max(0, Math.min(1, (cpp - ARREST.cppNoFlow) / (ARREST.cppFullFlow - ARREST.cppNoFlow))) * Math.max(0, Math.min(1, o2));
+    const delivered = Math.max(0, Math.min(1, (cpp - ARREST.cppNoFlow) / (ARREST.cppFullFlow - ARREST.cppNoFlow))) * Math.max(0, Math.min(1, o2));
+    /* what is delivered against what the muscle needs: a cold heart needs less */
+    const supply = Math.min(1, delivered / this.demand());
     if (!arrested && supply >= 1 && this.M >= 1) { this.M = 1; return; }
     /* The muscle uses up what it has unless the coronary flow brings enough oxygen: fibrillating, still, or beating on
        a supply too small (gap 26: before, a beating heart never ran down, so PEA never deteriorated). The same rate in
        each, an assumption. */
-    const fall = (1 - supply) * this.M / ARREST.depletionTau;
+    const fall = (1 - supply) * this.M * this.demand() / ARREST.depletionTau;
     const gain = supply * (1 - this.M) / ARREST.recoveryTau;
     this.M = Math.max(0, Math.min(1, this.M + (gain - fall) * seconds));
   }
@@ -57,7 +65,9 @@ export class MyocardialState {
 
   /** What a shock does, from two uniform draws: whether it ends the fibrillation, and what follows. */
   shock(uTerminate: number, uRhythm: number): ShockOutcome {
-    if (uTerminate >= ARREST.shockTermination) return 'not-terminated';
+    /* a cold heart is often refractory to shocks (ERC 2025); below 30 °C termination is a fraction of normal */
+    const cold = this.temperature < ARREST.coldShockTemperature ? ARREST.coldShockFactor : 1;
+    if (uTerminate >= ARREST.shockTermination * cold) return 'not-terminated';
     return uRhythm < this.organisedChance() ? 'organised' : 'asystole';
   }
 }

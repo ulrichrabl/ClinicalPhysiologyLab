@@ -39,11 +39,11 @@ export type Check =
   | { kind: 'dose-for-cause'; cause: string; drug: DrugId; kit: string; within: number }
   /** In a scene with this reversible cause: the intervention that treats it (`{side}` filled from the scene's side), within
       `within` s of its becoming possible (the collapse, the kit `kit` in the room). Not applicable in other scenes. */
-  | { kind: 'done-for-cause'; cause: string | string[]; id: string; kit: string; within: number; fromStart?: boolean }
+  | { kind: 'done-for-cause'; cause: string | string[]; id: string; kit?: string; within: number; fromStart?: boolean }
   /** Repeated doses of a drug, from its first, at this interval while CPR is needed. */
   | { kind: 'dose-interval'; drug: DrugId; min: number; max: number }
   /** None of these hazards. */
-  | { kind: 'no-hazard'; codes: string[] }
+  | { kind: 'no-hazard'; codes: string[]; cause?: string }
   /** The arrest team called within `within` s of the collapse, the call saying each of `must` (ADR-018 decision 8). */
   | { kind: 'call'; within: number; must: string[] }
   /** Each task held by someone within `within` s of its becoming possible (compressions and the airway from the collapse,
@@ -75,6 +75,8 @@ export interface GuidelineRule {
   /** Unit of the value reported (s, /min, %, mg). */
   unit?: string;
   check: Check;
+  /** Causes in whose scenes the rule does not apply (hypothermia changes the drug rules: ERC 2025). */
+  skipCauses?: string[];
 }
 
 export interface GuidelineDef {
