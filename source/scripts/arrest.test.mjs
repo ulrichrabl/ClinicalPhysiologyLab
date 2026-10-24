@@ -244,8 +244,11 @@ console.log('\nWhat a shock leads to, by how long the heart has fibrillated');
   ok('thirteen minutes in, an organised rhythm is less likely, and at first it makes little pressure (pulseless electrical activity, systolic under 50)', pOrg < 0.45 && bp30.Psys < 50, `chance ${(pOrg * 100).toFixed(0)} %, BP at 30 s ${bp30.Psys.toFixed(0)}/${bp30.Pdia.toFixed(0)}`);
   long.run.advance(150);
   ok('validated: …and perfuses within a few minutes of the shock, as in Pierce 2015 (ROSC a median 136 s after the shock)', long.run.sim.metrics.Psys > 70, `BP at 3 min ${long.run.sim.metrics.Psys.toFixed(0)}`);
-  gap('validated: a pulseless organised rhythm after a long arrest can persist without drugs (pulseless electrical activity is common late, Levine 1997)', false,
-    'In the model an organised heart always perfuses itself back: its own coronary perfusion restores it. What makes PEA persist in people (the ischaemic, acidotic, stunned myocardium; vasoplegia) is not modelled; adrenaline (step 4) acts on the arterioles only, and its β effects on a weak organised heart are not modelled.');
+  /* gap 26: a heart the shock leaves stunned may not perfuse itself back (the stunning is drawn by the run; here set) */
+  const stunned = arrestFor(780); stunned.run.arrest.stun = 0.75;
+  organise(stunned.run, stunned.m, 180);
+  ok('validated: a stunned organised rhythm after a long arrest stays pulseless for minutes (pulseless electrical activity is common late, Levine 1997)', stunned.run.sim.metrics.Psys < 50,
+    `stunning 0.75: BP at 3 min ${stunned.run.sim.metrics.Psys.toFixed(0)}/${stunned.run.sim.metrics.Pdia.toFixed(0)}; without it ${long.run.sim.metrics.Psys.toFixed(0)}`);
 }
 
 console.log('\nCompressions before the shock (Wik 2003; Cobb 1999)');
@@ -388,7 +391,7 @@ const cppNone = S.trialMean(std.rows, 'CPP', 240, 360), cppAdr = S.trialMean(std
   ok('validated: amiodarone after the third shock raises the odds of a circulation at the end within ARREST’s confidence interval (OR 1.6, 1.1–2.4)', or >= 1.1 && or <= 2.4,
     `${(pAm * 100).toFixed(0)} % against ${(pPl * 100).toFixed(0)} %, OR ${or.toFixed(2)} (ARREST: 44 % against 34 % admitted alive; its 4 against 6 shocks set the effect)`);
   gap('validated: …at ARREST’s rates (34 % with placebo, within 8 %)', Math.abs(pPl - 0.34) <= 0.08,
-    `${(pPl * 100).toFixed(0)} % with placebo. Asystole after a shock is final here, and an organised rhythm perfuses once its stunning lets it.`);
+    `${(pPl * 100).toFixed(0)} % with placebo. Asystole after a shock is final here, and an organised rhythm perfuses once its stunning lets it. Since the stunning (gap 26) the rate is below ARREST’s: the cohort gives no adrenaline, which in the full model brings a stunned heart back (and ARREST’s patients had it).`);
 }
 {
   /* PARAMEDIC2 (Perkins 2018): ROSC at hospital arrival 23.8 % against 8.0 % (OR 3.59, 3.14–4.12), but about 78 % of its
