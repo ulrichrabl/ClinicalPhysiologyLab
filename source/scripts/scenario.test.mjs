@@ -37,7 +37,7 @@ console.log('\nThe registry and the scenarios');
 {
   const ii = S.validateInterventions(S.INTERVENTIONS, S.CATALOG);
   ok('every intervention is valid: both languages, a time with its source, inputs the running models take', !errors(ii).length, show(ii));
-  ok('every intervention’s time says where it comes from; the guessed ones say they are placements', S.INTERVENTIONS.every((x) => x.timing.note && ['measured', 'placement'].includes(x.timing.status)));
+  ok('every intervention’s time says where it comes from; the guessed ones say they are placements (or the guideline’s own time)', S.INTERVENTIONS.every((x) => x.timing.note && ['measured', 'guideline', 'placement'].includes(x.timing.status)));
   ok('the oxygen devices are the encounter’s own, with the same ids and the same inspired fraction',
     S.INTERVENTIONS.filter((x) => x.id.startsWith('give.oxygen.')).every((x) => S.CATALOG.manoeuvres[x.id]?.sets?.oxygen?.fio2 === x.effect.inputs['respiratory.FiO2']));
   for (const s of S.SCENARIOS) {
