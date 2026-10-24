@@ -338,12 +338,13 @@ console.log('\nThrough the shocks: a cohort (ARREST 1999; PARAMEDIC2 2018)');
 /* A cohort through the shocks, cheaply: each patient's myocardium (MyocardialState) and rhythm, second by second, with a
    shock every 2 min while in VF and the run's own chance streams. The circulation is not run per patient: in VF or
    asystole under compressions the coronary perfusion pressure is the model's in CPR (read from the runs above); an
-   organised heart perfuses itself (gap 26). Asystole has no way out here, as in the model. A return of circulation at
+   organised heart perfuses itself, once its stunning lets it make a pulse (STUN_T below). Asystole has no way out here, as
+   in the model. A return of circulation at
    the end is the outcome; survival depends on the brain, which the model does not have. */
 /* Post-shock stunning (gap 26): an organised rhythm after a shock has a pulse only once the stunned heart has recovered
    enough under compressions. The time to that, by stunning, is the full model's own, measured by scripts/fit-stunning.mjs
    (checks every 2 min; Infinity: no pulse within 22 min) and spot-checked below. */
-const STUN_T = __STUN_TABLE__;
+const STUN_T = [[0.64, 120], [0.72, 240], [0.74, 360], [0.76, 480], [0.78, 600], [0.80, 720], [0.82, 960], [0.84, 1320], [1, Infinity]];
 const timeToPulse = (stun) => { for (const [s, T] of STUN_T) if (stun <= s) return T; return Infinity; };
 const cohort = ({ n, cpp, startM, seconds, doses = [], tally }) => {
   let rosc = 0;
@@ -387,7 +388,7 @@ const cppNone = S.trialMean(std.rows, 'CPP', 240, 360), cppAdr = S.trialMean(std
   ok('validated: amiodarone after the third shock raises the odds of a circulation at the end within ARREST’s confidence interval (OR 1.6, 1.1–2.4)', or >= 1.1 && or <= 2.4,
     `${(pAm * 100).toFixed(0)} % against ${(pPl * 100).toFixed(0)} %, OR ${or.toFixed(2)} (ARREST: 44 % against 34 % admitted alive; its 4 against 6 shocks set the effect)`);
   gap('validated: …at ARREST’s rates (34 % with placebo, within 8 %)', Math.abs(pPl - 0.34) <= 0.08,
-    `${(pPl * 100).toFixed(0)} % with placebo. Asystole after a shock is final here, and an organised rhythm always perfuses (gap 26).`);
+    `${(pPl * 100).toFixed(0)} % with placebo. Asystole after a shock is final here, and an organised rhythm perfuses once its stunning lets it.`);
 }
 {
   /* PARAMEDIC2 (Perkins 2018): ROSC at hospital arrival 23.8 % against 8.0 % (OR 3.59, 3.14–4.12), but about 78 % of its
@@ -397,7 +398,7 @@ const cppNone = S.trialMean(std.rows, 'CPP', 240, 360), cppAdr = S.trialMean(std
   const pPl = cohort({ ...base, cpp: () => cppNone }), pAd = cohort({ ...base, cpp: () => cppAdr });
   const or = odds(pAd) / odds(pPl);
   gap('validated: adrenaline raises the odds of a return of circulation about as much as in PARAMEDIC2 (OR 3.59, 3.14–4.12; mostly non-shockable rhythms)', or >= 3.14 && or <= 4.12,
-    `VF only: ${(pAd * 100).toFixed(0)} % against ${(pPl * 100).toFixed(0)} %, OR ${or.toFixed(2)}; coronary perfusion pressure ${sd(cppAdr)} against ${sd(cppNone)} mmHg. Here adrenaline helps only through the coronary perfusion pressure it adds, which the model’s ceiling keeps small (gap 20); its β effects on a weak organised heart are not modelled, and asystole and PEA, where most of PARAMEDIC2’s effect lay, have no way out or no need of one (gap 26).`);
+    `VF only: ${(pAd * 100).toFixed(0)} % against ${(pPl * 100).toFixed(0)} %, OR ${or.toFixed(2)}; coronary perfusion pressure ${sd(cppAdr)} against ${sd(cppNone)} mmHg. Here adrenaline helps only through the coronary perfusion pressure it adds, which the model’s ceiling keeps small (gap 20); its β effects on a weak organised heart are not modelled, and asystole, where much of PARAMEDIC2’s effect lay, has no way out; the cohort leaves adrenaline’s help to a stunned heart out.`);
 }
 
 console.log('\nMassive pulmonary embolism: an arrest with a cause (Wood 2002; PAIMS 2, Dalla-Volta 1992)');
