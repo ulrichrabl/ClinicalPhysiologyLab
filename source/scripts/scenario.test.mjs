@@ -766,5 +766,36 @@ console.log('\nAn arrest in hypothermia: the algorithm changes');
   ok('the hypothermia rules apply only in hypothermia', ['hypothermia-shocks', 'hypothermia-adrenaline', 'ecls-hypothermia'].every((id) => rep.rules.find((x) => x.id === id).status === 'not-applicable'));
 }
 
+console.log('\nSeizure-like jerking at the onset (the VF practice\'s seizure nudge)');
+{
+  const P = structuredClone(scenarioOf('arrest-practice')); for (const e of P.scene.equipment) e.present = true;
+  P.machine.states.arrest.enter = P.machine.states.arrest.enter.filter((d) => !('leave' in d) && !('arrive' in d));
+  ok('the practice validates with its seizure nudge', errors(S.validateScenario(P, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).length === 0 && P.nudges.some((n) => n.id === 'seizure'));
+  const r = start(P, 5, lying(S.FREE_CASE), { nudge: 'seizure' });
+  r.advanceTo(5);
+  const sz = () => kinds(r, 'seizure')[0];
+  ok('no jerking before the collapse', !sz() && !r.seizing());
+  r.advanceTo(6);
+  const e = sz(), len = e ? e.until - e.t : 0;
+  ok('he jerks from 1.5 s after the collapse, for 7.7–16.5 s (Lempert 1994, a placement), and the nurse says so', e && Math.abs(e.t - 5.5) < 0.11 && len >= 7.7 - 1e-9 && len <= 16.5 + 1e-9 && r.seizing() && kinds(r, 'say').some((x) => x.who === 'nurse' && /jerking/.test(x.text.en)), J(e));
+  r.intervene('assess.breathing'); r.advanceTo(e.until + 0.5);
+  const looks = kinds(r, 'assessed').filter((x) => x.what === 'breathing');
+  ok('a breathing check while he jerks says it cannot be judged', looks.length === 1 && looks[0].seizing === true, J(looks));
+  ok('the jerking stops on time', !r.seizing());
+  r.intervene('assess.breathing'); r.advanceTo(r.t + 7.5);
+  r.assign('compressions', 'nurse'); r.advanceTo(r.t + 20);
+  const rep = S.scoreRun(S.GUIDELINES[0], r), rule = (id) => rep.rules.find((x) => x.id === id);
+  ok('scored: the look after the jerking counts, and the compressions are timed from when it stopped', rule('check-breathing').status === 'met' && rule('start-compressions').status === 'met' && rule('start-compressions').value < 15, J([rule('check-breathing'), rule('start-compressions')]));
+  /* the same run, checked only while jerking: the check does not count */
+  const q = start(P, 5, lying(S.FREE_CASE), { nudge: 'seizure' });
+  q.advanceTo(6); q.intervene('assess.breathing'); q.advanceTo(q.t + 7.5); q.assign('compressions', 'nurse'); q.advanceTo(q.t + 30);
+  const rq = S.scoreRun(S.GUIDELINES[0], q).rules.find((x) => x.id === 'check-breathing');
+  ok('…a look only during the jerking is missed', rq.status === 'missed', J(rq));
+  const plain = start(P, 5, S.FREE_CASE); plain.advanceTo(30);
+  ok('without the nudge he does not jerk', kinds(plain, 'seizure').length === 0);
+  const R = S.replay(P, { seed: 5, caseDef: lying(S.FREE_CASE), nudge: 'seizure', log: r.log, until: r.t });
+  ok('a run with the jerking replays exactly', J(kinds(R, 'seizure')) === J(kinds(r, 'seizure')) && fingerprint(R) === fingerprint(r));
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);

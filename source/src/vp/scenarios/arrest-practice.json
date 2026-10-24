@@ -1,14 +1,14 @@
 {
   "schema": "vp.scenario/1",
   "id": "arrest-practice",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "status": "draft",
   "title": {
     "en": "Practice: cardiac arrest",
     "de": "Übung: Herz-Kreislauf-Stillstand"
   },
   "caseId": "free-patient",
-  "purpose": "A practice arrest after ADR-018 step 5 part 2: a healthy man whose heart fibrillates a few seconds in, with one nurse in the room. The learner leads: has the arrest team called (it comes 2 min after the call, with the trolley: defibrillator, cannulas, drugs; 90 s later if the call does not say where), or sends the nurse for the trolley (back in 60 s), and gives the tasks. The team's times are placements: the ADR's 2 min, a call of 15 s, a delay of 90 s for a call without a place. Second pass: he slumps in a bed with its head raised, so the bed is laid flat before compressions; his breathing is checked with the airway opened; in a quarter of runs (a teaching variant, not a rate) a bolus of food from his meal sits in his pharynx and no breath gets past it until it is taken out with the airway kit. Third pass (2026-10-23): the arrest team also brings alteplase, as in the pulmonary-embolism practice, so that the controls do not give away which arrest this is; here there is no clot for it to dissolve.",
+  "purpose": "A practice arrest after ADR-018 step 5 part 2: a healthy man whose heart fibrillates a few seconds in, with one nurse in the room. The learner leads: has the arrest team called (it comes 2 min after the call, with the trolley: defibrillator, cannulas, drugs; 90 s later if the call does not say where), or sends the nurse for the trolley (back in 60 s), and gives the tasks. The team's times are placements: the ADR's 2 min, a call of 15 s, a delay of 90 s for a call without a place. Second pass: he slumps in a bed with its head raised, so the bed is laid flat before compressions; his breathing is checked with the airway opened; in a quarter of runs (a teaching variant, not a rate) a bolus of food from his meal sits in his pharynx and no breath gets past it until it is taken out with the airway kit. Third pass (2026-10-23): the arrest team also brings alteplase, as in the pulmonary-embolism practice, so that the controls do not give away which arrest this is; here there is no clot for it to dissolve. Fourth pass (2026-10-24): a teaching nudge in which he jerks for 8–17 s as he collapses (ERC 2025 BLS: seizure-like activity at the onset; its duration from Lempert 1994, a placement); the arrest is recognised once the jerking stops.",
   "scene": {
     "place": {
       "en": "A side room on the ward",
@@ -272,6 +272,24 @@
       "explain": {
         "en": "This run was set up with a bolus of food in his pharynx. The lesson is to notice that the chest does not rise, look in the mouth, and take it out (suction, Magill forceps) as soon as the kit is there.",
         "de": "Dieser Durchgang war mit einem Speisebrocken im Rachen angelegt. Die Lektion: bemerken, dass sich der Thorax nicht hebt, in den Mund schauen und ihn entfernen (Absaugen, Magill-Zange), sobald das Material da ist."
+      }
+    },
+    {
+      "id": "seizure",
+      "label": {
+        "en": "He jerks as he collapses",
+        "de": "Er zuckt beim Zusammenbrechen"
+      },
+      "explain": {
+        "en": "This run was set up so that he jerked for several seconds as he collapsed. A short burst of seizure-like movement can be the first sign of a cardiac arrest (ERC 2025 BLS; reported in about 1 in 25 calls for an arrest in one city, half of them in a shockable rhythm): it is not a reason to wait. Call for help at once; once the jerking stops, open the airway and look at the breathing, and if he is not breathing normally, start compressions. While he is still jerking, the breathing cannot be judged.",
+        "de": "Dieser Durchgang war so angelegt, dass er beim Zusammenbrechen einige Sekunden lang zuckte. Ein kurzer krampfanfallartiger Ausbruch kann das erste Zeichen eines Kreislaufstillstands sein (ERC 2025 BLS; in einer Stadt bei etwa einem von 25 Notrufen wegen eines Stillstands berichtet, die Hälfte davon in einem schockbaren Rhythmus): kein Grund zu warten. Sofort Hilfe rufen; sobald das Zucken aufhört, die Atemwege öffnen und die Atmung prüfen, und wenn er nicht normal atmet, mit den Kompressionen beginnen. Solange er noch zuckt, lässt sich die Atmung nicht beurteilen."
+      },
+      "say": {
+        "who": "nurse",
+        "text": {
+          "en": "He’s jerking all over! Is it a fit?",
+          "de": "Er zuckt am ganzen Körper! Ist das ein Krampfanfall?"
+        }
       }
     }
   ]

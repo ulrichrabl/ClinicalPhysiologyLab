@@ -19,7 +19,7 @@ import { scoreRun } from '../guidelines/score.ts';
 import { debriefHtml, drawDebrief } from './arrest-debrief.ts';
 import { INTERVENTION_BY_ID } from '../data/interventions.ts';
 import { TEAM_ROLES, type CallContent, type TeamRole } from '../scenario/types.ts';
-import { collapsePose, patientLayer, sceneSvg, SCENE_VIEWBOX, type ScenePerson, type SceneTask } from '../render/arrest-scene.ts';
+import { collapsePose, jerkPose, patientLayer, sceneSvg, SCENE_VIEWBOX, type ScenePerson, type SceneTask } from '../render/arrest-scene.ts';
 import { figureLookFor } from '../render/patient-figure.ts';
 import type { Lang } from './diagrams.ts';
 import type { StationHandle, StationOptions } from './station-ecg.ts';
@@ -126,6 +126,10 @@ const T: Record<string, LocalizedText> = {
   reasons_equipment_cannula_kit: L('the cannulas are on the arrest trolley', 'die Kanülen sind am Notfallwagen'),
   reasons_equipment_thrombolytic: L('the arrest team brings the alteplase', 'das Reanimationsteam bringt die Alteplase mit'),
   reasons_already_called: L('the team is already called', 'das Team ist schon alarmiert'),
+  logBreathingSeizing: L('opens the airway, looks: he is still jerking, the breathing cannot be judged until it stops', 'öffnet den Atemweg, sieht: er zuckt noch, die Atmung lässt sich erst beurteilen, wenn es aufhört'),
+  logSeizure: L('jerks all over: arms, legs and head, in irregular twitches', 'zuckt am ganzen Körper: Arme, Beine und Kopf, in unregelmäßigen Zuckungen'),
+  logSeizureEnd: L('the jerking stops; he lies still', 'das Zucken hört auf; er liegt still'),
+  bSeizing: L('still jerking: not judged', 'zuckt noch: nicht beurteilbar'),
   logBreathingNone: L('opens the airway, looks and listens: not breathing', 'öffnet den Atemweg, sieht und hört: keine Atmung'),
   logBreathingGasp: L('opens the airway, looks and listens: only gasps, not normal breathing', 'öffnet den Atemweg, sieht und hört: nur Schnappatmung, keine normale Atmung'),
   logBreathingNormal: L('opens the airway, looks and listens: breathing normally', 'öffnet den Atemweg, sieht und hört: atmet normal'),
@@ -201,6 +205,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   /* the log; `whoId` and `speech` put what someone said in a bubble over them in the scene */
   const log: Array<{ t: number; who: string; text: string; fromEvent?: boolean; whoId?: string; speech?: string }> = [];
   let lastBreathing = '';
+  let lastSeizing = false;
   let lastNoRise = -1e9;
   /** who put the bag down to look in the mouth or clear it, and takes it up again when done */
   let rebag: string | null = null;
@@ -244,7 +249,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     run = null; debrief = false;
     host.innerHTML = `${head()}<p class="muted" data-preparing>${t('preparing')}</p>`;
     wire();
-    lastCompressor = null; teamSig = ''; sceneCache = null; buf = []; paw = []; trend = []; taps = []; sinceBreaths = 0; lastBreath = null; squeezeAt = null; seenEvents = 0; rebag = null; lastNoRise = -1e9; log.length = 0; curArr = null; idx = 0; lastBreathing = '';
+    lastCompressor = null; teamSig = ''; sceneCache = null; buf = []; paw = []; trend = []; taps = []; sinceBreaths = 0; lastBreath = null; squeezeAt = null; seenEvents = 0; rebag = null; lastNoRise = -1e9; log.length = 0; curArr = null; idx = 0; lastBreathing = ''; lastSeizing = false;
     setTimeout(() => {
       if (stopped) return;
       /* a fresh seed each time: chance (gasping, the heart's noise) differs from run to run, as in life */
@@ -829,13 +834,17 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     /* Gasps are seen and heard from across the room, so they are logged as they come; whether he breathes otherwise is
        known only by looking (the breathing check), so the line shows the last check and when it was. */
     const state = breathingOf(r as any);
+    /* the jerking is seen from across the room: its end is logged as it comes */
+    const jerking = run.seizing();
+    if (lastSeizing && !jerking) log.push({ t: run.t, who: t('patient'), text: t('logSeizureEnd') });
+    lastSeizing = jerking;
     if (state !== lastBreathing) {
       if (lastBreathing && state === 'gasping') log.push({ t: run.t, who: t('patient'), text: t('logGasp') });
       lastBreathing = state;
     }
     const bs = host.querySelector<HTMLElement>('[data-breathing]');
-    const seen = [...run.events].reverse().find((e) => e.kind === 'assessed' && e.what === 'breathing') as { t: number; breathing: Breathing } | undefined;
-    if (bs) bs.innerHTML = `<span class="muted">${t('breathing')}:</span> ${seen ? `<b class="${seen.breathing === 'normal' ? '' : 'abn'}">${t(bKey(seen.breathing))}</b> <span class="muted small">(${t('checkedAt').replace('{t}', fmtT(seen.t))})</span>` : `<b>${t('notChecked')}</b>`}`;
+    const seen = [...run.events].reverse().find((e) => e.kind === 'assessed' && e.what === 'breathing') as { t: number; breathing: Breathing; seizing?: boolean } | undefined;
+    if (bs) bs.innerHTML = `<span class="muted">${t('breathing')}:</span> ${seen ? `<b class="${seen.breathing === 'normal' && !seen.seizing ? '' : 'abn'}">${t(seen.seizing ? 'bSeizing' : bKey(seen.breathing))}</b> <span class="muted small">(${t('checkedAt').replace('{t}', fmtT(seen.t))})</span>` : `<b>${t('notChecked')}</b>`}`;
   };
   const bKey = (b: Breathing) => (b === 'gasping' ? 'bGasping' : b === 'normal' ? 'bNormal' : b === 'failing' ? 'bFailing' : 'bNone');
   const who = (x: string) => (x === 'learner' ? t('you') : x === 'nurse' ? t('nurseName') : x === 'doctor' ? t('doctorName') : x === 'nurse2' ? t('nurse2Name') : x === 'patient' ? t('patient') : x);
@@ -898,13 +907,15 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
     const slump = onset == null ? 0 : ease((r.t - onset) / 1.2);
     const lower = [...r.events].reverse().find((e) => e.kind === 'begin' && e.id === 'bed.flat') as { t: number; until: number } | undefined;
     const flat = r.session.state.position === 'supine' ? 1 : lower ? ease((r.t - lower.t) / Math.max(0.1, lower.until - lower.t)) : 0;
-    const pose = collapsePose(slump, flat);
+    /* seizure-like jerking at the collapse (the `seizure` nudge): redrawn every frame while it lasts */
+    const sz = r.seizing() ? (r.events.find((e) => e.kind === 'seizure') as { t: number } | undefined) : undefined;
+    const pose = sz ? jerkPose(collapsePose(slump, flat), r.t - sz.t) : collapsePose(slump, flat);
     const last = r.trace.at(-1);
     const pulse = last && last.rhythm === 'organised' && last.Psys >= 50;
     const grey = onset != null && r.t - onset > 20 && !pulse;
     const bagging = r.held.has('ventilation') && r.did.has('vent.bag');
     const bare = r.compressions.length > 0 || r.access.has('pads');
-    const key = `${slump.toFixed(2)},${flat.toFixed(2)}|${grey}|${bagging}|${bare}`;
+    const key = `${slump.toFixed(2)},${flat.toFixed(2)}|${grey}|${bagging}|${bare}|${sz ? r.t.toFixed(2) : ''}`;
     if (!sceneCache || sceneCache.key !== key) {
       const look = figureLookFor(FREE_CASE.patient, { exposure: bare ? ['chest'] : [], oxygen: bagging ? { device: 'bag-valve mask', fio2: 1 } : undefined }, 7, { colour: grey ? 'grey' : 'normal' });
       sceneCache = { key, layer: patientLayer(pose, look) };
@@ -928,6 +939,13 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
         if (e.by === 'learner') lastBreath = { seconds: e.seconds, volume: e.volume };
         log.push({ fromEvent: true, t: e.t, who: who(e.by), text: `${t('logBreath')} (${e.seconds.toFixed(1)} ${t('s')}${e.rise === false ? `: ${t('logNoRise')}` : `, ${Math.round(e.volume * 1000)} mL`})` });
         if (!all && e.rise === false && e.t - lastNoRise > 6) { lastNoRise = e.t; toast(t('tNoRise'), 'warn'); }
+      }
+      else if (e.kind === 'assessed' && e.what === 'breathing' && e.seizing) {
+        log.push({ fromEvent: true, t: e.t, who: who(e.by), text: t('logBreathingSeizing') });
+        if (!all) toast(t('logBreathingSeizing'), 'warn');
+      }
+      else if (e.kind === 'seizure') {
+        log.push({ fromEvent: true, t: e.t, who: t('patient'), text: t('logSeizure') });
       }
       else if (e.kind === 'assessed' && e.what === 'breathing') {
         log.push({ fromEvent: true, t: e.t, who: who(e.by), text: t(e.breathing === 'none' ? 'logBreathingNone' : e.breathing === 'gasping' ? 'logBreathingGasp' : e.breathing === 'failing' ? 'logBreathingFailing' : 'logBreathingNormal') });

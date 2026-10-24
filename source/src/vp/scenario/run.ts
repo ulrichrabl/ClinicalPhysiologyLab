@@ -100,6 +100,12 @@ export class ScenarioRun {
     this.nudge = opts.nudge ?? null;
     /* refractory VF: how many shocks fail, drawn from the nudge's own stream so it is not always the first (1 to 3) */
     if (this.nudge === 'refractory-vf') this.failShocks = 1 + Math.floor(this.chance.uniform('nudge') * 3);
+    /* seizure-like jerking at the onset: how long, drawn from its own stream (Lempert 1994's unconsciousness, mean ± SD) */
+    if (this.nudge === 'seizure') {
+      const u = this.chance.uniform('seizure');
+      this.seizureFor = ARREST.seizureMinSeconds + u * (ARREST.seizureMaxSeconds - ARREST.seizureMinSeconds);
+      this.pendingChance.push({ t: 0, kind: 'chance', stream: 'seizure', value: u, use: `jerks for ${this.seizureFor.toFixed(0)} s at the collapse (set up)` });
+    }
     this.live = new LivePatient(modelFromCase(opts.caseDef));
     this.live.run.heart.seedChance(this.chance.seedFor('heart'));
     /* Whether this patient gasps if the brain loses its blood supply, and for how long (Clark 1992, Bobrow 2008). Drawn now,
@@ -169,7 +175,17 @@ export class ScenarioRun {
     this.arrive();
     this.course();
     this.moveScene();
+    /* the jerking begins a moment after the collapse; the nurse says what she sees */
+    if (this.seizure && !this.seizureShown && this.t >= this.seizure.from - 1e-9) {
+      this.seizureShown = true;
+      this.events.push({ t: this.t, kind: 'seizure', until: this.seizure.until });
+      const say = this.def.nudges?.find((n) => n.id === 'seizure')?.say;
+      if (say) this.events.push({ t: this.t, kind: 'say', who: say.who, text: say.text });
+    }
   }
+
+  /** Whether he is jerking now (the `seizure` nudge). */
+  seizing(at = this.t): boolean { return !!this.seizure && this.seizureShown && at >= this.seizure.from - 1e-9 && at < this.seizure.until; }
 
   private sync(): void {
     const v = this.session.view;
@@ -328,6 +344,10 @@ export class ScenarioRun {
   readonly nudge: NudgeId | null;
   private failShocks = 0;
   private nudgeSpent = false;
+  /** The `seizure` nudge: how long he jerks, and when (set once the scene enters its arrest). */
+  private seizureFor = 0;
+  private seizure: { from: number; until: number } | null = null;
+  private seizureShown = false;
   /** Good CPR for the nudge that rewards it: compressions over at least 80 % of the last two minutes (or of the time since
       the collapse, if shorter, and at least 30 s), counting gaps of up to 2 s as compressing. The thresholds are the
       guideline file's (fraction 80 %, a pause longer than 2 s). */
@@ -559,7 +579,7 @@ export class ScenarioRun {
       }
       if (e.assess === 'breathing') {
         const r = this.live.snap.resp as any;
-        this.events.push({ t: this.t, kind: 'assessed', what: 'breathing', by: p.by, breathing: breathingOf(r) });
+        this.events.push({ t: this.t, kind: 'assessed', what: 'breathing', by: p.by, breathing: breathingOf(r), ...(this.seizing() ? { seizing: true } : {}) });
       }
       if (e.assess === 'chest') {
         /* half a lung or more collapsed is silent on that side; trapped air under pressure pushes the trachea away */
@@ -640,6 +660,10 @@ export class ScenarioRun {
     this.scene = name;
     this.sceneSince = this.tick;
     this.events.push({ t: this.t, kind: 'scene', state: name });
+    if (name === 'arrest' && this.seizureFor > 0 && !this.seizure) {
+      const from = Math.round((this.t + ARREST.seizureDelay) * 10) / 10;
+      this.seizure = { from, until: Math.round((from + this.seizureFor) * 10) / 10 };
+    }
     for (const d of st.enter ?? []) {
       if ('say' in d) this.events.push({ t: this.t, kind: 'say', who: d.say.who, text: d.say.text });
       else if ('leave' in d) {

@@ -80,6 +80,8 @@ export function validateScenario(s: ScenarioDef, ctx: { cases: CaseDef[]; interv
   for (const n of s.nudges ?? []) {
     if (!(NUDGE_IDS as readonly string[]).includes(n.id)) out.push({ level: 'error', path: `${p}.nudges.${n.id}`, message: 'not a nudge the run knows' });
     if (n.id === 'bolus' && !s.scene.airway) out.push({ level: 'error', path: `${p}.nudges.bolus`, message: 'a bolus nudge needs scene.airway' });
+    if (n.id === 'seizure' && !s.machine.states.arrest) out.push({ level: 'error', path: `${p}.nudges.seizure`, message: 'a seizure nudge needs a scene state named arrest' });
+    if (n.say) { if (!s.scene.people.some((x) => x.id === n.say!.who)) out.push({ level: 'error', path: `${p}.nudges.${n.id}.say.who`, message: `no person ${n.say.who}` }); text(n.say.text, `${p}.nudges.${n.id}.say.text`, out); }
     text(n.label, `${p}.nudges.${n.id}.label`, out); text(n.explain, `${p}.nudges.${n.id}.explain`, out);
   }
   if (s.scene.cause !== undefined && !(ARREST_CAUSES as readonly string[]).includes(s.scene.cause)) out.push({ level: 'error', path: `${p}.scene.cause`, message: `${s.scene.cause} is not a cause the rules know` });

@@ -133,6 +133,11 @@ interface Ctx {
 }
 type Judged = Omit<RuleResult, 'id'>;
 const NA: Judged = { status: 'not-applicable', at: [] };
+/** When the arrest could be recognised: the onset, or the end of seizure-like jerking at the onset if that was later. */
+const recognisableFrom = (c: Ctx): number => {
+  const sz = c.run.events.find((e) => e.kind === 'seizure') as { until: number } | undefined;
+  return Math.max(c.onset ?? 0, sz?.until ?? 0);
+};
 const needAt = (c: Ctx, t: number) => c.needCpr.some(([a, b]) => t >= a - 1e-9 && t <= b + 1e-9);
 /** The rhythm the trace shows at t (each row stands for the second before it). */
 const rhythmAt = (c: Ctx, t: number) => c.run.trace.find((r) => r.t >= t - 1e-9)?.rhythm ?? c.run.trace.at(-1)?.rhythm;
@@ -147,8 +152,12 @@ function judge(k: Check, c: Ctx): Judged {
   switch (k.kind) {
     case 'first-compression': {
       if (c.onset == null) return NA;
-      if (m.firstCompression == null) return { status: 'missed', at: [r1(c.onset + k.within)] };
-      return { status: m.firstCompression <= k.within ? 'met' : 'missed', value: m.firstCompression, at: m.firstCompression <= k.within ? [] : [r1(c.onset + k.within)] };
+      /* seizure-like jerking at the onset: the arrest is recognised once it stops (ERC 2025 BLS: "Once the seizure stops,
+         assess breathing"), so the clock starts then */
+      const from = recognisableFrom(c);
+      if (m.firstCompression == null) return { status: 'missed', at: [r1(from + k.within)] };
+      const after = r1(Math.max(0, c.onset + m.firstCompression - from)), ok = after <= k.within;
+      return { status: ok ? 'met' : 'missed', value: after, at: ok ? [] : [r1(from + k.within)] };
     }
     case 'measure': {
       const v = m[k.measure];
@@ -301,7 +310,8 @@ function judge(k: Check, c: Ctx): Judged {
     case 'breathing-checked': {
       if (c.onset == null) return NA;
       const first = c.measures.firstCompression == null ? c.end : c.onset + c.measures.firstCompression;
-      const look = c.run.events.find((e) => e.kind === 'assessed' && e.what === 'breathing' && e.t >= c.onset! - 1e-9 && e.t <= first + 1e-9);
+      /* a look while he is still jerking does not count: the breathing cannot be judged until the jerking stops */
+      const look = c.run.events.find((e) => e.kind === 'assessed' && e.what === 'breathing' && !e.seizing && e.t >= c.onset! - 1e-9 && e.t <= first + 1e-9);
       return look ? { status: 'met', value: r1(look.t - c.onset), at: [] } : { status: 'missed', at: [r1(first)] };
     }
     case 'obstruction-cleared': {

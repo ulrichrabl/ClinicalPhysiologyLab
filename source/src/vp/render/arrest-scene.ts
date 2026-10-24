@@ -80,6 +80,40 @@ export const collapsePose = (slump: number, flat = 0): Pose => {
   return lerpPose(lerpPose(POSES['reclined-45'], SLUMPED, c(slump)), POSES.supine, c(flat));
 };
 
+/* Seizure-like jerking at the onset of the arrest (the VF practice's `seizure` nudge). Lempert 1994 filmed induced
+   syncope: multifocal, arrhythmic jerks in proximal and distal muscles, often with generalised jerks superposed, and head
+   turns. So each joint twitches on its own irregular clock, and now and then all of them at once. A twitch is quick in
+   and slower out. Deterministic in time, so a replay draws the same jerks. Amplitudes (degrees) are placements, judged
+   by eye: visible at the bedside's scale, never through the mattress. */
+const hash = (i: number, k: number) => { const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
+const twitch = (x: number) => (x < 0.3 ? x / 0.3 : Math.max(0, (1 - x) / 0.7));
+/** The pose `t` seconds into the jerking. */
+export function jerkPose(p: Pose, t: number): Pose {
+  const SLOT = 0.2, GEN = 0.4;   // the scene clock ticks in 0.1 s, so a twitch shows in at least one frame
+  const n = Math.floor(t / SLOT), x = (t - n * SLOT) / SLOT;
+  const m = Math.floor(t / GEN), gx = (t - m * GEN) / GEN;
+  const general = hash(97, m) < 0.2 ? twitch(gx) : 0;
+  const own = (j: number) => Math.max(general, hash(j, n) < 0.3 ? twitch(x) * (0.5 + 0.5 * hash(j + 40, n)) : 0);
+  const pair = (a: [number, number], d: [number, number]): [number, number] => [a[0] + d[0], a[1] + d[1]];
+  /* An arm's jerk flexes the elbow and draws the upper arm back to the side, so the hand comes up towards the body; the
+     wrist twitches on its own. A leg's jerk bends hip and knee a little, the knee rising and the heel barely lifting;
+     the foot twitches on its own. Every jerk moves a limb away from the mattress, never into it. [near, far] each on
+     its own clock. */
+  const arm = [own(0), own(1)], leg = [own(2), own(3)];
+  const out: Pose = { ...p,
+    armUpper: pair(p.armUpper, [-6 * arm[0], -6 * arm[1]]),
+    armFore: pair(p.armFore, [22 * arm[0], 22 * arm[1]]),
+    hand: pair(p.hand, [14 * own(4), 14 * own(5)]),
+    thigh: pair(p.thigh, [7 * leg[0], 7 * leg[1]]),
+    shin: pair(p.shin, [2 * leg[0], 2 * leg[1]]),
+    foot: pair(p.foot, [12 * own(6), 12 * own(7)]) };
+  /* the head turns and nods; the trunk jerks a little with the generalised jerks */
+  out.neck = p.neck + 6 * Math.max(own(20), general) * (hash(101, n) < 0.5 ? 1 : -1);
+  out.head = p.head + 5 * own(21);
+  out.torso = p.torso + 2 * general;
+  return out;
+}
+
 const f = (x: number) => x.toFixed(1);
 
 /** A rescuer standing behind the trolley, facing us: legs, body and head. Arms are drawn separately, over the patient. */
