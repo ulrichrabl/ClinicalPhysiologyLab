@@ -124,6 +124,8 @@ export function validateScenario(s: ScenarioDef, ctx: { cases: CaseDef[]; interv
       } else if ('say' in d) {
         text(d.say.text, `${sp}.say`, out);
         if (d.say.who !== 'patient' && !people.has(d.say.who)) out.push({ level: 'error', path: `${sp}.say`, message: `no one called ${d.say.who}` });
+      } else if ('poison' in d) {
+        if (!(DRUG_IDS.includes(d.poison.drug) && d.poison.mg > 0)) out.push({ level: 'error', path: `${sp}.poison`, message: `${d.poison.drug} ${d.poison.mg}: not a drug the model has, or not an amount` });
       } else {
         for (const x of d.arrive.people ?? []) if (!people.has(x)) out.push({ level: 'error', path: `${sp}.arrive`, message: `no one called ${x}` });
         for (const x of d.arrive.equipment ?? []) if (!kit.has(x)) out.push({ level: 'error', path: `${sp}.arrive`, message: `no equipment ${x}` });

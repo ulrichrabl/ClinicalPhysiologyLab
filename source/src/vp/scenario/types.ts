@@ -92,7 +92,9 @@ export type SceneDo =
   | { change: ModelWrite[] }
   /** People who leave the room (to fetch something, to call for help); `arrive` brings them back. */
   | { leave: { people: string[] } }
-  | { arrive: { people?: string[]; equipment?: string[]; afterSeconds: number } };
+  | { arrive: { people?: string[]; equipment?: string[]; afterSeconds: number } }
+  /** A drug that reaches him outside anyone's hands: a poison, or a local anaesthetic gone into a vein. */
+  | { poison: { drug: DrugId; mg: number } };
 
 export interface SceneState {
   label: LocalizedText;
@@ -109,7 +111,7 @@ export type NudgeId = typeof NUDGE_IDS[number];
 /** Reversible causes of cardiac arrest (ERC 2025 ALS: hypoxia, hypovolaemia, hypo-/hyperkalaemia and other metabolic
     causes, hypothermia; thrombosis (coronary or pulmonary), tension pneumothorax, tamponade, toxins). Only those a scenario
     uses are listed. */
-export const ARREST_CAUSES = ['pulmonary-embolism', 'tension-pneumothorax', 'hypovolaemia', 'tamponade', 'hyperkalaemia', 'hypokalaemia', 'hypoxia', 'opioid', 'hypothermia'] as const;
+export const ARREST_CAUSES = ['pulmonary-embolism', 'tension-pneumothorax', 'hypovolaemia', 'tamponade', 'hyperkalaemia', 'hypokalaemia', 'hypoxia', 'opioid', 'hypothermia', 'local-anaesthetic'] as const;
 export type ArrestCause = (typeof ARREST_CAUSES)[number];
 
 export interface ScenarioDef {
@@ -218,5 +220,7 @@ export type ScenarioEvent =
   | { t: number; kind: 'obstruction'; what: string | null; by?: string }
   /** A dose given into the vein (ADR-018 step 4). */
   | { t: number; kind: 'dose'; drug: DrugId; mg: number; by: string }
+  /** A poison reached him (a scene's `poison`). */
+  | { t: number; kind: 'poison'; drug: DrugId; mg: number }
   /** Ventricular fibrillation comes back after a shock had ended it. */
   | { t: number; kind: 'refibrillation'; from: string };

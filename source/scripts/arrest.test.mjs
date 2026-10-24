@@ -490,6 +490,11 @@ console.log('\nHyperkalaemia (Durfey 2017; Harel 2016)');
   let peak = 0; for (let i = 0; i < 3600; i++) { k.step(1); peak = Math.max(peak, k.potassiumRise(14)); }
   ok('derived: 20 mmol potassium chloride leaves potassium 0.25 mmol/L higher once it has spread into cells (Kruse 1990, over 14 L)', Math.abs(k.potassiumRise(14) - 0.25) < 0.02, `${k.potassiumRise(14).toFixed(2)} mmol/L at 60 min`);
   ok('a bolus first raises it by about 1 mmol/L, short of its whole 1.4 over 14 L, since the cells take it up as it arrives', peak > 0.8 && peak < 1.43, `peak ${peak.toFixed(2)} mmol/L`);
+  /* bupivacaine leaves with Litonius 2012's half-lives, shorter while lipid emulsion runs */
+  const bu = new S.Drugs(); bu.give('bupivacaine', 1); for (let i = 0; i < 2700; i++) bu.step(1);
+  const bl = new S.Drugs(); bl.give('bupivacaine', 1); bl.give('lipid', 100); for (let i = 0; i < 1500; i++) bl.step(1);
+  ok('measured: bupivacaine halves in 45 min, in 25 min with lipid emulsion (Litonius 2012; the arrival adds a little)', Math.abs(bu.bupivacaine() - 0.5) < 0.03 && Math.abs(bl.bupivacaine() - 0.5) < 0.03, `${bu.bupivacaine().toFixed(3)}, ${bl.bupivacaine().toFixed(3)}`);
+  ok('with no bupivacaine the heart is not depressed at all', new S.Drugs().cardiacDepression() === 1);
   gap('the thresholds of block and standstill and calcium’s offset are measured', false, 'block at an effective 8.0 mmol/L, standstill at 9.5 and calcium’s offset (2.2 per mmol/L) are placements; hyperkalaemic fibrillation is not modelled (gap 41)');
 }
 
@@ -516,6 +521,12 @@ console.log('\nHypothermia (ERC 2025 Special circumstances)');
   ok('validated against the guideline’s figure: at 26 °C the myocardium needs 6–7 % less oxygen per °C, so ten minutes without flow leave it far less run down', Math.abs(cold.demand() - (1 - 0.065 * (36.9 - 26))) < 1e-9 && cold.M > 2 * warm.M,
     `demand ${cold.demand().toFixed(2)}; after 10 min of VF without flow M ${cold.M.toFixed(2)} against ${warm.M.toFixed(2)} warm`);
   gap('a cold heart slows, shows J waves and fibrillates of its own below about 28–30 °C', false, 'temperature acts on the myocardium’s demand, on shocks and on adrenaline only (gap 46)');
+}
+
+console.log('\nPotassium and a local anaesthetic: what is not modelled');
+{
+  gap('low potassium starts VF in a beating heart, and its effect on refibrillation is measured', false, 'refibrillation × 2.45 at ≤ 3.5 mmol/L by analogy with VF onset (Nordrehaug 1983); no torsades, no magnesium (gap 47)');
+  gap('bupivacaine’s depression of the heart follows a measured concentration–effect relation, and widens the QRS', false, 'half contractility at 1.0 mg/L free is a placement; no QRS widening, no arrhythmias; lipid emulsion only shortens the half-life (Litonius 2012), its other actions rest on animal data (gap 48)');
 }
 
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
