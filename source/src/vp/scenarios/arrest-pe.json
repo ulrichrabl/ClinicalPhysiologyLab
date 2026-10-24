@@ -1,7 +1,7 @@
 {
   "schema": "vp.scenario/1",
   "id": "arrest-pe",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "status": "draft",
   "title": {
     "en": "Practice: cardiac arrest from a pulmonary embolism",
@@ -88,6 +88,14 @@
           "de": "Alteplase (Thrombolytikum), vom Reanimationsteam mitgebracht"
         },
         "present": false
+      },
+      {
+        "id": "fluids",
+        "label": {
+          "en": "Warmed saline and a pressure bag, on the arrest trolley",
+          "de": "Angewärmte Kochsalzlösung und Druckbeutel, am Notfallwagen"
+        },
+        "present": false
       }
     ],
     "team": {
@@ -100,7 +108,8 @@
         "cannula-kit",
         "drugs",
         "airway-kit",
-        "thrombolytic"
+        "thrombolytic",
+        "fluids"
       ],
       "afterSeconds": 120,
       "lateWithoutWhere": 90,

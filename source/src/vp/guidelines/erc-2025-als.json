@@ -1,7 +1,7 @@
 {
   "schema": "vp.guideline/1",
   "id": "erc-2025-als",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "title": {
     "en": "ERC 2025: adult advanced life support",
     "de": "ERC 2025: Erweiterte lebensrettende Maßnahmen bei Erwachsenen"
@@ -474,6 +474,50 @@
         "within": 120
       },
       "group": "airway"
+    },
+    {
+      "id": "fluids-hypovolaemia",
+      "title": {
+        "en": "Fluids for an arrest from blood loss",
+        "de": "Volumen bei Stillstand durch Blutverlust"
+      },
+      "why": {
+        "en": "A heart with nothing to pump cannot be compressed or drugged into an output: the volume lost has to go back in, fast, through a large line.",
+        "de": "Ein Herz ohne Füllung kann weder durch Kompressionen noch durch Medikamente Auswurf erzeugen: das verlorene Volumen muss schnell über einen großen Zugang zurück."
+      },
+      "section": "ALS: medication and fluids, fluids (\"Give fluids during CPR only if cardiac arrest is caused by hypovolaemia.\" \"Use either isotonic saline or balanced crystalloids for fluid infusion during CPR.\")",
+      "basis": "placement",
+      "note": "Only in scenes whose cause is hypovolaemia. The guideline gives no time; a bolus begun within 3 min of when it became possible (the collapse, the fluids in the room) is ours.",
+      "unit": "s",
+      "check": {
+        "kind": "done-for-cause",
+        "cause": "hypovolaemia",
+        "id": "fluid.bolus",
+        "kit": "fluids",
+        "within": 180
+      },
+      "group": "drugs"
+    },
+    {
+      "id": "fluids-only-hypovolaemia",
+      "title": {
+        "en": "No fluid bolus unless the arrest is from blood loss",
+        "de": "Kein Volumenbolus, wenn der Stillstand nicht durch Blutverlust kommt"
+      },
+      "why": {
+        "en": "In an arrest that is not from hypovolaemia, fluids do not help the heart and take hands and time from what does.",
+        "de": "Bei einem Stillstand, der nicht durch Volumenmangel entsteht, helfen Infusionen dem Herzen nicht und nehmen Hände und Zeit für das, was hilft."
+      },
+      "section": "ALS: medication and fluids, fluids (\"Give fluids during CPR only if cardiac arrest is caused by hypovolaemia.\")",
+      "basis": "guideline",
+      "unit": "",
+      "check": {
+        "kind": "no-hazard",
+        "codes": [
+          "fluids-not-hypovolaemia"
+        ]
+      },
+      "group": "drugs"
     }
   ]
 }
