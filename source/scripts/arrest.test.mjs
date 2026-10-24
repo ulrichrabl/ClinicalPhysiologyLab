@@ -411,7 +411,7 @@ console.log('\nMassive pulmonary embolism: an arrest with a cause (Wood 2002; PA
   ok('validated: at a Miller index of 28.3 of 34 (83 %), mean pulmonary artery pressure is within PAIMS 2’s 30.2 ± 7.8 mmHg', Math.abs(at(0.83).PpaMean - 30.2) <= 7.8, `${at(0.83).PpaMean.toFixed(1)} mmHg`);
   ok('validated: with almost the whole bed blocked the right ventricle fails: pulmonary pressure falls below its peak (Wood 2002)', at(0.95).PpaMean < Math.max(...rows.map((r) => r.PpaMean)) - 5, show);
   ok('validated: the arrest is pulseless electrical activity, an organised rhythm without a palpable pulse (Wood 2002: almost uniformly PEA)', at(0.95).rhythm === 'none' && at(0.95).Psys < 50, `${Math.round(at(0.95).Psys)}/${Math.round(at(0.95).Pdia)} mmHg, ventricular ${at(0.95).rhythm}`);
-  gap('an untreated PEA from a massive embolism declines towards asystole', (at(0.95).run.advance(600), at(0.95).run.arrest.M < 0.9),
+  ok('an untreated PEA from a massive embolism runs the myocardium down (gap 26, closed for a heart beating on too little supply)', (at(0.95).run.advance(600), at(0.95).run.arrest.M < 0.9),
     `M ${at(0.95).run.arrest.M.toFixed(2)} after 12 min: the myocardium wears out only while it fibrillates or stands still; a weak organised heart is held at its ischaemic floor indefinitely (gap 26).`);
   /* Alteplase: PAIMS 2's Miller index fell from 28.3 to 24.8 in 2 h; with heparin alone it did not change. */
   const d = new S.Drugs(); d.give('alteplase', 50); for (let i = 0; i < 7200; i++) d.step(1);
@@ -486,6 +486,21 @@ console.log('\nHyperkalaemia (Durfey 2017; Harel 2016)');
   const d = new S.Drugs(); d.give('insulin', 10); for (let i = 0; i < 3600; i++) d.step(1);
   ok('derived: insulin with glucose lowers potassium by 0.78 mmol/L at 60 min (Harel 2016)', Math.abs(d.potassiumShift() - 0.78) < 0.05, `${d.potassiumShift().toFixed(2)} mmol/L (the arrival into the circulation adds a little delay)`);
   gap('the thresholds of block and standstill and calcium’s offset are measured', false, 'block at an effective 8.0 mmol/L, standstill at 9.5 and calcium’s offset (2.2 per mmol/L) are placements; hyperkalaemic fibrillation is not modelled (gap 41)');
+}
+
+console.log('\nA heart that beats on too little oxygen runs down (gap 26; hypoxic arrest)');
+{
+  const m = S.healthyModel(), run = S.createCirculation(m); run.settle(20); run.advance(120);
+  ok('a healthy heart, perfused and oxygenated, keeps its state', run.arrest.M > 0.999, `M ${run.arrest.M.toFixed(4)}`);
+  run.apply({ ...m, respiratory: { ...m.respiratory, drive: 0 } });
+  let pea = null, still = null;
+  for (let t = 10; t <= 1500 && still == null; t += 10) {
+    run.advance(10);
+    if (pea == null && run.sim.metrics.Psys < 50 && !run.heart.standstill()) pea = t;
+    if (run.heart.standstill()) still = t;
+  }
+  ok('without breathing the heart runs down: PEA, then standstill', pea != null && still != null && still > pea, `PEA after ${pea} s, asystole after ${still} s of apnoea`);
+  gap('…preceded by bradycardia, as hypoxic arrests are', false, 'the chemoreflex makes the model tachycardic until it stops (gap 42)');
 }
 
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);

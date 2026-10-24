@@ -1,7 +1,7 @@
 {
   "schema": "vp.guideline/1",
   "id": "erc-2025-als",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "title": {
     "en": "ERC 2025: adult advanced life support",
     "de": "ERC 2025: Erweiterte lebensrettende Maßnahmen bei Erwachsenen"
@@ -587,6 +587,30 @@
         "within": 300
       },
       "group": "drugs"
+    },
+    {
+      "id": "ventilate-hypoxia",
+      "title": {
+        "en": "Breaths with the bag for a patient who is not breathing",
+        "de": "Beutelbeatmung beim Patienten, der nicht atmet"
+      },
+      "why": {
+        "en": "A heart starved of oxygen runs down into PEA and asystole; breaths bring oxygen back to it, and if they come before the arrest they may prevent it.",
+        "de": "Ein Herz ohne Sauerstoff erlahmt bis zur PEA und Asystolie; Beatmung bringt ihm Sauerstoff zurück und kann, vor dem Stillstand, ihn verhindern."
+      },
+      "section": "ERC 2025 Special circumstances (Lott et al.): \"Always address hypoxia, hypovolaemia, electrolyte disorders, …\"; asthma: \"Treat life-threatening hypoxia with 100 % oxygen\"; drowning: \"Start with 5 ventilations using 100 % inspired oxygen when available\".",
+      "basis": "placement",
+      "note": "Only in scenes whose cause is hypoxia. Counted from the start of the scene, so breaths before the arrest count; within 60 s is ours.",
+      "unit": "s",
+      "check": {
+        "kind": "done-for-cause",
+        "cause": "hypoxia",
+        "id": "vent.bag",
+        "kit": "bag-mask",
+        "within": 60,
+        "fromStart": true
+      },
+      "group": "airway"
     }
   ]
 }

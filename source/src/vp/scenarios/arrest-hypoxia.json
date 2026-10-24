@@ -1,0 +1,241 @@
+{
+  "schema": "vp.scenario/1",
+  "id": "arrest-hypoxia",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": {
+    "en": "Practice: a patient who stopped breathing after a long seizure",
+    "de": "Übung: ein Patient, der nach einem langen Krampfanfall nicht mehr atmet"
+  },
+  "caseId": "free-patient",
+  "purpose": "A hypoxic arrest (owner, 2026-10-23/24: all PEA situations; status epilepticus as a cause). A man fitted for a long time; for 7 min before the learner arrives he has not been breathing (drive 0: `before`, run before the clock starts). He arrives unresponsive, apnoeic, deeply desaturated, with a fast pulse (86/76); his heart, starved of oxygen, runs down (gap 26 closed for the heart that beats on too little supply) into PEA after about 4 more minutes and asystole about 10 later. Ventilating him (with the bag, which gives room air in the model, gap 43) brings oxygen back and the heart recovers: before the arrest it is prevented. The 7 min and the thresholds are placements; human hypoxic arrest is preceded by bradycardia, which the model does not give (its chemoreflex makes him tachycardic; gap 42).",
+  "scene": {
+    "place": {
+      "en": "A side room on the neurology ward",
+      "de": "Ein Nebenzimmer auf der neurologischen Station"
+    },
+    "people": [
+      {
+        "id": "nurse",
+        "role": {
+          "en": "Nurse",
+          "de": "Pflegekraft"
+        },
+        "present": true
+      },
+      {
+        "id": "doctor",
+        "role": {
+          "en": "Doctor (arrest team)",
+          "de": "Ärztin (Reanimationsteam)"
+        },
+        "present": false
+      },
+      {
+        "id": "nurse2",
+        "role": {
+          "en": "Nurse (arrest team)",
+          "de": "Pflegekraft (Reanimationsteam)"
+        },
+        "present": false
+      }
+    ],
+    "equipment": [
+      {
+        "id": "bag-mask",
+        "label": {
+          "en": "Bag-valve-mask on the wall",
+          "de": "Beatmungsbeutel mit Maske an der Wand"
+        },
+        "present": true
+      },
+      {
+        "id": "defibrillator",
+        "label": {
+          "en": "Arrest trolley with a defibrillator",
+          "de": "Notfallwagen mit Defibrillator"
+        },
+        "present": false
+      },
+      {
+        "id": "cannula-kit",
+        "label": {
+          "en": "IV cannulas on the arrest trolley",
+          "de": "Venenverweilkanülen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "drugs",
+        "label": {
+          "en": "Adrenaline and amiodarone on the arrest trolley",
+          "de": "Adrenalin und Amiodaron am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "airway-kit",
+        "label": {
+          "en": "Suction, Magill forceps and airways on the arrest trolley",
+          "de": "Absaugung, Magill-Zange und Atemwegshilfen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "thrombolytic",
+        "label": {
+          "en": "Alteplase (thrombolytic), brought with the arrest team",
+          "de": "Alteplase (Thrombolytikum), vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "fluids",
+        "label": {
+          "en": "Warmed saline and a pressure bag, on the arrest trolley",
+          "de": "Angewärmte Kochsalzlösung und Druckbeutel, am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "ultrasound",
+        "label": {
+          "en": "An ultrasound machine, brought with the arrest team",
+          "de": "Ein Ultraschallgerät, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "pericardiocentesis",
+        "label": {
+          "en": "A pericardiocentesis set, brought with the arrest team",
+          "de": "Ein Perikardpunktionsset, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      }
+    ],
+    "team": {
+      "people": [
+        "doctor",
+        "nurse2"
+      ],
+      "equipment": [
+        "defibrillator",
+        "cannula-kit",
+        "drugs",
+        "airway-kit",
+        "thrombolytic",
+        "fluids",
+        "ultrasound",
+        "pericardiocentesis"
+      ],
+      "afterSeconds": 120,
+      "lateWithoutWhere": 90,
+      "callSeconds": 15
+    },
+    "cause": "hypoxia"
+  },
+  "reveal": {
+    "label": {
+      "en": "Hypoxia after a seizure",
+      "de": "Hypoxie nach einem Krampfanfall"
+    },
+    "explain": {
+      "en": "A long seizure left him without breathing for minutes. His heart was not the problem at first: it was starved of oxygen. While it still made a pulse, breaths with the bag would have brought the oxygen back and prevented the arrest; once it ran down into PEA, compressions and breaths together. A short burst of seizure-like movement can also be the first sign of a cardiac arrest (ERC 2025 BLS): once it stops, check the breathing.",
+      "de": "Ein langer Krampfanfall ließ ihn minutenlang nicht atmen. Sein Herz war zunächst nicht das Problem: ihm fehlte Sauerstoff. Solange es noch einen Puls machte, hätte Beutelbeatmung den Sauerstoff zurückgebracht und den Stillstand verhindert; als es in die PEA erlahmte, Kompressionen und Beatmung zusammen. Kurze krampfartige Bewegungen können auch das erste Zeichen eines Herzstillstands sein (ERC 2025 BLS): wenn sie aufhören, die Atmung prüfen."
+    }
+  },
+  "machine": {
+    "start": "breathless",
+    "states": {
+      "breathless": {
+        "label": {
+          "en": "Not breathing, a pulse",
+          "de": "Atemstillstand, mit Puls"
+        },
+        "enter": [
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "He’s been fitting for ages, and now he’s stopped, but he isn’t breathing properly! What shall I do?",
+                "de": "Er hat lange gekrampft, jetzt hat es aufgehört, aber er atmet nicht richtig! Was soll ich tun?"
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "value": {
+                "of": "circulation.Psys",
+                "below": 50
+              }
+            },
+            "to": "arrest"
+          },
+          {
+            "when": {
+              "at": 1200
+            },
+            "to": "end"
+          }
+        ]
+      },
+      "arrest": {
+        "label": {
+          "en": "Cardiac arrest",
+          "de": "Herz-Kreislauf-Stillstand"
+        },
+        "enter": [
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "I can’t feel a pulse any more!",
+                "de": "Ich fühle keinen Puls mehr!"
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "at": 1200
+            },
+            "to": "end"
+          }
+        ]
+      },
+      "end": {
+        "label": {
+          "en": "Twenty minutes",
+          "de": "Zwanzig Minuten"
+        },
+        "final": true
+      }
+    }
+  },
+  "nudges": [
+    {
+      "id": "gasping",
+      "label": {
+        "en": "He gasps",
+        "de": "Er hat Schnappatmung"
+      },
+      "explain": {
+        "en": "This run was set up so that he gasps after the collapse. Gasping is not breathing: an unresponsive patient who gasps is in cardiac arrest, and compressions should start without delay.",
+        "de": "Dieser Durchgang war so angelegt, dass er nach dem Kollaps Schnappatmung hat. Schnappatmung ist keine Atmung: Ein reaktionsloser Patient mit Schnappatmung hat einen Kreislaufstillstand, und die Kompressionen sollten ohne Verzögerung beginnen."
+      }
+    }
+  ],
+  "before": {
+    "seconds": 420,
+    "change": [
+      {
+        "path": "respiratory.drive",
+        "set": 0
+      }
+    ]
+  }
+}

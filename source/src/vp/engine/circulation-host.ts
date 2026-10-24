@@ -10,6 +10,7 @@ import { CPR } from '../evidence/cpr.ts';
 import type { Compressor } from '../physiology/cpr/compressions.ts';
 import type { Ventilator } from '../physiology/lung/ventilation.ts';
 import { LUNG } from '../evidence/lung.ts';
+import { ARREST } from '../evidence/arrest.ts';
 import { MyocardialState } from '../physiology/heart/arrest.ts';
 import { Drugs } from '../physiology/drugs/drugs.ts';
 const CMH2O_TO_MMHG = 0.7356;
@@ -108,7 +109,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
   const arrest = new MyocardialState();
   /* Drugs given (ADR-018 step 4), acting on the arterioles and on the recurrence of VF. */
   const drugs = new Drugs();
-  const arrested = () => heart.p.ventricular === 'vf' || heart.p.ventricular === 'asystole' || heart.hyperKStandstill();
+  const arrested = () => heart.p.ventricular === 'vf' || heart.p.ventricular === 'asystole' || heart.standstill();
   /* The lungs see the emboli that are left: alteplase (drugs.lysed) dissolves the same fraction in every lobe. */
   let lysedSeen = 0;
   const lungParams = (p: PatientModel['respiratory']): PatientModel['respiratory'] => {
@@ -126,7 +127,12 @@ export function createCirculation(m: PatientModel): CirculationRun {
     const perf = (sim.Part ?? 93) - (sim.Pra ?? 4);
     brainP = Number.isFinite(brainP) ? brainP + (perf - brainP) * (1 - Math.exp(-COUPLE_S / BRAIN_TAU_S)) : perf;
     if (!((sim.Pchest ?? 0) > 0)) coronaryP = Number.isFinite(coronaryP) ? coronaryP + (perf - coronaryP) * (1 - Math.exp(-COUPLE_S / BRAIN_TAU_S)) : perf;
-    if (sim.t > 2) arrest.step(COUPLE_S, coronaryP, arrested());
+    /* the myocardium is supplied by the oxygen the coronary flow carries: hypoxaemia starves it as surely as hypotension */
+    const o2 = Math.max(0, Math.min(1, (resp.snapshot().CaO2 ?? ARREST.normalCaO2) / ARREST.criticalCaO2));
+    if (sim.t > 2) arrest.step(COUPLE_S, coronaryP, arrested(), o2);
+    /* an organised heart whose myocardium has run down stops (and starts again only once it has clearly recovered) */
+    if (heart.p.ventricular === 'none') heart.myocardialStandstill = heart.myocardialStandstill ? arrest.M < 2 * ARREST.standstillM : arrest.M < ARREST.standstillM;
+    else heart.myocardialStandstill = false;
     heart.vfScale = arrest.vfScale();
     drugs.step(COUPLE_S);
     if (Math.abs(drugs.lysed - lysedSeen) > 0.0005) { lysedSeen = drugs.lysed; resp.setParams(lungParams(model.respiratory), body()); }

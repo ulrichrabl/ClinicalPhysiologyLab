@@ -39,7 +39,7 @@ export type Check =
   | { kind: 'dose-for-cause'; cause: string; drug: DrugId; kit: string; within: number }
   /** In a scene with this reversible cause: the intervention that treats it (`{side}` filled from the scene's side), within
       `within` s of its becoming possible (the collapse, the kit `kit` in the room). Not applicable in other scenes. */
-  | { kind: 'done-for-cause'; cause: string; id: string; kit: string; within: number }
+  | { kind: 'done-for-cause'; cause: string; id: string; kit: string; within: number; fromStart?: boolean }
   /** Repeated doses of a drug, from its first, at this interval while CPR is needed. */
   | { kind: 'dose-interval'; drug: DrugId; min: number; max: number }
   /** None of these hazards. */

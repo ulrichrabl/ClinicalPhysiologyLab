@@ -84,6 +84,10 @@ export function validateScenario(s: ScenarioDef, ctx: { cases: CaseDef[]; interv
   }
   if (s.scene.cause !== undefined && !(ARREST_CAUSES as readonly string[]).includes(s.scene.cause)) out.push({ level: 'error', path: `${p}.scene.cause`, message: `${s.scene.cause} is not a cause the rules know` });
   if (s.scene.causeSide !== undefined && s.scene.causeSide !== 'left' && s.scene.causeSide !== 'right') out.push({ level: 'error', path: `${p}.scene.causeSide`, message: 'left or right' });
+  if (s.before) {
+    if (!(s.before.seconds > 0)) out.push({ level: 'error', path: `${p}.before`, message: 'runs for no valid time' });
+    for (const w of s.before.change) { if ((w.set === undefined) === (w.add === undefined)) out.push({ level: 'error', path: `${p}.before`, message: `${w.path}: give set or add, not both or neither` }); checkPath(w.path, w.set ?? w.add, `${p}.before`, out); }
+  }
   if (s.reveal) { text(s.reveal.label, `${p}.reveal.label`, out); text(s.reveal.explain, `${p}.reveal.explain`, out); }
   const ob = s.scene.airway;
   if (ob && (ob.obstruction !== 'bolus' || !(ob.chance >= 0 && ob.chance <= 1))) out.push({ level: 'error', path: `${p}.scene.airway`, message: 'an obstruction is a bolus with a chance from 0 to 1' });

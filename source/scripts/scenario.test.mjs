@@ -694,5 +694,26 @@ console.log('\nAn arrest with a cause: hyperkalaemia');
   ok('scored: calcium and insulin for hyperkalaemia', rule('calcium-hyperkalaemia').status === 'met' && rule('insulin-hyperkalaemia').status === 'met', J([rule('calcium-hyperkalaemia'), rule('insulin-hyperkalaemia')]));
 }
 
+console.log('\nA hypoxic arrest: after a long seizure (gap 26: a heart that beats on too little oxygen runs down)');
+{
+  const P = scenarioOf('arrest-hypoxia');
+  ok('the hypoxia practice validates, with what happened before the clock', errors(S.validateScenario(P, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).length === 0 && P.before.seconds > 0);
+  const Q = structuredClone(P); for (const e of Q.scene.equipment) e.present = true;
+  const left = start(Q, 19, lying(S.FREE_CASE), { settleSeconds: 20 });
+  left.advanceTo(2);
+  const r0 = left.live.snap.resp, m0 = left.live.snap.metrics;
+  ok('he arrives apnoeic and deeply desaturated, still with a pulse', m0.Psys > 60 && (r0.SaO2 ?? 1) < 0.5, `${Math.round(m0.Psys)} mmHg, SaO2 ${Math.round(100 * r0.SaO2)} %`);
+  left.advanceTo(420);
+  ok('left alone, his heart runs down into PEA (the scene notices the pulse is gone)', left.scene === 'arrest' && left.rhythm() === 'organised' && left.live.snap.metrics.Psys < 50, `${left.scene}, ${Math.round(left.live.snap.metrics.Psys)} mmHg, M ${left.live.run.arrest.M.toFixed(2)}`);
+  const saved = start(Q, 19, lying(S.FREE_CASE), { settleSeconds: 20 });
+  /* the learner bags him at 10 breaths a minute (rescue breathing: he still has a pulse) */
+  saved.advanceTo(5); saved.intervene('vent.bag');
+  for (let t = 12; t <= 420; t += 6) { saved.advanceTo(t); saved.ventilate(saved.t); }
+  ok('breaths with the bag from the start bring the oxygen back: no arrest', saved.scene !== 'arrest' && saved.live.snap.metrics.Psys > 80 && saved.live.run.arrest.M > 0.5,
+    `${saved.scene}, ${Math.round(saved.live.snap.metrics.Psys)} mmHg, SaO2 ${Math.round(100 * saved.live.snap.resp.SaO2)} %, M ${saved.live.run.arrest.M.toFixed(2)}`);
+  const rep = S.scoreRun(S.GUIDELINES[0], saved);
+  ok('scored: breaths given in time, counted from the start of the scene', rep.rules.find((x) => x.id === 'ventilate-hypoxia').status === 'met', J(rep.rules.find((x) => x.id === 'ventilate-hypoxia')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed, 0 known gaps`);
 if (fail) process.exit(1);

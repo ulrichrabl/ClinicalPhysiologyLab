@@ -315,6 +315,10 @@ export class HeartElectrical {
   hyperKBlock(): boolean { return this.kEffective() >= ECG.hyperKBlock; }
   /** Higher still, no focus escapes: ventricular standstill (asystole), until calcium or a lower potassium brings it back. */
   hyperKStandstill(): boolean { return this.kEffective() >= ECG.hyperKStandstill; }
+  /** Set by the host when the myocardium has run down so far that an organised heart stops (ARREST.standstillM). */
+  myocardialStandstill = false;
+  /** No ventricular activation at all, whatever the parameters say: asystole by exhaustion or by potassium. */
+  standstill(): boolean { return this.myocardialStandstill || this.hyperKStandstill(); }
   /** What drives this heart from outside, now: the rate the sinus node (or the AV node in AF) is driven at, potassium and
       calcium. With the parameters, enough to record the same heart elsewhere (measurements/ecg-reading.ts). */
   drive(): { rate: number; K: number; Ca: number } { return { rate: this.rate(), K: this.K, Ca: this.Ca }; }
@@ -322,7 +326,7 @@ export class HeartElectrical {
   /** Decide activations due before `end`. */
   private schedule(end: number): void {
     const p = this.p;
-    if (p.ventricular === 'vf' || p.ventricular === 'asystole') { this.metrics = { ...this.metrics, HR: 0, PR: null, conducted: false }; return; }
+    if (p.ventricular === 'vf' || p.ventricular === 'asystole' || this.myocardialStandstill) { this.metrics = { ...this.metrics, HR: 0, PR: null, conducted: false }; return; }
     if (p.ventricular === 'vt') {
       while (this.nextVentricularMs <= end) {
         this.queue(this.nextVentricularMs, 'vt', null);

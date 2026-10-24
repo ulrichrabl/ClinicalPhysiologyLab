@@ -32,14 +32,16 @@ export class MyocardialState {
   /** 1 a perfused heart; towards 0 the longer it goes without coronary flow. */
   M = 1;
 
-  /** Advance by `seconds` with coronary perfusion pressure `cpp` (mmHg) and the heart beating or not. A perfused, beating
-      heart stays at 1: nothing here changes a patient who is not in an arrest. */
-  step(seconds: number, cpp: number, arrested: boolean): void {
-    const supply = Math.max(0, Math.min(1, (cpp - ARREST.cppNoFlow) / (ARREST.cppFullFlow - ARREST.cppNoFlow)));
+  /** Advance by `seconds` with coronary perfusion pressure `cpp` (mmHg), the heart beating or not, and the arterial oxygen
+      content as a fraction of normal (`o2`). A perfused, oxygenated beating heart stays at 1: nothing here changes a
+      patient whose heart is supplied. */
+  step(seconds: number, cpp: number, arrested: boolean, o2 = 1): void {
+    const supply = Math.max(0, Math.min(1, (cpp - ARREST.cppNoFlow) / (ARREST.cppFullFlow - ARREST.cppNoFlow))) * Math.max(0, Math.min(1, o2));
     if (!arrested && supply >= 1 && this.M >= 1) { this.M = 1; return; }
-    /* Fibrillating or still, the muscle uses up what it has unless the coronary flow brings more; a beating heart with
-       its coronary flow restores it. */
-    const fall = arrested ? (1 - supply) * this.M / ARREST.depletionTau : 0;
+    /* The muscle uses up what it has unless the coronary flow brings enough oxygen: fibrillating, still, or beating on
+       a supply too small (gap 26: before, a beating heart never ran down, so PEA never deteriorated). The same rate in
+       each, an assumption. */
+    const fall = (1 - supply) * this.M / ARREST.depletionTau;
     const gain = supply * (1 - this.M) / ARREST.recoveryTau;
     this.M = Math.max(0, Math.min(1, this.M + (gain - fall) * seconds));
   }
