@@ -8,6 +8,7 @@ import arrestPractice from '../scenarios/arrest-practice.json';
 import arrestPe from '../scenarios/arrest-pe.json';
 import arrestTension from '../scenarios/arrest-tension.json';
 import arrestBleeding from '../scenarios/arrest-bleeding.json';
+import arrestTamponade from '../scenarios/arrest-tamponade.json';
 import ercAls2025 from '../guidelines/erc-2025-als.json';
 import type { GuidelineDef } from '../guidelines/types.ts';
 import { scoreRun } from '../guidelines/score.ts';
@@ -88,8 +89,8 @@ const T: Record<string, LocalizedText> = {
   you: L('You', 'Sie'), nurseName: L('Nurse', 'Pflegekraft'), patient: L('Patient', 'Patient'),
   blocked: L('Not now', 'Jetzt nicht'),
   reasons_busy: L('your hands are busy', 'Ihre Hände sind beschäftigt'), reasons_absent: L('not here yet', 'noch nicht da'),
-  draft: L('Draft for review: the physiology is from ADR-018 steps 1–4 (compressions, breathing in arrest, given breaths, the heart in arrest and the shock, adrenaline and amiodarone; alteplase dissolving a pulmonary embolism; a tension pneumothorax and its decompression; blood loss and fluids); the scene, the wording and the layout are first attempts. The monitor’s labels and the numbers are the model’s own.',
-    'Entwurf zur Durchsicht: die Physiologie stammt aus ADR-018, Schritte 1–4 (Kompressionen, Atmung im Stillstand, Beatmung, das Herz im Stillstand und der Schock, Adrenalin und Amiodaron; Alteplase, die eine Lungenembolie auflöst; ein Spannungspneumothorax und seine Entlastung; Blutverlust und Volumen); Szene, Wortlaut und Gestaltung sind erste Versuche. Beschriftungen und Zahlen des Monitors stammen aus dem Modell.'),
+  draft: L('Draft for review: the physiology is from ADR-018 steps 1–4 (compressions, breathing in arrest, given breaths, the heart in arrest and the shock, adrenaline and amiodarone; alteplase dissolving a pulmonary embolism; a tension pneumothorax and its decompression; blood loss and fluids; a tamponade and its drainage); the scene, the wording and the layout are first attempts. The monitor’s labels and the numbers are the model’s own.',
+    'Entwurf zur Durchsicht: die Physiologie stammt aus ADR-018, Schritte 1–4 (Kompressionen, Atmung im Stillstand, Beatmung, das Herz im Stillstand und der Schock, Adrenalin und Amiodaron; Alteplase, die eine Lungenembolie auflöst; ein Spannungspneumothorax und seine Entlastung; Blutverlust und Volumen; eine Tamponade und ihre Punktion); Szene, Wortlaut und Gestaltung sind erste Versuche. Beschriftungen und Zahlen des Monitors stammen aus dem Modell.'),
   drugs: L('Line and drugs', 'Zugang und Medikamente'), gNotHere: L('on the trolley, on its way', 'auf dem Notfallwagen, unterwegs'), gNoLine: L('no line yet', 'noch kein Zugang'), gLine: L('line in', 'Zugang liegt'),
   gAdrAgo: L('adrenaline {n} mg, last {t} ago', 'Adrenalin {n} mg, zuletzt vor {t}'), gAmio: L('amiodarone {n} mg', 'Amiodaron {n} mg'),
   iv: L('IV cannula', 'Venenzugang legen'), adr: L('Adrenaline 1 mg', 'Adrenalin 1 mg'), amio300: L('Amiodarone 300 mg', 'Amiodaron 300 mg'), amio150: L('Amiodarone 150 mg', 'Amiodaron 150 mg'), lysis: L('Alteplase 50 mg (lysis)', 'Alteplase 50 mg (Lyse)'), fluid: L('Fluid bolus 500 mL', 'Volumenbolus 500 mL'),
@@ -129,6 +130,13 @@ const T: Record<string, LocalizedText> = {
   xChest: L('Look at and listen to the chest', 'Thorax ansehen und abhören'), xNeedleL: L('Needle decompression left', 'Entlastungspunktion links'), xNeedleR: L('Needle decompression right', 'Entlastungspunktion rechts'),
   logChest: L('looks at and listens to the chest with a breath: left {l}, right {r}.', 'sieht und hört den Thorax bei einer Beatmung ab: links {l}, rechts {r}.'),
   cSilent: L('silent, does not rise', 'kein Atemgeräusch, hebt sich nicht'), cNormal: L('air entry heard, rises', 'Atemgeräusch hörbar, hebt sich'),
+  xEcho: L('Focused ultrasound', 'Fokussierter Ultraschall'), xPeri: L('Pericardiocentesis', 'Perikardpunktion'),
+  logEcho: L('scans in the pause:', 'schallt in der Pause:'),
+  eLarge: L('a large pericardial effusion', 'ein großer Perikarderguss'), eSmall: L('a small pericardial effusion', 'ein kleiner Perikarderguss'), eNone: L('no pericardial effusion', 'kein Perikarderguss'),
+  eRv: L('the right ventricle is dilated', 'der rechte Ventrikel ist dilatiert'), eEmpty: L('small, empty ventricles', 'kleine, leere Ventrikel'),
+  eSliding: L('lung sliding left {l}, right {r}', 'Pleuragleiten links {l}, rechts {r}'), ePresent: L('present', 'vorhanden'), eAbsent: L('absent', 'fehlt'),
+  reasons_equipment_ultrasound: L('the arrest team brings the ultrasound', 'das Reanimationsteam bringt den Ultraschall'),
+  reasons_equipment_pericardiocentesis: L('the arrest team brings the pericardiocentesis set', 'das Reanimationsteam bringt das Punktionsset'),
   cTracheaRight: L('The trachea is pushed to the right.', 'Die Trachea ist nach rechts verlagert.'), cTracheaLeft: L('The trachea is pushed to the left.', 'Die Trachea ist nach links verlagert.'),
   logMouthBolus: L('looks in his mouth: a bolus of food in his throat', 'schaut in den Mund: ein Speisebrocken im Rachen'),
   logCleared: L('takes the bolus out: the airway is clear', 'entfernt den Brocken: der Atemweg ist frei'),
@@ -164,7 +172,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
   const t = (k: string) => tr(T[k], lang);
   /* The arrests to practise (owner, 2026-10-23: every PEA situation). A surprise or pure chance picks one, so the learner
      meets the arrest without being told its cause; the debrief reveals it. Equal chances are a placement. */
-  const ARRESTS = [arrestPractice, arrestPe, arrestTension, arrestBleeding] as unknown as ScenarioDef[];
+  const ARRESTS = [arrestPractice, arrestPe, arrestTension, arrestBleeding, arrestTamponade] as unknown as ScenarioDef[];
   let def = ARRESTS[0];
   let run: ScenarioRun | null = null;
   let raf = 0, stopped = false, paused = false, debrief = false;
@@ -262,7 +270,8 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
           <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-x="bed.flat">${t('xBed')}</button><button type="button" class="ghost small" data-x="assess.breathing">${t('xBreathing')}</button>
             <button type="button" class="ghost small" data-x="assess.mouth">${t('xMouth')}</button><button type="button" class="ghost small" data-x="airway.clear">${t('xClear')}</button></div>
           <div class="ar-row ar-wrap"><button type="button" class="ghost small" data-x="assess.chest">${t('xChest')}</button>
-            <button type="button" class="ghost small" data-x="decompress.left">${t('xNeedleL')}</button><button type="button" class="ghost small" data-x="decompress.right">${t('xNeedleR')}</button></div>`;
+            <button type="button" class="ghost small" data-x="decompress.left">${t('xNeedleL')}</button><button type="button" class="ghost small" data-x="decompress.right">${t('xNeedleR')}</button>
+            <button type="button" class="ghost small" data-x="assess.echo">${t('xEcho')}</button><button type="button" class="ghost small" data-x="pericardiocentesis">${t('xPeri')}</button></div>`;
   const holdHtml = () => `<div class="ar-row"><button type="button" class="primary" data-cpr></button><button type="button" class="ghost" data-bag></button></div>`;
   const feedbackHtml = () => `<dl class="ar-feedback" data-feedback></dl>`;
   const defibHtml = () => `<h3>${t('defib')} <span class="muted small" data-defib-state></span></h3>
@@ -605,7 +614,7 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
       if (p === 'learner' || p === 'nurse') { if (!r.called) items.push({ label: t('mCall'), sheet: 'team' }); }
       if (p === 'nurse' && !r.equipment.has('defibrillator')) items.push(btn('[data-fetch]'));
     } else if (hit === 'head') { title = t('mHead'); items = [btn('[data-x="assess.breathing"]'), btn('[data-x="assess.mouth"]'), btn('[data-x="airway.clear"]'), btn('[data-bag]')]; }
-    else if (hit === 'chest') { title = t('mChest'); items = [btn('[data-cpr]'), btn('[data-resume]'), btn('[data-d="pads"]'), btn('[data-d="check"]'), btn('[data-x="assess.chest"]'), btn('[data-x="decompress.left"]'), btn('[data-x="decompress.right"]')]; }
+    else if (hit === 'chest') { title = t('mChest'); items = [btn('[data-cpr]'), btn('[data-resume]'), btn('[data-d="pads"]'), btn('[data-d="check"]'), btn('[data-x="assess.chest"]'), btn('[data-x="decompress.left"]'), btn('[data-x="decompress.right"]'), btn('[data-x="assess.echo"]'), btn('[data-x="pericardiocentesis"]')]; }
     else if (hit === 'bed') { title = t('mBed'); items = [btn('[data-x="bed.flat"]')]; }
     else if (hit === 'arm') { title = t('mArm'); items = ['access.iv', 'drug.adrenaline', 'drug.amiodarone.300', 'drug.amiodarone.150', 'drug.alteplase', 'fluid.bolus'].map((g) => btn(`[data-g="${g}"]`)); }
     else if (hit === 'defib') { title = t('mDefib'); items = ['pads', 'charge', 'check', 'shock'].map((d) => btn(`[data-d="${d}"]`)); }
@@ -923,6 +932,15 @@ export function mountArrestPractice(host: HTMLElement, o: StationOptions): Stati
         const text = t('logChest').replace('{l}', side(c.left)).replace('{r}', side(c.right)) + (c.tension ? ` ${t(c.tension === 'left' ? 'cTracheaRight' : 'cTracheaLeft')}` : '');
         log.push({ fromEvent: true, t: e.t, who: who(e.by), text });
         if (!all) toast(text, c.left === 'silent' || c.right === 'silent' ? 'warn' : 'info');
+      }
+      else if (e.kind === 'assessed' && e.what === 'echo' && e.echo) {
+        const x = e.echo, parts = [t(x.effusion === 'large' ? 'eLarge' : x.effusion === 'small' ? 'eSmall' : 'eNone')];
+        if (x.rvDilated) parts.push(t('eRv'));
+        if (x.empty) parts.push(t('eEmpty'));
+        parts.push(t('eSliding').replace('{l}', t(x.sliding.left ? 'ePresent' : 'eAbsent')).replace('{r}', t(x.sliding.right ? 'ePresent' : 'eAbsent')));
+        const text = `${t('logEcho')} ${parts.join('; ')}.`;
+        log.push({ fromEvent: true, t: e.t, who: who(e.by), text });
+        if (!all) toast(text, x.effusion === 'large' || x.rvDilated || x.empty || !x.sliding.left || !x.sliding.right ? 'warn' : 'info');
       }
       else if (e.kind === 'assessed' && e.what === 'mouth') {
         log.push({ fromEvent: true, t: e.t, who: who(e.by), text: t(e.mouth === 'bolus' ? 'logMouthBolus' : 'logMouthClear') });

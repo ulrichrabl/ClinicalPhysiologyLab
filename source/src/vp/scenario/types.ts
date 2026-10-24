@@ -46,7 +46,7 @@ export interface InstantEffect {
   defib?: 'charge' | 'shock';
   /** A look at the patient that is recorded with what it showed (ADR-018 step 5): the rhythm on the defibrillator (and the
       pulse with an organised rhythm), his breathing with the airway opened, what is in his mouth. */
-  assess?: 'rhythm' | 'breathing' | 'mouth' | 'chest';
+  assess?: 'rhythm' | 'breathing' | 'mouth' | 'chest' | 'echo';
   /** The airway cleared of what blocks it (suction, Magill forceps). */
   clearAirway?: boolean;
   /** Someone goes for equipment and comes back with it (ADR-018 step 5): the arrest trolley. */
@@ -109,7 +109,7 @@ export type NudgeId = typeof NUDGE_IDS[number];
 /** Reversible causes of cardiac arrest (ERC 2025 ALS: hypoxia, hypovolaemia, hypo-/hyperkalaemia and other metabolic
     causes, hypothermia; thrombosis (coronary or pulmonary), tension pneumothorax, tamponade, toxins). Only those a scenario
     uses are listed. */
-export const ARREST_CAUSES = ['pulmonary-embolism', 'tension-pneumothorax', 'hypovolaemia'] as const;
+export const ARREST_CAUSES = ['pulmonary-embolism', 'tension-pneumothorax', 'hypovolaemia', 'tamponade'] as const;
 export type ArrestCause = (typeof ARREST_CAUSES)[number];
 
 export interface ScenarioDef {
@@ -199,9 +199,12 @@ export type ScenarioEvent =
   /** A task given to someone (or taken from them: to null). */
   | { t: number; kind: 'assigned'; role: TeamRole; to: string | null }
   /** A rhythm check (ADR-018 step 5): the rhythm it showed. */
-  | { t: number; kind: 'assessed'; what: 'rhythm' | 'breathing' | 'mouth' | 'chest'; by: string; rhythm?: string; pulse?: boolean; breathing?: 'normal' | 'failing' | 'gasping' | 'none'; mouth?: 'clear' | 'bolus';
+  | { t: number; kind: 'assessed'; what: 'rhythm' | 'breathing' | 'mouth' | 'chest' | 'echo'; by: string; rhythm?: string; pulse?: boolean; breathing?: 'normal' | 'failing' | 'gasping' | 'none'; mouth?: 'clear' | 'bolus';
       /** The chest, side by side: breath sounds and rise present, or absent (a collapsed lung), and which side the trachea is pushed from by trapped air under pressure. */
-      chest?: { left: 'normal' | 'silent'; right: 'normal' | 'silent'; tension: 'left' | 'right' | null } }
+      chest?: { left: 'normal' | 'silent'; right: 'normal' | 'silent'; tension: 'left' | 'right' | null };
+      /** Point-of-care ultrasound during a pause: fluid around the heart, a dilated right ventricle, small empty ventricles,
+          lung sliding on each side. */
+      echo?: { effusion: 'none' | 'small' | 'large'; rvDilated: boolean; empty: boolean; sliding: { left: boolean; right: boolean } } }
   /** Something in his airway (drawn at the start), or taken out of it (`what` null). */
   | { t: number; kind: 'obstruction'; what: string | null; by?: string }
   /** A dose given into the vein (ADR-018 step 4). */

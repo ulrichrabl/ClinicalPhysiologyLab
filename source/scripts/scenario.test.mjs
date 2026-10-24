@@ -638,5 +638,39 @@ console.log('\nAn arrest with a cause: blood loss');
   ok('fluids in an arrest that is not from blood loss are a hazard (ERC: only in hypovolaemia), and the fluids rule does not apply', rule('fluids-only-hypovolaemia').status === 'missed' && rule('fluids-hypovolaemia').status === 'not-applicable');
 }
 
+console.log('\nAn arrest with a cause: tamponade; and what the ultrasound shows in each');
+{
+  const P = scenarioOf('arrest-tamponade');
+  ok('the tamponade practice validates, with its cause', errors(S.validateScenario(P, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).length === 0 && P.scene.cause === 'tamponade');
+  const Q = structuredClone(P);
+  for (const e of Q.scene.equipment) e.present = true;
+  const r = start(Q, 13, lying(S.FREE_CASE), { settleSeconds: 20 });
+  r.advanceTo(25);
+  ok('400 mL in the pericardium: hypotensive with a raised venous pressure, still a pulse', r.scene === 'breathless' && r.live.snap.metrics.Psys > 60 && r.live.snap.metrics.CVPmean > 8, `${Math.round(r.live.snap.metrics.Psys)} mmHg, RA ${r.live.snap.metrics.CVPmean.toFixed(1)}`);
+  r.advanceTo(70);
+  ok('500 mL: PEA, the right and left atrial pressures equal (Reddy 1978)', r.rhythm() === 'organised' && r.live.snap.metrics.Psys < 50 && Math.abs(r.live.snap.metrics.CVPmean - r.live.snap.metrics.PlaMean) < 2,
+    `${Math.round(r.live.snap.metrics.Psys)} mmHg; RA ${r.live.snap.metrics.CVPmean.toFixed(1)}, LA ${r.live.snap.metrics.PlaMean.toFixed(1)}`);
+  r.assign('compressions', 'nurse'); r.advanceTo(75);
+  r.intervene('assess.echo'); r.advanceTo(90);
+  const e = kinds(r, 'assessed').at(-1);
+  ok('the ultrasound shows a large effusion, and nothing else', e?.what === 'echo' && e.echo.effusion === 'large' && !e.echo.rvDilated && !e.echo.empty && e.echo.sliding.left && e.echo.sliding.right, J(e));
+  r.intervene('pericardiocentesis'); r.advanceTo(220);
+  r.release('compressions', 'nurse'); r.advanceTo(260);
+  ok('a pericardiocentesis brings the circulation back', r.live.snap.metrics.Psys > 80, `${Math.round(r.live.snap.metrics.Psys)} mmHg`);
+  const rep = S.scoreRun(S.GUIDELINES[0], r);
+  ok('scored: the drainage, within its time', rep.rules.find((x) => x.id === 'pericardiocentesis-tamponade').status === 'met');
+}
+{
+  /* the ultrasound in the other arrests: each shows its own sign */
+  const look = (id, at) => {
+    const Q = structuredClone(scenarioOf(id)); for (const e of Q.scene.equipment) e.present = true;
+    const r = start(Q, 13, lying(S.FREE_CASE), { settleSeconds: 20 }); r.advanceTo(at); r.intervene('assess.echo'); r.advanceTo(at + 10);
+    return kinds(r, 'assessed').at(-1).echo;
+  };
+  const pe = look('arrest-pe', 40), tp = look('arrest-tension', 40), bl = look('arrest-bleeding', 80), vf = look('arrest-practice', 10);
+  ok('ultrasound: a dilated right ventricle in the embolism, absent sliding on the left in the tension, small empty ventricles in the bleed, nothing in VF',
+    pe.rvDilated && !pe.empty && !tp.sliding.left && tp.sliding.right && bl.empty && !bl.rvDilated && vf.effusion === 'none' && !vf.rvDilated && !vf.empty, J({ pe, tp, bl, vf }));
+}
+
 console.log(`\n${pass} passed, ${fail} failed, 0 known gaps`);
 if (fail) process.exit(1);
