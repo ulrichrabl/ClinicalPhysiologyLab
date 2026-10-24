@@ -1,0 +1,235 @@
+{
+  "schema": "vp.scenario/1",
+  "id": "arrest-local-anaesthetic",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": {
+    "en": "Practice: cardiac arrest from local anaesthetic toxicity",
+    "de": "Übung: Herz-Kreislauf-Stillstand durch Lokalanästhetika-Intoxikation"
+  },
+  "caseId": "free-patient",
+  "purpose": "An arrest from a toxin with an antidote (owner, 2026-10-23: all arrest situations; ERC 2025: toxic agents among the reversible causes). During a nerve block before a shoulder operation, bupivacaine has gone into a vein. Free plasma bupivacaine 0.4 mg/L for 20 s (Knudsen 1997's CNS threshold is 0.3: a numb tongue, ringing ears), then 3.8 mg/L: both ventricles fail (DRUGS.bupivacaineHalfContractility, a placement) and an organised rhythm without a pulse remains (PEA). The lesson: CPR and the usual algorithm, lipid emulsion 20 % (ERC 2025 Special circumstances), and be prepared to resuscitate for long (> 1 h, consider ECPR): the toxin leaves the plasma with a half-life of 45 min, 25 min with lipid emulsion (Litonius 2012). Lipid's other proposed actions, the QRS widening and the arrhythmias of bupivacaine are not modelled (gap 48).",
+  "scene": {
+    "place": {
+      "en": "The block room before theatre",
+      "de": "Der Einleitungsraum vor dem OP"
+    },
+    "people": [
+      {
+        "id": "nurse",
+        "role": {
+          "en": "Nurse",
+          "de": "Pflegekraft"
+        },
+        "present": true
+      },
+      {
+        "id": "doctor",
+        "role": {
+          "en": "Doctor (arrest team)",
+          "de": "Ärztin (Reanimationsteam)"
+        },
+        "present": false
+      },
+      {
+        "id": "nurse2",
+        "role": {
+          "en": "Nurse (arrest team)",
+          "de": "Pflegekraft (Reanimationsteam)"
+        },
+        "present": false
+      }
+    ],
+    "equipment": [
+      {
+        "id": "bag-mask",
+        "label": {
+          "en": "Bag-valve-mask on the wall",
+          "de": "Beatmungsbeutel mit Maske an der Wand"
+        },
+        "present": true
+      },
+      {
+        "id": "defibrillator",
+        "label": {
+          "en": "Arrest trolley with a defibrillator",
+          "de": "Notfallwagen mit Defibrillator"
+        },
+        "present": false
+      },
+      {
+        "id": "cannula-kit",
+        "label": {
+          "en": "IV cannulas on the arrest trolley",
+          "de": "Venenverweilkanülen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "drugs",
+        "label": {
+          "en": "Adrenaline and amiodarone on the arrest trolley",
+          "de": "Adrenalin und Amiodaron am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "airway-kit",
+        "label": {
+          "en": "Suction, Magill forceps and airways on the arrest trolley",
+          "de": "Absaugung, Magill-Zange und Atemwegshilfen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "thrombolytic",
+        "label": {
+          "en": "Alteplase (thrombolytic), brought with the arrest team",
+          "de": "Alteplase (Thrombolytikum), vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "fluids",
+        "label": {
+          "en": "Warmed saline and a pressure bag, on the arrest trolley",
+          "de": "Angewärmte Kochsalzlösung und Druckbeutel, am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "ultrasound",
+        "label": {
+          "en": "An ultrasound machine, brought with the arrest team",
+          "de": "Ein Ultraschallgerät, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "pericardiocentesis",
+        "label": {
+          "en": "A pericardiocentesis set, brought with the arrest team",
+          "de": "Ein Perikardpunktionsset, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      }
+    ],
+    "team": {
+      "people": [
+        "doctor",
+        "nurse2"
+      ],
+      "equipment": [
+        "defibrillator",
+        "cannula-kit",
+        "drugs",
+        "airway-kit",
+        "thrombolytic",
+        "fluids",
+        "ultrasound",
+        "pericardiocentesis"
+      ],
+      "afterSeconds": 120,
+      "lateWithoutWhere": 90,
+      "callSeconds": 15
+    },
+    "cause": "local-anaesthetic"
+  },
+  "reveal": {
+    "label": {
+      "en": "Local anaesthetic toxicity",
+      "de": "Lokalanästhetika-Intoxikation"
+    },
+    "explain": {
+      "en": "During his nerve block, bupivacaine went into a vein. First the brain: a numb tongue, ringing in the ears, then a fit. Then the heart: bupivacaine depresses both ventricles, and his rhythm went on without a pulse. Give 20 % lipid emulsion (1.5 mL/kg, then an infusion), keep up good CPR, and be ready to go on for a long time, more than an hour, or to call for ECPR: the heart recovers as the bupivacaine leaves the blood, and that takes tens of minutes. In the model lipid emulsion only shortens bupivacaine's half-life, from 45 to 25 min, the one effect measured in people.",
+      "de": "Bei seiner Nervenblockade ist Bupivacain in eine Vene gelangt. Zuerst das Gehirn: eine taube Zunge, Ohrensausen, dann ein Krampfanfall. Dann das Herz: Bupivacain schwächt beide Ventrikel, und sein Rhythmus lief ohne Puls weiter. 20 % Lipidemulsion geben (1,5 mL/kg, dann als Infusion), gut weiter reanimieren und auf lange Zeit eingestellt sein, über eine Stunde, oder eine ECPR anfordern: Das Herz erholt sich, während das Bupivacain das Blut verlässt, und das dauert Dutzende Minuten. Im Modell verkürzt die Lipidemulsion nur die Halbwertszeit des Bupivacains, von 45 auf 25 min, die einzige beim Menschen gemessene Wirkung."
+    }
+  },
+  "machine": {
+    "start": "numb",
+    "states": {
+      "numb": {
+        "label": {
+          "en": "A numb tongue",
+          "de": "Eine taube Zunge"
+        },
+        "enter": [
+          {
+            "poison": {
+              "drug": "bupivacaine",
+              "mg": 0.4
+            }
+          },
+          {
+            "say": {
+              "who": "patient",
+              "text": {
+                "en": "My tongue’s gone numb… there’s a strange metal taste, and my ears are ringing.",
+                "de": "Meine Zunge ist taub … ich habe einen komischen Metallgeschmack, und meine Ohren klingeln."
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "inStateFor": 20
+            },
+            "to": "arrest"
+          }
+        ]
+      },
+      "arrest": {
+        "label": {
+          "en": "Cardiac arrest",
+          "de": "Herz-Kreislauf-Stillstand"
+        },
+        "enter": [
+          {
+            "poison": {
+              "drug": "bupivacaine",
+              "mg": 3.4
+            }
+          },
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "He had a fit and now he’s gone floppy! The block was bupivacaine. He isn’t responding. What shall I do?",
+                "de": "Er hatte einen Krampfanfall und ist jetzt ganz schlaff! Die Blockade war mit Bupivacain. Er reagiert nicht. Was soll ich tun?"
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "at": 1200
+            },
+            "to": "end"
+          }
+        ]
+      },
+      "end": {
+        "label": {
+          "en": "Twenty minutes",
+          "de": "Zwanzig Minuten"
+        },
+        "final": true
+      }
+    }
+  },
+  "nudges": [
+    {
+      "id": "gasping",
+      "label": {
+        "en": "He gasps",
+        "de": "Er hat Schnappatmung"
+      },
+      "explain": {
+        "en": "This run was set up so that he gasps after the collapse. Gasping is not breathing: an unresponsive patient who gasps is in cardiac arrest, and compressions should start without delay.",
+        "de": "Dieser Durchgang war so angelegt, dass er nach dem Kollaps Schnappatmung hat. Schnappatmung ist keine Atmung: Ein reaktionsloser Patient mit Schnappatmung hat einen Kreislaufstillstand, und die Kompressionen sollten ohne Verzögerung beginnen."
+      }
+    }
+  ]
+}

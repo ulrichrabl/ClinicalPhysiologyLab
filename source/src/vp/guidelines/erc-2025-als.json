@@ -1,7 +1,7 @@
 {
   "schema": "vp.guideline/1",
   "id": "erc-2025-als",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "title": {
     "en": "ERC 2025: adult advanced life support",
     "de": "ERC 2025: Erweiterte lebensrettende Maßnahmen bei Erwachsenen"
@@ -674,6 +674,29 @@
         "kit": "drugs",
         "within": 180,
         "fromStart": true
+      },
+      "group": "drugs"
+    },
+    {
+      "id": "lipid-local-anaesthetic",
+      "title": {
+        "en": "Lipid emulsion for local anaesthetic toxicity",
+        "de": "Lipidemulsion bei Lokalanästhetika-Intoxikation"
+      },
+      "why": {
+        "en": "An antidote, given as soon as possible: lipid emulsion helps the heart to recover as the local anaesthetic leaves it. Recovery takes long: be ready to resuscitate for more than an hour, or to call for ECPR.",
+        "de": "Ein Antidot, so früh wie möglich gegeben: Die Lipidemulsion hilft dem Herzen, sich zu erholen, während das Lokalanästhetikum es verlässt. Die Erholung dauert lange: auf über eine Stunde Reanimation oder eine ECPR eingestellt sein."
+      },
+      "section": "ERC 2025 Special circumstances (Lott et al.), toxic agents: \"Administer antidotes, where available, as soon as possible\"; local anaesthetic systemic toxicity: \"Give an initial intravenous bolus of 1.5 mL kg-1 20% lipid emulsion followed by an infusion at 15 mL kg-1 h-1\"; \"Consider prolonged resuscitation (> 1 h) and ECPR.\"",
+      "basis": "placement",
+      "note": "Only in scenes whose cause is local anaesthetic toxicity. Read through the Resuscitation Council UK text that cites the ERC. The guideline says as soon as possible without a time; the bolus in within 3 min of when it became possible (the collapse, the drugs in the room, a line in) is ours. Repeat boluses, the doubled infusion and the call for ECPR are not scored.",
+      "unit": "s",
+      "check": {
+        "kind": "dose-for-cause",
+        "cause": "local-anaesthetic",
+        "drug": "lipid",
+        "kit": "drugs",
+        "within": 180
       },
       "group": "drugs"
     },

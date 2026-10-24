@@ -150,7 +150,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
        Angiotensin II and vasopressin constrict arterioles and capacitance veins. */
     sim.Rsys = model.circulation.Rsys * (CIRC.viscosityFixed + (1 - CIRC.viscosityFixed) * Math.min(CIRC.viscosityCap, out.Hb / CIRC.viscosityHbRef)) * milieu.rsysMult() * drugs.resistanceMult();
     sim.V0sv = model.circulation.V0sv * milieu.v0svMult();
-    sim.Emax = model.circulation.Emax * milieu.contractility() * arrest.contractility();
+    sim.Emax = model.circulation.Emax * milieu.contractility() * arrest.contractility() * drugs.cardiacDepression();
     /* Septic vessels respond poorly to sympathetic drive as well. */
     const vp = milieu.vasoplegia();
     const ar = milieu.adrenergicResponse();
@@ -173,7 +173,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
       const target = Math.max(0, Math.min(CIRC.rvIschaemiaMax, (CIRC.rvPerfusionRatio - ratio) / CIRC.rvPerfusionSpan));
       sim.rvIschaemia = (sim.rvIschaemia ?? 0) + (target - (sim.rvIschaemia ?? 0)) * (1 - Math.exp(-COUPLE_S / CIRC.rvIschaemiaTau));
     }
-    sim.EmaxRv = model.circulation.EmaxRv * (1 - (sim.rvIschaemia ?? 0)) * arrest.contractility();
+    sim.EmaxRv = model.circulation.EmaxRv * (1 - (sim.rvIschaemia ?? 0)) * arrest.contractility() * drugs.cardiacDepression();
     sim.chemoDrive = Math.min(1.5, resp.chemoDrive() + milieu.adrenergic());
     const r = resp.snapshot();
     /* The breath's pleural pressure acts on the heart and lung vessels (cmH2O to mmHg), as it swings about its own mean.
@@ -213,10 +213,10 @@ export function createCirculation(m: PatientModel): CirculationRun {
     if (!!sim.baroEnabled !== !!c.baroEnabled) sim.toggleBaro();
     resp.setParams(lungParams(next.respiratory), body()); lysedSeen = drugs.lysed;
     sim.Rpul = c.Rpul * resp.rpulMult();
-    sim.EmaxRv = c.EmaxRv * (1 - (sim.rvIschaemia ?? 0)) * arrest.contractility();
+    sim.EmaxRv = c.EmaxRv * (1 - (sim.rvIschaemia ?? 0)) * arrest.contractility() * drugs.cardiacDepression();
     sim.Rsys = c.Rsys * milieu.rsysMult() * drugs.resistanceMult();
     sim.V0sv = c.V0sv * milieu.v0svMult();
-    sim.Emax = c.Emax * milieu.contractility() * arrest.contractility();
+    sim.Emax = c.Emax * milieu.contractility() * arrest.contractility() * drugs.cardiacDepression();
     sim.gR = c.gR * (1 - INF.reflexResistanceLoss * milieu.vasoplegia()) * milieu.adrenergicResponse(); sim.gV = c.gV * (1 - INF.reflexVenousLoss * milieu.vasoplegia()) * milieu.adrenergicResponse();
     const bv = milieu.bloodVolume();
     if (Math.abs(bv - sim.bloodVolume) > 0.5) sim.setBloodVolume(Math.max(1500, bv));

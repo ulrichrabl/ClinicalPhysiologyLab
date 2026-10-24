@@ -846,5 +846,36 @@ console.log('\nAn arrest with a cause: hypokalaemia');
   ok('the potassium rule applies only in hypokalaemia', S.scoreRun(S.GUIDELINES[0], r).rules.find((x) => x.id === 'potassium-hypokalaemia').status === 'not-applicable');
 }
 
+console.log('\nAn arrest with a cause: local anaesthetic toxicity');
+{
+  const P = scenarioOf('arrest-local-anaesthetic');
+  ok('the local anaesthetic practice validates; a scene may give a poison', errors(S.validateScenario(P, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).length === 0 && P.scene.cause === 'local-anaesthetic');
+  const bad = structuredClone(P); bad.machine.states.numb.enter[0].poison.drug = 'arsenic';
+  ok('…and refuses a poison the model does not have', errors(S.validateScenario(bad, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).some((i) => /poison/.test(i.path)));
+  const Q = structuredClone(P); for (const e of Q.scene.equipment) e.present = true;
+  Q.machine.states.arrest.enter = Q.machine.states.arrest.enter.filter((d) => !('leave' in d) && !('arrive' in d));
+  const r = start(Q, 3, lying(S.FREE_CASE));
+  r.advanceTo(19);
+  ok('first the brain: free bupivacaine above the CNS threshold (Knudsen 1997: 0.3 mg/L), and a pulse', r.live.run.drugs.bupivacaine() > 0.15 && r.live.snap.metrics.Psys > 90 && kinds(r, 'poison').length === 1, `${r.live.run.drugs.bupivacaine().toFixed(2)} mg/L, ${Math.round(r.live.snap.metrics.Psys)} mmHg`);
+  r.advanceTo(90);
+  ok('then the heart: an organised rhythm without a pulse (PEA)', r.rhythm() === 'organised' && r.live.snap.metrics.Psys < 50, `${Math.round(r.live.snap.metrics.Psys)} mmHg`);
+  r.assign('compressions', 'nurse'); r.intervene('access.iv'); r.advanceTo(150); r.intervene('drug.lipid'); r.advanceTo(300);
+  const rep = S.scoreRun(S.GUIDELINES[0], r), rule = (id) => rep.rules.find((x) => x.id === id);
+  ok('scored: lipid emulsion for local anaesthetic toxicity', rule('lipid-local-anaesthetic').status === 'met' && kinds(r, 'dose').some((e) => e.drug === 'lipid'), J(rule('lipid-local-anaesthetic')));
+  const P2 = structuredClone(scenarioOf('arrest-practice')); for (const e of P2.scene.equipment) e.present = true;
+  const v = start(P2, 29, lying(S.FREE_CASE)); v.advanceTo(30);
+  ok('the lipid rule applies only to local anaesthetic toxicity', S.scoreRun(S.GUIDELINES[0], v).rules.find((x) => x.id === 'lipid-local-anaesthetic').status === 'not-applicable');
+  /* the long course: the heart recovers as the bupivacaine leaves; lipid emulsion shortens that (a consequence of the placements) */
+  const back = (lipid) => {
+    const q = start(Q, 3, lying(S.FREE_CASE)); q.advanceTo(90); q.assign('compressions', 'nurse'); q.intervene('access.iv'); q.advanceTo(150);
+    if (lipid) q.intervene('drug.lipid');
+    /* every two minutes a 4 s pause for the check: his own pressure, with no compressions */
+    for (let t = 300; t <= 3600; t += 120) { q.advanceTo(t); q.release('compressions', 'nurse'); q.advanceTo(t + 4); const P = q.live.snap.metrics.Psys; if (q.rhythm() === 'organised' && P >= 60) return t; q.assign('compressions', 'nurse'); }
+    return null;
+  };
+  const withLipid = back(true), without = back(false);
+  ok('with CPR his own pulse comes back as the bupivacaine falls, sooner with lipid emulsion, and only after 20 min: resuscitate for long (ERC: > 1 h, consider ECPR)', withLipid != null && (without == null || withLipid < without) && withLipid > 1200, J({ withLipid, without }));
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);

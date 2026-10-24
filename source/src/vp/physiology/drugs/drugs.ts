@@ -19,6 +19,7 @@ import { DRUGS } from '../../evidence/drugs.ts';
        lungs as a smaller embolic obstruction in every lobe).
 
    Calcium and potassium spread through the extracellular fluid; potassium chloride then moves on into the cells.
+   Bupivacaine (a local anaesthetic gone into a vein) depresses both ventricles; lipid emulsion shortens its half-life.
 
    Not modelled: adrenaline's β effects (rate, contractility, β2
    vasodilation at low levels), its venoconstriction, its effect on the
@@ -26,17 +27,18 @@ import { DRUGS } from '../../evidence/drugs.ts';
    bradycardia; alteplase's bleeding, and any lysis of a coronary clot. With no drug given every multiplier is exactly 1.
 =========================================================================== */
 
-export type DrugId = 'adrenaline' | 'amiodarone' | 'alteplase' | 'calcium' | 'insulin' | 'potassium';
-export const DRUG_IDS: DrugId[] = ['adrenaline', 'amiodarone', 'alteplase', 'calcium', 'insulin', 'potassium'];
+export type DrugId = 'adrenaline' | 'amiodarone' | 'alteplase' | 'calcium' | 'insulin' | 'potassium' | 'bupivacaine' | 'lipid';
+export const DRUG_IDS: DrugId[] = ['adrenaline', 'amiodarone', 'alteplase', 'calcium', 'insulin', 'potassium', 'bupivacaine', 'lipid'];
 
 export class Drugs {
   /** mg given and not yet carried to the central circulation. */
-  readonly vein: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0 };
-  /** mg in the central circulation (calcium and potassium in mmol, insulin in units). Potassium here is what is still in
-      the extracellular fluid. */
-  readonly central: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0 };
+  readonly vein: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0, bupivacaine: 0, lipid: 0 };
+  /** mg in the central circulation (calcium and potassium in mmol, insulin in units, lipid emulsion in mL). Potassium here
+      is what is still in the extracellular fluid. Bupivacaine is held as its free (unbound) plasma concentration, mg/L,
+      the measure its toxicity was measured by (Knudsen 1997); a poisoning gives it as such. */
+  readonly central: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0, bupivacaine: 0, lipid: 0 };
   /** mg given, in all. */
-  readonly given: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0 };
+  readonly given: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0, bupivacaine: 0, lipid: 0 };
   /** Potassium (mmol) that has reached the circulation, in all. */
   potassiumArrived = 0;
   /** Seconds since insulin (with its glucose) reached the circulation; NaN before. */
@@ -69,6 +71,11 @@ export class Drugs {
     /* calcium leaves the extracellular fluid it spread into (DRUGS.calciumTau) */
     if (this.central.calcium > 0) this.central.calcium *= Math.exp(-seconds / DRUGS.calciumTau);
     if (this.central.insulin >= DRUGS.insulinDose * 0.5) this.insulinFor = Number.isFinite(this.insulinFor) ? this.insulinFor + seconds : 0;
+    /* bupivacaine leaves the plasma with its context-sensitive half-life, shorter while lipid emulsion runs (Litonius 2012) */
+    if (this.central.bupivacaine > 0) {
+      const half = this.central.lipid + this.vein.lipid >= DRUGS.lipidBolus * 0.5 ? DRUGS.bupivacaineLipidHalfLife : DRUGS.bupivacaineHalfLife;
+      this.central.bupivacaine *= Math.exp(-Math.LN2 / half * seconds);
+    }
     const a = this.lytic();
     if (a > 0) this.lysed = 1 - (1 - this.lysed) * Math.exp(-DRUGS.lysisRate * a * seconds);
   }
@@ -78,6 +85,13 @@ export class Drugs {
 
   /** How far potassium chloride given has raised plasma potassium, mmol/L, for an extracellular volume in litres. */
   potassiumRise(ecfL: number): number { return this.central.potassium / Math.max(5, ecfL); }
+
+  /** Free plasma bupivacaine, mg/L. */
+  bupivacaine(): number { return this.central.bupivacaine; }
+
+  /** What bupivacaine leaves of the ventricles' contractility, 0–1 (1 with none): a sodium-channel and calcium-handling
+      depressant, here one sigmoid of the free level (DRUGS.bupivacaineHalfContractility, a placement). */
+  cardiacDepression(): number { const c = this.central.bupivacaine; return c > 0 ? 1 / (1 + Math.pow(c / DRUGS.bupivacaineHalfContractility, DRUGS.bupivacaineHill)) : 1; }
 
   /** How far insulin with glucose has lowered plasma potassium by moving it into cells, mmol/L. */
   potassiumShift(): number { return Number.isFinite(this.insulinFor) ? DRUGS.insulinKFall * (1 - Math.exp(-this.insulinFor / DRUGS.insulinKTau)) : 0; }

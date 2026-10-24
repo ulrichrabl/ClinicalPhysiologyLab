@@ -303,6 +303,17 @@ export const INTERVENTIONS: InterventionDef[] = [
     timing: { status: 'guideline', note: 'The guideline\u2019s "10 mmol over 2 min"; counted in when it has run.' },
     effect: { kind: 'instantaneous', dose: { drug: 'potassium', mg: 10 } },
   },
+  /* Local anaesthetic systemic toxicity (ERC 2025 Special circumstances): "Give an initial intravenous bolus of 1.5 mL kg-1
+     20% lipid emulsion followed by an infusion at 15 mL kg-1 h-1". The infusion is taken to run on after the bolus. */
+  {
+    id: 'drug.lipid',
+    label: { en: 'Lipid emulsion 20 % 100 mL IV, then an infusion', de: 'Lipidemulsion 20 % 100 mL i.v., dann als Infusion' },
+    phrases: { en: ['lipid', 'lipid emulsion', 'intralipid', 'give lipid', 'lipid rescue'], de: ['lipid', 'lipidemulsion', 'intralipid', 'lipid geben', 'lipidtherapie'] },
+    needs: { equipment: ['drugs'], access: ['iv'] },
+    duration: { min: 60, max: 120 },
+    timing: { status: 'placement', note: 'Drawing up 100 mL and giving it as a bolus, then setting up the infusion; not measured.' },
+    effect: { kind: 'instantaneous', dose: { drug: 'lipid', mg: 100 } },
+  },
   /* Thrombolysis when pulmonary embolism is the suspected or confirmed cause (ERC 2025 ALS: thrombolytic drugs). */
   {
     id: 'drug.alteplase',

@@ -35,7 +35,7 @@ const T: Record<string, LocalizedText> = {
   mRate: L('Rate', 'Frequenz'), mPause: L('Longest pause', 'Längste Pause'), mShocks: L('Shocks', 'Schocks'),
   after: L('after the collapse', 'nach dem Kollaps'), ofTime: L('of the time CPR was needed', 'der Zeit, in der Reanimation nötig war'),
   timeline: L('Timeline', 'Zeitachse'),
-  kRhythm: L('Rhythm', 'Rhythmus'), kCpr: L('Compressions (red: pauses over 10 s)', 'Kompressionen (rot: Pausen über 10 s)'), kEvents: L('Shocks ⚡, adrenaline A, amiodarone Am, alteplase L, calcium Ca, insulin I, potassium K, checks of rhythm R, breathing B, mouth M, airway cleared ✓', 'Schocks ⚡, Adrenalin A, Amiodaron Am, Alteplase L, Calcium Ca, Insulin I, Kalium K, Kontrolle von Rhythmus R, Atmung B, Mund M, Atemweg frei ✓'),
+  kRhythm: L('Rhythm', 'Rhythmus'), kCpr: L('Compressions (red: pauses over 10 s)', 'Kompressionen (rot: Pausen über 10 s)'), kEvents: L('Shocks ⚡, adrenaline A, amiodarone Am, alteplase L, calcium Ca, insulin I, potassium K, lipid emulsion Li, checks of rhythm R, breathing B, mouth M, airway cleared ✓', 'Schocks ⚡, Adrenalin A, Amiodaron Am, Alteplase L, Calcium Ca, Insulin I, Kalium K, Lipidemulsion Li, Kontrolle von Rhythmus R, Atmung B, Mund M, Atemweg frei ✓'),
   kLines: L('Coronary perfusion pressure (red) and end-tidal CO₂ (blue), mmHg', 'Koronarer Perfusionsdruck (rot) und endtidales CO₂ (blau), mmHg'),
   kMissed: L('Numbered: where a rule was missed', 'Nummeriert: wo eine Regel verfehlt wurde'),
   rules: L('The guideline', 'Die Leitlinie'), ringNote: L('rules of the guideline met, of those that applied in this run; tap a rule for why it matters and its source', 'erfüllte Regeln der Leitlinie, von denen, die in diesem Durchgang zutrafen; tippen Sie auf eine Regel für Begründung und Quelle'),
@@ -49,7 +49,7 @@ const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 /** How each drug's dose is marked on the debrief's timeline. */
 const DOSE_GLYPH: Record<string, [string, string]> = {
   adrenaline: ['A', '#c0392b'], amiodarone: ['Am', '#8e44ad'], alteplase: ['L', '#1f6f8b'],
-  calcium: ['Ca', '#7f8c8d'], insulin: ['I', '#16a085'], potassium: ['K', '#d35400'],
+  calcium: ['Ca', '#7f8c8d'], insulin: ['I', '#16a085'], potassium: ['K', '#d35400'], lipid: ['Li', '#b7950b'],
 };
 
 export const fmtClock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;

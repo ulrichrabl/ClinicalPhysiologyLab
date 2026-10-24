@@ -678,6 +678,7 @@ export class ScenarioRun {
         this.events.push({ t: this.t, kind: 'leave', people: d.leave.people });
       }
       else if ('change' in d) this.writeModel(d.change.map((w) => [w.path, w.add != null ? Number(getPath(this.live.model, w.path)) + w.add : w.set!]));
+      else if ('poison' in d) { this.live.run.drugs.give(d.poison.drug, d.poison.mg); this.events.push({ t: this.t, kind: 'poison', drug: d.poison.drug, mg: d.poison.mg }); }
       else this.arrivals.push({ at: this.tick + Math.round(d.arrive.afterSeconds / TICK_S), people: d.arrive.people ?? [], equipment: d.arrive.equipment ?? [] });
     }
     this.arrive();
