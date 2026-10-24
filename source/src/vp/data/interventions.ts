@@ -283,6 +283,26 @@ export const INTERVENTIONS: InterventionDef[] = [
     timing: { status: 'placement', note: 'Drawing up soluble insulin and giving it with 50 mL of 50 % glucose; not measured.' },
     effect: { kind: 'instantaneous', dose: { drug: 'insulin', mg: 10 } },
   },
+  /* Hypokalaemia (ERC 2025 Special circumstances): "Give 20 mmol potassium chloride IV/IO over 2-3 min, followed by
+     10 mmol over 2 min in hypokalaemic cardiac arrest". The dose counts in when its time has run. */
+  {
+    id: 'drug.potassium',
+    label: { en: 'Potassium chloride 20 mmol IV over 2–3 min', de: 'Kaliumchlorid 20 mmol i.v. über 2–3 min' },
+    phrases: { en: ['potassium', 'potassium chloride', 'kcl', 'give potassium', '20 mmol potassium'], de: ['kalium', 'kaliumchlorid', 'kcl', 'kalium geben', '20 mmol kalium'] },
+    needs: { equipment: ['drugs'], access: ['iv'] },
+    duration: { min: 120, max: 180 },
+    timing: { status: 'guideline', note: 'The guideline\u2019s "over 2-3 min"; the dose is counted in when it has run.' },
+    effect: { kind: 'instantaneous', dose: { drug: 'potassium', mg: 20 } },
+  },
+  {
+    id: 'drug.potassium10',
+    label: { en: 'Potassium chloride 10 mmol IV over 2 min', de: 'Kaliumchlorid 10 mmol i.v. über 2 min' },
+    phrases: { en: ['10 mmol potassium', 'more potassium', 'further potassium'], de: ['10 mmol kalium', 'weiteres kalium', 'nochmal kalium'] },
+    needs: { equipment: ['drugs'], access: ['iv'] },
+    duration: { min: 120, max: 120 },
+    timing: { status: 'guideline', note: 'The guideline\u2019s "10 mmol over 2 min"; counted in when it has run.' },
+    effect: { kind: 'instantaneous', dose: { drug: 'potassium', mg: 10 } },
+  },
   /* Thrombolysis when pulmonary embolism is the suspected or confirmed cause (ERC 2025 ALS: thrombolytic drugs). */
   {
     id: 'drug.alteplase',

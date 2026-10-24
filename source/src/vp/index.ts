@@ -79,10 +79,11 @@ import arrestHyperkalaemia from './scenarios/arrest-hyperkalaemia.json';
 import arrestHypoxia from './scenarios/arrest-hypoxia.json';
 import arrestOpioid from './scenarios/arrest-opioid.json';
 import arrestHypothermia from './scenarios/arrest-hypothermia.json';
+import arrestHypokalaemia from './scenarios/arrest-hypokalaemia.json';
 import type { ScenarioDef } from './scenario/types.ts';
 
 /** Scenarios are JSON documents, like cases; the validator vouches for them. All drafts for now. */
-export const SCENARIOS: ScenarioDef[] = [copdEdOxygen, vestibularEdCourse, arrestPractice, arrestPe, arrestTension, arrestBleeding, arrestTamponade, arrestHyperkalaemia, arrestHypoxia, arrestOpioid, arrestHypothermia] as unknown as ScenarioDef[];
+export const SCENARIOS: ScenarioDef[] = [copdEdOxygen, vestibularEdCourse, arrestPractice, arrestPe, arrestTension, arrestBleeding, arrestTamponade, arrestHyperkalaemia, arrestHypoxia, arrestOpioid, arrestHypothermia, arrestHypokalaemia] as unknown as ScenarioDef[];
 
 /* ADR-018 step 5: guidelines as data, and scoring a run against them */
 export type * from './guidelines/types.ts';

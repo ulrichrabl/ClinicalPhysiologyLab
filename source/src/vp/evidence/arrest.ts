@@ -63,4 +63,11 @@ export const ARREST = defineConstants('arrest', {
     derivation: 'Lempert 1994: complete syncope in 42 healthy volunteers lasted 12.1 ± 4.4 s, with multifocal arrhythmic jerks in 38 (90 %). Consciousness does not come back in an arrest; the jerking is taken to last about as long as Lempert\u2019s unconsciousness, drawn uniformly over its mean ± SD (7.7 to 16.5 s). The jerks\u2019 own duration is not in the abstract: an assumption.' },
   seizureMaxSeconds: { value: 16.5, unit: 's', status: 'assumed', refs: ['lempert1994'],
     means: 'Longest jerking drawn.', derivation: 'See seizureMinSeconds.' },
+  /* --- low potassium (the hypokalaemic arrest) --------------------------------------------------------- */
+  hypoKBelow: { value: 3.5, unit: 'mmol/L', status: 'measured', refs: ['nordrehaug1983'],
+    means: 'Plasma potassium at or below which ventricular fibrillation comes back more readily after a shock has ended it.',
+    derivation: 'Nordrehaug 1983\u2019s cut for hypokalaemia (≤ 3.5 mmol/L), in whom VF was more than twice as common. A step at the cut is a simplification: no human data relate the risk to the potassium continuously.' },
+  hypoKRecurrenceHazard: { value: 2.45, unit: '× hazard', status: 'derived', refs: ['nordrehaug1983'],
+    means: 'How much more readily VF comes back after a terminating shock at or below hypoKBelow: the recurrence\u2019s hazard × this (its chance 1 − (1 − p)^h, its median time ÷ h).',
+    derivation: 'Nordrehaug 1983: VF in 17.2 % of hypokalaemic against 7.4 % of normokalaemic patients with acute infarction: hazards −ln(1 − 0.172) / −ln(1 − 0.074) = 2.45. Carrying the risk of VF starting over to its coming back after a shock is an analogy, not a measurement: no human data on refibrillation in hypokalaemia were found (gap 47).' },
 });

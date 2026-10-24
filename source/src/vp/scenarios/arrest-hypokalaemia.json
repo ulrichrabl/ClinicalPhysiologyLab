@@ -1,0 +1,239 @@
+{
+  "schema": "vp.scenario/1",
+  "id": "arrest-hypokalaemia",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": {
+    "en": "Practice: cardiac arrest from hypokalaemia",
+    "de": "Übung: Herz-Kreislauf-Stillstand durch Hypokaliämie"
+  },
+  "caseId": "free-patient",
+  "purpose": "A shockable arrest with a metabolic cause (owner, 2026-10-23: all arrest situations; ERC 2025: hypo-/hyperkalaemia among the reversible causes). A man on a loop diuretic with three days of diarrhoea: potassium 2.4 mmol/L (clamped by the scene; severe hypokalaemia is below 2.5), U waves on the monitor, for 30 s; then VF. At or below 3.5 mmol/L (Nordrehaug 1983's cut) VF comes back after a terminating shock with 2.45 times the hazard (derived from Nordrehaug's VF incidence by analogy: gap 47). The lesson: the VF algorithm as usual, and potassium chloride 20 mmol over 2–3 min, then 10 mmol over 2 min (ERC 2025 Special circumstances). Potassium chloride spreads in the extracellular fluid and moves on into cells (Kruse 1990's retained fraction; the time constant a placement). Magnesium is not modelled.",
+  "scene": {
+    "place": {
+      "en": "A bay on the medical ward",
+      "de": "Ein Bettplatz auf der internistischen Station"
+    },
+    "people": [
+      {
+        "id": "nurse",
+        "role": {
+          "en": "Nurse",
+          "de": "Pflegekraft"
+        },
+        "present": true
+      },
+      {
+        "id": "doctor",
+        "role": {
+          "en": "Doctor (arrest team)",
+          "de": "Ärztin (Reanimationsteam)"
+        },
+        "present": false
+      },
+      {
+        "id": "nurse2",
+        "role": {
+          "en": "Nurse (arrest team)",
+          "de": "Pflegekraft (Reanimationsteam)"
+        },
+        "present": false
+      }
+    ],
+    "equipment": [
+      {
+        "id": "bag-mask",
+        "label": {
+          "en": "Bag-valve-mask on the wall",
+          "de": "Beatmungsbeutel mit Maske an der Wand"
+        },
+        "present": true
+      },
+      {
+        "id": "defibrillator",
+        "label": {
+          "en": "Arrest trolley with a defibrillator",
+          "de": "Notfallwagen mit Defibrillator"
+        },
+        "present": false
+      },
+      {
+        "id": "cannula-kit",
+        "label": {
+          "en": "IV cannulas on the arrest trolley",
+          "de": "Venenverweilkanülen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "drugs",
+        "label": {
+          "en": "Adrenaline and amiodarone on the arrest trolley",
+          "de": "Adrenalin und Amiodaron am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "airway-kit",
+        "label": {
+          "en": "Suction, Magill forceps and airways on the arrest trolley",
+          "de": "Absaugung, Magill-Zange und Atemwegshilfen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "thrombolytic",
+        "label": {
+          "en": "Alteplase (thrombolytic), brought with the arrest team",
+          "de": "Alteplase (Thrombolytikum), vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "fluids",
+        "label": {
+          "en": "Warmed saline and a pressure bag, on the arrest trolley",
+          "de": "Angewärmte Kochsalzlösung und Druckbeutel, am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "ultrasound",
+        "label": {
+          "en": "An ultrasound machine, brought with the arrest team",
+          "de": "Ein Ultraschallgerät, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      },
+      {
+        "id": "pericardiocentesis",
+        "label": {
+          "en": "A pericardiocentesis set, brought with the arrest team",
+          "de": "Ein Perikardpunktionsset, vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      }
+    ],
+    "team": {
+      "people": [
+        "doctor",
+        "nurse2"
+      ],
+      "equipment": [
+        "defibrillator",
+        "cannula-kit",
+        "drugs",
+        "airway-kit",
+        "thrombolytic",
+        "fluids",
+        "ultrasound",
+        "pericardiocentesis"
+      ],
+      "afterSeconds": 120,
+      "lateWithoutWhere": 90,
+      "callSeconds": 15
+    },
+    "cause": "hypokalaemia"
+  },
+  "reveal": {
+    "label": {
+      "en": "Hypokalaemia",
+      "de": "Hypokaliämie"
+    },
+    "explain": {
+      "en": "Three days of diarrhoea on top of his water tablets had taken his potassium down to 2.4 mmol/L. The monitor showed U waves before his heart fibrillated. With so little potassium, ventricular fibrillation comes back readily after each shock that ends it. Give potassium chloride, 20 mmol over 2–3 min and then 10 mmol over 2 min, alongside the usual algorithm, and correct magnesium with it (not modelled here); the cells soon take up most of what is given, so the potassium has to be checked again and the infusion adjusted.",
+      "de": "Drei Tage Durchfall zusätzlich zu seinen Wassertabletten hatten sein Kalium auf 2,4 mmol/L gesenkt. Der Monitor zeigte U-Wellen, bevor sein Herz zu flimmern begann. Bei so wenig Kalium kehrt das Kammerflimmern nach jedem Schock, der es beendet, leicht zurück. Kaliumchlorid geben, 20 mmol über 2–3 min, dann 10 mmol über 2 min, neben dem üblichen Algorithmus, und Magnesium mit ausgleichen (hier nicht modelliert); die Zellen nehmen das meiste des Gegebenen bald auf, darum das Kalium erneut kontrollieren und die Infusion anpassen."
+    }
+  },
+  "machine": {
+    "start": "breathless",
+    "states": {
+      "breathless": {
+        "label": {
+          "en": "Weak, with palpitations",
+          "de": "Schwach, mit Herzstolpern"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "chemistry.potassium",
+                "set": 2.4
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "patient",
+              "text": {
+                "en": "Three days of diarrhoea… my legs are like jelly, and my heart keeps skipping.",
+                "de": "Seit drei Tagen Durchfall … meine Beine sind wie Pudding, und mein Herz stolpert dauernd."
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "inStateFor": 30
+            },
+            "to": "arrest"
+          }
+        ]
+      },
+      "arrest": {
+        "label": {
+          "en": "Cardiac arrest",
+          "de": "Herz-Kreislauf-Stillstand"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "electrical.ventricular",
+                "set": "vf"
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "He’s collapsed! The lab just phoned: his potassium is 2.4. He isn’t responding. What shall I do?",
+                "de": "Er ist zusammengebrochen! Das Labor hat gerade angerufen: sein Kalium ist 2,4. Er reagiert nicht. Was soll ich tun?"
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "at": 1200
+            },
+            "to": "end"
+          }
+        ]
+      },
+      "end": {
+        "label": {
+          "en": "Twenty minutes",
+          "de": "Zwanzig Minuten"
+        },
+        "final": true
+      }
+    }
+  },
+  "nudges": [
+    {
+      "id": "gasping",
+      "label": {
+        "en": "He gasps",
+        "de": "Er hat Schnappatmung"
+      },
+      "explain": {
+        "en": "This run was set up so that he gasps after the collapse. Gasping is not breathing: an unresponsive patient who gasps is in cardiac arrest, and compressions should start without delay.",
+        "de": "Dieser Durchgang war so angelegt, dass er nach dem Kollaps Schnappatmung hat. Schnappatmung ist keine Atmung: Ein reaktionsloser Patient mit Schnappatmung hat einen Kreislaufstillstand, und die Kompressionen sollten ohne Verzögerung beginnen."
+      }
+    }
+  ]
+}

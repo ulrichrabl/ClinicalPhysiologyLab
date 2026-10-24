@@ -37,7 +37,7 @@ console.log('\nThe registry and the scenarios');
 {
   const ii = S.validateInterventions(S.INTERVENTIONS, S.CATALOG);
   ok('every intervention is valid: both languages, a time with its source, inputs the running models take', !errors(ii).length, show(ii));
-  ok('every intervention’s time says where it comes from; the guessed ones say they are placements', S.INTERVENTIONS.every((x) => x.timing.note && ['measured', 'placement'].includes(x.timing.status)));
+  ok('every intervention’s time says where it comes from; the guessed ones say they are placements (or the guideline’s own time)', S.INTERVENTIONS.every((x) => x.timing.note && ['measured', 'guideline', 'placement'].includes(x.timing.status)));
   ok('the oxygen devices are the encounter’s own, with the same ids and the same inspired fraction',
     S.INTERVENTIONS.filter((x) => x.id.startsWith('give.oxygen.')).every((x) => S.CATALOG.manoeuvres[x.id]?.sets?.oxygen?.fio2 === x.effect.inputs['respiratory.FiO2']));
   for (const s of S.SCENARIOS) {
@@ -795,6 +795,55 @@ console.log('\nSeizure-like jerking at the onset (the VF practice\'s seizure nud
   ok('without the nudge he does not jerk', kinds(plain, 'seizure').length === 0);
   const R = S.replay(P, { seed: 5, caseDef: lying(S.FREE_CASE), nudge: 'seizure', log: r.log, until: r.t });
   ok('a run with the jerking replays exactly', J(kinds(R, 'seizure')) === J(kinds(r, 'seizure')) && fingerprint(R) === fingerprint(r));
+}
+
+console.log('\nAn arrest with a cause: hypokalaemia');
+{
+  const P = scenarioOf('arrest-hypokalaemia');
+  ok('the hypokalaemia practice validates', errors(S.validateScenario(P, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).length === 0 && P.scene.cause === 'hypokalaemia');
+  const Q = structuredClone(P); for (const e of Q.scene.equipment) e.present = true;
+  Q.machine.states.arrest.enter = Q.machine.states.arrest.enter.filter((d) => !('leave' in d) && !('arrive' in d));
+  const r = start(Q, 3, lying(S.FREE_CASE));
+  r.advanceTo(20);
+  ok('before the collapse: potassium 2.4, a pulse', Math.abs(r.live.run.heart.K - 2.4) < 0.01 && r.rhythm() === 'organised' && r.live.snap.metrics.Psys > 80, `${Math.round(r.live.snap.metrics.Psys)} mmHg`);
+  r.advanceTo(32);
+  ok('then VF', r.rhythm() === 'vf');
+  r.assign('compressions', 'nurse'); r.intervene('access.iv'); r.advanceTo(100);
+  r.intervene('drug.potassium'); r.advanceTo(275); r.intervene('drug.potassium10'); r.advanceTo(450);
+  const doses = kinds(r, 'dose').filter((e) => e.drug === 'potassium');
+  ok('potassium chloride 20 then 10 mmol, each counted in when it has run', doses.length === 2 && doses[0].mg === 20 && doses[1].mg === 10 && doses[0].t - 100 >= 120 - 1e-9, J(doses));
+  ok('…raises his potassium above 3.5 for a while', r.live.run.heart.K > 3.5, r.live.run.heart.K.toFixed(2));
+  const rep = S.scoreRun(S.GUIDELINES[0], r), rule = (id) => rep.rules.find((x) => x.id === id);
+  ok('scored: potassium for the hypokalaemic arrest', rule('potassium-hypokalaemia').status === 'met', J(rule('potassium-hypokalaemia')));
+  r.advanceTo(1100);
+  ok('the cells take most of it up: potassium falls back below 3.5 (check it and keep giving it)', r.live.run.heart.K < 3.5, r.live.run.heart.K.toFixed(2));
+}
+{
+  /* VF comes back more readily at low potassium: terminating shocks over many seeds, in the hypokalaemic and the ward arrest */
+  const shocked = (id) => {
+    const Q = structuredClone(scenarioOf(id)); for (const e of Q.scene.equipment) e.present = true;
+    Q.machine.states.arrest.enter = Q.machine.states.arrest.enter.filter((d) => !('leave' in d) && !('arrive' in d));
+    let ended = 0, back = 0, after = [];
+    for (let seed = 1; seed <= 40; seed++) {
+      const r = start(Q, seed, lying(S.FREE_CASE));
+      r.advanceTo(40); r.assign('compressions', 'nurse'); r.intervene('defib.pads', 'learner'); r.advanceTo(60); r.intervene('defib.charge', 'learner'); r.advanceTo(70);
+      r.release('compressions', 'nurse'); r.intervene('defib.shock', 'learner'); r.advanceTo(71);
+      const sh = kinds(r, 'shock').at(-1);
+      if (!sh || sh.outcome === 'not-terminated') continue;
+      ended++;
+      const re = kinds(r, 'chance').find((e) => e.stream === 'refibrillation' && /come back/.test(e.use));
+      if (re) { back++; after.push(+re.use.match(/after (\d+)/)[1]); }
+    }
+    after.sort((a, b) => a - b);
+    return { ended, back, share: back / Math.max(1, ended), median: after[Math.floor(after.length / 2)] };
+  };
+  const low = shocked('arrest-hypokalaemia'), ward = shocked('arrest-practice');
+  ok('VF comes back after nearly every terminating shock at potassium 2.4, sooner than on the ward (hazard × 2.45 by analogy with Nordrehaug 1983: gap 47)', low.share > ward.share && low.share >= 0.9 && low.median < ward.median, J({ low, ward }));
+}
+{
+  const P = structuredClone(scenarioOf('arrest-practice')); for (const e of P.scene.equipment) e.present = true;
+  const r = start(P, 29, lying(S.FREE_CASE)); r.advanceTo(30);
+  ok('the potassium rule applies only in hypokalaemia', S.scoreRun(S.GUIDELINES[0], r).rules.find((x) => x.id === 'potassium-hypokalaemia').status === 'not-applicable');
 }
 
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
