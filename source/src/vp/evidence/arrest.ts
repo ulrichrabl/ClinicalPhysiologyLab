@@ -54,4 +54,13 @@ export const ARREST = defineConstants('arrest', {
   refibrillationMedian: { value: 45, unit: 's', status: 'measured', refs: ['vanalem2003'],
     means: 'Median time from the terminating shock to VF coming back, in those in whom it does.',
     derivation: 'van Alem 2003: median 45 s (interquartile range 23–115 s). Drawn from an exponential distribution with this median (its interquartile range would be 19–90 s): the shape is an assumption.' },
+  /* --- seizure-like jerking at the onset (the VF practice's `seizure` nudge) ------------------------------- */
+  seizureDelay: { value: 1.5, unit: 's', status: 'assumed', refs: ['lempert1994'],
+    means: 'Time from the collapse (the scene entering its arrest) to the first jerks.',
+    derivation: 'A placement: the jerks of transient cerebral hypoxia come once consciousness is lost and the body has fallen (Lempert 1994, video of induced syncope). The figure slumps over 1.2 s.' },
+  seizureMinSeconds: { value: 7.7, unit: 's', status: 'assumed', refs: ['lempert1994'],
+    means: 'Shortest jerking drawn.',
+    derivation: 'Lempert 1994: complete syncope in 42 healthy volunteers lasted 12.1 ± 4.4 s, with multifocal arrhythmic jerks in 38 (90 %). Consciousness does not come back in an arrest; the jerking is taken to last about as long as Lempert\u2019s unconsciousness, drawn uniformly over its mean ± SD (7.7 to 16.5 s). The jerks\u2019 own duration is not in the abstract: an assumption.' },
+  seizureMaxSeconds: { value: 16.5, unit: 's', status: 'assumed', refs: ['lempert1994'],
+    means: 'Longest jerking drawn.', derivation: 'See seizureMinSeconds.' },
 });

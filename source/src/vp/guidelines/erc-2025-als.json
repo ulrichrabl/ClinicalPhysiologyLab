@@ -1,7 +1,7 @@
 {
   "schema": "vp.guideline/1",
   "id": "erc-2025-als",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "title": {
     "en": "ERC 2025: adult advanced life support",
     "de": "ERC 2025: Erweiterte lebensrettende Maßnahmen bei Erwachsenen"
@@ -105,7 +105,7 @@
       },
       "section": "BLS: recognition of cardiac arrest; high quality chest compressions",
       "basis": "placement",
-      "note": "The guideline says to start compressions as soon as the arrest is recognised and to take no more than 10 s to check breathing; 15 s from the collapse allows for the check and the first push.",
+      "note": "The guideline says to start compressions as soon as the arrest is recognised and to take no more than 10 s to check breathing; 15 s from the collapse allows for the check and the first push. After seizure-like jerking at the onset, the clock starts when it stops (\"Once the seizure stops, assess breathing\", BLS).",
       "unit": "s",
       "check": {
         "kind": "first-compression",
@@ -183,13 +183,13 @@
         "de": "Atmung vor den Kompressionen geprüft"
       },
       "why": {
-        "en": "An arrest is recognised by unresponsiveness and absent or abnormal breathing: open the airway and look. Gasping is not breathing.",
-        "de": "Ein Kreislaufstillstand wird an fehlender Reaktion und fehlender oder nicht normaler Atmung erkannt: Atemwege öffnen und hinsehen. Schnappatmung ist keine Atmung."
+        "en": "An arrest is recognised by unresponsiveness and absent or abnormal breathing: open the airway and look. Gasping is not breathing. A short burst of seizure-like jerking can be the first sign: once it stops, look at the breathing.",
+        "de": "Ein Kreislaufstillstand wird an fehlender Reaktion und fehlender oder nicht normaler Atmung erkannt: Atemwege öffnen und hinsehen. Schnappatmung ist keine Atmung. Ein kurzer krampfanfallartiger Ausbruch kann das erste Zeichen sein: sobald er aufhört, die Atmung prüfen."
       },
       "section": "ERC 2025 BLS: recognition of cardiac arrest",
       "basis": "guideline",
       "group": "airway",
-      "note": "The guideline's sequence: unresponsive, open the airway, look for normal breathing, then start compressions. Scored as a breathing check between the collapse and the first compression.",
+      "note": "The guideline's sequence: unresponsive, open the airway, look for normal breathing, then start compressions. Scored as a breathing check between the collapse and the first compression. A look while he is still jerking does not count (BLS: \"Once the seizure stops, assess breathing\").",
       "check": {
         "kind": "breathing-checked"
       }

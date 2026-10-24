@@ -103,7 +103,7 @@ export interface SceneState {
 }
 
 /** The teaching nudges the run knows how to apply (ADR-018 decision 6c). */
-export const NUDGE_IDS = ['refractory-vf', 'vf-returns', 'rosc-for-good-cpr', 'gasping', 'bolus'] as const;
+export const NUDGE_IDS = ['refractory-vf', 'vf-returns', 'rosc-for-good-cpr', 'gasping', 'bolus', 'seizure'] as const;
 export type NudgeId = typeof NUDGE_IDS[number];
 
 /** Reversible causes of cardiac arrest (ERC 2025 ALS: hypoxia, hypovolaemia, hypo-/hyperkalaemia and other metabolic
@@ -146,7 +146,9 @@ export interface ScenarioDef {
   /** Teaching nudges (ADR-018 decision 6c): set-ups a practice run may carry, each fixing one chance draw so the run
       teaches one thing. Chosen at the start (or by "surprise me"), recorded with the run, stated in the debrief; never in
       assessment, never in the runs that validate the model. */
-  nudges?: Array<{ id: NudgeId; label: LocalizedText; explain: LocalizedText }>;
+  nudges?: Array<{ id: NudgeId; label: LocalizedText; explain: LocalizedText;
+    /** Said when the set-up first shows (the nurse seeing the jerking). */
+    say?: { who: string; text: LocalizedText } }>;
 }
 
 /* ---- what a run records ------------------------------------------------------------------------- */
@@ -190,6 +192,8 @@ export type ScenarioEvent =
   | { t: number; kind: 'chance'; stream: string; value: number; use: string }
   /** The run was set up with this teaching nudge (ADR-018 decision 6c). */
   | { t: number; kind: 'nudge'; id: NudgeId }
+  /** Seizure-like jerking at the onset of the arrest (the `seizure` nudge), from `t` until `until`. */
+  | { t: number; kind: 'seizure'; until: number }
   /** A shock delivered (ADR-018 step 3): the rhythm it met, and what followed. */
   | { t: number; kind: 'shock'; by: string; rhythm: string; outcome: 'not-terminated' | 'organised' | 'asystole' | 'no-effect'; joules: number }
   /** Something done that is unsafe or against the rules (a shock with hands on the patient, a shock of a rhythm that is not
@@ -203,6 +207,8 @@ export type ScenarioEvent =
   | { t: number; kind: 'assigned'; role: TeamRole; to: string | null }
   /** A rhythm check (ADR-018 step 5): the rhythm it showed. */
   | { t: number; kind: 'assessed'; what: 'rhythm' | 'breathing' | 'mouth' | 'chest' | 'echo'; by: string; rhythm?: string; pulse?: boolean; breathing?: 'normal' | 'failing' | 'gasping' | 'none'; mouth?: 'clear' | 'bolus';
+      /** The breathing was looked at while he was still jerking: it cannot be judged until the jerking stops (ERC 2025 BLS). */
+      seizing?: boolean;
       /** The chest, side by side: breath sounds and rise present, or absent (a collapsed lung), and which side the trachea is pushed from by trapped air under pressure. */
       chest?: { left: 'normal' | 'silent'; right: 'normal' | 'silent'; tension: 'left' | 'right' | null };
       /** Point-of-care ultrasound during a pause: fluid around the heart, a dilated right ventricle, small empty ventricles,
