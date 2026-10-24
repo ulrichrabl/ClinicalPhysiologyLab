@@ -21,6 +21,7 @@ const T: Record<string, LocalizedText> = {
   outcomeRosc: L('He has a circulation at the end.', 'Am Ende hat er einen Kreislauf.'),
   outcomeNone: L('He is still in arrest at the end.', 'Am Ende ist er noch im Kreislaufstillstand.'),
   setSurprise: L('The surprise: this run was set up.', 'Die Überraschung: Dieser Durchgang war angelegt.'), setLesson: L('The lesson you chose:', 'Die gewählte Lektion:'),
+  setCause: L('The arrest:', 'Der Stillstand:'),
   setSurpriseNone: L('The surprise: nothing was set up.', 'Die Überraschung: Nichts war angelegt.'), setChance: L('Pure chance:', 'Reiner Zufall:'),
   setNone: L('Everything that happened by chance (shocks, recurrence, gasping, what was in his airway) was the model’s own draw.', 'Alles, was vom Zufall abhing (Schocks, Rückfall, Schnappatmung, was im Atemweg war), war die eigene Ziehung des Modells.'),
   sVf: L('VF', 'Kammerflimmern'), sVt: L('VT', 'Kammertachykardie'), sAsys: L('asystole', 'Asystolie'), sPea: L('organised rhythm, no pulse', 'organisierter Rhythmus ohne Puls'), sPulse: L('circulation (pulse)', 'Kreislauf (Puls)'),
@@ -34,7 +35,7 @@ const T: Record<string, LocalizedText> = {
   mRate: L('Rate', 'Frequenz'), mPause: L('Longest pause', 'Längste Pause'), mShocks: L('Shocks', 'Schocks'),
   after: L('after the collapse', 'nach dem Kollaps'), ofTime: L('of the time CPR was needed', 'der Zeit, in der Reanimation nötig war'),
   timeline: L('Timeline', 'Zeitachse'),
-  kRhythm: L('Rhythm', 'Rhythmus'), kCpr: L('Compressions (red: pauses over 10 s)', 'Kompressionen (rot: Pausen über 10 s)'), kEvents: L('Shocks ⚡, adrenaline A, amiodarone Am, checks of rhythm R, breathing B, mouth M, airway cleared ✓', 'Schocks ⚡, Adrenalin A, Amiodaron Am, Kontrolle von Rhythmus R, Atmung B, Mund M, Atemweg frei ✓'),
+  kRhythm: L('Rhythm', 'Rhythmus'), kCpr: L('Compressions (red: pauses over 10 s)', 'Kompressionen (rot: Pausen über 10 s)'), kEvents: L('Shocks ⚡, adrenaline A, amiodarone Am, alteplase L, checks of rhythm R, breathing B, mouth M, airway cleared ✓', 'Schocks ⚡, Adrenalin A, Amiodaron Am, Alteplase L, Kontrolle von Rhythmus R, Atmung B, Mund M, Atemweg frei ✓'),
   kLines: L('Coronary perfusion pressure (red) and end-tidal CO₂ (blue), mmHg', 'Koronarer Perfusionsdruck (rot) und endtidales CO₂ (blau), mmHg'),
   kMissed: L('Numbered: where a rule was missed', 'Nummeriert: wo eine Regel verfehlt wurde'),
   rules: L('The guideline', 'Die Leitlinie'), ringNote: L('rules of the guideline met, of those that applied in this run; tap a rule for why it matters and its source', 'erfüllte Regeln der Leitlinie, von denen, die in diesem Durchgang zutrafen; tippen Sie auf eine Regel für Begründung und Quelle'),
@@ -68,13 +69,19 @@ export function heartCourse(onset: number | null, g: GuidelineDef, trace: TraceR
 }
 
 /** How the run was chosen, and the nudge it carried (ADR-018 decision 6c): said in the debrief, never before. */
-export interface DebriefSetup { choice: 'surprise' | 'chance' | 'lesson'; nudge: { label: LocalizedText; explain: LocalizedText } | null }
+export interface DebriefSetup {
+  choice: 'surprise' | 'chance' | 'lesson'; nudge: { label: LocalizedText; explain: LocalizedText } | null;
+  /** Which arrest it was, revealed when the learner did not choose it (or chose it as a lesson in itself). */
+  cause?: { label: LocalizedText; explain: LocalizedText } | null;
+}
 
 const setupHtml = (s: DebriefSetup | undefined, lang: Lang): string => {
   if (!s) return '';
   const t = (k: string) => tr(T[k], lang);
-  if (s.nudge) return `<div class="ar-db-setup set" role="note"><b>${s.choice === 'surprise' ? t('setSurprise') : t('setLesson')}</b> ${tr(s.nudge.label, lang)}. ${tr(s.nudge.explain, lang)}</div>`;
-  return `<div class="ar-db-setup" role="note"><b>${s.choice === 'surprise' ? t('setSurpriseNone') : t('setChance')}</b> ${t('setNone')}</div>`;
+  const cause = s.cause ? `<div class="ar-db-setup set" role="note"><b>${t('setCause')}</b> ${tr(s.cause.label, lang)}. ${tr(s.cause.explain, lang)}</div>` : '';
+  if (s.nudge) return `${cause}<div class="ar-db-setup set" role="note"><b>${s.choice === 'surprise' ? t('setSurprise') : t('setLesson')}</b> ${tr(s.nudge.label, lang)}. ${tr(s.nudge.explain, lang)}</div>`;
+  if (s.choice === 'lesson') return cause;
+  return `${cause}<div class="ar-db-setup" role="note"><b>${s.choice === 'surprise' ? t('setSurpriseNone') : t('setChance')}</b> ${t('setNone')}</div>`;
 };
 
 export function debriefHtml(rep: GuidelineReport, g: GuidelineDef, run: DebriefRun, lang: Lang, opts: { canReturn: boolean; setup?: DebriefSetup }): string {
@@ -166,7 +173,7 @@ export function drawDebrief(c: HTMLCanvasElement, rep: GuidelineReport, g: Guide
   const mark = (s: number, label: string, color: string, y: number) => { x2.fillStyle = color; x2.textAlign = 'center'; x2.fillText(label, X(s), y); };
   for (const e of run.events) {
     if (e.kind === 'shock' && e.joules > 0) mark(e.t, '⚡', '#b9770e', 44);
-    if (e.kind === 'dose') mark(e.t, e.drug === 'adrenaline' ? 'A' : 'Am', e.drug === 'adrenaline' ? '#c0392b' : '#8e44ad', 58);
+    if (e.kind === 'dose') mark(e.t, e.drug === 'adrenaline' ? 'A' : e.drug === 'alteplase' ? 'L' : 'Am', e.drug === 'adrenaline' ? '#c0392b' : e.drug === 'alteplase' ? '#1f6f8b' : '#8e44ad', 58);
     if (e.kind === 'assessed') mark(e.t, e.what === 'breathing' ? 'B' : e.what === 'mouth' ? 'M' : 'R', muted, 44);
     if (e.kind === 'obstruction' && !e.what) mark(e.t, '✓', '#2e7d4f', 58);
   }

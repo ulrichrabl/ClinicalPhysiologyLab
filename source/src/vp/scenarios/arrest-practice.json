@@ -1,14 +1,14 @@
 {
   "schema": "vp.scenario/1",
   "id": "arrest-practice",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "status": "draft",
   "title": {
     "en": "Practice: cardiac arrest",
     "de": "Übung: Herz-Kreislauf-Stillstand"
   },
   "caseId": "free-patient",
-  "purpose": "A practice arrest after ADR-018 step 5 part 2: a healthy man whose heart fibrillates a few seconds in, with one nurse in the room. The learner leads: has the arrest team called (it comes 2 min after the call, with the trolley: defibrillator, cannulas, drugs; 90 s later if the call does not say where), or sends the nurse for the trolley (back in 60 s), and gives the tasks. The team's times are placements: the ADR's 2 min, a call of 15 s, a delay of 90 s for a call without a place. Second pass: he slumps in a bed with its head raised, so the bed is laid flat before compressions; his breathing is checked with the airway opened; in a quarter of runs (a teaching variant, not a rate) a bolus of food from his meal sits in his pharynx and no breath gets past it until it is taken out with the airway kit.",
+  "purpose": "A practice arrest after ADR-018 step 5 part 2: a healthy man whose heart fibrillates a few seconds in, with one nurse in the room. The learner leads: has the arrest team called (it comes 2 min after the call, with the trolley: defibrillator, cannulas, drugs; 90 s later if the call does not say where), or sends the nurse for the trolley (back in 60 s), and gives the tasks. The team's times are placements: the ADR's 2 min, a call of 15 s, a delay of 90 s for a call without a place. Second pass: he slumps in a bed with its head raised, so the bed is laid flat before compressions; his breathing is checked with the airway opened; in a quarter of runs (a teaching variant, not a rate) a bolus of food from his meal sits in his pharynx and no breath gets past it until it is taken out with the airway kit. Third pass (2026-10-23): the arrest team also brings alteplase, as in the pulmonary-embolism practice, so that the controls do not give away which arrest this is; here there is no clot for it to dissolve.",
   "scene": {
     "place": {
       "en": "A side room on the ward",
@@ -80,6 +80,14 @@
           "de": "Absaugung, Magill-Zange und Atemwegshilfen am Notfallwagen"
         },
         "present": false
+      },
+      {
+        "id": "thrombolytic",
+        "label": {
+          "en": "Alteplase (thrombolytic), brought with the arrest team",
+          "de": "Alteplase (Thrombolytikum), vom Reanimationsteam mitgebracht"
+        },
+        "present": false
       }
     ],
     "team": {
@@ -91,7 +99,8 @@
         "defibrillator",
         "cannula-kit",
         "drugs",
-        "airway-kit"
+        "airway-kit",
+        "thrombolytic"
       ],
       "afterSeconds": 120,
       "lateWithoutWhere": 90,
@@ -100,6 +109,16 @@
     "airway": {
       "obstruction": "bolus",
       "chance": 0.25
+    }
+  },
+  "reveal": {
+    "label": {
+      "en": "Ventricular fibrillation",
+      "de": "Kammerflimmern"
+    },
+    "explain": {
+      "en": "His heart fibrillated without a cause outside it that you could treat: a shockable rhythm. What helps: compressions at once, an early shock, and the drugs after the third shock.",
+      "de": "Sein Herz flimmerte ohne eine Ursache außerhalb, die man behandeln könnte: ein schockbarer Rhythmus. Was hilft: sofort Kompressionen, ein früher Schock und die Medikamente nach dem dritten Schock."
     }
   },
   "machine": {

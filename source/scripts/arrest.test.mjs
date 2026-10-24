@@ -390,5 +390,40 @@ const cppNone = S.trialMean(std.rows, 'CPP', 240, 360), cppAdr = S.trialMean(std
     `VF only: ${(pAd * 100).toFixed(0)} % against ${(pPl * 100).toFixed(0)} %, OR ${or.toFixed(2)}; coronary perfusion pressure ${sd(cppAdr)} against ${sd(cppNone)} mmHg. Here adrenaline helps only through the coronary perfusion pressure it adds, which the model’s ceiling keeps small (gap 20); its β effects on a weak organised heart are not modelled, and asystole and PEA, where most of PARAMEDIC2’s effect lay, have no way out or no need of one (gap 26).`);
 }
 
+console.log('\nMassive pulmonary embolism: an arrest with a cause (Wood 2002; PAIMS 2, Dalla-Volta 1992)');
+{
+  /* A healthy adult, the same fraction of the pulmonary arterial bed blocked in every lobe, two minutes to settle. Wood 2002
+     (after McIntyre & Sasahara 1971, people without prior cardiopulmonary disease): output normal or raised despite substantial
+     obstruction, a fall unusual below 50 %; mean pulmonary artery pressure rising with obstruction but not above about
+     40 mmHg, the most a healthy right ventricle generates, and lower than expected once the ventricle fails; arrest almost
+     uniformly pulseless electrical activity. */
+  const blocked = (x) => {
+    const m = S.healthyModel(), run = S.createCirculation(m); run.settle(20);
+    const emb = Object.fromEntries(['RUL', 'RML', 'RLL', 'LUL', 'LLL'].map((l) => [`emb${l}`, x]));
+    run.apply({ ...m, respiratory: { ...m.respiratory, ...emb } }); run.advance(120);
+    return { ...run.sim.metrics, rhythm: run.heart.p.ventricular, run };
+  };
+  const rows = [0, 0.5, 0.7, 0.83, 0.9, 0.95].map((x) => ({ x, ...blocked(x) }));
+  const at = (x) => rows.find((r) => r.x === x);
+  const show = rows.map((r) => `${Math.round(r.x * 100)} %: ${Math.round(r.Psys)}/${Math.round(r.Pdia)}, mPAP ${r.PpaMean.toFixed(0)}, CO ${r.CO.toFixed(1)}`).join('; ');
+  ok('validated: output holds up to half the bed blocked (Wood 2002: a fall is unusual without at least 50 % obstruction)', at(0.5).CO >= 0.9 * at(0).CO, show);
+  ok('validated: mean pulmonary artery pressure never exceeds about 40 mmHg, the most a healthy right ventricle generates (Wood 2002)', Math.max(...rows.map((r) => r.PpaMean)) <= 42, show);
+  ok('validated: at a Miller index of 28.3 of 34 (83 %), mean pulmonary artery pressure is within PAIMS 2’s 30.2 ± 7.8 mmHg', Math.abs(at(0.83).PpaMean - 30.2) <= 7.8, `${at(0.83).PpaMean.toFixed(1)} mmHg`);
+  ok('validated: with almost the whole bed blocked the right ventricle fails: pulmonary pressure falls below its peak (Wood 2002)', at(0.95).PpaMean < Math.max(...rows.map((r) => r.PpaMean)) - 5, show);
+  ok('validated: the arrest is pulseless electrical activity, an organised rhythm without a palpable pulse (Wood 2002: almost uniformly PEA)', at(0.95).rhythm === 'none' && at(0.95).Psys < 50, `${Math.round(at(0.95).Psys)}/${Math.round(at(0.95).Pdia)} mmHg, ventricular ${at(0.95).rhythm}`);
+  gap('an untreated PEA from a massive embolism declines towards asystole', (at(0.95).run.advance(600), at(0.95).run.arrest.M < 0.9),
+    `M ${at(0.95).run.arrest.M.toFixed(2)} after 12 min: the myocardium wears out only while it fibrillates or stands still; a weak organised heart is held at its ischaemic floor indefinitely (gap 26).`);
+  /* Alteplase: PAIMS 2's Miller index fell from 28.3 to 24.8 in 2 h; with heparin alone it did not change. */
+  const d = new S.Drugs(); d.give('alteplase', 50); for (let i = 0; i < 7200; i++) d.step(1);
+  const none = new S.Drugs(); for (let i = 0; i < 600; i++) none.step(1);
+  ok('derived: two hours of alteplase leave 24.8 / 28.3 of the obstruction (PAIMS 2)', Math.abs((1 - d.lysed) - 24.8 / 28.3) < 0.005, `${((1 - d.lysed) * 100).toFixed(1)} % left`);
+  ok('without alteplase nothing dissolves (PAIMS 2: no change with heparin)', none.lysed === 0);
+  const r = blocked(0.95), before = r.run.resp.rpulMult();
+  r.run.drugs.give('alteplase', 50); r.run.advance(1200);
+  const after = r.run.resp.rpulMult();
+  ok('the lungs see the emboli that are left: twenty minutes of alteplase lower the pulmonary resistance', after < before && r.run.drugs.lysed > 0.015 && r.run.drugs.lysed < 0.03,
+    `lysed ${(r.run.drugs.lysed * 100).toFixed(1)} %, PVR ×${before.toFixed(2)} → ×${after.toFixed(2)}; systolic ${Math.round(r.run.sim.metrics.Psys)}. Slow, as the guideline’s 60–90 min of CPR after thrombolysis expects.`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed, ${gaps.length} known gaps`);
 if (fail) process.exit(1);

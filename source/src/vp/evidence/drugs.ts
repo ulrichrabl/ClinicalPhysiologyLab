@@ -9,7 +9,10 @@ import { defineConstants } from './constants.ts';
    validations (scripts/arrest.test.mjs).
 
    Amiodarone: no human study measures what it does to a shock or to fibrillation coming back. Its one effect here is
-   derived from a trial's average and labelled so; the trials' outcomes are a check, not a fit. */
+   derived from a trial's average and labelled so; the trials' outcomes are a check, not a fit.
+
+   Alteplase: how fast it dissolves pulmonary emboli is derived from serial angiograms in people (Dalla-Volta 1992,
+   PAIMS 2); that a bolus in an arrest acts as the 2-h infusion did is an assumption. */
 
 export const DRUGS = defineConstants('drugs', {
   arrivalTau: { value: 30, unit: 's', status: 'assumed', refs: ['heradstveit2023'],
@@ -33,4 +36,10 @@ export const DRUGS = defineConstants('drugs', {
   amiodaroneRecurrenceCut: { value: 0.13, unit: 'fraction', status: 'derived', refs: ['kudenchuk1999', 'vanalem2003'],
     means: 'Fraction by which a full dose of amiodarone lowers the chance that ventricular fibrillation comes back after a shock has ended it.',
     derivation: 'ARREST (Kudenchuk 1999) gave 4 ± 3 shocks with amiodarone against 6 ± 5 with placebo (not significant). If every return of VF takes its own shocks (each ending VF with the same chance), the number of shocks goes with the number of episodes, 1 / (1 − r) for a recurrence chance r: 6 / 4 = (1 − r′) / (1 − 0.79) gives r′ = 0.685, a cut of 1 − 0.685 / 0.79 = 0.13. It assumes the shocks counted were those after the drug, and ignores that resuscitation ends (whether the abstract’s counts are after the drug is not stated). Termination by a shock is left unchanged: no human data say amiodarone changes it. Its haemodynamic effects (ARREST: hypotension 59 % against 48 %, bradycardia 41 % against 25 %) are not modelled.' },
+  alteplaseLyticDose: { value: 50, unit: 'mg', status: 'assumed',
+    means: 'Amount of alteplase that has arrived in the central circulation at which its lytic effect on pulmonary emboli is full; less acts in proportion.',
+    derivation: 'The dose given in an arrest from suspected pulmonary embolism (alteplase 50 mg as an IV bolus, the dose usually given; ERC 2025 says to consider immediate thrombolysis when pulmonary embolism is the suspected or confirmed cause, without fixing a dose). That 50 mg as a bolus lyses as fast as the 100 mg over 2 h whose effect was measured (PAIMS 2) is an assumption. The lytic is held for the length of a resuscitation: alteplase leaves the plasma within minutes, but lysis of the clot it has bound goes on; no measurement in an arrest was found.' },
+  lysisRate: { value: 1.83e-5, unit: '1/s', status: 'derived', refs: ['dallavolta1992'],
+    means: 'Rate at which the pulmonary embolic obstruction left falls while alteplase acts (the obstruction falls as e^(−k·t)).',
+    derivation: 'PAIMS 2 (Dalla-Volta 1992): in 20 people with angiographically proven pulmonary embolism, alteplase (10 mg bolus, 90 mg over 2 h) lowered the angiographic Miller index from 28.3 ± 2.9 to 24.8 ± 5.2 at 2 h; with heparin alone it did not change (25.3 to 25.2). ln(28.3 / 24.8) / 7200 s = 1.83 × 10⁻⁵ /s: the obstruction left falls by about 12 % in two hours, 2 % in twenty minutes. Taking the Miller index as proportional to the obstructed fraction of the pulmonary bed, and its fall as exponential, are assumptions. The same trial’s mean pulmonary artery pressure, 30.2 mmHg at a Miller index of 28.3 of 34 (83 %), is a validation (scripts/arrest.test.mjs).' },
 });

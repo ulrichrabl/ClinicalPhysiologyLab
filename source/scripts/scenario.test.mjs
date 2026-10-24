@@ -535,5 +535,47 @@ console.log('\nThe case’s course on the scenario’s clock');
   ok('a course event prevented by an intervention done in time does not apply, and is logged as prevented', ce[1]?.prevented === true && run2.live.model.circulation.HR === 95 && !ce[1].note, J(ce));
 }
 
+console.log('\nAn arrest with a cause: massive pulmonary embolism (owner, 2026-10-23: every PEA situation)');
+{
+  const P = scenarioOf('arrest-pe');
+  ok('the PE practice validates, and names its cause', errors(S.validateScenario(P, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).length === 0 && P.scene.cause === 'pulmonary-embolism');
+  const bad = structuredClone(P); bad.scene.cause = 'gremlins';
+  ok('the validator refuses a cause the rules do not know', errors(S.validateScenario(bad, { cases: [...S.CASES, S.FREE_CASE], interventions: S.INTERVENTION_BY_ID, catalog: S.CATALOG })).some((i) => /not a cause/.test(i.message)));
+  const Q = structuredClone(P);
+  for (const e of Q.scene.equipment) e.present = true;
+  const r = start(Q, 5, lying(S.FREE_CASE), { settleSeconds: 20 });
+  r.advanceTo(3);
+  ok('before the collapse he is breathless with a pulse', r.scene === 'breathless' && r.live.snap.metrics.Psys > 80);
+  r.advanceTo(40);
+  ok('after it his heart keeps an organised rhythm without a pulse: PEA, not VF', r.scene === 'arrest' && r.rhythm() === 'organised' && r.live.snap.metrics.Psys < 50, `${Math.round(r.live.snap.metrics.Psys)} mmHg`);
+  r.assign('compressions', 'nurse'); r.advanceTo(50);
+  r.intervene('defib.pads'); r.advanceTo(80);
+  r.intervene('check.rhythm'); r.advanceTo(90);
+  const look = kinds(r, 'assessed').at(-1);
+  ok('the rhythm check finds an organised rhythm and no pulse', look?.rhythm === 'organised' && look.pulse === false, J(look));
+  r.intervene('defib.charge'); r.advanceTo(100); r.intervene('defib.shock'); r.advanceTo(105);
+  ok('a shock into PEA is a hazard', kinds(r, 'hazard').some((e) => e.code === 'shock-non-shockable'));
+  r.intervene('access.iv'); r.advanceTo(190);
+  r.intervene('drug.adrenaline'); r.advanceTo(240);
+  r.intervene('drug.alteplase'); r.advanceTo(400);
+  ok('alteplase is given and starts to dissolve the emboli', kinds(r, 'dose').some((e) => e.drug === 'alteplase') && r.live.run.drugs.lysed > 0);
+  const rep = S.scoreRun(S.GUIDELINES[0], r), rule = (id) => rep.rules.find((x) => x.id === id);
+  ok('scored: adrenaline in a non-shockable rhythm counts from when it became possible (a line in), not as given too early', rule('adrenaline-non-shockable').status === 'met' && rule('adrenaline-first').status === 'not-applicable', J([rule('adrenaline-non-shockable'), rule('adrenaline-first')]));
+  ok('scored: thrombolysis for the suspected embolism', rule('thrombolysis-pe').status === 'met', J(rule('thrombolysis-pe')));
+  ok('scored: the shock into PEA is missed under shock safety', rule('shock-safety').status === 'missed');
+}
+{
+  /* The same rules in the VF practice: thrombolysis does not apply, and adrenaline before the third shock is still early. */
+  const P = structuredClone(scenarioOf('arrest-practice'));
+  for (const e of P.scene.equipment) e.present = true;
+  P.machine.states.arrest.enter = P.machine.states.arrest.enter.filter((d) => !('leave' in d) && !('arrive' in d));
+  const r = start(P, 31, lying(S.FREE_CASE));
+  r.advanceTo(6); r.assign('compressions', 'nurse'); r.advanceTo(10);
+  r.intervene('access.iv'); r.advanceTo(80); r.intervene('drug.adrenaline'); r.advanceTo(120);
+  const rep = S.scoreRun(S.GUIDELINES[0], r), rule = (id) => rep.rules.find((x) => x.id === id);
+  ok('in the VF practice thrombolysis for embolism does not apply, and adrenaline before any shock in VF is early', rule('thrombolysis-pe').status === 'not-applicable' && rule('adrenaline-first').status === 'missed' && rule('adrenaline-non-shockable').status === 'not-applicable', J([rule('thrombolysis-pe'), rule('adrenaline-first'), rule('adrenaline-non-shockable')]));
+  ok('alteplase is there in the VF practice too (the controls do not give the arrest away), and dissolves nothing to change', P.scene.team.equipment.includes('thrombolytic'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed, 0 known gaps`);
 if (fail) process.exit(1);

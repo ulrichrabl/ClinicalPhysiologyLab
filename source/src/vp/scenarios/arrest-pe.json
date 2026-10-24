@@ -1,0 +1,244 @@
+{
+  "schema": "vp.scenario/1",
+  "id": "arrest-pe",
+  "version": "0.1.0",
+  "status": "draft",
+  "title": {
+    "en": "Practice: cardiac arrest from a pulmonary embolism",
+    "de": "Übung: Herz-Kreislauf-Stillstand durch Lungenembolie"
+  },
+  "caseId": "free-patient",
+  "purpose": "A non-shockable arrest with a reversible cause (owner, 2026-10-23: all PEA situations). Two days after a knee operation a man stands up, becomes breathless and collapses: emboli block 95 % of his pulmonary arterial bed (every lobe), his right ventricle fails and his heart keeps an organised rhythm without a pulse (pulseless electrical activity; Wood 2002: arrest from pulmonary embolism is almost uniformly PEA). Before the collapse 85 % is blocked. Both fractions are placements chosen inside what the model gives: from about 90 % his pressure falls below a palpable pulse, and below 85 % it holds. The learner leads as in the VF practice; the arrest team also brings alteplase. The lesson: no shock, adrenaline as soon as possible, think of the cause and give thrombolysis, and keep going: the clot dissolves slowly (PAIMS 2), which is why the guideline asks for 60–90 min of CPR after it.",
+  "scene": {
+    "place": {
+      "en": "A side room on the surgical ward",
+      "de": "Ein Nebenzimmer auf der chirurgischen Station"
+    },
+    "people": [
+      {
+        "id": "nurse",
+        "role": {
+          "en": "Nurse",
+          "de": "Pflegekraft"
+        },
+        "present": true
+      },
+      {
+        "id": "doctor",
+        "role": {
+          "en": "Doctor (arrest team)",
+          "de": "Ärztin (Reanimationsteam)"
+        },
+        "present": false
+      },
+      {
+        "id": "nurse2",
+        "role": {
+          "en": "Nurse (arrest team)",
+          "de": "Pflegekraft (Reanimationsteam)"
+        },
+        "present": false
+      }
+    ],
+    "equipment": [
+      {
+        "id": "bag-mask",
+        "label": {
+          "en": "Bag-valve-mask on the wall",
+          "de": "Beatmungsbeutel mit Maske an der Wand"
+        },
+        "present": true
+      },
+      {
+        "id": "defibrillator",
+        "label": {
+          "en": "Arrest trolley with a defibrillator",
+          "de": "Notfallwagen mit Defibrillator"
+        },
+        "present": false
+      },
+      {
+        "id": "cannula-kit",
+        "label": {
+          "en": "IV cannulas on the arrest trolley",
+          "de": "Venenverweilkanülen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "drugs",
+        "label": {
+          "en": "Adrenaline and amiodarone on the arrest trolley",
+          "de": "Adrenalin und Amiodaron am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "airway-kit",
+        "label": {
+          "en": "Suction, Magill forceps and airways on the arrest trolley",
+          "de": "Absaugung, Magill-Zange und Atemwegshilfen am Notfallwagen"
+        },
+        "present": false
+      },
+      {
+        "id": "thrombolytic",
+        "label": {
+          "en": "Alteplase (thrombolytic), brought with the arrest team",
+          "de": "Alteplase (Thrombolytikum), vom Reanimationsteam mitgebracht"
+        },
+        "present": false
+      }
+    ],
+    "team": {
+      "people": [
+        "doctor",
+        "nurse2"
+      ],
+      "equipment": [
+        "defibrillator",
+        "cannula-kit",
+        "drugs",
+        "airway-kit",
+        "thrombolytic"
+      ],
+      "afterSeconds": 120,
+      "lateWithoutWhere": 90,
+      "callSeconds": 15
+    },
+    "cause": "pulmonary-embolism"
+  },
+  "reveal": {
+    "label": {
+      "en": "A pulmonary embolism",
+      "de": "Eine Lungenembolie"
+    },
+    "explain": {
+      "en": "Two days after his knee operation, clots from his leg veins blocked almost all of his pulmonary arteries. His right ventricle failed, and his heart kept an organised rhythm without a pulse (PEA). There was nothing to shock. What helps: good compressions, adrenaline as soon as there is a line, and thrombolysis once the cause is suspected. The clot dissolves slowly, about 2 % in twenty minutes in the study the model is built on (PAIMS 2), which is why the guideline asks for 60–90 min of CPR after it.",
+      "de": "Zwei Tage nach seiner Knieoperation haben Gerinnsel aus den Beinvenen fast alle seine Lungenarterien verschlossen. Sein rechter Ventrikel versagte, und sein Herz behielt einen organisierten Rhythmus ohne Puls (PEA). Es gab nichts zu schocken. Was hilft: gute Kompressionen, Adrenalin, sobald ein Zugang liegt, und eine Thrombolyse, sobald die Ursache vermutet wird. Das Gerinnsel löst sich langsam, etwa 2 % in zwanzig Minuten in der Studie, auf der das Modell beruht (PAIMS 2); deshalb nennt die Leitlinie 60–90 min Reanimation danach."
+    }
+  },
+  "machine": {
+    "start": "breathless",
+    "states": {
+      "breathless": {
+        "label": {
+          "en": "Breathless",
+          "de": "Atemnot"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "respiratory.embRUL",
+                "set": 0.85
+              },
+              {
+                "path": "respiratory.embRML",
+                "set": 0.85
+              },
+              {
+                "path": "respiratory.embRLL",
+                "set": 0.85
+              },
+              {
+                "path": "respiratory.embLUL",
+                "set": 0.85
+              },
+              {
+                "path": "respiratory.embLLL",
+                "set": 0.85
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "patient",
+              "text": {
+                "en": "I was up to the bathroom earlier… and now I can’t get my breath.",
+                "de": "Ich war vorhin auf der Toilette … und jetzt bekomme ich keine Luft."
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "inStateFor": 6
+            },
+            "to": "arrest"
+          }
+        ]
+      },
+      "arrest": {
+        "label": {
+          "en": "Cardiac arrest",
+          "de": "Herz-Kreislauf-Stillstand"
+        },
+        "enter": [
+          {
+            "change": [
+              {
+                "path": "respiratory.embRUL",
+                "set": 0.95
+              },
+              {
+                "path": "respiratory.embRML",
+                "set": 0.95
+              },
+              {
+                "path": "respiratory.embRLL",
+                "set": 0.95
+              },
+              {
+                "path": "respiratory.embLUL",
+                "set": 0.95
+              },
+              {
+                "path": "respiratory.embLLL",
+                "set": 0.95
+              }
+            ]
+          },
+          {
+            "say": {
+              "who": "nurse",
+              "text": {
+                "en": "He’s collapsed! He had his knee operation the day before yesterday. He isn’t responding. What shall I do?",
+                "de": "Er ist zusammengebrochen! Er wurde vorgestern am Knie operiert. Er reagiert nicht. Was soll ich tun?"
+              }
+            }
+          }
+        ],
+        "next": [
+          {
+            "when": {
+              "at": 1200
+            },
+            "to": "end"
+          }
+        ]
+      },
+      "end": {
+        "label": {
+          "en": "Twenty minutes",
+          "de": "Zwanzig Minuten"
+        },
+        "final": true
+      }
+    }
+  },
+  "nudges": [
+    {
+      "id": "gasping",
+      "label": {
+        "en": "He gasps",
+        "de": "Er hat Schnappatmung"
+      },
+      "explain": {
+        "en": "This run was set up so that he gasps after the collapse. Gasping is not breathing: an unresponsive patient who gasps is in cardiac arrest, and compressions should start without delay.",
+        "de": "Dieser Durchgang war so angelegt, dass er nach dem Kollaps Schnappatmung hat. Schnappatmung ist keine Atmung: Ein reaktionsloser Patient mit Schnappatmung hat einen Kreislaufstillstand, und die Kompressionen sollten ohne Verzögerung beginnen."
+      }
+    }
+  ]
+}

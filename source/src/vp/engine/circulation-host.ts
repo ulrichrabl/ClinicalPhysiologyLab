@@ -108,6 +108,13 @@ export function createCirculation(m: PatientModel): CirculationRun {
   /* Drugs given (ADR-018 step 4), acting on the arterioles and on the recurrence of VF. */
   const drugs = new Drugs();
   const arrested = () => heart.p.ventricular === 'vf' || heart.p.ventricular === 'asystole';
+  /* The lungs see the emboli that are left: alteplase (drugs.lysed) dissolves the same fraction in every lobe. */
+  let lysedSeen = 0;
+  const lungParams = (p: PatientModel['respiratory']): PatientModel['respiratory'] => {
+    if (!(drugs.lysed > 0)) return p;
+    const k = 1 - drugs.lysed;
+    return { ...p, embRUL: p.embRUL * k, embRML: p.embRML * k, embRLL: p.embRLL * k, embLUL: p.embLUL * k, embLLL: p.embLLL * k };
+  };
   const BRAIN_TAU_S = 3;
   const couple = () => {
     /* The lungs and the body see the circulation over a circulation time, not beat by beat: the mixed venous blood
@@ -121,6 +128,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     if (sim.t > 2) arrest.step(COUPLE_S, coronaryP, arrested());
     heart.vfScale = arrest.vfScale();
     drugs.step(COUPLE_S);
+    if (Math.abs(drugs.lysed - lysedSeen) > 0.0005) { lysedSeen = drugs.lysed; resp.setParams(lungParams(model.respiratory), body()); }
     resp.setInputs({
       /* The lungs receive what the heart (or the compressions) pump: in an arrest very little. Before the first beat is
          measured, the normal output. */
@@ -188,7 +196,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     { const hr = c.HR * milieu.hrMult(); if (sim.HR !== hr) sim.setParam('HR', hr); }
     sim.K = heart.K;
     if (!!sim.baroEnabled !== !!c.baroEnabled) sim.toggleBaro();
-    resp.setParams(next.respiratory, body());
+    resp.setParams(lungParams(next.respiratory), body()); lysedSeen = drugs.lysed;
     sim.Rpul = c.Rpul * resp.rpulMult();
     sim.EmaxRv = c.EmaxRv * (1 - (sim.rvIschaemia ?? 0)) * arrest.contractility();
     sim.Rsys = c.Rsys * milieu.rsysMult() * drugs.resistanceMult();

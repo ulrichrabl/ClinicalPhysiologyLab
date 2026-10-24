@@ -31,6 +31,12 @@ export type Check =
   | { kind: 'rhythm-checks'; every: number; tolerance: number; firstWithin: number }
   /** A dose of a drug after the nth shock, before the next one, while the rhythm stays shockable. */
   | { kind: 'dose-after-shock'; drug: DrugId; mg: number; afterShock: number }
+  /** In an arrest whose rhythm, at the first look, was not shockable: a dose within `within` s of its becoming possible
+      (the rhythm seen, the drugs in the room, a cannula in). */
+  | { kind: 'dose-non-shockable'; drug: DrugId; mg: number; within: number }
+  /** In a scene with this reversible cause: the drug that treats it, within `within` s of its becoming possible (the
+      collapse, the kit `kit` in the room, a cannula in). Not applicable in other scenes. */
+  | { kind: 'dose-for-cause'; cause: string; drug: DrugId; kit: string; within: number }
   /** Repeated doses of a drug, from its first, at this interval while CPR is needed. */
   | { kind: 'dose-interval'; drug: DrugId; min: number; max: number }
   /** None of these hazards. */

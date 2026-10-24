@@ -186,6 +186,16 @@ export const INTERVENTIONS: InterventionDef[] = [
     timing: { status: 'placement', note: 'As the first dose; not measured.' },
     effect: { kind: 'instantaneous', dose: { drug: 'amiodarone', mg: 150 } },
   },
+  /* Thrombolysis when pulmonary embolism is the suspected or confirmed cause (ERC 2025 ALS: thrombolytic drugs). */
+  {
+    id: 'drug.alteplase',
+    label: { en: 'Alteplase 50 mg IV (thrombolysis)', de: 'Alteplase 50 mg i.v. (Thrombolyse)' },
+    phrases: { en: ['alteplase', 'thrombolysis', 'lyse', 'give alteplase', 'tpa', 'actilyse', 'alteplase 50 mg'], de: ['alteplase', 'lyse', 'thrombolyse', 'actilyse', 'lysieren', 'alteplase 50 mg i.v.'] },
+    needs: { equipment: ['thrombolytic'], access: ['iv'] },
+    duration: { min: 60, max: 120 },
+    timing: { status: 'placement', note: 'Dissolving the powder in its water and giving it as a bolus with a flush; not measured.' },
+    effect: { kind: 'instantaneous', dose: { drug: 'alteplase', mg: 50 } },
+  },
 ];
 
 export const INTERVENTION_BY_ID: Record<string, InterventionDef> = Object.fromEntries(INTERVENTIONS.map((x) => [x.id, x]));
