@@ -328,6 +328,31 @@ console.log('\nEncounter: preconditions, hazards, history, notes');
   ok('exposing without asking consent is recorded as a hazard, not blocked',
     s.encounter.events.some((e) => e.kind === 'hazard' && e.code === 'no-consent') && s.state.exposure.includes('chest'));
 
+  /* a patient covered at the start (the shared session helper further down starts with everything exposed) */
+  const drape = (() => {
+    const c = caseById('upper-gi-bleed-peptic-ulcer'), m = modelFromCase(c), snap = settleModel(m, 16).snapshot;
+    return startEncounter(CATALOG, REGISTRY, c, buildView(c, { circulation: snap, chemistry: chemistryState(snap, m.chemistry), state: { ...c.initialState, exposure: [] } }), { locale: 'en' });
+  })();
+  perform(drape, 'expose.chest'); perform(drape, 'expose.abdomen');
+  const chestExam = perform(drape, 'palpate.chest-expansion');
+  const abdomenExam = perform(drape, 'palpate.abdomen');
+  ok('exposed chest and abdomen can be examined', chestExam.outcome === 'performed' && abdomenExam.outcome === 'performed');
+  const savedFindings = drape.encounter.events.filter((e) => e.kind === 'finding');
+  perform(drape, 'cover.chest');
+  ok('covering the chest clears its access but leaves the abdomen exposed',
+    !drape.state.exposure.includes('chest') && !drape.state.exposure.includes('neck') && !drape.state.exposure.includes('arm') && drape.state.exposure.includes('abdomen'));
+  const chestBlocked = perform(drape, 'palpate.chest-expansion');
+  ok('a chest examination needs the chest to be exposed again', chestBlocked.outcome === 'blocked' && chestBlocked.reason === 'exposure:chest');
+  perform(drape, 'expose.chest');
+  ok('the chest can be exposed and examined again', drape.state.exposure.includes('chest') && perform(drape, 'palpate.chest-expansion').outcome === 'performed');
+  perform(drape, 'cover.abdomen');
+  ok('covering the abdomen clears only abdominal access', !drape.state.exposure.includes('abdomen') && drape.state.exposure.includes('chest'));
+  const abdomenBlocked = perform(drape, 'palpate.abdomen');
+  ok('an abdominal examination needs the abdomen to be exposed again', abdomenBlocked.outcome === 'blocked' && abdomenBlocked.reason === 'exposure:abdomen');
+  perform(drape, 'expose.abdomen');
+  ok('the abdomen can be exposed and examined again', drape.state.exposure.includes('abdomen') && perform(drape, 'palpate.abdomen').outcome === 'performed');
+  ok('covering preserves all previously recorded examination findings', savedFindings.every((e) => drape.encounter.events.includes(e)) && drape.encounter.events.filter((e) => e.kind === 'finding').length > savedFindings.length);
+
   const r1 = ask(s, 'Hören Sie auf einem Ohr schlechter?');
   ok('German question finds the hearing fact and answers in German', r1.facts[0]?.id === 'f-hearing' && /beiden Ohren/.test(r1.text), J(r1));
   const r2 = ask(s, 'Haben Sie Brustschmerzen?');
@@ -1499,7 +1524,7 @@ console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)')
   /* An examiner who does every test that can show each reference sign gets every sign item. */
   const testsShowing = (id) => [...new Set([...testsForSign(KNOWLEDGE, CATALOG, id),
     ...Object.values(KNOWLEDGE.presentations).filter((p) => p.signs.includes(id)).flatMap((p) => p.tests)])]
-    .filter((t) => !['position', 'give', 'expose'].includes(CATALOG.manoeuvres[t]?.verb));
+    .filter((t) => !['position', 'give', 'expose', 'cover'].includes(CATALOG.manoeuvres[t]?.verb));
   const missedByExpert = [];
   for (const c of CASES) {
     const items = c.reference.evidence.filter((e) => e.kind === 'sign');

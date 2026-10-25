@@ -21,7 +21,7 @@ export interface SignsFound {
 }
 
 /** Manoeuvres that act on the patient rather than examine: they name no signs themselves. */
-const ACTS = new Set(['position', 'give', 'expose']);
+const ACTS = new Set(['position', 'give', 'expose', 'cover']);
 
 /** The signs a test can show: what a learner may name after it, without saying which are there. */
 export function signsTestLooksFor(k: Knowledge, cat: Catalog, testId: string): string[] {
