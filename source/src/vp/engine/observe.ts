@@ -34,7 +34,8 @@ export interface RuntimeView {
   body?: BodySnapshot;
   /** Nervous system: lesioned graph nodes, and the findings the graph derives from them. */
   /** extent: the share of a structure's fibres a lesion takes, where a case gives less than all (default 1) */
-  neuro?: { nodes: string[]; complete: boolean; extent?: Record<string, number>; findings: Array<Record<string, any>> };
+  /** days: the time since the lesion began (default 1): the denervated muscle wastes and the survivors sprout over weeks */
+  neuro?: { nodes: string[]; complete: boolean; extent?: Record<string, number>; days?: number; findings: Array<Record<string, any>> };
   /** Named conditions the case declares, for models that read them (e.g. vestibular hypofunction). */
   conditions?: Array<{ id: string; params?: Record<string, unknown> }>;
   /** Simulated minutes since the encounter began. */

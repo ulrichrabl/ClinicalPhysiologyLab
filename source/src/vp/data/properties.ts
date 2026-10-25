@@ -392,7 +392,7 @@ export const PROPERTIES: PropertyDef[] = [
     const L = limb === 'arm' ? { en: 'arm', de: 'Arm' } : { en: 'leg', de: 'Bein' };
     const moves = limb === 'arm'
       ? ['shoulderAbduction', 'elbowFlexion', 'elbowExtension', 'wristExtension', 'fingerFlexion', 'thumbAbduction', 'fingerAbduction']
-      : ['hipFlexion', 'hipAdduction', 'hipAbduction', 'kneeExtension', 'ankleDorsiflexion', 'footEversion', 'footInversion', 'anklePlantarflexion'];
+      : ['hipFlexion', 'hipAdduction', 'hipAbduction', 'kneeExtension', 'ankleDorsiflexion', 'toeExtension', 'footEversion', 'footInversion', 'anklePlantarflexion'];
     const segs = limb === 'arm' ? ['C5', 'C6', 'C7', 'C8', 'T1'] : ['L2', 'L3', 'L4', 'L5', 'S1'];
     const reflexes = limb === 'arm'
       ? rec({ biceps: o('reflex-grade'), supinator: o('reflex-grade'), triceps: o('reflex-grade') })

@@ -41,6 +41,8 @@ const T: Record<string, LocalizedText> = {
   settingsNote: L('A lesion on one rung of the nervous system. The examination model derives the rest.', 'Eine Läsion auf einer Stufe des Nervensystems. Das Untersuchungsmodell leitet den Rest ab.'),
   startFrom: L('Start from', 'Ausgangspunkt'), choose: L('Choose a lesion…', 'Läsion wählen…'), healthy: L('Reset to healthy', 'Auf gesund zurücksetzen'),
   complete: L('Complete lesion', 'Komplette Läsion'),
+  since: L('Time since onset', 'Zeit seit Beginn'),
+  sinceNote: L('A cut nerve weakens at once; its muscle wastes from about three weeks. Where some fibres survive they sprout over months and win back strength.', 'Ein durchtrennter Nerv schwächt sofort; sein Muskel atrophiert ab etwa drei Wochen. Wo Fasern überleben, sprossen sie über Monate aus und gewinnen Kraft zurück.'),
   completeNote: L('A partial lesion of the corticospinal tract leaves the arm strong enough to hold up, and drifting.', 'Eine partielle Läsion der Pyramidenbahn lässt den Arm kräftig genug, ihn zu halten, und er driftet.'),
   see: L('What you see', 'Was Sie sehen'), seeNote: L('The patient on the edge of the bed. The limbs move as the examination model’s finding says.', 'Der Patient auf der Bettkante. Die Glieder bewegen sich, wie es der Befund des Untersuchungsmodells sagt.'),
   test: L('Test', 'Test'), side: L('Side', 'Seite'), right: L('Right', 'Rechts'), left: L('Left', 'Links'),
@@ -63,6 +65,8 @@ const T: Record<string, LocalizedText> = {
   mechRight: L('Right', 'Richtig'), mechWrong: L('It was', 'Es war'), score: L('right this session', 'richtig in dieser Sitzung'), foundWhere: L('Where each is found', 'Wo jedes zu finden ist'),
   patientSays: L('You hear', 'Sie hören'),
 };
+const SINCE: Array<[number, LocalizedText]> = [[1, L('1 day', '1 Tag')], [7, L('1 week', '1 Woche')], [14, L('2 weeks', '2 Wochen')], [30, L('1 month', '1 Monat')],
+  [120, L('4 months', '4 Monate')], [180, L('6 months', '6 Monate')], [365, L('1 year', '1 Jahr')], [730, L('2 years', '2 Jahre')]];
 const IDENTIFY_POOL = ['healthy', ...NEURO_PRESETS.map((p) => p.id)];
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 const SIDES: Side[] = ['R', 'L'];
@@ -131,6 +135,10 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
           <label class="st-predict"><input type="checkbox" data-predict ${predict ? 'checked' : ''}><span><b>${t('predict')}</b><br><span class="muted small">${t('predictNote')}</span></span></label>
           <label class="st-var st-check"><input type="checkbox" data-complete ${model.lesions.complete ? 'checked' : ''}><span>${t('complete')}</span></label>
           <p class="muted small">${t('completeNote')}</p>
+          <label class="st-preset">${t('since')}
+            <select data-days>${SINCE.map(([d, lab]) => `<option value="${d}" ${(model.lesions.days ?? 1) === d ? 'selected' : ''}>${esc(tr(lab, lang))}</option>`).join('')}${SINCE.some(([d]) => d === (model.lesions.days ?? 1)) ? '' : `<option value="${model.lesions.days}" selected>${model.lesions.days} d</option>`}</select>
+          </label>
+          <p class="muted small">${t('sinceNote')}</p>
           ${NEURO_STRUCTURES.map((g) => `<fieldset class="st-lesions"><legend>${esc(tr(g.group, lang))}</legend>${g.nodes.map((n) =>
             `<label class="st-var st-check"><input type="checkbox" data-node="${n.id}" ${cut.has(n.id) ? 'checked' : ''}><span>${esc(tr(n.label, lang))}</span></label>`).join('')}</fieldset>`).join('')}
         </aside>
@@ -370,6 +378,8 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     if (pr) pr.onchange = () => { predict = pr.checked; };
     const hb = host.querySelector<HTMLButtonElement>('[data-healthy]');
     if (hb) hb.onclick = () => { pending = null; feedback = null; change(applyNeuroPreset(model, '')); };
+    const ds = host.querySelector<HTMLSelectElement>('[data-days]');
+    if (ds) ds.onchange = () => { const next = structuredClone(model); next.lesions.days = Number(ds.value); change(next); };
     const cb = host.querySelector<HTMLInputElement>('[data-complete]');
     if (cb) cb.onchange = (e) => { const next = structuredClone(model); next.lesions.complete = (e.target as HTMLInputElement).checked; change(next); };
     host.querySelectorAll<HTMLInputElement>('[data-node]').forEach((el) => el.onchange = () => {

@@ -41,7 +41,7 @@ export interface PatientModel {
   vestibular: { side: 'none' | 'L' | 'R'; severity: number; daysSinceOnset: number };
   /** Lesioned nodes of the nervous-system graph. */
   /** extent: the share of a structure's fibres the lesion takes, where less than all (default 1) */
-  lesions: { nodes: string[]; complete: boolean; extent?: Record<string, number> };
+  lesions: { nodes: string[]; complete: boolean; extent?: Record<string, number>; days?: number };
   /** Body water, salt, potassium, acid–base, kidney, fuels: intake, losses, drugs, hormones, and how long the illness has acted. */
   body: BodyParams;
   /** Values clamped by the learner (an experiment) or, for what no model yet produces, by the case. */
@@ -89,6 +89,8 @@ export function modelFromCase(c: CaseDef): PatientModel {
   const lesions = c.pathology.lesions ?? [];
   m.lesions = { nodes: [...new Set(lesions.flatMap((l) => l.nodes))], complete: lesions.every((l) => l.complete !== false) };
   for (const l of lesions) if (l.extent !== undefined) for (const n of l.nodes) (m.lesions.extent ??= {})[n] = l.extent;
+  const ds = lesions.map((l) => l.days).filter((d): d is number => d !== undefined);
+  if (ds.length) m.lesions.days = Math.max(...ds);
   m.chemistry = { ...(c.pathology.chemistry ?? {}) };
   if (m.chemistry.potassium != null) m.circulation.K = m.chemistry.potassium;
   return m;
@@ -118,8 +120,9 @@ export function pathologyOf(m: PatientModel): CaseDef['pathology'] {
   if (m.lesions.nodes.length) {
     /* structures with a partial extent go in a lesion of their own */
     const ex = m.lesions.extent ?? {}, whole = m.lesions.nodes.filter((n) => ex[n] === undefined);
-    p.lesions = [...(whole.length ? [{ nodes: whole, complete: m.lesions.complete }] : []),
-      ...[...new Set(m.lesions.nodes.filter((n) => ex[n] !== undefined).map((n) => ex[n]))].map((e) => ({ nodes: m.lesions.nodes.filter((n) => ex[n] === e), complete: m.lesions.complete, extent: e }))];
+    const d = m.lesions.days !== undefined ? { days: m.lesions.days } : {};
+    p.lesions = [...(whole.length ? [{ nodes: whole, complete: m.lesions.complete, ...d }] : []),
+      ...[...new Set(m.lesions.nodes.filter((n) => ex[n] !== undefined).map((n) => ex[n]))].map((e) => ({ nodes: m.lesions.nodes.filter((n) => ex[n] === e), complete: m.lesions.complete, extent: e, ...d }))];
   }
   if (Object.keys(m.chemistry).length) p.chemistry = { ...m.chemistry };
   return p;

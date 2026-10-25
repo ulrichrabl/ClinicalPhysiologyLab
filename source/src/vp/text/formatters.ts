@@ -40,7 +40,7 @@ const MOVE_NAMES: Record<string, [string, string]> = {
   shoulderAbduction: ['shoulder abduction', 'Schulterabduktion'], elbowFlexion: ['elbow flexion', 'Ellenbogenbeugung'], elbowExtension: ['elbow extension', 'Ellenbogenstreckung'],
   wristExtension: ['wrist extension', 'Handgelenkstreckung'], fingerFlexion: ['thumb flexion (OK sign)', 'Daumenendgliedbeugung'], thumbAbduction: ['thumb abduction', 'Daumenabduktion'],
   fingerAbduction: ['finger abduction', 'Fingerspreizung'], hipFlexion: ['hip flexion', 'Hüftbeugung'], hipAdduction: ['hip adduction', 'Hüftadduktion'], hipAbduction: ['hip abduction', 'Hüftabduktion'],
-  kneeExtension: ['knee extension', 'Kniestreckung'], ankleDorsiflexion: ['ankle dorsiflexion', 'Fußhebung'], footEversion: ['foot eversion', 'Fußeversion'],
+  kneeExtension: ['knee extension', 'Kniestreckung'], ankleDorsiflexion: ['ankle dorsiflexion', 'Fußhebung'], toeExtension: ['big toe extension', 'Großzehenhebung'], footEversion: ['foot eversion', 'Fußeversion'],
   footInversion: ['foot inversion', 'Fußinversion'], anklePlantarflexion: ['ankle plantarflexion', 'Fußsenkung'],
 };
 const DERMATOME_AREA: Record<string, [string, string]> = {

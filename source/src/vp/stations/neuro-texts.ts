@@ -46,9 +46,9 @@ const MOVE: Record<string, LocalizedText> = {
   shoulderAbduction: L('shoulder abduction', 'Schulterabduktion'), elbowFlexion: L('elbow flexion', 'Ellenbogenbeugung'), elbowExtension: L('elbow extension', 'Ellenbogenstreckung'),
   wristExtension: L('wrist extension', 'Handgelenkstreckung'), fingerFlexion: L('finger flexion', 'Fingerbeugung'), thumbAbduction: L('thumb abduction', 'Daumenabduktion'), fingerAbduction: L('finger abduction', 'Fingerabduktion'),
   hipFlexion: L('hip flexion', 'Hüftbeugung'), hipAdduction: L('hip adduction', 'Hüftadduktion'), hipAbduction: L('hip abduction', 'Hüftabduktion'), kneeExtension: L('knee extension', 'Kniestreckung'),
-  ankleDorsiflexion: L('ankle dorsiflexion', 'Fußhebung'), footEversion: L('foot eversion', 'Fußeversion'), footInversion: L('foot inversion', 'Fußinversion'), anklePlantarflexion: L('plantarflexion', 'Fußsenkung'),
+  ankleDorsiflexion: L('ankle dorsiflexion', 'Fußhebung'), toeExtension: L('big toe extension', 'Großzehenhebung'), footEversion: L('foot eversion', 'Fußeversion'), footInversion: L('foot inversion', 'Fußinversion'), anklePlantarflexion: L('plantarflexion', 'Fußsenkung'),
 };
-const PYRAMIDAL = new Set(['shoulderAbduction', 'elbowExtension', 'wristExtension', 'fingerAbduction', 'thumbAbduction', 'hipFlexion', 'ankleDorsiflexion', 'footEversion']);
+const PYRAMIDAL = new Set(['shoulderAbduction', 'elbowExtension', 'wristExtension', 'fingerAbduction', 'thumbAbduction', 'hipFlexion', 'ankleDorsiflexion', 'toeExtension', 'footEversion']);
 const PROXIMAL = new Set(['shoulderAbduction', 'elbowFlexion', 'elbowExtension', 'hipFlexion', 'hipAdduction', 'hipAbduction', 'kneeExtension']);
 
 export function explainNeuro(test: NeuroTest, v: NeuroRead): { title: LocalizedText; body: LocalizedText[] } {

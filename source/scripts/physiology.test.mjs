@@ -17,7 +17,7 @@ const sides = (f, mod) => new Set(f.filter((x) => x.modality === mod).map((x) =>
 
 console.log('\nAnatomy graph');
 ok('372 nodes (311 central + 61 peripheral: the spinothalamic tract and dorsal columns by level, the substantia nigra, the polyneuropathy)', Object.keys(NODES).length === 372, String(Object.keys(NODES).length));
-ok('196 pathways (the knee and triceps jerks each carried by two roots, an arc per root)', PATHWAYS.length === 196, String(PATHWAYS.length));
+ok('198 pathways (an arc per root for each tendon reflex; extensor hallucis longus, L5, on each side)', PATHWAYS.length === 198, String(PATHWAYS.length));
 ok('every pathway node exists', PATHWAYS.every((p) => p.nodes.every((n) => NODES[n])));
 ok('every lmnFrom is on its own pathway',
   PATHWAYS.every((p) => !p.lmnFrom || p.nodes.includes(p.lmnFrom)));

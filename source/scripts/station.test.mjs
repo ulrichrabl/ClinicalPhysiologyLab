@@ -350,6 +350,17 @@ console.log('\nThe neurological station');
     ok('parkinsonism: rigidity, rest tremor and a shuffling gait on the right for a left substantia nigra', ['rest-tremor', 'shuffling-gait'].every((x) => signs['parkinson-l'].present.has(x)) && J([...(signs['parkinson-l'].sides.get('rest-tremor') ?? [])]) === '["R"]', J([...signs['parkinson-l'].present]));
     ok('polyneuropathy: stocking loss and lost ankle jerks on both sides', signs.polyneuropathy.present.has('stocking-sensory-loss') && J([...(signs.polyneuropathy.sides.get('absent-ankle-reflex') ?? signs.polyneuropathy.sides.get('reduced-ankle-reflex') ?? [])].sort()) === '["L","R"]', J([...signs.polyneuropathy.present]));
   }
+  {
+    /* time since onset (evidence/neuro.ts): weak at once, wasted from about three weeks, partial loss won back by sprouting */
+    const at = (id, days) => { const m = S.applyNeuroPreset(H, id); m.lesions.days = days; return m; };
+    const pw = (m, ref) => S.neuroObserve(m, ref).value;
+    ok('a cut peroneal nerve: the foot drops at once, the muscle wastes only from about three weeks',
+      pw(at('peroneal-r', 1), 'leg.power.R').ankleDorsiflexion === 0 && !pw(at('peroneal-r', 1), 'leg.tone.R').wasting && pw(at('peroneal-r', 30), 'leg.tone.R').wasting);
+    ok('…a root shares its muscles with its neighbours: C6 weakens to 4/5, and the survivors sprout back to 5/5 by four months',
+      pw(at('c6-root-r', 1), 'arm.power.R').elbowFlexion === 4 && pw(at('c6-root-r', 120), 'arm.power.R').elbowFlexion === 5);
+    ok('…a fresh medullary infarct deviates the tongue but has not wasted it; a month later it has', !pw(at('medial-medulla-l', 1), 'mouth.tongue').wasting && pw(at('medial-medulla-l', 30), 'mouth.tongue').wasting);
+    ok('…the L5 root\'s own muscle: big toe extension paralysed, dorsiflexion only weak', pw(at('l5-root-r', 14), 'leg.power.R').toeExtension === 0 && pw(at('l5-root-r', 14), 'leg.power.R').ankleDorsiflexion === 4);
+  }
   const umn = ['mca-l', 'capsule-l', 'cord-r'], lmn = ['l4-root-r', 'femoral-r', 's1-root-r', 'peroneal-r', 'ulnar-r', 'c6-root-r', 'cerebellum-l', 'dorsal-columns', 'myopathy'];
   ok('the upper motor neuron lesions drift; the roots, nerves, muscle and the cerebellum do not', umn.every((id) => signs[id].present.has('pronator-drift')) && lmn.every((id) => !signs[id].present.has('pronator-drift')));
   ok('…a left hemisphere drifts the right arm; a right cord lesion, below the decussation, the right arm too', J([...signs['mca-l'].sides.get('pronator-drift')]) === '["R"]' && J([...signs['cord-r'].sides.get('pronator-drift')]) === '["R"]');

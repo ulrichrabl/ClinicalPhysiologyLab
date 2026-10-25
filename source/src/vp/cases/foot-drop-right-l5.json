@@ -64,6 +64,7 @@
           "R_drg_L5"
         ],
         "complete": true,
+        "days": 7,
         "label": "Right L5 root (ventral and dorsal)"
       }
     ]

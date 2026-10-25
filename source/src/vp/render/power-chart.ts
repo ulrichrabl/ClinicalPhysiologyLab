@@ -23,6 +23,7 @@ const ROWS: Array<{ limb: 'arm' | 'leg'; move: string; label: T; root: string }>
   { limb: 'leg', move: 'hipAbduction', label: L('Hip abduction', 'Hüftabduktion'), root: 'L5–S1' },
   { limb: 'leg', move: 'kneeExtension', label: L('Knee extension', 'Kniestreckung'), root: 'L3–4' },
   { limb: 'leg', move: 'ankleDorsiflexion', label: L('Ankle dorsiflexion', 'Fußhebung'), root: 'L4–5' },
+  { limb: 'leg', move: 'toeExtension', label: L('Big toe extension', 'Großzehenhebung'), root: 'L5' },
   { limb: 'leg', move: 'footEversion', label: L('Foot eversion', 'Fußeversion'), root: 'L5–S1' },
   { limb: 'leg', move: 'footInversion', label: L('Foot inversion', 'Fußinversion'), root: 'L4–5 (tibial)' },
   { limb: 'leg', move: 'anklePlantarflexion', label: L('Plantarflexion', 'Fußsenkung'), root: 'S1–2' },
