@@ -160,15 +160,15 @@ export function pronatorDrift(base: Pose, look: FigureLook, t: number, finding: 
   const up = c < 1.2 ? minJerk(c / 1.2) : c < 14 ? 1 : 1 - minJerk((c - 14) / 1.2);
   const grow = c >= 2.5 && c < 14 ? minJerk((c - 2.5) / 8) : 0;
   const d = (j: 0 | 1) => (finding.drift[j] ? grow : 0);
-  /* the drift at its fullest: the upper arm 18° below the horizontal, the elbow bent 22°, the forearm turned 60° from
-     palm up, the wrist dropped 10° (placements) */
+  /* the drift at its fullest: the upper arm 22° below the horizontal, the elbow bent 10° (so the hand sinks with the
+     arm), the forearm turned 60° from palm up, the wrist dropped 10° (placements) */
   const pair = (fn: (j: 0 | 1) => number): [number, number] => [fn(0), fn(1)];
   const mix = (a: number, b: number) => a + (b - a) * up;
-  const upper = (j: 0 | 1) => ahead - s * 18 * d(j);
+  const upper = (j: 0 | 1) => ahead - s * 22 * d(j);
   const pose: Pose = {
     ...base,
     armUpper: pair((j) => mix(base.armUpper[j], upper(j))),
-    armFore: pair((j) => mix(base.armFore[j], upper(j) + s * 22 * d(j))),
+    armFore: pair((j) => mix(base.armFore[j], upper(j) + s * 10 * d(j))),
     hand: pair((j) => mix(base.hand[j], -s * 10 * d(j))),
     ...(up > 0.5 ? { outstretch: pair((j) => 60 * d(j)) } : {}),
     eyes: c >= 1.6 && c < 14 ? 1 : 0,

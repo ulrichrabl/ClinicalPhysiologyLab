@@ -64,6 +64,14 @@ They sit a few cm *below* the shoulder line, with a band of trapezius between. T
 
 The arms hang *beside* the chest wall and the breast, never through them. At the armpit or bust level the arm's inner edge lies at the side of the chest or breast, overlapping it a little. The humerus is straight, so the elbow swings out as far as that needs, but by at most 4 cm, so a relaxed arm rests against a full chest instead of standing off like a wing (`armZ`).
 
+### Hands (seen from the side)
+
+From the side the hand is drawn whole from a template in its own centimetres (`render/figure-hand.ts`): the back of the hand toward the viewer, its wrist rows taking the forearm's own width so the two join without a step, and one shading light along the whole arm so the elbow shows no seam. Pointing (finger–nose): the index straight, the other fingers folded into a loose fist, the thumb laid along them. At rest: the fingers together and a little bent (more in distress), foreshortened as they bend; seen edge-on when the hand lies palm down, with its creases and nail hidden. Held out (`Pose.outstretch`, pronator drift): the forearm's rotation decides how much of the back shows, edge-on palm up. From the front and back the hand is still the older mitten (open below).
+
+### Eyes closed
+
+`Pose.eyes` (0 open, 1 closed) draws the lowered lid with its lashes and the lid's fold above, in profile and from the front, for the tests done with the eyes closed.
+
 ### Chest
 
 - **Men:** pectoral mass lit from above, a lower border sweeping into the front of the armpit, and a sternal groove.
@@ -155,9 +163,9 @@ Useful zoom ids:
 
 - **Side view shoulder:** the arm, deltoid included, is drawn whole with its own outline over the trunk. It reads acceptably, but the shoulder does not merge into the trunk the way the front view now does.
 - **Gown from the front:** no bust shaping (no drape or fold under the breasts) and no pectoral form.
-- **Hands:** simple mitten-like shapes with a thumb, and fingers only as a line. They are fine at bedside scale but would need work for hand examinations (asterixis, tremor).
+- **Hands from the front and back:** still simple mitten-like shapes with a thumb, and fingers only as a line. The side view now has real hands (above); hand examinations (asterixis, tremor) would need the front too.
 - **Lying women from above:** long hair spread on the pillow reads as a dark blob.
-- **Animations of examinations** (the next topic, see `docs/HANDOVER.md`): pose the skeleton (`Pose` angles), not the outlines.
+- **Animations of examinations:** pose the skeleton (`Pose` angles), not the outlines. Done: pronator drift, finger–nose and the knee jerk (`render/neuro-motion.ts`). Next: heel–shin, rapid alternating movements, Romberg, gait, the plantar response.
 
 ## Reference images (in `reference/`)
 

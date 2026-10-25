@@ -72,11 +72,13 @@ const both = (id: (s: 'R' | 'L') => string, en: string, de: string) => (['R', 'L
 }));
 export const NEURO_STRUCTURES: Array<{ group: LocalizedText; nodes: Array<{ id: string; label: LocalizedText }> }> = [
   { group: L('Cortex and internal capsule', 'Rinde und Capsula interna'), nodes: [
-    ...both((s) => `${s}_mcx_arm`, 'Motor cortex (arm)', 'Motorkortex (Arm)'), ...both((s) => `${s}_mcx_leg`, 'Motor cortex (leg)', 'Motorkortex (Bein)'),
+    /* the leg's part of the strip is not offered: in the graph the leg's tracts start from the arm's part (known gap 49) */
+    ...both((s) => `${s}_mcx_arm`, 'Motor cortex (arm)', 'Motorkortex (Arm)'),
     ...both((s) => `${s}_ic`, 'Internal capsule', 'Capsula interna'),
   ] },
   { group: L('Cord', 'Rückenmark'), nodes: [
-    ...both((s) => `${s}_cst_C5`, 'Corticospinal tract at C5', 'Pyramidenbahn in Höhe C5'), ...both((s) => `${s}_cst_T10`, 'Corticospinal tract at T10', 'Pyramidenbahn in Höhe Th10'),
+    /* a thoracic level is not offered: the graph's tracts to the legs do not pass T6 or T10 (known gap 49) */
+    ...both((s) => `${s}_cst_C5`, 'Corticospinal tract at C5', 'Pyramidenbahn in Höhe C5'), ...both((s) => `${s}_cst_L2`, 'Corticospinal tract at L2', 'Pyramidenbahn in Höhe L2'),
     ...both((s) => `${s}_dc_asc`, 'Dorsal column', 'Hinterstrang'),
   ] },
   { group: L('Roots and nerves', 'Wurzeln und Nerven'), nodes: [

@@ -46,19 +46,24 @@ export function neuroLadderSvg(test: NeuroTest, lesions: string[], lang: 'en' | 
   const reads = new Set(READS[test]);
   const rowH = 30, top = 8, x0 = 14, w = 250;
   const out: string[] = [];
+  /* each rung's row grows by a line for every structure cut on it, one name a line */
+  const subs = RUNGS.map((r) => { const cut = hit.get(r.id); return cut ? cut.map((n) => pretty(n, lang)) : reads.has(r.id) && PATH[test][r.id] ? [PATH[test][r.id]![lang]] : []; });
+  const ys: number[] = [];
+  let yy = top;
+  RUNGS.forEach((_, i) => { ys.push(yy); yy += rowH + 11 * Math.max(0, subs[i].length - 1); });
+  const mid = (i: number) => ys[i] + rowH / 2 - 4;
   /* the spine of the ladder */
-  out.push(`<line x1="${x0 + 6}" y1="${top + rowH / 2}" x2="${x0 + 6}" y2="${top + rowH * (RUNGS.length - 0.5)}" stroke="${colors.line}" stroke-width="2"/>`);
+  out.push(`<line x1="${x0 + 6}" y1="${mid(0)}" x2="${x0 + 6}" y2="${mid(RUNGS.length - 1)}" stroke="${colors.line}" stroke-width="2"/>`);
   RUNGS.forEach((r, i) => {
-    const y = top + i * rowH, on = reads.has(r.id), cut = hit.get(r.id);
+    const y = mid(i), on = reads.has(r.id), cut = hit.get(r.id);
     const col = cut ? colors.abn : on ? colors.accent : colors.muted;
-    out.push(`<circle cx="${x0 + 6}" cy="${y + rowH / 2}" r="${on || cut ? 6 : 4}" fill="${on || cut ? col : 'none'}" stroke="${col}" stroke-width="1.5"/>`);
-    if (cut) out.push(`<path d="M${x0} ${y + rowH / 2 - 6} l12 12 M${x0 + 12} ${y + rowH / 2 - 6} l-12 12" stroke="${colors.abn}" stroke-width="2.4"/>`);
-    out.push(`<text x="${x0 + 20}" y="${y + rowH / 2 - 2}" font-size="12" font-weight="${on || cut ? 600 : 400}" fill="${on || cut ? colors.fg : colors.muted}">${esc(r.label[lang])}</text>`);
-    const sub = cut ? cut.map((n) => pretty(n, lang)).join(', ') : on ? PATH[test][r.id]?.[lang] ?? '' : '';
-    if (sub) out.push(`<text x="${x0 + 20}" y="${y + rowH / 2 + 11}" font-size="10" fill="${cut ? colors.abn : colors.muted}">${esc(sub)}</text>`);
+    out.push(`<circle cx="${x0 + 6}" cy="${y}" r="${on || cut ? 6 : 4}" fill="${on || cut ? col : 'none'}" stroke="${col}" stroke-width="1.5"/>`);
+    if (cut) out.push(`<path d="M${x0} ${y - 6} l12 12 M${x0 + 12} ${y - 6} l-12 12" stroke="${colors.abn}" stroke-width="2.4"/>`);
+    out.push(`<text x="${x0 + 20}" y="${y + 4}" font-size="12" font-weight="${on || cut ? 600 : 400}" fill="${on || cut ? colors.fg : colors.muted}">${esc(r.label[lang])}</text>`);
+    subs[i].forEach((line, k) => out.push(`<text x="${x0 + 20}" y="${y + 17 + 11 * k}" font-size="10" fill="${cut ? colors.abn : colors.muted}">${esc(line)}</text>`));
   });
   /* the cerebellum, beside the ladder at the level of the brainstem, joined to the cord and the cortex */
-  const cy = top + 2 * rowH + rowH / 2, cx = x0 + w + 20, cOn = reads.has('cerebellum'), cCut = hit.get('cerebellum');
+  const cy = mid(2), cx = x0 + w + 20, cOn = reads.has('cerebellum'), cCut = hit.get('cerebellum');
   const cc = cCut ? colors.abn : cOn ? colors.accent : colors.muted;
   /* joined to the brainstem by its peduncles: a short link clear of the rung's labels */
   out.push(`<path d="M${x0 + 175} ${cy} L${cx - 14} ${cy}" fill="none" stroke="${cc}" stroke-width="1.5" stroke-dasharray="${cOn || cCut ? '' : '3 3'}"/>`);
@@ -67,6 +72,6 @@ export function neuroLadderSvg(test: NeuroTest, lesions: string[], lang: 'en' | 
   out.push(`<text x="${cx}" y="${cy + 26}" font-size="12" text-anchor="middle" font-weight="${cOn || cCut ? 600 : 400}" fill="${cOn || cCut ? colors.fg : colors.muted}">${lang === 'de' ? 'Kleinhirn' : 'Cerebellum'}</text>`);
   const cSub = cCut ? cCut.map((n) => pretty(n, lang)).join(', ') : cOn ? PATH[test].cerebellum?.[lang] ?? '' : '';
   if (cSub) out.push(`<text x="${cx}" y="${cy + 39}" font-size="10" text-anchor="middle" fill="${cCut ? colors.abn : colors.muted}">${esc(cSub)}</text>`);
-  const h = top * 2 + rowH * RUNGS.length;
+  const h = yy + top;
   return `<svg viewBox="0 0 360 ${h}" width="100%" role="img" style="max-width:520px">${out.join('')}</svg>`;
 }
