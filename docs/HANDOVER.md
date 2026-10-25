@@ -91,6 +91,7 @@ Notes:
 | ADR-017 step 1: the ECG station, Explore. One test and its mechanism on one clock: strip (two chosen leads) and conduction ladder, a cursor through the beat, the heart and the cardiac vector in both planes at the cursor, explanations in EN/DE; settings derived from what the 12-lead measures. The electrical model logs its activations for it | "Stations (ADR-017)" below |
 | The eye station, Explore: the whole eye examination with the pathway each test reads; skew deviation told from a nerve palsy by comitance | "Stations (ADR-017)" below |
 | ADR-018 step 1: interventions acting on the running model, scenarios (a case in a scene with a state machine), one clock in 0.1 s ticks, one seeded generator, exact replay from seed and inputs | "Interventions and scenarios (ADR-018)" below |
+| Neurology ward cases: cauda equina from a central disc, Guillain–Barré after diarrhoea, generalised myasthenia, early Parkinson's disease, subacute combined degeneration from B₁₂ deficiency. Every reference sign is the model's; new investigations (CSF, nerve conduction, AChR antibodies, bladder scan, MMA, whole-spine and brain MRI, CT thorax); a spastic paraparetic gait; `parkinsonism` and `subacute-combined-degeneration` syndromes; fatigue tests now record their baseline | `source/src/vp/cases/`, gaps 54–55 in `docs/evidence-grounding-status.md` |
 
 ## Open lists
 

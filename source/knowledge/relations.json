@@ -486,7 +486,7 @@
 {"from": "syndrome:parkinsonism", "rel": "suggests", "to": "condition:parkinsons-disease", "source": "Owner decision 2026-10-17 (ADR-016 open point 2): a syndrome or state links to its causes.", "status": "draft"},
 {"from": "syndrome:parkinsonism", "rel": "suggests", "to": "condition:drug-induced-parkinsonism", "source": "Owner decision 2026-10-17 (ADR-016 open point 2): a syndrome or state links to its causes.", "status": "draft"},
 {"from": "syndrome:parkinsonism", "rel": "suggests", "to": "condition:progressive-supranuclear-palsy", "source": "Owner decision 2026-10-17 (ADR-016 open point 2): a syndrome or state links to its causes.", "status": "draft"},
-{"from": "sign:rest-tremor", "rel": "suggests", "to": "condition:parkinsons-disease", "via": ["test-arm-tone-3"], "status": "draft"},
+{"from": "sign:rest-tremor", "rel": "suggests", "to": "condition:parkinsons-disease", "via": ["test-arm-tone-4"], "status": "draft"},
 {"from": "sign:rigidity", "rel": "suggests", "to": "condition:parkinsons-disease", "via": ["test-arm-tone-2"], "status": "draft"},
 {"from": "sign:shuffling-gait", "rel": "suggests", "to": "condition:parkinsons-disease", "via": ["test-gait-7"], "status": "draft"},
 {"from": "sign:slowed-alternating-movements", "rel": "suggests", "to": "condition:parkinsons-disease", "via": ["test-rapid-alternating-2"], "status": "draft"},

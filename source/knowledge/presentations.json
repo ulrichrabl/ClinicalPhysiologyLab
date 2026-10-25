@@ -161,7 +161,7 @@
 {"id": "test-sustained-upgaze-1", "tests": ["test.sustained-upgaze"], "signs": ["fatigable-ptosis"], "syndrome": "neuromuscular-fatigability", "status": "draft"},
 {"id": "test-arm-tone-1", "tests": ["test.arm.tone"], "signs": ["spasticity"], "syndrome": "umn-syndrome", "status": "draft"},
 {"id": "test-arm-tone-2", "tests": ["test.arm.tone"], "signs": ["rigidity"], "status": "draft", "syndrome": "parkinsonism"},
-{"id": "test-arm-tone-3", "tests": ["test.arm.tone"], "signs": ["rest-tremor"], "syndrome": "parkinsonism", "status": "draft"},
+{"id": "test-arm-tone-4", "tests": ["test.arm.tone"], "signs": ["rest-tremor"], "syndrome": "parkinsonism", "status": "draft"},
 {"id": "test-arm-tone-3", "tests": ["test.arm.tone"], "signs": ["hypotonia", "muscle-wasting", "fasciculation"], "syndrome": "lmn-syndrome", "status": "draft"},
 {"id": "test-arm-power-1", "tests": ["test.arm.power"], "signs": ["pyramidal-weakness"], "syndrome": "umn-syndrome", "status": "draft"},
 {"id": "test-arm-power-2", "tests": ["test.arm.power"], "signs": ["myotomal-weakness"], "status": "draft"},
