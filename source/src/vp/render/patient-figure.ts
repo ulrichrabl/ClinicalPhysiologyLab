@@ -40,6 +40,7 @@ import { LEN, bodyShape, footOutline, limb3, limbOutline, skeleton, stationAt, t
 import { ear, face, hairBehind, hairFront, hairOver, headFrame, headOutline, oxygenSvg, type Palette, type Support } from './figure-head.ts';
 import { BED_TOP, FLOOR, bra, cloth, dressDefs, gown, sleeveSvg, trolley } from './figure-dress.ts';
 import { Projector, frontness, onTube, VIEW_RIGHT, type FigureView } from './figure-view.ts';
+import { pointingHand } from './figure-hand.ts';
 import { braFront, breastFront, chestFront, earsFront, faceFront, gownLinesFront, hairBehindFront, hairFront3, headEgg, oxygenFront, trunkFront, type FrontCtx } from './figure-front.ts';
 
 export { VIEW_RIGHT, VIEW_LEFT, VIEW_FRONT, VIEW_BACK, type FigureView } from './figure-view.ts';
@@ -413,6 +414,17 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
     const z = armZ(i);
     /* pointing: the other fingers close into the palm and the index stays straight along the hand */
     const pt = clamp(p.point?.[i] ?? 0, 0, 1), cu = lerp(curl, 165, pt);
+    /* a hand that points is drawn whole, from its side (figure-hand.ts) */
+    if (pt >= 0.5) {
+      /* the forearm stops 2.5 cm short of the wrist and the hand takes over there at the forearm's own width, so the
+         forearm's rounded end lies inside the hand */
+      const cut = LEN.fore - 2.5, wst = stationAt(sh.fore, cut), half = (wst.a + wst.p) / 2;
+      const foreCut = [...sh.fore.filter((t) => t.s < cut), wst];
+      const h = pointingHand({ wrist: k.wrist[i], angle: k.handA[i], thumb: (k.flip > 0 ? -1 : 1) as 1 | -1, u, broad: 1, wristThumb: half * 0.75, wristUlnar: half * 0.75 });
+      return { upper: joinShoulder ? limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh + ((z.el - z.sh) * ARM0) / LEN.upper, z.el) : limb3(pr, k.shoulder, k.upperA[i], upperSt, k.flip, z.sh, z.el),
+        fore: limb3(pr, k.elbow[i], k.foreA[i], foreCut, k.flip, z.el, z.wr), hand: [h.outline.map((q) => pr.P(q, z.wr))], fingers: [] as Pt[][], thumb: [] as Pt[][],
+        lines: h.lines.map((l) => l.map((q) => pr.P(q, z.wr))) };
+    }
     const index = pt > 0.05 ? limb3(pr, knuckle(i), k.handA[i] + (1 - pt) * curl * k.flip, sh.fingers.map((t) => ({ ...t, a: t.a * 0.75, p: t.p * 0.75, w: 0.8 })), k.flip, z.wr, z.wr) : [];
     return {
       upper: joinShoulder ? limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh + ((z.el - z.sh) * ARM0) / LEN.upper, z.el).map((pts) => pts) : limb3(pr, k.shoulder, k.upperA[i], upperSt, k.flip, z.sh, z.el), fore: limb3(pr, k.elbow[i], k.foreA[i], sh.fore, k.flip, z.el, z.wr),
@@ -477,7 +489,11 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
   const armFills = (i: 0 | 1): [string, string, string] => {
     const z = armZ(i), s0 = pr.P(k.shoulder, z.sh), el = pr.P(k.elbow[i], z.el), wr = pr.P(k.wrist[i], z.wr);
     /* from the front the upper arms share the chest's light (one body, no seam at the shoulder) */
-    return [joinShoulder ? gWide : g(`upper${i}`, mid(s0, el), ang(s0, el), 5), joinShoulder ? gWide : g(`fore${i}`, mid(el, wr), ang(el, wr), 3.6), joinShoulder ? gWide : g(`hand${i}`, wr, ang(wr, pr.P(knuckle(i), z.wr)), 3)];
+    if (joinShoulder) return [gWide, gWide, gWide];
+    /* From the side the upper arm and the forearm share one light, across the line from shoulder to wrist: a bent
+       elbow then shows no seam where the forearm's end lies over the upper arm's (each part's own light did). */
+    const whole = g(`arm${i}`, mid(s0, wr), ang(s0, wr), 8);
+    return [whole, whole, (p.point?.[i] ?? 0) >= 0.5 ? whole : g(`hand${i}`, wr, ang(wr, pr.P(knuckle(i), z.wr)), 3)];
   };
   const sideAttr = (i: 0 | 1) => (i === 0 ? 'R' : 'L');
   const dress = gown(pr, k, { ...sh, upper: upperSt }, look, pal, {
@@ -549,7 +565,9 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
     out.push(layer([{ attrs: `data-region="arm" data-side="${sideAttr(i)}"`, parts: armParts(i, armFills(i)) }], pal.line, lineW));
     /* the top of the arm proper and its inner edge above the armpit disappear under the shoulder (its fill, inside its outline) */
     if (joinShoulder && !dress.sleeve) out.push(`<path d="${closedPath(shoulderShape(i, 0, 0.45, 13, 0.5))}" fill="${armFills(i)[0]}" pointer-events="none"/>`);
-    if (i === 0 && near === 0) out.push(prof(() => armDetails(k, look, pal, curl)));
+    const pointing = (p.point?.[i] ?? 0) >= 0.5;
+    if (i === 0 && near === 0 && !pointing) out.push(prof(() => armDetails(k, look, pal, curl)));
+    if (pointing) { const ln = (arm(i) as { lines?: Pt[][] }).lines ?? []; out.push(`<g pointer-events="none" opacity="${f(1 - fp * 0.6)}">${ln.map((l) => `<path d="${openPath(l)}" fill="none" stroke="${pal.line}" stroke-width=".45" stroke-linecap="round" opacity=".55"/>`).join('')}</g>`); }
     if (dress.sleeve) out.push(joinShoulder ? sleeveOver(i) : sleeveSvg(dress.sleeve[i], gownFill, pal.gownLine, pr.profile ? dress.sleeveCut[i] : ''));
   }
   /* the bare chest's anatomy lies over the tops of the arms (the shoulder) */
