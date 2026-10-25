@@ -635,6 +635,7 @@ export function mount(root: HTMLElement) {
       const rf = (closed: boolean) => findings.find((f) => f.property === 'posture.romberg' && !!f.context?.eyesClosed === closed)?.value as any;
       if (rf(false) || rf(true)) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'romberg', open: rf(false) ?? { stance: 'steady' }, closed: rf(true) ?? { stance: 'steady' } } }); return; }
     }
+    if (m.id === 'test.pull' && fv('posture.pull-test')) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'pull', finding: fv('posture.pull-test') as any } }); return; }
     if (m.id === 'test.gait' && fv('gait.pattern')) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'gait', finding: fv('gait.pattern') as any } }); return; }
     const faceL = findings.find((f) => f.property === 'face.movement.L'), faceR = findings.find((f) => f.property === 'face.movement.R');
     if (faceL && faceR) { setVisual({ kind: 'face', L: faceL.value as FaceFinding, R: faceR.value as FaceFinding }); return; }

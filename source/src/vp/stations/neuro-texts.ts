@@ -147,6 +147,15 @@ export function explainNeuro(test: NeuroTest, v: NeuroRead): { title: LocalizedT
       if (out.length === 1) add('Quick and regular on both sides.', 'Beidseits rasch und regelmäßig.');
       return { title: L('Rapid alternating movements', 'Diadochokinese'), body: out };
     }
+    case 'pull': {
+      add('Standing, the patient is pulled back by the shoulders, quickly. The postural reflexes, from the basal ganglia and the brainstem, answer with a step or two back. In parkinsonism they fail late, once both sides are affected (Hoehn and Yahr stage 3, after a median of about seven years): the patient takes many small, quick steps back (retropulsion), or would fall.',
+        'Im Stand wird der Patient rasch an den Schultern nach hinten gezogen. Die Haltungsreflexe, von Basalganglien und Hirnstamm, antworten mit einem oder zwei Schritten zurück. Beim Parkinsonismus versagen sie spät, wenn beide Seiten betroffen sind (Hoehn-und-Yahr-Stadium 3, nach im Median etwa sieben Jahren): Der Patient macht viele kleine, schnelle Schritte zurück (Retropulsion) oder würde stürzen.');
+      const r = v('posture.pull-test')?.response;
+      if (r === 'steps') add('Many small steps back: postural reflexes lost, as in advanced parkinsonism. A fall risk.', 'Viele kleine Schritte zurück: Haltungsreflexe verloren, wie beim fortgeschrittenen Parkinsonismus. Sturzgefahr.');
+      else if (r === 'falls') add('No step at all: the patient would fall. Postural reflexes absent.', 'Kein Schritt: Der Patient würde stürzen. Haltungsreflexe fehlen.');
+      else add('One or two steps back: postural reflexes intact.', 'Ein oder zwei Schritte zurück: Haltungsreflexe erhalten.');
+      return { title: L('Pull test: the postural reflexes', 'Zugtest: die Haltungsreflexe'), body: out };
+    }
     case 'romberg': {
       add('Standing with the feet together, first with the eyes open, then closed. Three things keep us upright: sight, the labyrinths and the sense of where the feet are (the dorsal columns). Take one away and the other two suffice. Steady with the eyes open but falling when they close (Romberg’s sign) means the sense of position is lost: sensory ataxia. Unsteady even with the eyes open is the cerebellum’s (the vermis). A one-sided vestibular loss pushes toward its own side.',
         'Stehen mit geschlossenen Füßen, erst mit offenen, dann mit geschlossenen Augen. Drei Dinge halten uns aufrecht: das Sehen, die Labyrinthe und der Lagesinn der Füße (die Hinterstränge). Fällt eines aus, genügen die beiden anderen. Sicher mit offenen Augen, aber fallend, sobald sie sich schließen (Romberg-Zeichen), heißt: Der Lagesinn fehlt, sensible Ataxie. Unsicher schon mit offenen Augen ist das Kleinhirn (der Vermis). Ein einseitiger Vestibularisausfall drängt zu seiner Seite.');

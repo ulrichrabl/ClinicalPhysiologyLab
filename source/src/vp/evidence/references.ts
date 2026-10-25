@@ -520,6 +520,12 @@ export const REFERENCES: Record<string, Reference> = Object.fromEntries([
   R({ id: 'perkins2018', authors: 'Perkins GD, Ji C, Deakin CD, et al.', title: 'A randomized trial of epinephrine in out-of-hospital cardiac arrest',
     journal: 'N Engl J Med', year: 2018, volume: '379', pages: '711–21', doi: '10.1056/NEJMoa1806842', pmid: '30021076', verified: 'secondary',
     note: 'PARAMEDIC2, 8,014 patients. Abstract: 30-day survival 3.2 % against 2.4 % (OR 1.39, 1.06–1.82), favourable neurological outcome 2.2 % against 1.9 %. Read in a summary (Critical Care Reviews), not the paper: any ROSC 36.3 % against 11.7 %, ROSC at hospital arrival 23.8 % against 8.0 % (OR 3.59, 3.14–4.12); initial rhythm shockable in about 19 %, asystole or PEA about 78 %; adrenaline at once in non-shockable rhythms, after the third shock in shockable ones, then every 3–5 min; emergency call to drug a median 21.5 min.' }),
+  R({ id: 'macleod2026', authors: 'Macleod AD, McLernon DJ, Camacho M, et al.', title: 'Prognosis in Parkinson’s disease: an individual patient data meta-analysis of six European incidence cohorts',
+    journal: 'Mov Disord', year: 2026, volume: '41', pages: '1798–811', doi: '10.1002/mds.70303', pmid: '41964342', verified: 'abstract',
+    note: '883 population-based incident patients, median age at motor onset 69.2 years: median time to postural instability (Hoehn & Yahr stage 3) 7.4 years.' }),
+  R({ id: 'munhoz2014', authors: 'Munhoz RP, Teive HA', title: 'Pull test performance and correlation with falls risk in Parkinson’s disease',
+    journal: 'Arq Neuropsiquiatr', year: 2014, volume: '72', pages: '587–91', doi: '10.1590/0004-282x20140082', pmid: '25003398', verified: 'abstract',
+    note: '264 patients: each step up in the pull test score went with more frequent falls; any abnormal score was sensitive, with excellent negative predictive value.' }),
   /* strength, motor units and denervation (the neurological examination) */
   R({ id: 'dvir1997', authors: 'Dvir Z', title: 'Grade 4 in manual muscle testing: the problem with submaximal strength assessment',
     journal: 'Clin Rehabil', year: 1997, volume: '11', pages: '36–41', doi: '10.1177/026921559701100106', verified: 'abstract',

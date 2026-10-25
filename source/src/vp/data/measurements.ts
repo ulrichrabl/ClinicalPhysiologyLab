@@ -108,6 +108,8 @@ export const MEASUREMENTS: Record<string, MeasurementSpec> = {
   'head.weber': M([LESIONS], 'A fork on the vertex lateralises toward a conductive loss and away from a sensorineural one.', 'Eine Stimmgabel auf dem Scheitel lateralisiert zur Schallleitungsstörung und weg von einer Schallempfindungsstörung.'),
   'posture.romberg': M(['vor.spv', LESIONS], 'Stance with feet together, eyes open then closed. Closing the eyes removes vision; if the patient now falls, joint position sense (or labyrinth) was what was missing.',
     'Stand mit geschlossenen Füßen, Augen offen, dann geschlossen. Augenschluss nimmt das Sehen weg; fällt der Patient jetzt, fehlte der Lagesinn (oder das Labyrinth).'),
+  'posture.pull-test': M([LESIONS], 'Standing, feet a little apart; the examiner behind pulls the shoulders back quickly. Up to two steps back is normal; more, or no step at all, is the loss of postural reflexes (MDS-UPDRS 3.12).',
+    'Im Stand, Füße leicht gespreizt; der Untersucher hinter dem Patienten zieht rasch an den Schultern. Bis zu zwei Schritte zurück sind normal; mehr, oder gar kein Schritt, ist der Verlust der Haltungsreflexe (MDS-UPDRS 3.12).'),
   'gait.pattern': M(['vor.spv', LESIONS], 'Walking integrates power, tone, sensation, cerebellum and labyrinth; the pattern localises.', 'Gehen integriert Kraft, Tonus, Sensibilität, Kleinhirn und Labyrinth; das Muster lokalisiert.'),
 
   /* ---- cranial nerves, speech ------------------------------------------------------------------------ */

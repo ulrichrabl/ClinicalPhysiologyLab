@@ -71,6 +71,7 @@
 {"id": "test.rinne", "status": "draft"},
 {"id": "test.weber", "status": "draft"},
 {"id": "test.romberg", "status": "draft"},
+{"id": "test.pull", "animation": "station:neuro", "status": "draft"},
 {"id": "test.gait", "status": "draft"},
 {"id": "test.finger-nose", "animation": "station:neuro", "status": "draft"},
 {"id": "test.face-movement", "status": "draft"},

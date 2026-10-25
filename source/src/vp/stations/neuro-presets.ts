@@ -75,6 +75,8 @@ export const NEURO_PRESETS: NeuroPreset[] = [
   { id: 'myopathy', label: L('Proximal myopathy', 'Proximale Myopathie'), lesions: ['L_muscle_prox', 'R_muscle_prox'], complete: true, days: 365, signs: ['proximal-symmetrical-weakness', 'waddling-gait'], look: 'gait' },
   /* the extrapyramidal system and the longest nerves */
   { id: 'parkinson-l', label: L('Left substantia nigra (parkinsonism, right side)', 'Substantia nigra links (Parkinsonismus rechts)'), lesions: ['L_snc'], complete: true, days: 730, signs: ['rigidity', 'rest-tremor', 'slowed-alternating-movements', 'shuffling-gait'], look: 'gait' },
+  { id: 'parkinson-both', label: L('Parkinson’s disease, both sides, eight years', 'Morbus Parkinson, beidseits, acht Jahre'), lesions: ['L_snc', 'R_snc'], complete: true, days: 2920,
+    signs: ['rigidity', 'rest-tremor', 'shuffling-gait', 'postural-instability'], look: 'pull' },
   { id: 'polyneuropathy', label: L('Length-dependent polyneuropathy', 'Längenabhängige Polyneuropathie'), lesions: ['polyneuropathy'], complete: true, days: 730, signs: ['stocking-sensory-loss', 'absent-ankle-reflex', 'distal-vibration-loss', 'foot-drop'], look: 'sensation' },
   /* coordination and sensation */
   { id: 'cerebellum-l', label: L('Left cerebellar hemisphere', 'Kleinhirnhemisphäre links'), lesions: ['L_cerebellum'], complete: true, days: 1, signs: ['limb-dysmetria', 'intention-tremor'], look: 'finger-nose' },
@@ -88,7 +90,7 @@ export const NEURO_PRESET_GROUPS: Array<{ group: LocalizedText; ids: string[] }>
   { group: L('Brainstem and cranial nerves', 'Hirnstamm und Hirnnerven'), ids: ['wallenberg-l', 'medial-medulla-l', 'cn3-l', 'cn6-l', 'horner-l', 'bell-l'] },
   { group: L('Roots, plexus and nerves', 'Wurzeln, Plexus und Nerven'), ids: ['c6-root-r', 'l4-root-r', 'l5-root-r', 's1-root-r', 'cauda-equina', 'erb-r', 'femoral-r', 'peroneal-r', 'ulnar-r'] },
   { group: L('Junction and muscle', 'Endplatte und Muskel'), ids: ['myasthenia', 'myopathy'] },
-  { group: L('Basal ganglia and polyneuropathy', 'Basalganglien und Polyneuropathie'), ids: ['parkinson-l', 'polyneuropathy'] },
+  { group: L('Basal ganglia and polyneuropathy', 'Basalganglien und Polyneuropathie'), ids: ['parkinson-l', 'parkinson-both', 'polyneuropathy'] },
   { group: L('Coordination and sensation', 'Koordination und Sensibilität'), ids: ['cerebellum-l', 'vermis', 'dorsal-columns', 'sensory-cortex-l'] },
 ];
 

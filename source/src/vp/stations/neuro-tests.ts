@@ -14,7 +14,7 @@ import type { Rung } from './neuro-texts.ts';
 const L = (en: string, de: string): LocalizedText => ({ en, de });
 
 export type NeuroTest = 'tone' | 'power' | 'drift' | 'arm-reflexes' | 'leg-reflexes' | 'finger-nose' | 'rapid-alternating' | 'heel-shin'
-  | 'romberg' | 'gait' | 'sensation' | 'eyes' | 'cranial' | 'speech';
+  | 'romberg' | 'pull' | 'gait' | 'sensation' | 'eyes' | 'cranial' | 'speech';
 export type NeuroGroup = 'motor' | 'reflexes' | 'coordination' | 'stance' | 'sensation' | 'cranial';
 
 export interface NeuroLine { ref: string; ctx?: ExamContext; label?: LocalizedText }
@@ -78,6 +78,9 @@ export const NEURO_TESTS: NeuroTestDef[] = [
   { id: 'romberg', group: 'stance', label: L('Romberg', 'Romberg-Stehversuch'), manoeuvres: ['test.romberg'],
     lines: () => [{ ref: 'posture.romberg', ctx: { eyesClosed: false }, label: OPEN }, { ref: 'posture.romberg', ctx: { eyesClosed: true }, label: SHUT }],
     reads: ['cerebellum', 'brainstem', 'cord', 'root', 'nerve'], path: { cerebellum: L('vermis', 'Vermis'), brainstem: L('vestibular nuclei', 'Vestibulariskerne'), cord: L('dorsal columns', 'Hinterstränge'), root: L('dorsal roots', 'Hinterwurzeln'), nerve: L('sensory nerves of the legs', 'sensible Beinnerven') } },
+  { id: 'pull', group: 'stance', label: L('Pull test', 'Zugtest'), manoeuvres: ['test.pull'],
+    lines: () => [{ ref: 'posture.pull-test' }],
+    reads: ['basal-ganglia', 'brainstem', 'cerebellum'], path: { 'basal-ganglia': L('substantia nigra and striatum (postural reflexes)', 'Substantia nigra und Striatum (Haltungsreflexe)'), brainstem: L('pedunculopontine nucleus', 'Nucleus pedunculopontinus'), cerebellum: L('vermis', 'Vermis') } },
   { id: 'gait', group: 'stance', label: L('Gait', 'Gangbild'), manoeuvres: ['test.gait'],
     lines: () => [{ ref: 'gait.pattern' }],
     reads: ['cortex', 'basal-ganglia', 'capsule', 'brainstem', 'cord', 'root', 'nerve', 'muscle', 'cerebellum'], path: { ...MOTOR_PATH, 'basal-ganglia': L('substantia nigra (shuffling)', 'Substantia nigra (Kleinschrittigkeit)'), cerebellum: L('vermis and hemispheres', 'Vermis und Hemisphären') } },

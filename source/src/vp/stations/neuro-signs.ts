@@ -58,7 +58,7 @@ export function neuroSignsOf(model: PatientModel): { present: Set<string>; where
 /** The station's signs by the test that looks for them first (the most specific: a sign the general tests also see goes
     to the one that shows it best), in the station's order: how Predict and Identify offer them. */
 export function neuroSignGroups(): Array<{ test: NeuroTest; signs: string[] }> {
-  const PRIORITY: NeuroTest[] = ['drift', 'romberg', 'gait', 'finger-nose', 'heel-shin', 'rapid-alternating', 'arm-reflexes', 'leg-reflexes', 'sensation', 'eyes', 'cranial', 'speech', 'tone', 'power'];
+  const PRIORITY: NeuroTest[] = ['drift', 'romberg', 'pull', 'gait', 'finger-nose', 'heel-shin', 'rapid-alternating', 'arm-reflexes', 'leg-reflexes', 'sensation', 'eyes', 'cranial', 'speech', 'tone', 'power'];
   const all = neuroSigns(), home = new Map<string, NeuroTest>();
   for (const id of PRIORITY) {
     const t = NEURO_TESTS.find((x) => x.id === id)!;

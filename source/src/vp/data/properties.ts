@@ -335,6 +335,12 @@ export const PROPERTIES: PropertyDef[] = [
     source: 'model-or-case', resolver: 'neuro.balance', formatter: 'posture.romberg', renderer: 'svg.patient',
   },
   {
+    id: 'posture.pull-test', structure: 'posture', label: { en: 'Pull test', de: 'Zugtest (Pull-Test)' },
+    value: rec({ response: c('pull-response') }),
+    normal: { value: { response: 'recovers' } },
+    source: 'model-or-case', resolver: 'neuro.balance', formatter: 'posture.pull-test', renderer: 'svg.patient',
+  },
+  {
     id: 'gait.pattern', structure: 'gait', label: { en: 'Gait', de: 'Gangbild' },
     value: rec({ pattern: c('gait-pattern'), toward: side }, ['toward']),
     normal: { value: { pattern: 'normal' } },

@@ -303,6 +303,7 @@ export const FORMATTERS: Record<string, Formatter> = {
     if (de(l)) return `Romberg-Stehversuch ${eyes}: ${lab(cat, 'stance', v.stance, l)}${toward}.`;
     return `Feet together, ${eyes}: ${lab(cat, 'stance', v.stance, l)}${toward}.`;
   },
+  'posture.pull-test': (v, _c, l, cat) => (de(l) ? `Zugtest: ${lab(cat, 'pull-response', v.response, l)}.` : `Pull test: ${lab(cat, 'pull-response', v.response, l)}.`),
   'gait.pattern': (v, _c, l, cat) => {
     const limbSide = v.pattern === 'hemiplegic' || v.pattern === 'high-stepping';
     const toward = !v.toward ? '' : limbSide

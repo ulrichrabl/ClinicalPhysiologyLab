@@ -37,6 +37,9 @@ export interface MotionFrame {
       walking toward the examiner (`drift`: sideways, units, positive toward the patient's right; `lurch`: the trunk's sway
       over the standing leg, degrees, positive toward the right). */
   walk?: { ahead: number; drift: number; lurch: number };
+  /** The pull test, from the side: the body tilted back about the feet (degrees), the examiner's hands on the shoulders
+      (`hold`) or ready behind them, and which way the patient faces in the drawing (`s`, +1 to the right). */
+  pull?: { tilt: number; hold: boolean; s: 1 | -1; start: number };
 }
 
 /** Bring the fingertip of arm i (0 near, 1 far) to `target`, the elbow below the line from shoulder to target. */
@@ -501,3 +504,51 @@ export function legReflexes(base: Pose, look: FigureLook, t: number, g: LegRefle
   const pen = c < 1.6 ? `<path d="M${f(tail.x)} ${f(tail.y)} L${f(tip.x)} ${f(tip.y)}" stroke="#3a3f47" stroke-width="${f(1.4 * u)}" stroke-linecap="round"/><path d="M${f(tail.x + s * 2 * u)} ${f(tail.y + 2.4 * u)} L${f(tail.x + s * 18 * u)} ${f(tail.y + 12 * u)}" stroke="#4f7f86" stroke-width="${f(6.5 * u)}" stroke-linecap="round"/>` : '';
   return { pose, props: `<g class="examiner" pointer-events="none">${pen}</g>`, reflex: 'plantar' };
 }
+
+
+/* ---- the pull test ------------------------------------------------------------------------------------------------- */
+
+export interface PullFinding { response: 'recovers' | 'steps' | 'falls' }
+
+/** The pull test (MDS-UPDRS 3.12), standing, from the side, `t` seconds in (an 8 s cycle): the examiner behind, hands on
+    the shoulders, pulls back quickly at 1.5 s. A healthy person leans and takes one step back, or none; with postural
+    instability the steps are many, small and quick (retropulsion); a patient without postural reflexes would fall and is
+    caught. Step lengths, times and the lean are placements judged by eye. */
+export function pullTest(base: Pose, look: FigureLook, t: number, f: PullFinding): MotionFrame {
+  const J = figureJoints(base, look), s: 1 | -1 = J.anterior.x >= 0 ? 1 : -1, u = J.u, down = -90;
+  const CYCLE = 8, c = ((t % CYCLE) + CYCLE) % CYCLE, PULL = 1.5, JOLT = 0.3;
+  const legLen = (LEN.thigh + LEN.shin) * u;
+  const steps = f.response === 'recovers' ? 1 : f.response === 'steps' ? 5 : 0;
+  const dur = f.response === 'recovers' ? 0.55 : 0.34, L = (f.response === 'recovers' ? 24 : 12) * u;
+  const since = c - PULL, end = JOLT + steps * dur;
+  /* the lean back: the jolt, held while stepping, then upright again; a fall goes on until the hands catch it */
+  let tilt = 0;
+  if (since > 0) {
+    if (f.response === 'falls') tilt = 5 * minJerk(since / JOLT) + 11 * minJerk((since - JOLT) / 1.0);
+    else { const peak = f.response === 'steps' ? 7 : 5; tilt = since < JOLT ? peak * minJerk(since / JOLT) : since < end ? peak : peak * (1 - minJerk((since - end) / 0.5)); }
+  }
+  /* the feet and the hips along the line of the body (+ forward): each step carries one foot back past the hips */
+  let H = 0;
+  const F = [0, 0], knee = [0, 0];
+  for (let k = 0; k < steps; k++) {
+    const t0 = PULL + JOLT + k * dur;
+    if (c < t0) break;
+    const p = clamp((c - t0) / dur, 0, 1), j = k % 2, h0 = -k * L, h1 = -(k + 1) * L;
+    const target = h1 - (k === steps - 1 && steps > 1 ? 0.2 : 0.6) * L;
+    H = h0 + (h1 - h0) * minJerk(p);
+    F[j] = F[j] + (target - F[j]) * minJerk(p);
+    knee[j] = (f.response === 'steps' ? 14 : 28) * Math.sin(Math.PI * p);
+  }
+  const thigh: [number, number] = [0, 0], shin: [number, number] = [0, 0];
+  for (const j of [0, 1] as const) {
+    const th = Math.asin(clamp((F[j] - H) / legLen, -0.6, 0.6)) / D2R;
+    thigh[j] = down + s * (th + knee[j] / 2);
+    shin[j] = thigh[j] - s * knee[j];
+  }
+  /* the arms come forward as the body goes back */
+  const reach = 18 * clamp(tilt / 7, 0, 1.4);
+  const pose: Pose = { ...base, hipX: base.hipX + s * H, thigh, shin, foot: [0, 0], armUpper: [down + s * reach, down + s * reach * 0.8], armFore: [down + s * (reach + 10), down + s * (reach * 0.8 + 10)] };
+  const hold = c < PULL + JOLT || (f.response === 'falls' && since > 0.9);
+  return { pose, props: '', pull: { tilt, hold, s, start: base.hipX } };
+}
+
