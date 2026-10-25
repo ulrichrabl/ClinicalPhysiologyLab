@@ -48,9 +48,13 @@ export const NEURO_PRESETS: NeuroPreset[] = [
     signs: ['fasciculation', 'hyperreflexia', 'extensor-plantar'], look: 'tone' },
   /* brainstem and cranial nerves */
   { id: 'wallenberg-l', label: L('Left lateral medulla (Wallenberg)', 'Laterale Medulla links (Wallenberg)'),
-    lesions: ['L_cn5_sens', 'L_lat_bs', 'L_icp', 'L_cn9_nuc', 'L_cn10_nuc', 'L_stt_asc'], complete: true, signs: ['crossed-sensory-loss', 'limb-dysmetria', 'uvula-deviation'], look: 'sensation' },
+    lesions: ['L_cn5_sens', 'L_lat_bs', 'L_icp', 'L_cn9_nuc', 'L_cn10_nuc', 'L_stt_asc'], complete: true, signs: ['crossed-sensory-loss', 'limb-dysmetria', 'uvula-deviation', 'ptosis', 'anisocoria'], look: 'sensation' },
   { id: 'medial-medulla-l', label: L('Left medial medulla', 'Mediale Medulla links'),
     lesions: ['L_med_pyr', 'L_dc_nuc', 'L_cn12_nuc'], complete: true, signs: ['pronator-drift', 'extensor-plantar', 'tongue-deviation', 'tongue-wasting'], look: 'cranial' },
+  { id: 'cn3-l', label: L('Left third nerve (pupil involved)', 'N. oculomotorius links (mit Pupille)'),
+    lesions: ['L_cn3'], complete: true, signs: ['ptosis', 'fixed-dilated-pupil', 'eye-down-and-out'], look: 'eyes' },
+  { id: 'cn6-l', label: L('Left sixth nerve', 'N. abducens links'), lesions: ['L_cn6'], complete: true, signs: ['abduction-deficit'], look: 'eyes' },
+  { id: 'horner-l', label: L('Left sympathetic chain (Horner’s syndrome)', 'Grenzstrang links (Horner-Syndrom)'), lesions: ['L_scg'], complete: true, signs: ['ptosis', 'anisocoria', 'dilation-lag'], look: 'eyes' },
   { id: 'bell-l', label: L('Left facial nerve (Bell’s palsy)', 'N. facialis links (Bell-Parese)'),
     lesions: ['L_cn7'], complete: true, signs: ['lmn-facial-weakness'], look: 'cranial' },
   /* roots, plexus and nerves */
@@ -79,7 +83,7 @@ export const NEURO_PRESETS: NeuroPreset[] = [
 
 export const NEURO_PRESET_GROUPS: Array<{ group: LocalizedText; ids: string[] }> = [
   { group: L('Upper motor neuron', 'Erstes Motoneuron'), ids: ['mca-l', 'capsule-l', 'cord-r', 'cord-t10-r', 'mnd'] },
-  { group: L('Brainstem and cranial nerves', 'Hirnstamm und Hirnnerven'), ids: ['wallenberg-l', 'medial-medulla-l', 'bell-l'] },
+  { group: L('Brainstem and cranial nerves', 'Hirnstamm und Hirnnerven'), ids: ['wallenberg-l', 'medial-medulla-l', 'cn3-l', 'cn6-l', 'horner-l', 'bell-l'] },
   { group: L('Roots, plexus and nerves', 'Wurzeln, Plexus und Nerven'), ids: ['c6-root-r', 'l4-root-r', 'l5-root-r', 's1-root-r', 'cauda-equina', 'erb-r', 'femoral-r', 'peroneal-r', 'ulnar-r'] },
   { group: L('Junction and muscle', 'Endplatte und Muskel'), ids: ['myasthenia', 'myopathy'] },
   { group: L('Basal ganglia and polyneuropathy', 'Basalganglien und Polyneuropathie'), ids: ['parkinson-l', 'polyneuropathy'] },
@@ -109,10 +113,13 @@ export const NEURO_STRUCTURES: Array<{ group: LocalizedText; nodes: Array<{ id: 
   { group: L('Basal ganglia', 'Basalganglien'), nodes: [...both((s) => `${s}_snc`, 'Substantia nigra', 'Substantia nigra')] },
   { group: L('Brainstem', 'Hirnstamm'), nodes: [
     ...both((s) => `${s}_med_pyr`, 'Medullary pyramid', 'Pyramide der Medulla'), ...both((s) => `${s}_icp`, 'Inferior cerebellar peduncle', 'Unterer Kleinhirnstiel'),
+    ...both((s) => `${s}_lat_bs`, 'Lateral medulla (sympathetic, vestibular nuclei)', 'Laterale Medulla (Sympathikus, Vestibulariskerne)'),
     ...both((s) => `${s}_cn5_sens`, 'Trigeminal sensory nucleus', 'Sensibler Trigeminuskern'), ...both((s) => `${s}_cn10_nuc`, 'Nucleus ambiguus (IX, X)', 'Nucleus ambiguus (IX, X)'),
     ...both((s) => `${s}_cn12_nuc`, 'Hypoglossal nucleus (XII)', 'Hypoglossuskern (XII)'),
   ] },
   { group: L('Cranial nerves', 'Hirnnerven'), nodes: [
+    ...both((s) => `${s}_cn3`, 'Oculomotor nerve (III)', 'N. oculomotorius (III)'), ...both((s) => `${s}_cn6`, 'Abducens nerve (VI)', 'N. abducens (VI)'),
+    ...both((s) => `${s}_scg`, 'Sympathetic chain (superior cervical ganglion)', 'Grenzstrang (Ganglion cervicale superius)'),
     ...both((s) => `${s}_cn7`, 'Facial nerve (VII)', 'N. facialis (VII)'), ...both((s) => `${s}_cn12`, 'Hypoglossal nerve (XII)', 'N. hypoglossus (XII)'),
     ...both((s) => `${s}_cn11`, 'Accessory nerve (XI)', 'N. accessorius (XI)'),
   ] },

@@ -4,8 +4,9 @@ import type { Rung } from './neuro-texts.ts';
 
 /* ---------------------------------------------------------------------------
    The neurological station's tests: the whole examination of the nervous
-   system outside the eyes (which have their own station), in the order it is
-   done at the bedside. Each names the catalog's manoeuvres it is, the
+   system, in the order it is done at the bedside. The eyes are here as the
+   neurological examination does them (lids, pupils, movements); the eye
+   station has them in depth. Each names the catalog's manoeuvres it is, the
    observations it shows, and the rungs of the ladder it reads. What each
    finding is comes from the examination model.
 --------------------------------------------------------------------------- */
@@ -13,7 +14,7 @@ import type { Rung } from './neuro-texts.ts';
 const L = (en: string, de: string): LocalizedText => ({ en, de });
 
 export type NeuroTest = 'tone' | 'power' | 'drift' | 'arm-reflexes' | 'leg-reflexes' | 'finger-nose' | 'rapid-alternating' | 'heel-shin'
-  | 'romberg' | 'gait' | 'sensation' | 'cranial' | 'speech';
+  | 'romberg' | 'gait' | 'sensation' | 'eyes' | 'cranial' | 'speech';
 export type NeuroGroup = 'motor' | 'reflexes' | 'coordination' | 'stance' | 'sensation' | 'cranial';
 
 export interface NeuroLine { ref: string; ctx?: ExamContext; label?: LocalizedText }
@@ -83,6 +84,13 @@ export const NEURO_TESTS: NeuroTestDef[] = [
   { id: 'sensation', group: 'sensation', label: L('Sensation', 'Sensibilität'), manoeuvres: ['test.arm.pinprick', 'test.leg.pinprick', 'test.trunk.pinprick', 'test.saddle', 'test.arm.vibration', 'test.leg.vibration', 'test.face-sensation'],
     lines: () => [...bothSides('arm.pinprick'), ...bothSides('leg.pinprick'), ...bothSides('trunk.pinprick'), { ref: 'saddle.sensation' }, ...bothSides('arm.vibration'), ...bothSides('leg.vibration'), ...bothSides('face.sensation')],
     reads: ['cortex', 'capsule', 'brainstem', 'cord', 'root', 'plexus', 'nerve'], path: { cortex: L('sensory strip', 'sensibler Kortex'), capsule: L('thalamus and capsule', 'Thalamus und Kapsel'), brainstem: L('medial lemniscus; spinothalamic tract; trigeminal', 'Lemniscus medialis; Tractus spinothalamicus; Trigeminus'), cord: L('dorsal columns (same side); spinothalamic (crossed)', 'Hinterstränge (gleiche Seite); Tractus spinothalamicus (gekreuzt)'), root: L('dorsal roots: dermatomes', 'Hinterwurzeln: Dermatome'), plexus: L('plexus', 'Plexus'), nerve: L('nerve territories', 'Nervenversorgungsgebiete') } },
+  { id: 'eyes', group: 'cranial', label: L('Eyes: lids, pupils, movements', 'Augen: Lider, Pupillen, Motorik'), manoeuvres: ['inspect.eyes', 'inspect.eyes.dim', 'test.pupils.light', 'test.eye-movements'],
+    lines: () => [...bothSides('eye.lid'), ...bothSides('eye.pupil', { lightOn: 'none', ambient: 'room' }, L('Room light', 'Raumlicht')), ...bothSides('eye.pupil', { lightOn: 'none', ambient: 'dim' }, L('Dim light', 'Dämmerlicht')),
+      ...bothSides('eye.motility'), { ref: 'eyes.nystagmus', ctx: { gaze: 'primary', fixation: true }, label: L('Looking ahead', 'Geradeausblick') },
+      { ref: 'eyes.nystagmus', ctx: { gaze: 'right', fixation: true }, label: L('Looking right', 'Blick nach rechts') }, { ref: 'eyes.nystagmus', ctx: { gaze: 'left', fixation: true }, label: L('Looking left', 'Blick nach links') }],
+    reads: ['brainstem', 'cord', 'nerve', 'junction', 'muscle', 'cerebellum'],
+    path: { brainstem: L('nuclei of III, IV, VI; the sympathetic pathway descending', 'Kerne von III, IV, VI; die absteigende Sympathikusbahn'), cord: L('ciliospinal centre (C8–T2)', 'Centrum ciliospinale (C8–T2)'),
+      nerve: L('III, IV, VI; the sympathetic chain', 'III, IV, VI; der Grenzstrang'), junction: L('neuromuscular junction (fatigable ptosis)', 'motorische Endplatte (ermüdbare Ptose)'), muscle: L('extraocular muscles', 'äußere Augenmuskeln'), cerebellum: L('flocculus: holding gaze', 'Flocculus: Blickhalten') } },
   { id: 'cranial', group: 'cranial', label: L('Face, mouth and neck', 'Gesicht, Mund und Hals'), manoeuvres: ['test.face-movement', 'test.face-sensation', 'test.jaw', 'test.palate', 'test.tongue', 'test.shrug'],
     lines: () => [...bothSides('face.movement'), ...bothSides('face.sensation'), { ref: 'jaw.opening' }, { ref: 'mouth.palate' }, { ref: 'mouth.tongue' }, ...bothSides('shoulder.shrug')],
     reads: ['cortex', 'capsule', 'brainstem', 'nerve', 'junction', 'muscle'], path: { cortex: L('motor strip, face', 'Motorstreifen, Gesicht'), capsule: L('corticobulbar fibres', 'kortikobulbäre Fasern'), brainstem: L('nuclei of V, VII, IX–XII', 'Kerne von V, VII, IX–XII'), nerve: L('cranial nerves', 'Hirnnerven'), junction: L('neuromuscular junction', 'motorische Endplatte'), muscle: L('bulbar and facial muscles', 'bulbäre und mimische Muskeln') } },

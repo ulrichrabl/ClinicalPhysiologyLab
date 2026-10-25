@@ -17,7 +17,7 @@ export type Rung = 'cortex' | 'basal-ganglia' | 'capsule' | 'brainstem' | 'cord'
 export function rungOf(node: string): Rung | null {
   if (/cerebell|vermis|_icp$|_mcp$|_scp$|dentate|red_nuc/.test(node)) return 'cerebellum';
   if (/_snc$|_putamen$|_bg$/.test(node)) return 'basal-ganglia';
-  if (node === 'polyneuropathy') return 'nerve';
+  if (node === 'polyneuropathy' || /_scg$|_ciliary$/.test(node)) return 'nerve';
   if (/_dc_nuc$|_cn\d+_(nuc|sens|mot)$|_lat_med$|_med_med$|_med_pons$|_lat_pons$/.test(node)) return 'brainstem';
   if (/_cn\d+(_nerve)?$/.test(node)) return 'nerve';
   if (/_mcx_|_scx$|broca|wernicke|arcuate|vis_cx/.test(node)) return 'cortex';
@@ -186,6 +186,30 @@ export function explainNeuro(test: NeuroTest, v: NeuroRead): { title: LocalizedT
       if (sd && sd !== 'normal') add('The saddle is numb: the sacral roots (the cauda equina) or the conus.', 'Die Reithose ist taub: die sakralen Wurzeln (Cauda equina) oder der Konus.');
       if (out.length === 1) add('Sensation is normal everywhere tested.', 'Die Sensibilität ist überall normal.');
       return { title: L('Sensation: two pathways that cross in different places', 'Sensibilität: zwei Bahnen, die an verschiedenen Stellen kreuzen'), body: out };
+    }
+    case 'eyes': {
+      add('The lids, the pupils in room and dim light, and the eyes following a target. The lid is lifted by the levator (III) and by Müller’s muscle (the sympathetic); the pupil is narrowed by III’s parasympathetic fibres and widened by the sympathetic, which runs from the hypothalamus down the brainstem’s lateral side to the cord at C8–T2, out over the lung’s apex and up the carotid. A small pupil with a slight ptosis, the difference larger in the dark, is Horner’s syndrome, anywhere on that path. III moves the eye up, down and in, IV down and in, VI out. Nystagmus that beats toward the gaze and grows with it is the cerebellum’s or the brainstem’s failure to hold the eyes there.',
+        'Die Lider, die Pupillen bei Raum- und Dämmerlicht, und die Augen, die einem Ziel folgen. Das Lid hebt der Levator (III) und der Müller-Muskel (Sympathikus); die Pupille verengen die parasympathischen Fasern des III, erweitern der Sympathikus, der vom Hypothalamus an der Seite des Hirnstamms hinab zum Rückenmark bei C8–T2 zieht, über die Lungenspitze hinaus und an der Karotis hinauf. Eine kleine Pupille mit leichter Ptose, der Unterschied im Dunkeln größer, ist das Horner-Syndrom, irgendwo auf diesem Weg. III bewegt das Auge nach oben, unten und innen, IV nach unten innen, VI nach außen. Ein Nystagmus, der in Blickrichtung schlägt und mit ihr zunimmt, ist das Versagen von Kleinhirn oder Hirnstamm, die Augen dort zu halten.');
+      for (const x of SIDES) {
+        const lid = v(`eye.lid.${x}`) ?? {}, room = v(`eye.pupil.${x}`, { lightOn: 'none', ambient: 'room' })?.sizeMm, dim = v(`eye.pupil.${x}`, { lightOn: 'none', ambient: 'dim' })?.sizeMm;
+        const o: S = x === 'R' ? 'L' : 'R', dimO = v(`eye.pupil.${o}`, { lightOn: 'none', ambient: 'dim' })?.sizeMm, roomO = v(`eye.pupil.${o}`, { lightOn: 'none', ambient: 'room' })?.sizeMm;
+        const ptosis = (lid.ptosisMm ?? 0) >= 1;
+        if (ptosis && typeof dim === 'number' && typeof dimO === 'number' && dimO - dim >= 0.5)
+          add(`The ${sideEn(x)} lid droops and the ${sideEn(x)} pupil is the smaller, more so in the dark: Horner’s syndrome on the ${sideEn(x)}, the sympathetic pathway.`, `Das Lid ${sideDe(x)} hängt und die Pupille ${sideDe(x)} ist die kleinere, im Dunkeln mehr: Horner-Syndrom ${sideDe(x)}, die Sympathikusbahn.`);
+        else if (ptosis && typeof room === 'number' && typeof roomO === 'number' && room - roomO >= 1)
+          add(`The ${sideEn(x)} lid droops over a large pupil: the ${sideEn(x)} third nerve, its pupil fibres included.`, `Das Lid ${sideDe(x)} hängt über einer weiten Pupille: der N. oculomotorius ${sideDe(x)}, mit seinen Pupillenfasern.`);
+        else if (ptosis) add(`The ${sideEn(x)} lid droops (${lid.ptosisMm} mm).`, `Das Lid ${sideDe(x)} hängt (${lid.ptosisMm} mm).`);
+      }
+      const ny = (g: 'primary' | 'left' | 'right') => { const n = v('eyes.nystagmus', { gaze: g, fixation: true }) ?? {}; return n.present && !n.physiological ? n : null; };
+      const nR = ny('right'), nL = ny('left'), n0 = ny('primary');
+      const fp = (n: any) => (n.fastPhase === 'left' ? 'L' : n.fastPhase === 'right' ? 'R' : null) as S | null;
+      if (n0 && fp(n0)) add(`Nystagmus looking straight ahead, beating to the ${sideEn(fp(n0)!)}${nR && nL && fp(nR) !== fp(nL) ? ', and changing direction with the gaze: central' : ''}.`, `Nystagmus beim Geradeausblick, nach ${sideDe(fp(n0)!)} schlagend${nR && nL && fp(nR) !== fp(nL) ? ', mit der Blickrichtung wechselnd: zentral' : ''}.`);
+      else if (nR || nL) add(`Nystagmus only on looking ${nR && nL ? 'to either side' : nR ? 'right' : 'left'}, beating toward the gaze: gaze-evoked, the cerebellum or the brainstem.`, `Nystagmus nur beim Blick ${nR && nL ? 'zu beiden Seiten' : nR ? 'nach rechts' : 'nach links'}, in Blickrichtung schlagend: blickrichtungsabhängig, Kleinhirn oder Hirnstamm.`);
+      for (const x of SIDES) { const m = v(`eye.motility.${x}`) ?? {};
+        if ((m.abduction ?? 100) < 80) add(`The ${sideEn(x)} eye does not go fully out: the ${sideEn(x)} sixth nerve (lateral rectus).`, `Das ${x === 'R' ? 'rechte' : 'linke'} Auge geht nicht ganz nach außen: N. abducens ${sideDe(x)} (M. rectus lateralis).`);
+        if ((m.adduction ?? 100) < 80 && (m.elevation ?? 100) < 80) add(`The ${sideEn(x)} eye does not go in or up: the ${sideEn(x)} third nerve.`, `Das ${x === 'R' ? 'rechte' : 'linke'} Auge geht nicht nach innen und oben: N. oculomotorius ${sideDe(x)}.`); }
+      if (out.length === 1) add('Lids, pupils and eye movements are normal.', 'Lider, Pupillen und Augenbewegungen sind unauffällig.');
+      return { title: L('Eyes: the lids, the pupils and the nerves that move them', 'Augen: die Lider, die Pupillen und die Nerven, die sie bewegen'), body: out };
     }
     case 'cranial': {
       add('The face, mouth and neck test the brainstem’s nerves. The lower face takes its upper motor neuron from the other hemisphere only, the forehead from both: a hemisphere lesion spares the forehead, a facial nerve lesion takes it. The jaw deviates toward a weak trigeminal side; the uvula is pulled away from a weak palate (X); the tongue points toward its weak side (XII), wasted and fasciculating if the nucleus or nerve is cut; a weak shrug and head turn is XI.',

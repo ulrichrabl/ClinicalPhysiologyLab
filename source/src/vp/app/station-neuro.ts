@@ -13,6 +13,10 @@ import { figureLookFor } from '../render/patient-figure.ts';
 import { FREE_CASE } from './free-case.ts';
 import { neuroFrame, neuroViewBox, type NeuroMotion } from './neuro-motion-view.ts';
 import { FaceView } from '../render/face-view.ts';
+import { EyeView } from '../render/eye-view.ts';
+import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
+import { REGISTRY } from '../registry.ts';
+import { neuroView } from '../stations/neuro-signs.ts';
 import { appearanceOf } from '../render/face-canvas.ts';
 import { KNOWLEDGE, labelOf } from '../knowledge/index.ts';
 import type { Lang } from './diagrams.ts';
@@ -291,7 +295,27 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
   const renderVisual = () => {
     current = motion();
     const vis = host.querySelector<HTMLElement>('[data-visual]')!;
-    faceView?.stop(); faceView = null;
+    faceView?.stop(); faceView = null; eyeView?.stop(); eyeView = null;
+    if (test === 'eyes') {
+      /* the eye station's eyes, run through the bedside sequence: room light, dim light, then the gaze to each side and up and down */
+      vis.hidden = false; vis.innerHTML = `<div class="st-eyes eyehost neuro-eyes"></div><div class="muted small" data-eye-step></div>`;
+      const ev = neuroView(model), stepEl = vis.querySelector<HTMLElement>('[data-eye-step]')!;
+      eyeView = new EyeView(vis.querySelector('.st-eyes')!, appearanceOf(ev.c.patient as any, 7));
+      const GAZE = ['primary', 'right', 'left', 'up', 'down'] as const;
+      const STEP: Record<string, LocalizedText> = { room: L('Room light: lids and pupils', 'Raumlicht: Lider und Pupillen'), dim: L('Dim light: the pupils widen', 'Dämmerlicht: die Pupillen werden weit'), primary: L('Looking ahead', 'Geradeausblick'), right: L('Looking right', 'Blick nach rechts'), left: L('Looking left', 'Blick nach links'), up: L('Looking up', 'Blick nach oben'), down: L('Looking down', 'Blick nach unten') };
+      let shown = '';
+      const lidCovers = (['L', 'R'] as Side[]).some((S) => (val(`eye.lid.${S}`)?.ptosisMm ?? 0) >= 4);
+      const controls = (now: number): SceneControls => {
+        const el = reduce ? 1 : ((now - t0) / 1000) % 22, b: SceneControls = { gaze: 'primary', fixation: true, lightOn: 'none', ambient: 'room' };
+        const k = el < 4 ? 'room' : el < 8 ? 'dim' : GAZE[Math.min(4, Math.floor((el - 8) / 2.8))];
+        if (k !== shown) { shown = k; stepEl.textContent = tr(STEP[k], lang); }
+        /* a lid that covers the pupil is held up to watch the eye move, as the examiner does */
+        return k === 'room' ? b : k === 'dim' ? { ...b, ambient: 'dim' } : { ...b, gaze: k, liftLids: lidCovers };
+      };
+      eyeView.show((sc) => sceneFindings(CATALOG, REGISTRY, ev.c, ev.view, sc), controls);
+      current = null;
+      return;
+    }
     if (test === 'cranial') {
       /* the face and the mouth, close up: the same face view the ward uses, moved by the findings */
       vis.hidden = false; vis.innerHTML = '<div class="facehost"></div>';
@@ -307,6 +331,7 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
   };
   let current: NeuroMotion | null = null;
   let faceView: FaceView | null = null;
+  let eyeView: EyeView | null = null;
   const STILL: Partial<Record<NeuroMotion['kind'], number>> = { drift: 12, 'finger-nose': 1.0, 'knee-jerk': 0.75, 'heel-shin': 2, 'rapid-alternating': 0.3, romberg: 10, gait: 0.8, tone: 1.5, 'arm-reflexes': 0.7, 'leg-reflexes': 0.75 };
   const start = () => {
     cancelAnimationFrame(raf);
@@ -365,7 +390,7 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     on('data-eyes', (v) => { eyesClosed = v === 'closed'; });
   };
 
-  const stop = () => { stopped = true; cancelAnimationFrame(raf); faceView?.stop(); };
+  const stop = () => { stopped = true; cancelAnimationFrame(raf); faceView?.stop(); eyeView?.stop(); };
   side = abnormalSide();
   render();
   return { stop, setLang(l: Lang) { lang = l; render(); } };
