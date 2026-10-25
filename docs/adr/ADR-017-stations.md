@@ -142,6 +142,28 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
   The old body-frame QRS angle (46°) would have been 23° below the median. Nothing was tuned.
 - **What moved:** under the one definition the presets read: LVH 59°, RVH 102°, LBBB 4°, RBBB 89°, WPW 77°, VT −104°, complete heart block's escape −63°.
 
+### 10. The neurological examination station (owner, 2026-10-25: proposed, to be built in steps)
+
+**Owner:** after the arrest work, more functionality for the model: more stations, more animation and immersion. "Neurological examination station + animation seem natural candidates?"
+
+- **What it teaches:** localisation. The same lesion graph the eye station uses (`domains/neuro/data/anatomy.js`) already drives the limb, cranial-nerve, coordination, balance and gait examination (`models/neuro-limb.ts`, `neuro-exam.ts`). A lesion is set on one rung of the ladder (cortex, internal capsule, brainstem, cord, root, plexus, nerve, junction, muscle, cerebellum), and the model derives what the hands, the hammer and the eyes find: power movement by movement (MRC), tone, reflexes and plantars, drift, dermatomes and nerve territories, vibration, cranial nerves V and VII–XII, speech, finger–nose, heel–shin, rapid alternating movements, Romberg and gait. Upper versus lower motor neuron, root versus nerve, face-and-arm-more-than-leg are emergent, not written down. Nothing in the station is authored but the explanations.
+- **The three panes:**
+  - **Signal:** the patient doing the test, animated on the bedside figure (below), with the finding the examination model returns, in the encounter's own words.
+  - **Mechanism:** the pathway the test reads, from cortex to muscle, with the lesion on it and the reason the model gives (`basis`: "upper motor neuron", "motor strip partly spared", "L5 root", "cerebellar vermis").
+  - **Settings:** the lesions, as the eye station has them, grouped by rung and side; and the starting points.
+- **One station for one examination, not one test,** as for the eyes (decision 9): `StationDef.alsoTests` lists the limb, cranial-nerve, coordination and gait tests.
+- **Starting points are lesions,** each naming the textbook signs it should bring, checked by a station test. Candidates (the graph has cortex, capsule, brainstem, cord tracts by level, roots, plexus, nerves, junction and muscle): left MCA stroke, internal capsule lacune, cervical cord (Brown-Séquard), L5 root, common peroneal nerve (foot drop: inversion separates them), C7 root, ulnar nerve, myasthenia (fatigue), proximal myopathy, cerebellar hemisphere, vermis, posterior columns (Romberg), and normal. A starting point whose signs the model does not bring is reported as a gap, not drawn as if it did.
+- **Predict and Identify,** as at the other stations, scored on the knowledge tables' neurological signs; Identify asks for the signs, then the level of the lesion.
+
+**The animations, on the bedside figure (`render/patient-figure.ts`), one renderer for two uses:** the teaching card shows how the test is done (on a normal finding), and the result shows this patient's (on the patient's finding), in the station and in every ward case, where these tests answer with text today (`visualFor` in `app/app.ts`).
+
+- **Driven by findings, never by the lesion,** as every visual in the app is: the knee jerk's swing comes from the reflex grade, the drift from `arm.drift`, the overshoot and the tremor from `dysmetria` and `intentionTremor`.
+- **The skeleton is posed, not the outlines** (the figure's brief): `Pose` gains what the tests need, kept to the figure's style and checked at zoom.
+- **First (step 8a):** pronator drift (arms out, palms up, eyes closed; the weak arm pronates and sinks), finger–nose (the finger's path to the nose, with dysmetria and the intention tremor that grows near the target), and the reflexes (the hammer, the knee jerk's swing by grade, absent, brisk with spread, clonus; the plantar response). The figure needs the forearm's rotation and a pointing hand for these: new, and shown to the owner at zoom before going on.
+- **Then (step 8b):** heel–shin, rapid alternating movements, Romberg (eyes open and closed), gait (hemiplegic circumduction, high-stepping, waddling, ataxic broad-based, sensory-ataxic stamping).
+- **Later:** tremor and asterixis (hands), which need the hands to be more than mittens (the figure's brief, "Open").
+- **Respect `prefers-reduced-motion`:** a still of the result, as the figure does today.
+
 ## Steps
 
 1. **The ECG station, Explore** (this PR): the activation log in the electrical model, with tests; the station screen with settings, strip, ladder, cursor, conduction heart and explanations in EN and DE; a Stations card on the Ward.
@@ -156,6 +178,8 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
 6. **The eye station, Explore** (done; see decision 9): pupils and lids, the swinging light, eye movements and pursuit, the cover test, nystagmus, the head impulse and the visual fields, each beside the pathway it reads. The eye as a window on the body followed (jaundice, conjunctival pallor, thyroid eye signs): those tests need the body run through the illness, so the station runs it in the background whenever a body setting changes. Predict and Identify followed, over all eye signs, with the signs offered beside the test that shows each, and starting points the examination cannot tell apart counted as equivalent (with the reason).
 
 7. **The pulse and neck-vein station, Explore** (done): the arterial pulse and the jugular venous pressure, read from each beat's own pressures (`waves.ts`). The pulse rhythm and the venous waveform findings now come from those waves instead of a label or a parameter. Predict and Identify followed (Identify without the ECG or named waves, as at the bedside).
+
+8. **The neurological examination station** (proposed, decision 10): 8a Explore with the first animations (pronator drift, finger–nose, reflexes); 8b heel–shin, rapid alternating movements, Romberg and gait; 8c Predict and Identify (the level of the lesion). The animations serve the ward cases too.
 
 ## Consequences
 
