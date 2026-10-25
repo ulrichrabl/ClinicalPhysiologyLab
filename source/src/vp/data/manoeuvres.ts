@@ -412,6 +412,15 @@ export const MANOEUVRES: ManoeuvreDef[] = [
 
   /* ---- balance and coordination -------------------------------------------- */
   {
+    id: 'test.pull', verb: 'test', target: 'posture',
+    label: { en: 'Pull test (postural reflexes)', de: 'Zugtest (Haltungsreflexe)' },
+    phrases: { en: ['pull test', 'retropulsion', 'postural reflexes', 'postural stability', 'pull from behind'], de: ['zugtest', 'pull-test', 'retropulsion', 'haltungsreflexe', 'stellreflexe', 'von hinten ziehen'] },
+    reveals: [{ property: 'posture.pull-test' }],
+    requires: { position: ['standing'], ability: ['can-stand', 'follows-commands'] }, durationSeconds: 30,
+    hazards: [{ ifState: { physiology: { key: 'Pmean', below: 60 } }, code: 'stand-while-hypotensive',
+      why: { en: 'Standing a hypotensive patient risks syncope and a fall.', de: 'Aufstehen bei Hypotonie: Synkopen- und Sturzgefahr.' } }],
+  },
+  {
     id: 'test.romberg', verb: 'test', target: 'posture',
     label: { en: 'Romberg test', de: 'Romberg-Stehversuch' },
     phrases: { en: ['romberg', 'feet together', 'stand with eyes closed'], de: ['romberg', 'stehversuch', 'füße zusammen', 'augen schließen im stehen'] },

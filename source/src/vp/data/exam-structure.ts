@@ -82,7 +82,7 @@ export const EXAM_SYSTEMS: ExamSystemDef[] = [
       { id: 'neuro.sensory', label: { en: 'Sensation', de: 'Sensibilität' }, kind: 'examine',
         manoeuvres: ['test.arm.pinprick', 'test.arm.vibration', 'test.trunk.pinprick', 'test.leg.pinprick', 'test.leg.vibration', 'test.saddle'] },
       { id: 'neuro.coordination', label: { en: 'Coordination, stance and gait', de: 'Koordination, Stand und Gang' }, kind: 'examine',
-        manoeuvres: ['test.finger-nose', 'test.rapid-alternating', 'test.heel-shin', 'test.romberg', 'test.gait'] },
+        manoeuvres: ['test.finger-nose', 'test.rapid-alternating', 'test.heel-shin', 'test.romberg', 'test.pull', 'test.gait'] },
     ],
   },
   {

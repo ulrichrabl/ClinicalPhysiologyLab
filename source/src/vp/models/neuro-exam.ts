@@ -1,4 +1,5 @@
 import type { ExamContext, Side } from '../model/types.ts';
+import { NEURO } from '../evidence/neuro.ts';
 import type { Resolved, Resolver, RuntimeView } from '../engine/observe.ts';
 import { limbState } from './neuro-limb.ts';
 
@@ -376,6 +377,12 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
       const k = ctx.eyesClosed ? lp.strength * 1.6 : lp.strength;
       const stance = k > 0.9 ? 'falls' : k > 0.25 ? 'sways' : 'steady';
       return { value: stance === 'steady' ? { stance } : { stance, toward: lp.toward } };
+    }
+    if (ref.property === 'posture.pull-test') {
+      /* postural reflexes are lost late in bilateral parkinsonism (Hoehn & Yahr 3): many small steps back */
+      if (st.parkinson.L && st.parkinson.R && (view.neuro?.days ?? 1) >= NEURO.posturalInstabilityDays)
+        return { value: { response: 'steps' }, basis: `parkinsonism on both sides for ${Math.round((view.neuro?.days ?? 1) / 365)} years: postural reflexes lost` };
+      return undefined;
     }
     if (ref.property === 'gait.pattern') {
       for (const S of ['L', 'R'] as Side[]) {

@@ -184,6 +184,7 @@
 {"id": "rigidity", "site": "limb", "definition": {"any": [{"obs": "arm.tone", "path": "tone", "op": "eq", "value": "rigid"}, {"obs": "leg.tone", "path": "tone", "op": "eq", "value": "rigid"}]}, "note": "The value exists; there are no basal ganglia, so nothing produces it.", "status": "draft"},
 {"id": "rest-tremor", "site": "hands", "definition": {"obs": "arm.rest-tremor", "path": "tremor", "op": "eq", "value": "rest"}, "status": "draft"},
 {"id": "shuffling-gait", "site": "gait", "definition": {"obs": "gait.pattern", "path": "pattern", "op": "eq", "value": "parkinsonian"}, "status": "draft"},
+{"id": "postural-instability", "site": "gait", "definition": {"obs": "posture.pull-test", "path": "response", "op": "in", "value": ["steps", "falls"]}, "threshold": {"text": "three or more steps back, or a fall, after a quick pull (MDS-UPDRS 3.12 score ≥ 1)", "status": "standard"}, "status": "draft"},
 {"id": "hypotonia", "site": "limb", "definition": {"any": [{"obs": "arm.tone", "path": "tone", "op": "eq", "value": "reduced"}, {"obs": "leg.tone", "path": "tone", "op": "eq", "value": "reduced"}]}, "status": "draft"},
 {"id": "muscle-wasting", "site": "limb", "definition": {"any": [{"obs": "arm.tone", "path": "wasting", "op": "eq", "value": true}, {"obs": "leg.tone", "path": "wasting", "op": "eq", "value": true}]}, "status": "draft"},
 {"id": "fasciculation", "site": "limb", "definition": {"any": [{"obs": "arm.tone", "path": "fasciculation", "op": "eq", "value": true}, {"obs": "leg.tone", "path": "fasciculation", "op": "eq", "value": true}]}, "status": "draft"},

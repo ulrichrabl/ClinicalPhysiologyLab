@@ -120,6 +120,7 @@ export const VALUE_SETS: ValueSetDef[] = [
   vs('distress', [['none', 'comfortable', 'nicht beeinträchtigt'], ['mild', 'mildly distressed', 'leicht beeinträchtigt'], ['moderate', 'moderately distressed', 'mäßig beeinträchtigt'], ['severe', 'severely distressed', 'schwer beeinträchtigt']]),
   vs('pursuit', [['smooth', 'smooth', 'glatt'], ['saccadic', 'saccadic', 'sakkadiert']]),
   vs('rapd', [['none', 'none', 'keines'], ['L', 'left', 'links'], ['R', 'right', 'rechts']]),
+  vs('pull-response', [['recovers', 'recovers in one or two steps', 'fängt sich mit ein bis zwei Schritten'], ['steps', 'takes three or more steps back (retropulsion), recovers unaided', 'macht drei oder mehr Schritte rückwärts (Retropulsion), fängt sich selbst'], ['falls', 'would fall if not caught', 'würde ohne Auffangen stürzen']]),
   vs('stance', [['steady', 'steady', 'sicher'], ['sways', 'sways', 'Schwankneigung'], ['falls', 'falls', 'Fallneigung']]),
   vs('severity', [['none', 'none', 'keine'], ['mild', 'mild', 'leichte'], ['marked', 'marked', 'deutliche']]),
   vs('jvp-wave', [['normal', 'normal waveform', 'normale Pulsation'], ['large-v', 'large v waves', 'prominente v-Welle'], ['cannon-a', 'cannon a waves', 'Kanonenwellen'], ['absent-a', 'no a wave', 'fehlende a-Welle']]),

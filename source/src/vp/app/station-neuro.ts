@@ -13,6 +13,11 @@ import { figureLookFor } from '../render/patient-figure.ts';
 import { FREE_CASE } from './free-case.ts';
 import { neuroFrame, neuroViewBox, type NeuroMotion } from './neuro-motion-view.ts';
 import { FaceView } from '../render/face-view.ts';
+import { speechScript } from '../text/speech-script.ts';
+import { EyeView } from '../render/eye-view.ts';
+import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
+import { REGISTRY } from '../registry.ts';
+import { neuroView } from '../stations/neuro-signs.ts';
 import { appearanceOf } from '../render/face-canvas.ts';
 import { KNOWLEDGE, labelOf } from '../knowledge/index.ts';
 import type { Lang } from './diagrams.ts';
@@ -37,6 +42,8 @@ const T: Record<string, LocalizedText> = {
   settingsNote: L('A lesion on one rung of the nervous system. The examination model derives the rest.', 'Eine Läsion auf einer Stufe des Nervensystems. Das Untersuchungsmodell leitet den Rest ab.'),
   startFrom: L('Start from', 'Ausgangspunkt'), choose: L('Choose a lesion…', 'Läsion wählen…'), healthy: L('Reset to healthy', 'Auf gesund zurücksetzen'),
   complete: L('Complete lesion', 'Komplette Läsion'),
+  since: L('Time since onset', 'Zeit seit Beginn'),
+  sinceNote: L('A cut nerve weakens at once; its muscle wastes from about three weeks. Where some fibres survive they sprout over months and win back strength.', 'Ein durchtrennter Nerv schwächt sofort; sein Muskel atrophiert ab etwa drei Wochen. Wo Fasern überleben, sprossen sie über Monate aus und gewinnen Kraft zurück.'),
   completeNote: L('A partial lesion of the corticospinal tract leaves the arm strong enough to hold up, and drifting.', 'Eine partielle Läsion der Pyramidenbahn lässt den Arm kräftig genug, ihn zu halten, und er driftet.'),
   see: L('What you see', 'Was Sie sehen'), seeNote: L('The patient on the edge of the bed. The limbs move as the examination model’s finding says.', 'Der Patient auf der Bettkante. Die Glieder bewegen sich, wie es der Befund des Untersuchungsmodells sagt.'),
   test: L('Test', 'Test'), side: L('Side', 'Seite'), right: L('Right', 'Rechts'), left: L('Left', 'Links'),
@@ -57,8 +64,9 @@ const T: Record<string, LocalizedText> = {
   check: L('Check', 'Prüfen'), next: L('Next unknown', 'Nächstes Unbekanntes'), seeWhy: L('See why, in Explore', 'Das Warum ansehen, im Erkunden-Modus'),
   hits: L('Named, and there', 'Benannt und vorhanden'), misses: L('There, not named', 'Vorhanden, nicht benannt'), over: L('Named, not there', 'Benannt, nicht vorhanden'),
   mechRight: L('Right', 'Richtig'), mechWrong: L('It was', 'Es war'), score: L('right this session', 'richtig in dieser Sitzung'), foundWhere: L('Where each is found', 'Wo jedes zu finden ist'),
-  patientSays: L('You hear', 'Sie hören'),
 };
+const SINCE: Array<[number, LocalizedText]> = [[1, L('1 day', '1 Tag')], [7, L('1 week', '1 Woche')], [14, L('2 weeks', '2 Wochen')], [30, L('1 month', '1 Monat')],
+  [120, L('4 months', '4 Monate')], [180, L('6 months', '6 Monate')], [365, L('1 year', '1 Jahr')], [730, L('2 years', '2 Jahre')]];
 const IDENTIFY_POOL = ['healthy', ...NEURO_PRESETS.map((p) => p.id)];
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 const SIDES: Side[] = ['R', 'L'];
@@ -127,6 +135,10 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
           <label class="st-predict"><input type="checkbox" data-predict ${predict ? 'checked' : ''}><span><b>${t('predict')}</b><br><span class="muted small">${t('predictNote')}</span></span></label>
           <label class="st-var st-check"><input type="checkbox" data-complete ${model.lesions.complete ? 'checked' : ''}><span>${t('complete')}</span></label>
           <p class="muted small">${t('completeNote')}</p>
+          <label class="st-preset">${t('since')}
+            <select data-days>${SINCE.map(([d, lab]) => `<option value="${d}" ${(model.lesions.days ?? 1) === d ? 'selected' : ''}>${esc(tr(lab, lang))}</option>`).join('')}${SINCE.some(([d]) => d === (model.lesions.days ?? 1)) ? '' : `<option value="${model.lesions.days}" selected>${model.lesions.days} d</option>`}</select>
+          </label>
+          <p class="muted small">${t('sinceNote')}</p>
           ${NEURO_STRUCTURES.map((g) => `<fieldset class="st-lesions"><legend>${esc(tr(g.group, lang))}</legend>${g.nodes.map((n) =>
             `<label class="st-var st-check"><input type="checkbox" data-node="${n.id}" ${cut.has(n.id) ? 'checked' : ''}><span>${esc(tr(n.label, lang))}</span></label>`).join('')}</fieldset>`).join('')}
         </aside>
@@ -271,7 +283,7 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     if (!box) return;
     if (mode === 'identify') {
       /* nothing is written for the learner but what the patient says */
-      box.innerHTML = test === 'speech' ? `<li><b>${t('patientSays')}:</b></li>${findingLines().map((x) => `<li>${x.replace(/<b class="abn"[^>]*>●<\/b> /, '')}</li>`).join('')}` : '';
+      box.innerHTML = '';   /* what the patient says is heard, in the picture */
       renderVisual();
       return;
     }
@@ -291,13 +303,41 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
   const renderVisual = () => {
     current = motion();
     const vis = host.querySelector<HTMLElement>('[data-visual]')!;
-    faceView?.stop(); faceView = null;
+    faceView?.stop(); faceView = null; eyeView?.stop(); eyeView = null;
+    if (test === 'eyes') {
+      /* the eye station's eyes, run through the bedside sequence: room light, dim light, then the gaze to each side and up and down */
+      vis.hidden = false; vis.innerHTML = `<div class="st-eyes eyehost neuro-eyes"></div><div class="muted small" data-eye-step></div>`;
+      const ev = neuroView(model), stepEl = vis.querySelector<HTMLElement>('[data-eye-step]')!;
+      eyeView = new EyeView(vis.querySelector('.st-eyes')!, appearanceOf(ev.c.patient as any, 7));
+      const GAZE = ['primary', 'right', 'left', 'up', 'down'] as const;
+      const STEP: Record<string, LocalizedText> = { room: L('Room light: lids and pupils', 'Raumlicht: Lider und Pupillen'), dim: L('Dim light: the pupils widen', 'Dämmerlicht: die Pupillen werden weit'), primary: L('Looking ahead', 'Geradeausblick'), right: L('Looking right', 'Blick nach rechts'), left: L('Looking left', 'Blick nach links'), up: L('Looking up', 'Blick nach oben'), down: L('Looking down', 'Blick nach unten') };
+      let shown = '';
+      const lidCovers = (['L', 'R'] as Side[]).some((S) => (val(`eye.lid.${S}`)?.ptosisMm ?? 0) >= 4);
+      const controls = (now: number): SceneControls => {
+        const el = reduce ? 1 : ((now - t0) / 1000) % 22, b: SceneControls = { gaze: 'primary', fixation: true, lightOn: 'none', ambient: 'room' };
+        const k = el < 4 ? 'room' : el < 8 ? 'dim' : GAZE[Math.min(4, Math.floor((el - 8) / 2.8))];
+        if (k !== shown) { shown = k; stepEl.textContent = tr(STEP[k], lang); }
+        /* a lid that covers the pupil is held up to watch the eye move, as the examiner does */
+        return k === 'room' ? b : k === 'dim' ? { ...b, ambient: 'dim' } : { ...b, gaze: k, liftLids: lidCovers };
+      };
+      eyeView.show((sc) => sceneFindings(CATALOG, REGISTRY, ev.c, ev.view, sc), controls);
+      current = null;
+      return;
+    }
+    if (test === 'speech') {
+      vis.hidden = false; vis.innerHTML = '<div class="facehost"></div>';
+      faceView = new FaceView(vis.querySelector('.facehost')!, appearanceOf(FREE_CASE.patient as any, 7));
+      faceView.talk(speechScript({ ...(val('speech.language') as any), fatigue: (val('speech.fatigue', { repetition: 50 }) as any)?.voice }, lang), lang, reduce, { L: val('face.movement.L') as any, R: val('face.movement.R') as any });
+      current = null;
+      return;
+    }
     if (test === 'cranial') {
       /* the face and the mouth, close up: the same face view the ward uses, moved by the findings */
       vis.hidden = false; vis.innerHTML = '<div class="facehost"></div>';
       faceView = new FaceView(vis.querySelector('.facehost')!, appearanceOf(FREE_CASE.patient as any, 7));
       const fm = (S: Side) => val(`face.movement.${S}`) as any, tg = val('mouth.tongue') as any;
-      faceView.show({ L: fm('L'), R: fm('R') }, lang, { jawTo: (val('jaw.opening') as any)?.deviatesTo ?? 'none', uvulaTo: (val('mouth.palate') as any)?.uvulaDeviatesTo ?? 'none', tongueTo: tg?.deviatesTo ?? 'none', tongueWasting: !!tg?.wasting, tongueFasciculation: !!tg?.fasciculation });
+      faceView.show({ L: fm('L'), R: fm('R') }, lang, { jawTo: (val('jaw.opening') as any)?.deviatesTo ?? 'none', uvulaTo: (val('mouth.palate') as any)?.uvulaDeviatesTo ?? 'none', tongueTo: tg?.deviatesTo ?? 'none', tongueWasting: !!tg?.wasting, tongueFasciculation: !!tg?.fasciculation,
+        shrug: { R: (val('shoulder.shrug.R') as any)?.power ?? 5, L: (val('shoulder.shrug.L') as any)?.power ?? 5 } });
       current = null;
       return;
     }
@@ -307,6 +347,7 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
   };
   let current: NeuroMotion | null = null;
   let faceView: FaceView | null = null;
+  let eyeView: EyeView | null = null;
   const STILL: Partial<Record<NeuroMotion['kind'], number>> = { drift: 12, 'finger-nose': 1.0, 'knee-jerk': 0.75, 'heel-shin': 2, 'rapid-alternating': 0.3, romberg: 10, gait: 0.8, tone: 1.5, 'arm-reflexes': 0.7, 'leg-reflexes': 0.75 };
   const start = () => {
     cancelAnimationFrame(raf);
@@ -345,6 +386,8 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     if (pr) pr.onchange = () => { predict = pr.checked; };
     const hb = host.querySelector<HTMLButtonElement>('[data-healthy]');
     if (hb) hb.onclick = () => { pending = null; feedback = null; change(applyNeuroPreset(model, '')); };
+    const ds = host.querySelector<HTMLSelectElement>('[data-days]');
+    if (ds) ds.onchange = () => { const next = structuredClone(model); next.lesions.days = Number(ds.value); change(next); };
     const cb = host.querySelector<HTMLInputElement>('[data-complete]');
     if (cb) cb.onchange = (e) => { const next = structuredClone(model); next.lesions.complete = (e.target as HTMLInputElement).checked; change(next); };
     host.querySelectorAll<HTMLInputElement>('[data-node]').forEach((el) => el.onchange = () => {
@@ -365,7 +408,7 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     on('data-eyes', (v) => { eyesClosed = v === 'closed'; });
   };
 
-  const stop = () => { stopped = true; cancelAnimationFrame(raf); faceView?.stop(); };
+  const stop = () => { stopped = true; cancelAnimationFrame(raf); faceView?.stop(); eyeView?.stop(); };
   side = abnormalSide();
   render();
   return { stop, setLang(l: Lang) { lang = l; render(); } };

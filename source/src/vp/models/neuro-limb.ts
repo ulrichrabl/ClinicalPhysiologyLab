@@ -1,6 +1,7 @@
 import type { ExamContext, Side } from '../model/types.ts';
 import type { Resolved, Resolver, RuntimeView } from '../engine/observe.ts';
 import { MOTOR_UNITS, PATHWAYS, REFLEX_ROOTS as ANATOMY_REFLEX_ROOTS } from '../../domains/neuro/data/anatomy.js';
+import { NEURO, ROOT_SHARE } from '../evidence/neuro.ts';
 
 /* ===========================================================================
    Neurological examination model: cranial nerves V, VII, IX–XII, speech,
@@ -25,7 +26,12 @@ import { MOTOR_UNITS, PATHWAYS, REFLEX_ROOTS as ANATOMY_REFLEX_ROOTS } from '../
    * The junction fatigues; muscle disease is proximal with normal sensation.
 
    MRC grades for central weakness follow the bedside convention: pyramidal
-   weakness at 3–4/5 when partial, 0/5 when complete.
+   weakness at 3–4/5 when partial, 0/5 when complete. A lower motor neuron
+   lesion is graded from the force its muscle keeps: the share of motor units
+   left (each root carrying its share, the nerve all of them), the survivors'
+   sprouting over the months after, and the force a hand grades 5, 4 or 3
+   (evidence/neuro.ts). The muscle wastes as its denervated fibres shrink,
+   from about three weeks: a fresh lesion weakens without wasting.
 =========================================================================== */
 
 const SIDES: Side[] = ['L', 'R'];
@@ -38,10 +44,21 @@ export const ARM_MOVES = [
 ] as const;
 export const LEG_MOVES = [
   ['hipFlexion', 'iliopsoas'], ['hipAdduction', 'hip adductors'], ['hipAbduction', 'gluteus medius'], ['kneeExtension', 'quadriceps'],
-  ['ankleDorsiflexion', 'tibialis anterior'], ['footEversion', 'peroneus longus'], ['footInversion', 'tibialis posterior'], ['anklePlantarflexion', 'gastrocnemius'],
+  ['ankleDorsiflexion', 'tibialis anterior'], ['toeExtension', 'extensor hallucis longus'], ['footEversion', 'peroneus longus'], ['footInversion', 'tibialis posterior'], ['anklePlantarflexion', 'gastrocnemius'],
 ] as const;
+/** The joint whose segment the muscle lifts against gravity: sets the force that is MRC 3 and 4 (evidence/neuro.ts). */
+const JOINT: Record<string, 'Knee' | 'Elbow' | 'Shoulder' | 'Hip' | 'Distal'> = {
+  shoulderAbduction: 'Shoulder', elbowFlexion: 'Elbow', elbowExtension: 'Elbow', hipFlexion: 'Hip', hipAdduction: 'Hip', hipAbduction: 'Hip', kneeExtension: 'Knee', shrug: 'Shoulder',
+};
+/** The MRC grade a hand gives a muscle keeping this share of its normal force. */
+export function mrcOf(force: number, move: string): number {
+  const j = JOINT[move] ?? 'Distal';
+  const g3 = { Knee: NEURO.grade3Knee, Elbow: NEURO.grade3Elbow, Shoulder: NEURO.grade3Shoulder, Hip: NEURO.grade3Hip, Distal: NEURO.grade3Distal }[j];
+  const g4 = { Knee: NEURO.grade4Knee, Elbow: NEURO.grade4Knee, Shoulder: NEURO.grade4Shoulder, Hip: NEURO.grade4Hip, Distal: NEURO.grade4Distal }[j];
+  return force >= NEURO.mrc5 ? 5 : force >= g4 ? 4 : force >= g3 ? 3 : force >= NEURO.mrcTrace ? 2 : force > 0 ? 1 : 0;
+}
 /** Movements the pyramidal tract serves most: weakest after an upper motor neuron lesion. */
-const PYRAMIDAL_WEAK = new Set(['shoulderAbduction', 'elbowExtension', 'wristExtension', 'fingerAbduction', 'thumbAbduction', 'hipFlexion', 'ankleDorsiflexion', 'footEversion']);
+const PYRAMIDAL_WEAK = new Set(['shoulderAbduction', 'elbowExtension', 'wristExtension', 'fingerAbduction', 'thumbAbduction', 'hipFlexion', 'ankleDorsiflexion', 'toeExtension', 'footEversion']);
 const ARM_SEGS = ['C5', 'C6', 'C7', 'C8', 'T1'] as const;
 const LEG_SEGS = ['L2', 'L3', 'L4', 'L5', 'S1'] as const;
 const SKIN_TERRITORY: Record<string, string> = {
@@ -109,6 +126,20 @@ function derive(view: RuntimeView): LimbState {
      only grazes the leg's fibres); a part it does not reach is untouched, since its pathways then pass no lesion. Above
      the pyramidal decussation the tract serving side S runs on the other side; below it, in the cord, on the same side. */
   const extent = view.neuro?.extent ?? {};
+  /* the time since onset: the survivors sprout and the denervated fibres shrink (evidence/neuro.ts) */
+  const days = view.neuro?.days ?? 1;
+  const sprout = 1 + (NEURO.sproutGain - 1) * (1 - Math.exp(-days / NEURO.sproutDays));
+  const atrophy = NEURO.atrophyMax * (1 - Math.exp(-days / NEURO.atrophyDays));
+  /** the share of a structure's fibres the lesion takes */
+  const frac = (n: string) => Math.max(0, Math.min(1, extent[n] ?? (complete ? 1 : NEURO.partialShare)));
+  const pathNodes = new Map<string, string[]>(); for (const pw of PATHWAYS as Array<{ id: string; nodes: string[] }>) pathNodes.set(pw.id, pw.nodes);
+  /** the share of a pathway's fibres its lesioned structures take */
+  const pathFrac = (f: Record<string, any>) => { const on = (pathNodes.get(f.pathwayId) ?? []).filter((n) => nodes.has(n)); return on.length ? Math.max(...on.map(frac)) : frac(''); };
+  /** a muscle keeping share s of its motor units: its force, after the survivors' sprouting, and its bulk */
+  const keep = (s: number) => {
+    const force = s >= 1 ? 1 : s <= 0 ? 0 : Math.min(1, s * sprout);
+    return { force, bulk: 1 - (1 - force) * atrophy };
+  };
   const cortical = (S: Side) => {
     const lesionSide = other(S);
     const subcortical = [...nodes].some((n) => (n.startsWith(`${lesionSide}_`) && /_(ic|peduncle|pons_cst|med_pyr)/.test(n)) || n.startsWith(`${S}_cst_`));
@@ -132,7 +163,13 @@ function derive(view: RuntimeView): LimbState {
     const som = cortical(S);
     for (const [limb, moves, segs] of [['arm', ARM_MOVES, ARM_SEGS], ['leg', LEG_MOVES, LEG_SEGS]] as const) {
       const umnSegs = new Set(find((f) => f.modality === 'motor' && f.umnOrLmn === 'UMN' && f.bodyRegion.startsWith(`${S}_${limb}_`)).map((f) => f.bodyRegion.split('_')[2]));
-      const lmnSegs = new Set(find((f) => f.modality === 'motor' && f.umnOrLmn === 'LMN' && f.bodyRegion.startsWith(`${S}_${limb}_`)).map((f) => f.bodyRegion.split('_')[2]));
+      /* the segments whose lower motor neurons (anterior horn, ventral root) the lesion takes, and how much of each */
+      const lmnFrac = new Map<string, number>();
+      for (const f of find((f) => f.modality === 'motor' && f.umnOrLmn === 'LMN' && f.bodyRegion.startsWith(`${S}_${limb}_`))) {
+        const g = f.bodyRegion.split('_')[2];
+        lmnFrac.set(g, Math.max(lmnFrac.get(g) ?? 0, pathFrac(f)));
+      }
+      const lmnSegs = new Set(lmnFrac.keys());
       const k = limb === 'arm' ? som.arm : som.leg;
       if (umnSegs.size) {
         basis.push(`${S} ${limb}: upper motor neuron${k < 1 ? ' (motor strip partly spared)' : ''}`);
@@ -140,7 +177,7 @@ function derive(view: RuntimeView): LimbState {
         if (limb === 'arm') drift[S] = true;
         if (limb === 'leg') plantar[S] = 'extensor';
       }
-      let lowest = 5;
+      let lowest = 5, leastBulk = 1;
       for (const [move, muscle] of moves) {
         const u = unit(muscle);
         let p = 5;
@@ -149,26 +186,32 @@ function derive(view: RuntimeView): LimbState {
           const base = complete ? 0 : PYRAMIDAL_WEAK.has(move) ? 3 : 4;
           p = Math.min(p, Math.round(5 - (5 - base) * k));
         }
-        // segmental lower motor neuron (anterior horn, ventral root)
-        const hitRoots = u.roots.filter((r) => lmnSegs.has(r)).length;
-        if (hitRoots) p = Math.min(p, complete ? (hitRoots >= u.roots.length ? 1 : 3) : 4);
-        // the muscle's own final common path
+        /* the motor units it keeps: each root takes its share (measured where known, else equal), the plexus and the nerve
+           all of the muscle's, each by the share of fibres it loses */
+        const share = ROOT_SHARE[muscle] ?? Object.fromEntries(u.roots.map((r) => [r, 1 / u.roots.length]));
+        let units = 1;
+        for (const r of u.roots) units -= (share[r] ?? 0) * (lmnFrac.get(r) ?? 0);
+        units = Math.max(0, units);
+        for (const f of find((x) => x.modality === 'peripheral_motor' && x.bodyRegion === `${S}_muscle_${muscle.replace(/\s+/g, '_')}` && (x.rung === 'nerve' || x.rung === 'plexus')))
+          units *= 1 - pathFrac(f);
+        if (units < 1) {
+          const m = keep(units);
+          p = Math.min(p, mrcOf(m.force, move));
+          leastBulk = Math.min(leastBulk, m.bulk);
+        }
+        // the junction and the muscle itself
         for (const f of find((x) => x.modality === 'peripheral_motor' && x.bodyRegion === `${S}_muscle_${muscle.replace(/\s+/g, '_')}`)) {
-          const r = f.rung;
           /* the junction: fatigable, and proximal (limb-girdle) muscles first; distal ones are kept at first effort */
-          if (r === 'nmj') { fatigable[S] = true; if (u.bulk === 'prox') p = Math.min(p, complete ? 4 : 5); }
-          else if (r === 'muscle') p = Math.min(p, complete ? 3 : 4);
-          else if (r === 'nerve') p = Math.min(p, complete ? 1 : 4);
-          else if (r === 'plexus') p = Math.min(p, complete ? 2 : 4);
-          else p = Math.min(p, complete ? (u.roots.length > 1 ? 3 : 1) : 4);   // root / anterior horn
+          if (f.rung === 'nmj') { fatigable[S] = true; if (u.bulk === 'prox') p = Math.min(p, complete ? 4 : 5); }
+          else if (f.rung === 'muscle') p = Math.min(p, complete ? 3 : 4);
         }
         power[S][move] = p;
         lowest = Math.min(lowest, p);
       }
       if (lowest <= 2 && !umnSegs.size) tone[S][limb] = 'reduced';
-      /* the anterior horn's disease is a slow one: its muscles fasciculate, and waste wherever they are weak */
-      if ((segs as readonly string[]).some((g) => nodes.has(`${S}_ahn_${g}`))) { fasciculation[S][limb] = true; if (lowest < 5) wasting[S][limb] = true; }
-      if (complete && (lmnSegs.size || find((x) => x.modality === 'peripheral_motor' && x.bodyRegion.startsWith(`${S}_muscle_`) && (x.rung === 'nerve' || x.rung === 'root')).length) && lowest <= 1) wasting[S][limb] = true;
+      /* the anterior horn's disease is a slow one: its muscles fasciculate */
+      if ((segs as readonly string[]).some((g) => nodes.has(`${S}_ahn_${g}`))) fasciculation[S][limb] = true;
+      if (leastBulk < NEURO.wastingVisible) wasting[S][limb] = true;
       // reflexes: upper motor neuron brisk, lower motor neuron arc lost
       /* a reflex is lost with the nerve or plexus of its muscle (the brachioradialis too, which power testing leaves out);
          a root takes only its share of the arc (below) */
@@ -217,9 +260,9 @@ function derive(view: RuntimeView): LimbState {
   /* A lesion of the sensory cortex alone loses discrimination and the sense of position, but pain, temperature and
      vibration reach consciousness at the thalamus: pinprick is at most reduced and vibration kept. So a pathway cut only
      at the cortex counts for less than one cut below it. */
-  const pathNodes = new Map<string, string[]>(); for (const pw of PATHWAYS as Array<{ id: string; nodes: string[] }>) pathNodes.set(pw.id, pw.nodes);
   const onlyCortex = (f: Record<string, any>) => (pathNodes.get(f.pathwayId) ?? []).filter((n) => nodes.has(n)).every((n) => /_scx$/.test(n));
-  const level = (fs: Array<Record<string, any>>): Level => (!fs.length ? 'normal' : fs.every(onlyCortex) ? 'reduced' : lvl);
+  /* lost where the lesion takes all of a pathway's fibres, reduced where it takes part (or only the cortex) */
+  const level = (fs: Array<Record<string, any>>): Level => (!fs.length ? 'normal' : fs.every(onlyCortex) ? 'reduced' : fs.some((f) => pathFrac(f) >= 1) ? 'absent' : 'reduced');
   const proprioception = { L: { arm: 'normal' as Level, leg: 'normal' as Level }, R: { arm: 'normal' as Level, leg: 'normal' as Level } };
   for (const S of SIDES) {
     for (const seg of [...ARM_SEGS, 'T6', 'T10', ...LEG_SEGS]) {
@@ -272,10 +315,13 @@ function derive(view: RuntimeView): LimbState {
     if (find((x) => x.bodyRegion === `${S}_jaw`).length) jawTo = S;
     if (find((x) => x.bodyRegion === `${S}_palate_vocal`).length) { uvulaTo = other(S); voice = 'hoarse'; }
     if (find((x) => x.bodyRegion === `${S}_pharynx`).length) gag[S] = false;
-    if (find((x) => x.bodyRegion === `${S}_trapezius_scm`).length) shrug[S] = complete ? 1 : 4;
+    for (const f of find((x) => x.bodyRegion === `${S}_trapezius_scm`)) shrug[S] = Math.min(shrug[S], mrcOf(keep(1 - pathFrac(f)).force, 'shrug'));
     for (const f of find((x) => x.bodyRegion === `${S}_tongue`)) {
       tongue.to = S;   // the tongue deviates toward the weak side, whatever the level
-      if (f.umnOrLmn === 'LMN' && complete) { tongue.wasting = true; tongue.fasciculation = f.rung === 'central'; }
+      /* a lower motor neuron lesion wastes the tongue as it does a limb muscle, from about three weeks */
+      /* fasciculations come from sick motor neurons that still fire (motor neurone disease), not from a nucleus or nerve
+         destroyed by an infarct or a cut: the graph has no bulbar motor neurone disease, so none here */
+      if (f.umnOrLmn === 'LMN' && keep(1 - pathFrac(f)).bulk < NEURO.wastingVisible) tongue.wasting = true;
     }
   }
 

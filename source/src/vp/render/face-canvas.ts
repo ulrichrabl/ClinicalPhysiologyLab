@@ -56,7 +56,10 @@ export interface FaceState {
   dim: boolean;
   frenzel: boolean;
   cover: Side | null;
-  camera: 'eyes' | 'face';
+  camera: 'eyes' | 'face' | 'bust';
+  /** The neck examination (optional): each shoulder's lift (0 rest … 1 a full shrug), how far a weak one sits lower at rest
+      (0 … 1), whether the examiner's hands press down on them, and a hand against the cheek resisting a head turn. */
+  neck?: { lift: Record<Side, number>; droop: Record<Side, number>; press: boolean; turnHand: Side | null };
 }
 
 export function neutralFace(): FaceState {
@@ -159,7 +162,7 @@ export class FaceCanvas {
     const w = cv.clientWidth || 600, h = cv.clientHeight || 360;
     if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
     // camera: ease toward the framing for this examination
-    const box = st.camera === 'eyes' ? { x0: -215, x1: 215, y0: -150, y1: 120 } : { x0: -280, x1: 280, y0: -340, y1: 420 };
+    const box = st.camera === 'eyes' ? { x0: -215, x1: 215, y0: -150, y1: 120 } : st.camera === 'bust' ? { x0: -470, x1: 470, y0: -360, y1: 760 } : { x0: -280, x1: 280, y0: -340, y1: 420 };
     const target = { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2, s: Math.min(w / (box.x1 - box.x0), h / (box.y1 - box.y0)) };
     if (!this.cam.s) this.cam = { ...target };
     this.cam.x += (target.x - this.cam.x) * 0.15; this.cam.y += (target.y - this.cam.y) * 0.15; this.cam.s += (target.s - this.cam.s) * 0.15;
@@ -180,6 +183,7 @@ export class FaceCanvas {
     this.drawNoseMouth(st);
     g.restore();
 
+    if (st.neck) this.drawNeckHands(st, yawPx);
     if (st.frenzel) this.drawFrenzel(st, yawPx);
     if (st.cover) this.drawCover(st.cover, yawPx);
     if (st.dim) {
@@ -190,13 +194,60 @@ export class FaceCanvas {
     if (st.light !== 'none') this.drawTorch(st.light, yawPx);
   }
 
+  /* ---- the shoulders and the examiner's hands (the accessory nerve) ----------------------------- */
+  /** How high each shoulder stands, px: lifted by the shrug, lower at rest where the trapezius is weak. As drawn the
+      patient's right is on the viewer's left (x < 0). */
+  private shoulderUp(st: FaceState, S: Side) { const n = st.neck!; return 70 * n.lift[S] - 16 * n.droop[S]; }
+  private drawShoulders(st: FaceState) {
+    const g = this.g;
+    const top = (S: Side) => { const sx = S === 'R' ? -1 : 1, e = this.shoulderUp(st, S); return { sx, e, base: { x: sx * 104, y: 352 - 0.3 * e }, ctl: { x: sx * 225, y: 380 - 0.85 * e }, acro: { x: sx * 340, y: 468 - e }, arm: { x: sx * 392, y: 780 } }; };
+    const R = top('R'), L = top('L');
+    /* the trapezius under the gown: a slope from the neck out to the point of the shoulder */
+    const gown = new Path2D();
+    gown.moveTo(R.arm.x, R.arm.y); gown.lineTo(R.acro.x - 8, R.acro.y + 40);
+    gown.quadraticCurveTo(R.acro.x - 6, R.acro.y, R.acro.x + 22, R.acro.y - 6);
+    gown.quadraticCurveTo(R.ctl.x, R.ctl.y, R.base.x, R.base.y);
+    gown.quadraticCurveTo(0, 420, L.base.x, L.base.y);
+    gown.quadraticCurveTo(L.ctl.x, L.ctl.y, L.acro.x - 22, L.acro.y - 6);
+    gown.quadraticCurveTo(L.acro.x + 6, L.acro.y, L.acro.x + 8, L.acro.y + 40);
+    gown.lineTo(L.arm.x, L.arm.y); gown.closePath();
+    const gr = g.createLinearGradient(0, 300, 0, 780); gr.addColorStop(0, '#b3cfdf'); gr.addColorStop(1, '#8fb2c8');
+    g.fillStyle = gr; g.fill(gown);
+    g.strokeStyle = 'rgba(60,90,110,0.35)'; g.lineWidth = 3; g.stroke(gown);
+    /* the neckline */
+    g.strokeStyle = 'rgba(60,90,110,0.45)'; g.lineWidth = 4;
+    g.beginPath(); g.moveTo(R.base.x + 8, R.base.y + 14); g.quadraticCurveTo(0, 440, L.base.x - 8, L.base.y + 14); g.stroke();
+  }
+  private drawNeckHands(st: FaceState, yawPx: number) {
+    const g = this.g, n = st.neck!;
+    const hand = (x: number, y: number, rot: number, sleeveTo: { x: number; y: number }) => {
+      g.save();
+      g.strokeStyle = '#4f7f86'; g.lineWidth = 46; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(sleeveTo.x, sleeveTo.y); g.lineTo(x + (sleeveTo.x - x) * 0.25, y + (sleeveTo.y - y) * 0.25); g.stroke();
+      g.translate(x, y); g.rotate(rot);
+      g.fillStyle = '#e2b89a'; g.strokeStyle = '#b98d70'; g.lineWidth = 3;
+      g.beginPath(); g.ellipse(0, 0, 58, 30, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.restore();
+    };
+    if (n.press) for (const S of ['R', 'L'] as Side[]) {
+      const sx = S === 'R' ? -1 : 1, e = this.shoulderUp(st, S);
+      hand(sx * 255, 392 - 0.9 * e, 0.12 * sx, { x: sx * 300, y: 200 - 0.9 * e });
+    }
+    if (n.turnHand) {
+      /* the hand against the cheek the head turns toward */
+      const sx = n.turnHand === 'R' ? -1 : 1;
+      hand(sx * 225 + yawPx, 150, sx * 1.35, { x: sx * 470, y: 40 });
+    }
+  }
+
   /* ---- head, hair, brows, forehead ------------------------------------------------------ */
   private drawHead(st: FaceState) {
     const g = this.g, { skin, skinShade, hair } = this.ap;
     // neck and gown
     g.fillStyle = shade(skin, -0.08);
     g.beginPath(); g.moveTo(-100, 250); g.lineTo(-115, 520); g.lineTo(115, 520); g.lineTo(100, 250); g.fill();
-    g.fillStyle = '#9fbfd3'; g.beginPath(); g.moveTo(-340, 430); g.quadraticCurveTo(0, 370, 340, 430); g.lineTo(320, 600); g.lineTo(-320, 600); g.fill();
+    if (st.neck) this.drawShoulders(st);
+    else { g.fillStyle = '#9fbfd3'; g.beginPath(); g.moveTo(-340, 430); g.quadraticCurveTo(0, 370, 340, 430); g.lineTo(320, 600); g.lineTo(-320, 600); g.fill(); }
     // ears
     for (const sx of [-1, 1]) {
       g.fillStyle = shade(skin, -0.06);

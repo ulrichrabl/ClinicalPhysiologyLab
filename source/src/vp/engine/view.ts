@@ -19,6 +19,8 @@ export function buildView(
   const complete = lesions.every((l) => l.complete !== false);
   const extent: Record<string, number> = {};
   for (const l of lesions) if (l.extent !== undefined) for (const n of l.nodes) extent[n] = l.extent;
+  /* one patient, one illness: its time since onset is the longest any lesion gives */
+  const ds = lesions.map((l) => l.days).filter((d): d is number => d !== undefined), days = ds.length ? Math.max(...ds) : undefined;
   return {
     patient: caseDef.patient,
     state: opts.state ?? caseDef.initialState,
@@ -26,7 +28,7 @@ export function buildView(
     chemistry: opts.chemistry ?? (chemistryState(opts.circulation, caseDef.pathology.chemistry, opts.respiratory) as unknown as Record<string, number>),
     respiratory: opts.respiratory ?? (opts.circulation?.resp as RespSnapshot | undefined),
     body: opts.circulation?.body as BodySnapshot | undefined,
-    neuro: nodes.length ? { nodes, complete, ...(Object.keys(extent).length ? { extent } : {}), findings: findingsForNodes(nodes, complete) as Array<Record<string, any>> } : undefined,
+    neuro: nodes.length ? { nodes, complete, ...(Object.keys(extent).length ? { extent } : {}), ...(days !== undefined ? { days } : {}), findings: findingsForNodes(nodes, complete) as Array<Record<string, any>> } : undefined,
     conditions: caseDef.pathology.conditions,
     minutes: opts.minutes ?? 0,
   };

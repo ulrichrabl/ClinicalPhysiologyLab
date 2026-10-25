@@ -40,7 +40,7 @@ const MOVE_NAMES: Record<string, [string, string]> = {
   shoulderAbduction: ['shoulder abduction', 'Schulterabduktion'], elbowFlexion: ['elbow flexion', 'Ellenbogenbeugung'], elbowExtension: ['elbow extension', 'Ellenbogenstreckung'],
   wristExtension: ['wrist extension', 'Handgelenkstreckung'], fingerFlexion: ['thumb flexion (OK sign)', 'Daumenendgliedbeugung'], thumbAbduction: ['thumb abduction', 'Daumenabduktion'],
   fingerAbduction: ['finger abduction', 'Fingerspreizung'], hipFlexion: ['hip flexion', 'Hüftbeugung'], hipAdduction: ['hip adduction', 'Hüftadduktion'], hipAbduction: ['hip abduction', 'Hüftabduktion'],
-  kneeExtension: ['knee extension', 'Kniestreckung'], ankleDorsiflexion: ['ankle dorsiflexion', 'Fußhebung'], footEversion: ['foot eversion', 'Fußeversion'],
+  kneeExtension: ['knee extension', 'Kniestreckung'], ankleDorsiflexion: ['ankle dorsiflexion', 'Fußhebung'], toeExtension: ['big toe extension', 'Großzehenhebung'], footEversion: ['foot eversion', 'Fußeversion'],
   footInversion: ['foot inversion', 'Fußinversion'], anklePlantarflexion: ['ankle plantarflexion', 'Fußsenkung'],
 };
 const DERMATOME_AREA: Record<string, [string, string]> = {
@@ -303,6 +303,7 @@ export const FORMATTERS: Record<string, Formatter> = {
     if (de(l)) return `Romberg-Stehversuch ${eyes}: ${lab(cat, 'stance', v.stance, l)}${toward}.`;
     return `Feet together, ${eyes}: ${lab(cat, 'stance', v.stance, l)}${toward}.`;
   },
+  'posture.pull-test': (v, _c, l, cat) => (de(l) ? `Zugtest: ${lab(cat, 'pull-response', v.response, l)}.` : `Pull test: ${lab(cat, 'pull-response', v.response, l)}.`),
   'gait.pattern': (v, _c, l, cat) => {
     const limbSide = v.pattern === 'hemiplegic' || v.pattern === 'high-stepping';
     const toward = !v.toward ? '' : limbSide

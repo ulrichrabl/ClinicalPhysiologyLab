@@ -40,7 +40,7 @@ import { LEN, bodyShape, footOutline, limb3, limbOutline, skeleton, stationAt, t
 import { ear, face, hairBehind, hairFront, hairOver, headFrame, headOutline, oxygenSvg, type Palette, type Support } from './figure-head.ts';
 import { BED_TOP, FLOOR, bra, cloth, dressDefs, gown, sleeveSvg, trolley } from './figure-dress.ts';
 import { Projector, frontness, onTube, VIEW_RIGHT, type FigureView } from './figure-view.ts';
-import { pointingHand, restingHand } from './figure-hand.ts';
+import { pointingHand, radialHand, restingHand } from './figure-hand.ts';
 import { braFront, breastFront, chestFront, earsFront, faceFront, gownLinesFront, hairBehindFront, hairFront3, headEgg, oxygenFront, trunkFront, type FrontCtx } from './figure-front.ts';
 
 export { VIEW_RIGHT, VIEW_LEFT, VIEW_FRONT, VIEW_BACK, type FigureView } from './figure-view.ts';
@@ -451,6 +451,20 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
         /* seen edge-on the fingers' clefts and the nail are hidden */
         lines: broad < 0.7 ? [] : h.lines.map((l) => l.map((q) => pr.P(q, z.wr))), nail: h.nail && broad >= 0.7 ? { p: pr.P(h.nail, z.wr), len: h.nailLen ?? 1 } : null };
     }
+    /* only a hand hanging at the side of an upright body shows its thumb edge to the front */
+    const hanging = Math.sin(rad(k.handA[i])) < -0.75 && Math.abs(p.torso - 90) < 30;
+    if (!backView && hanging && pt < 0.5 && p.outstretch?.[i] === undefined) {
+      /* From the front a hand hanging at the side (palm toward the thigh) is seen from its thumb edge (figure-hand.ts):
+         laid along the hand in profile and across the body toward the palm, which faces the midline. */
+      const cut = LEN.fore - 2.5, wst = stationAt(sh.fore, cut), half = wst.w ?? 2.4;
+      const foreCut = [...sh.fore.filter((t) => t.s < cut), wst];
+      const med = -sg(i), hd = radialHand(lerp(curl, 88, clamp(p.fist?.[i] ?? 0, 0, 1)));
+      /* the hand takes the forearm's depth as drawn at the wrist and its own (in cm) from the middle of the palm on */
+      const deep = (x: number) => lerp(half / 1.7, 1, clamp(x / 7, 0, 1));
+      const W = ([x, y]: [number, number]) => pr.P(add(k.wrist[i], k.handA[i], x * u), z.wr + med * (Math.abs(y) === 1 ? Math.sign(y) * half : y * deep(x)));
+      return { upper: limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh + ((z.el - z.sh) * ARM0) / LEN.upper, z.el), fore: limb3(pr, k.elbow[i], k.foreA[i], foreCut, k.flip, z.el, z.wr),
+        hand: [hd.outline.map(W)], fingers: [] as Pt[][], thumb: [hd.thumb.map(W)], lines: hd.lines.map((l) => l.map(W)), nail: null };
+    }
     const index = pt > 0.05 ? limb3(pr, knuckle(i), k.handA[i] + (1 - pt) * curl * k.flip, sh.fingers.map((t) => ({ ...t, a: t.a * 0.75, p: t.p * 0.75, w: 0.8 })), k.flip, z.wr, z.wr) : [];
     return {
       upper: joinShoulder ? limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh + ((z.el - z.sh) * ARM0) / LEN.upper, z.el).map((pts) => pts) : limb3(pr, k.shoulder, k.upperA[i], upperSt, k.flip, z.sh, z.el), fore: limb3(pr, k.elbow[i], k.foreA[i], sh.fore, k.flip, z.el, z.wr),
@@ -591,7 +605,8 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
     out.push(layer([{ attrs: `data-region="arm" data-side="${sideAttr(i)}"`, parts: armParts(i, armFills(i)) }], pal.line, lineW));
     /* the top of the arm proper and its inner edge above the armpit disappear under the shoulder (its fill, inside its outline) */
     if (joinShoulder && !dress.sleeve) out.push(`<path d="${closedPath(shoulderShape(i, 0, 0.45, 13, 0.5))}" fill="${armFills(i)[0]}" pointer-events="none"/>`);
-    const sideHand = (p.point?.[i] ?? 0) >= 0.5 || !joinShoulder;
+    /* hands drawn from a template carry their own creases: from the side, and from the front (the thumb's edge) */
+    const sideHand = (p.point?.[i] ?? 0) >= 0.5 || !joinShoulder || ((arm(i) as { lines?: Pt[][] }).lines?.length ?? 0) > 0;
     if (i === 0 && near === 0 && !sideHand) out.push(prof(() => armDetails(k, look, pal, curl)));
     if (sideHand) { const ah = arm(i) as { lines?: Pt[][]; nail?: { p: Pt; len: number } | null }, ln = ah.lines ?? [];
       if (ah.nail) out.push(`<ellipse cx="${f(ah.nail.p.x)}" cy="${f(ah.nail.p.y)}" rx="${f(ah.nail.len * u)}" ry="${f(0.5 * u)}" fill="${pal.nail}" opacity="${f(1 - fp)}" transform="rotate(${f(-k.handA[i])} ${f(ah.nail.p.x)} ${f(ah.nail.p.y)})" pointer-events="none"/>`); out.push(`<g pointer-events="none" opacity="${f(1 - fp * 0.6)}">${ln.map((l) => `<path d="${openPath(l)}" fill="none" stroke="${pal.line}" stroke-width=".45" stroke-linecap="round" opacity=".55"/>`).join('')}</g>`); }

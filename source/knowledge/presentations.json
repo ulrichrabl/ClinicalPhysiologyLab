@@ -128,6 +128,7 @@
 {"id": "test-romberg-1", "tests": ["test.romberg"], "signs": ["romberg-sign"], "syndrome": "dorsal-column-syndrome", "status": "draft"},
 {"id": "test-romberg-2", "tests": ["test.romberg"], "signs": ["lateral-fall-eyes-closed"], "syndrome": "peripheral-vestibular-pattern", "status": "draft"},
 {"id": "test-romberg-3", "tests": ["test.romberg"], "signs": ["truncal-ataxia"], "syndrome": "cerebellar-syndrome", "status": "draft"},
+{"id": "test-pull-1", "tests": ["test.pull"], "signs": ["postural-instability"], "status": "draft"},
 {"id": "test-gait-1", "tests": ["test.gait"], "signs": ["ataxic-gait"], "syndrome": "cerebellar-syndrome", "status": "draft"},
 {"id": "test-gait-2", "tests": ["test.gait"], "signs": ["veering-gait"], "syndrome": "peripheral-vestibular-pattern", "status": "draft"},
 {"id": "test-gait-3", "tests": ["test.gait"], "signs": ["hemiplegic-gait"], "syndrome": "umn-syndrome", "status": "draft"},

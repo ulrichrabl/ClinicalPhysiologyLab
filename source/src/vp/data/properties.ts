@@ -335,6 +335,12 @@ export const PROPERTIES: PropertyDef[] = [
     source: 'model-or-case', resolver: 'neuro.balance', formatter: 'posture.romberg', renderer: 'svg.patient',
   },
   {
+    id: 'posture.pull-test', structure: 'posture', label: { en: 'Pull test', de: 'Zugtest (Pull-Test)' },
+    value: rec({ response: c('pull-response') }),
+    normal: { value: { response: 'recovers' } },
+    source: 'model-or-case', resolver: 'neuro.balance', formatter: 'posture.pull-test', renderer: 'svg.patient',
+  },
+  {
     id: 'gait.pattern', structure: 'gait', label: { en: 'Gait', de: 'Gangbild' },
     value: rec({ pattern: c('gait-pattern'), toward: side }, ['toward']),
     normal: { value: { pattern: 'normal' } },
@@ -392,7 +398,7 @@ export const PROPERTIES: PropertyDef[] = [
     const L = limb === 'arm' ? { en: 'arm', de: 'Arm' } : { en: 'leg', de: 'Bein' };
     const moves = limb === 'arm'
       ? ['shoulderAbduction', 'elbowFlexion', 'elbowExtension', 'wristExtension', 'fingerFlexion', 'thumbAbduction', 'fingerAbduction']
-      : ['hipFlexion', 'hipAdduction', 'hipAbduction', 'kneeExtension', 'ankleDorsiflexion', 'footEversion', 'footInversion', 'anklePlantarflexion'];
+      : ['hipFlexion', 'hipAdduction', 'hipAbduction', 'kneeExtension', 'ankleDorsiflexion', 'toeExtension', 'footEversion', 'footInversion', 'anklePlantarflexion'];
     const segs = limb === 'arm' ? ['C5', 'C6', 'C7', 'C8', 'T1'] : ['L2', 'L3', 'L4', 'L5', 'S1'];
     const reflexes = limb === 'arm'
       ? rec({ biceps: o('reflex-grade'), supinator: o('reflex-grade'), triceps: o('reflex-grade') })
