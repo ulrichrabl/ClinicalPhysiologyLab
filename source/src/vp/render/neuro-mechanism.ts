@@ -40,14 +40,14 @@ const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const pretty = (id: string, lang: 'en' | 'de') => neuroNodeLabel(id)[lang];
 
 /** The ladder as SVG, 360 units wide. */
-export function neuroLadderSvg(test: NeuroTest, lesions: string[], lang: 'en' | 'de', colors: { fg: string; muted: string; accent: string; abn: string; line: string }): string {
+export function neuroLadderSvg(test: NeuroTest, lesions: string[], lang: 'en' | 'de', colors: { fg: string; muted: string; accent: string; abn: string; line: string }, extent: Record<string, number> = {}): string {
   const hit = new Map<Rung, string[]>();
   for (const n of lesions) { const r = rungOf(n); if (r) hit.set(r, [...(hit.get(r) ?? []), n]); }
   const reads = new Set(READS[test]);
   const rowH = 30, top = 8, x0 = 14, w = 250;
   const out: string[] = [];
   /* each rung's row grows by a line for every structure cut on it, one name a line */
-  const subs = RUNGS.map((r) => { const cut = hit.get(r.id); return cut ? cut.map((n) => pretty(n, lang)) : reads.has(r.id) && PATH[test][r.id] ? [PATH[test][r.id]![lang]] : []; });
+  const subs = RUNGS.map((r) => { const cut = hit.get(r.id); return cut ? cut.map((n) => pretty(n, lang) + (extent[n] !== undefined && extent[n] < 1 ? (lang === 'de' ? ` (zu ${Math.round(extent[n] * 100)} %)` : ` (${Math.round(extent[n] * 100)} % of it)`) : '')) : reads.has(r.id) && PATH[test][r.id] ? [PATH[test][r.id]![lang]] : []; });
   const ys: number[] = [];
   let yy = top;
   RUNGS.forEach((_, i) => { ys.push(yy); yy += rowH + 11 * Math.max(0, subs[i].length - 1); });

@@ -17,7 +17,7 @@ const sides = (f, mod) => new Set(f.filter((x) => x.modality === mod).map((x) =>
 
 console.log('\nAnatomy graph');
 ok('321 nodes (261 central + 60 peripheral)', Object.keys(NODES).length === 321, String(Object.keys(NODES).length));
-ok('192 pathways', PATHWAYS.length === 192, String(PATHWAYS.length));
+ok('196 pathways (the knee and triceps jerks each carried by two roots, an arc per root)', PATHWAYS.length === 196, String(PATHWAYS.length));
 ok('every pathway node exists', PATHWAYS.every((p) => p.nodes.every((n) => NODES[n])));
 ok('every lmnFrom is on its own pathway',
   PATHWAYS.every((p) => !p.lmnFrom || p.nodes.includes(p.lmnFrom)));

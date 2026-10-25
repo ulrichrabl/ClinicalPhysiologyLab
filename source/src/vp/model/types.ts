@@ -445,7 +445,8 @@ export interface CaseDef {
     body?: Record<string, number>;
     /** Values clamped by the case for what no model yet produces (white cells, CRP, troponin). Model outputs cannot be clamped. */
     chemistry?: Record<string, number>;
-    lesions?: Array<{ nodes: string[]; complete?: boolean; label?: string }>;
+    /** `extent`: the share of these structures' fibres the lesion takes (0–1, default 1): an MCA infarct that grazes the leg's fibres. */
+    lesions?: Array<{ nodes: string[]; complete?: boolean; extent?: number; label?: string }>;
     /** The state the patient lived in before this illness (chronic disease, usual treatment), reached as a steady state first. */
     chronic?: { days?: number; physiology?: Record<string, number>; respiratory?: Record<string, number>; body?: Record<string, number> };
   };

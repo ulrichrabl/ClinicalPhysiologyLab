@@ -92,6 +92,9 @@ export function explainNeuro(test: NeuroTest, c: NeuroContext): { title: Localiz
       ];
       const brisk = (['R', 'L'] as const).filter((S) => r[S].knee >= 3 || r[S].ankle >= 3), lost = (['R', 'L'] as const).filter((S) => r[S].knee === 0 || r[S].ankle === 0);
       for (const S of brisk) lines.push(L(`Brisk on the ${side(S).en}${r[S].plantar === 'extensor' ? ', with an extensor plantar' : ''}: an upper motor neuron lesion.`, `Lebhaft ${side(S).de}${r[S].plantar === 'extensor' ? ', mit positivem Babinski' : ''}: eine Läsion des ersten Motoneurons.`));
+      const reduced = (['R', 'L'] as const).filter((S) => !lost.includes(S) && (r[S].knee === 1 || r[S].ankle === 1));
+      for (const S of reduced) lines.push(L(`Reduced on the ${side(S).en}: part of the arc is cut. The knee jerk runs through two roots, L3 and L4: one lost weakens it, both (or the femoral nerve) abolish it.`,
+        `Abgeschwächt ${side(S).de}: Ein Teil des Bogens ist unterbrochen. Der PSR läuft über zwei Wurzeln, L3 und L4: Fällt eine aus, wird er schwächer; fallen beide (oder der N. femoralis) aus, fehlt er.`));
       for (const S of lost) lines.push(L(`Lost on the ${side(S).en}: the arc is cut, in the root or the nerve of that reflex (knee: L3–4, femoral nerve; ankle: S1, sciatic and tibial nerves).`, `Fehlend ${side(S).de}: Der Bogen ist unterbrochen, in der Wurzel oder im Nerv dieses Reflexes (PSR: L3–4, N. femoralis; ASR: S1, N. ischiadicus und tibialis).`));
       if (!brisk.length && !lost.length && (['R', 'L'] as const).some((S) => r[S].plantar === 'extensor'))
         lines.push(L('An extensor plantar with reflexes that are not brisk: the corticospinal tract is cut, but the leg’s part of the motor strip is partly spared, so the leg’s reflexes are not released.', 'Ein positiver Babinski bei nicht gesteigerten Reflexen: Die Pyramidenbahn ist unterbrochen, das Beinareal des Motorkortex aber teilweise ausgespart, sodass die Beinreflexe nicht enthemmt sind.'));

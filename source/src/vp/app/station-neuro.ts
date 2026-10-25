@@ -160,7 +160,7 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     host.querySelector<HTMLElement>('[data-title]')!.textContent = tr(ex.title, lang);
     host.querySelector<HTMLElement>('[data-body]')!.innerHTML = ex.body.map((p) => `<p>${esc(tr(p, lang))}</p>`).join('')
       + (c.basis.length ? `<p class="muted small"><b>${t('basis')}:</b> ${esc(c.basis.join('; '))}</p>` : '');
-    host.querySelector<HTMLElement>('[data-ladder]')!.innerHTML = neuroLadderSvg(test, model.lesions.nodes, lang, { fg: css('--fg'), muted: css('--muted'), accent: css('--accent'), abn: css('--abn'), line: css('--line') });
+    host.querySelector<HTMLElement>('[data-ladder]')!.innerHTML = neuroLadderSvg(test, model.lesions.nodes, lang, { fg: css('--fg'), muted: css('--muted'), accent: css('--accent'), abn: css('--abn'), line: css('--line') }, model.lesions.extent ?? {});
     current = motion();
   };
   let current: NeuroMotion = motion();

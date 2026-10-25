@@ -46,7 +46,7 @@
 {"from": "sign:hypotonia", "rel": "part-of", "to": "syndrome:lmn-syndrome", "role": "supporting", "status": "draft"},
 {"from": "sign:areflexia", "rel": "part-of", "to": "syndrome:lmn-syndrome", "role": "supporting", "status": "draft"},
 {"from": "sign:absent-ankle-reflex", "rel": "part-of", "to": "syndrome:lmn-syndrome", "role": "supporting", "status": "draft"},
-{"from": "sign:absent-knee-reflex", "rel": "part-of", "to": "syndrome:lmn-syndrome", "role": "supporting", "status": "draft"},
+{"from": "sign:reduced-knee-reflex", "rel": "part-of", "to": "syndrome:lmn-syndrome", "role": "supporting", "status": "draft"},
 {"from": "sign:crossed-sensory-loss", "rel": "part-of", "to": "syndrome:lateral-medullary-syndrome", "role": "required", "status": "draft"},
 {"from": "sign:ptosis", "rel": "part-of", "to": "syndrome:lateral-medullary-syndrome", "role": "supporting", "status": "draft"},
 {"from": "sign:anisocoria", "rel": "part-of", "to": "syndrome:lateral-medullary-syndrome", "role": "supporting", "status": "draft"},

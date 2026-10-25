@@ -1,6 +1,6 @@
 import type { ExamContext, Side } from '../model/types.ts';
 import type { Resolved, Resolver, RuntimeView } from '../engine/observe.ts';
-import { MOTOR_UNITS } from '../../domains/neuro/data/anatomy.js';
+import { MOTOR_UNITS, REFLEX_ROOTS as ANATOMY_REFLEX_ROOTS } from '../../domains/neuro/data/anatomy.js';
 
 /* ===========================================================================
    Neurological examination model: cranial nerves V, VII, IX–XII, speech,
@@ -95,19 +95,17 @@ function derive(view: RuntimeView): LimbState {
   const basis: string[] = [];
   const find = (pred: (f: Record<string, any>) => boolean) => F.filter(pred);
 
-  /* Cortical somatotopy: a lesion confined to the motor strip affects only the
-     limbs whose part of the strip it involves. */
+  /* How much of the tract serving each part of side S a lesion takes. Below the cortex the fibres for face, arm and leg
+     run together, so a lesion there takes them all. In the motor strip each part has its own place: a part of the strip
+     the lesion reaches loses the share its `extent` gives (all of it unless the case says less, as when an MCA infarct
+     only grazes the leg's fibres); a part it does not reach is untouched, since its pathways then pass no lesion. Above
+     the pyramidal decussation the tract serving side S runs on the other side; below it, in the cord, on the same side. */
+  const extent = view.neuro?.extent ?? {};
   const cortical = (S: Side) => {
     const lesionSide = other(S);
-    /* Above the pyramidal decussation the tract serving side S runs on the other side; below it, in the cord, on the same
-       side. Either way the whole tract is cut, not a part of the strip. */
     const subcortical = [...nodes].some((n) => (n.startsWith(`${lesionSide}_`) && /_(ic|peduncle|pons_cst|med_pyr)/.test(n)) || n.startsWith(`${S}_cst_`));
-    if (subcortical) return { face: 1, arm: 1, leg: 1 };
-    return {
-      face: nodes.has(`${lesionSide}_mcx_face`) ? 1 : 0.3,
-      arm: nodes.has(`${lesionSide}_mcx_arm`) ? 1 : 0.3,
-      leg: nodes.has(`${lesionSide}_mcx_leg`) ? 1 : 0.3,
-    };
+    const part = (p: 'face' | 'arm' | 'leg') => { const n = `${lesionSide}_mcx_${p}`; return subcortical || !nodes.has(n) ? 1 : Math.max(0, Math.min(1, extent[n] ?? 1)); };
+    return { face: part('face'), arm: part('arm'), leg: part('leg') };
   };
 
   const power = { L: {}, R: {} } as LimbState['power'];
@@ -117,7 +115,9 @@ function derive(view: RuntimeView): LimbState {
   const reflex = { L: { biceps: 2, supinator: 2, triceps: 2, knee: 2, ankle: 2 }, R: { biceps: 2, supinator: 2, triceps: 2, knee: 2, ankle: 2 } } as LimbState['reflex'];
   const plantar = { L: 'flexor', R: 'flexor' } as LimbState['plantar'];
   const drift = { L: false, R: false };
-  const REFLEX_SEG: Record<string, string> = { biceps: 'C5', supinator: 'C6', triceps: 'C7', knee: 'L3', ankle: 'S1' };
+  /** the roots that carry each reflex (the graph's own table) and the muscle whose nerve carries it */
+  const REFLEX_ROOTS = ANATOMY_REFLEX_ROOTS as Record<string, string[]>;
+  const REFLEX_MUSCLE: Record<string, string> = { biceps: 'biceps', supinator: 'brachioradialis', triceps: 'triceps', knee: 'quadriceps', ankle: 'gastrocnemius' };
 
   for (const S of SIDES) {
     const som = cortical(S);
@@ -151,11 +151,6 @@ function derive(view: RuntimeView): LimbState {
           else if (r === 'nerve') p = Math.min(p, complete ? 1 : 4);
           else if (r === 'plexus') p = Math.min(p, complete ? 2 : 4);
           else p = Math.min(p, complete ? (u.roots.length > 1 ? 3 : 1) : 4);   // root / anterior horn
-          if (r === 'nerve' || r === 'plexus' || r === 'root') {
-            // the reflex this muscle carries is lost with its arc
-            const rx = Object.entries(REFLEX_SEG).find(([, seg]) => seg === u.reflex)?.[0];
-            if (rx) reflex[S][rx] = Math.min(reflex[S][rx], complete ? 0 : 1);
-          }
         }
         power[S][move] = p;
         lowest = Math.min(lowest, p);
@@ -163,10 +158,19 @@ function derive(view: RuntimeView): LimbState {
       if (lowest <= 2 && !umnSegs.size) tone[S][limb] = 'reduced';
       if (complete && (lmnSegs.size || find((x) => x.modality === 'peripheral_motor' && x.bodyRegion.startsWith(`${S}_muscle_`) && (x.rung === 'nerve' || x.rung === 'root')).length) && lowest <= 1) wasting[S][limb] = true;
       // reflexes: upper motor neuron brisk, lower motor neuron arc lost
-      for (const [rx, seg] of Object.entries(REFLEX_SEG)) {
-        if (!(segs as readonly string[]).includes(seg)) continue;
-        if (find((f) => f.modality === 'reflex' && f.bodyRegion === `${S}_reflex_${seg}`).length || lmnSegs.has(seg)) reflex[S][rx] = Math.min(reflex[S][rx], complete ? 0 : 1);
-        else if (umnSegs.has(seg) && reflex[S][rx] === 2) reflex[S][rx] = k >= 0.5 ? (complete && rx === 'ankle' ? 4 : 3) : 2;
+      /* a reflex is lost with the nerve or plexus of its muscle (the brachioradialis too, which power testing leaves out);
+         a root takes only its share of the arc (below) */
+      for (const [rx, mu] of Object.entries(REFLEX_MUSCLE)) {
+        if (!REFLEX_ROOTS[rx].every((g) => (segs as readonly string[]).includes(g))) continue;
+        if (find((x) => x.modality === 'peripheral_motor' && x.bodyRegion === `${S}_muscle_${mu.replace(/\s+/g, '_')}` && (x.rung === 'nerve' || x.rung === 'plexus')).length)
+          reflex[S][rx] = Math.min(reflex[S][rx], complete ? 0 : 1);
+      }
+      for (const [rx, roots] of Object.entries(REFLEX_ROOTS)) {
+        if (!roots.every((g) => (segs as readonly string[]).includes(g))) continue;
+        const cut = roots.filter((g) => find((f) => f.modality === 'reflex' && f.bodyRegion === `${S}_reflex_${g}`).length || lmnSegs.has(g)).length;
+        // every root of the arc cut: lost (reduced if partly); one of two: reduced
+        if (cut) reflex[S][rx] = Math.min(reflex[S][rx], cut === roots.length && complete ? 0 : 1);
+        else if (roots.some((g) => umnSegs.has(g)) && reflex[S][rx] === 2) reflex[S][rx] = k >= 0.5 ? (complete && rx === 'ankle' ? 4 : 3) : 2;
       }
     }
   }

@@ -25,6 +25,8 @@ export interface NeuroPreset {
   /** lesioned structures of the nervous-system graph */
   lesions: string[];
   complete: boolean;
+  /** the share of a structure's fibres the lesion takes, where less than all */
+  extent?: Record<string, number>;
   /** the textbook signs of this lesion (checked by the station tests) */
   signs: string[];
   /** where to look first */
@@ -33,15 +35,15 @@ export interface NeuroPreset {
 
 export const NEURO_PRESETS: NeuroPreset[] = [
   { id: 'mca-l', label: L('Left middle cerebral artery stroke (face and arm)', 'Mediainfarkt links (Gesicht und Arm)'),
-    lesions: ['L_mcx_face', 'L_mcx_arm', 'L_broca'], complete: false, signs: ['pronator-drift', 'extensor-plantar'], look: 'drift' },
+    lesions: ['L_mcx_face', 'L_mcx_arm', 'L_broca', 'L_mcx_leg'], extent: { L_mcx_leg: 0.3 }, complete: false, signs: ['pronator-drift', 'extensor-plantar'], look: 'drift' },
   { id: 'capsule-l', label: L('Left internal capsule (lacunar stroke)', 'Capsula interna links (lakunärer Infarkt)'),
     lesions: ['L_ic'], complete: false, signs: ['pronator-drift', 'hyperreflexia', 'extensor-plantar'], look: 'knee-jerk' },
   { id: 'cord-r', label: L('Right half of the cervical cord (Brown-Séquard)', 'Rechte Hälfte des Halsmarks (Brown-Séquard)'),
     lesions: ['R_cst_C5', 'R_dc_asc', 'R_stt_asc'], complete: false, signs: ['pronator-drift', 'hyperreflexia', 'extensor-plantar', 'limb-ataxia-eyes-closed'], look: 'drift' },
-  { id: 'l3-root-r', label: L('Right L3 root', 'Wurzel L3 rechts'),
-    lesions: ['R_nerve_L3', 'R_drg_L3'], complete: true, signs: ['absent-knee-reflex'], look: 'knee-jerk' },
+  { id: 'l4-root-r', label: L('Right L4 root', 'Wurzel L4 rechts'),
+    lesions: ['R_nerve_L4', 'R_drg_L4'], complete: true, signs: ['reduced-knee-reflex'], look: 'knee-jerk' },
   { id: 'femoral-r', label: L('Right femoral nerve', 'N. femoralis rechts'),
-    lesions: ['R_n_femoral'], complete: true, signs: ['absent-knee-reflex'], look: 'knee-jerk' },
+    lesions: ['R_n_femoral'], complete: true, signs: ['reduced-knee-reflex'], look: 'knee-jerk' },
   { id: 's1-root-r', label: L('Right S1 root', 'Wurzel S1 rechts'),
     lesions: ['R_nerve_S1', 'R_drg_S1'], complete: true, signs: ['absent-ankle-reflex'], look: 'knee-jerk' },
   { id: 'cerebellum-l', label: L('Left cerebellar hemisphere', 'Kleinhirnhemisphäre links'),
@@ -52,7 +54,7 @@ export const NEURO_PRESETS: NeuroPreset[] = [
 
 export const NEURO_PRESET_GROUPS: Array<{ group: LocalizedText; ids: string[] }> = [
   { group: L('Upper motor neuron', 'Erstes Motoneuron'), ids: ['mca-l', 'capsule-l', 'cord-r'] },
-  { group: L('Lower motor neuron: root or nerve', 'Zweites Motoneuron: Wurzel oder Nerv'), ids: ['l3-root-r', 'femoral-r', 's1-root-r'] },
+  { group: L('Lower motor neuron: root or nerve', 'Zweites Motoneuron: Wurzel oder Nerv'), ids: ['l4-root-r', 'femoral-r', 's1-root-r'] },
   { group: L('Coordination', 'Koordination'), ids: ['cerebellum-l', 'dorsal-columns'] },
 ];
 
@@ -60,7 +62,7 @@ export const NEURO_PRESET_GROUPS: Array<{ group: LocalizedText; ids: string[] }>
 export function applyNeuroPreset(m: PatientModel, id: string): PatientModel {
   const p = NEURO_PRESETS.find((x) => x.id === id);
   const next = structuredClone(m);
-  next.lesions = { nodes: p ? [...p.lesions] : [], complete: p ? p.complete : true };
+  next.lesions = { nodes: p ? [...p.lesions] : [], complete: p ? p.complete : true, ...(p?.extent ? { extent: { ...p.extent } } : {}) };
   next.vestibular = { side: 'none', severity: 0.8, daysSinceOnset: 1 };
   next.body = { ...BODY_DEFAULTS };
   return next;
@@ -72,17 +74,15 @@ const both = (id: (s: 'R' | 'L') => string, en: string, de: string) => (['R', 'L
 }));
 export const NEURO_STRUCTURES: Array<{ group: LocalizedText; nodes: Array<{ id: string; label: LocalizedText }> }> = [
   { group: L('Cortex and internal capsule', 'Rinde und Capsula interna'), nodes: [
-    /* the leg's part of the strip is not offered: in the graph the leg's tracts start from the arm's part (known gap 49) */
-    ...both((s) => `${s}_mcx_arm`, 'Motor cortex (arm)', 'Motorkortex (Arm)'),
+    ...both((s) => `${s}_mcx_arm`, 'Motor cortex (arm)', 'Motorkortex (Arm)'), ...both((s) => `${s}_mcx_leg`, 'Motor cortex (leg)', 'Motorkortex (Bein)'),
     ...both((s) => `${s}_ic`, 'Internal capsule', 'Capsula interna'),
   ] },
   { group: L('Cord', 'Rückenmark'), nodes: [
-    /* a thoracic level is not offered: the graph's tracts to the legs do not pass T6 or T10 (known gap 49) */
-    ...both((s) => `${s}_cst_C5`, 'Corticospinal tract at C5', 'Pyramidenbahn in Höhe C5'), ...both((s) => `${s}_cst_L2`, 'Corticospinal tract at L2', 'Pyramidenbahn in Höhe L2'),
+    ...both((s) => `${s}_cst_C5`, 'Corticospinal tract at C5', 'Pyramidenbahn in Höhe C5'), ...both((s) => `${s}_cst_T10`, 'Corticospinal tract at T10', 'Pyramidenbahn in Höhe Th10'),
     ...both((s) => `${s}_dc_asc`, 'Dorsal column', 'Hinterstrang'),
   ] },
   { group: L('Roots and nerves', 'Wurzeln und Nerven'), nodes: [
-    ...both((s) => `${s}_nerve_L3`, 'L3 root', 'Wurzel L3'), ...both((s) => `${s}_nerve_S1`, 'S1 root', 'Wurzel S1'),
+    ...both((s) => `${s}_nerve_L3`, 'L3 root', 'Wurzel L3'), ...both((s) => `${s}_nerve_L4`, 'L4 root', 'Wurzel L4'), ...both((s) => `${s}_nerve_S1`, 'S1 root', 'Wurzel S1'),
     ...both((s) => `${s}_n_femoral`, 'Femoral nerve', 'N. femoralis'), ...both((s) => `${s}_n_sciatic`, 'Sciatic nerve', 'N. ischiadicus'),
   ] },
   { group: L('Cerebellum', 'Kleinhirn'), nodes: [...both((s) => `${s}_cerebellum`, 'Cerebellar hemisphere', 'Kleinhirnhemisphäre')] },
@@ -93,7 +93,7 @@ const EXTRA: Array<{ id: string; label: LocalizedText }> = [
   ...both((s) => `${s}_mcx_face`, 'Motor cortex (face)', 'Motorkortex (Gesicht)'),
   { id: 'L_broca', label: L('Broca’s area, left', 'Broca-Areal links') },
   ...both((s) => `${s}_stt_asc`, 'Spinothalamic tract', 'Tractus spinothalamicus'),
-  ...(['L3', 'S1'] as const).flatMap((r) => both((s) => `${s}_drg_${r}`, `${r} dorsal root ganglion`, `Spinalganglion ${r}`)),
+  ...(['L3', 'L4', 'S1'] as const).flatMap((r) => both((s) => `${s}_drg_${r}`, `${r} dorsal root ganglion`, `Spinalganglion ${r}`)),
 ];
 /** A structure's name, for the station (its id if it has none). */
 export function neuroNodeLabel(id: string): LocalizedText {

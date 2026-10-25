@@ -339,7 +339,7 @@ console.log('\nThe neurological station');
   }
   ok('every starting point is in a group, once', J(S.NEURO_PRESET_GROUPS.flatMap((g) => g.ids).sort()) === J(S.NEURO_PRESETS.map((p) => p.id).sort()));
   ok('the upper motor neuron lesions drift; the roots, the nerve and the cerebellum do not', ['mca-l', 'capsule-l', 'cord-r'].every((id) => signs[id].present.has('pronator-drift'))
-    && ['l3-root-r', 'femoral-r', 's1-root-r', 'cerebellum-l', 'dorsal-columns'].every((id) => !signs[id].present.has('pronator-drift')));
+    && ['l4-root-r', 'femoral-r', 's1-root-r', 'cerebellum-l', 'dorsal-columns'].every((id) => !signs[id].present.has('pronator-drift')));
   ok('…a left hemisphere drifts the right arm; a right cord lesion, below the decussation, the right arm too', J([...signs['mca-l'].sides.get('pronator-drift')]) === '["R"]' && J([...signs['cord-r'].sides.get('pronator-drift')]) === '["R"]');
   ok('the cerebellum is on the same side: a left hemisphere makes the left finger dysmetric', J([...signs['cerebellum-l'].sides.get('limb-dysmetria')]) === '["L"]');
   {
@@ -347,8 +347,8 @@ console.log('\nThe neurological station');
     const open = S.neuroObserve(m, 'arm.finger-nose.R', { eyesClosed: false }).value, shut = S.neuroObserve(m, 'arm.finger-nose.R', { eyesClosed: true }).value;
     ok('dorsal columns: accurate while the patient watches, dysmetric with the eyes closed (sensory ataxia)', open.dysmetria === 'none' && shut.dysmetria !== 'none', J({ open, shut }));
   }
-  ok('the knee jerk is lost at the L3 root and the femoral nerve, kept at S1 (where the ankle jerk goes)',
-    S.neuroObserve(S.applyNeuroPreset(H, 'l3-root-r'), 'leg.reflexes.R').value.knee === 0 && S.neuroObserve(S.applyNeuroPreset(H, 'femoral-r'), 'leg.reflexes.R').value.knee === 0
+  ok('the knee jerk (L3–4) is reduced at the L4 root, lost at the femoral nerve, kept at S1 (where the ankle jerk goes)',
+    S.neuroObserve(S.applyNeuroPreset(H, 'l4-root-r'), 'leg.reflexes.R').value.knee === 1 && S.neuroObserve(S.applyNeuroPreset(H, 'femoral-r'), 'leg.reflexes.R').value.knee === 0
     && S.neuroObserve(S.applyNeuroPreset(H, 's1-root-r'), 'leg.reflexes.R').value.knee === 2 && S.neuroObserve(S.applyNeuroPreset(H, 's1-root-r'), 'leg.reflexes.R').value.ankle === 0);
   const idle = [];
   for (const g of S.NEURO_STRUCTURES) for (const n of g.nodes) {

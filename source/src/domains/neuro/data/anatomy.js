@@ -185,16 +185,17 @@ export const PATHWAYS = [];
 const path = (p) => { PATHWAYS.push(p); return p; };
 
 /* ------------------------------------------------- corticospinal pathways -- */
-function corticospinal(side, seg, muscle, bodyRegion) {
+function corticospinal(side, seg, muscle, bodyRegion, limb) {
   const dst = other(side);
-  const order = ['C5','C6','C7','C8','T1','L2','L3','L4','L5','S1'];
+  /* the fibres to a lumbar segment run down the whole cord above it, the thoracic cord included */
+  const order = ['C5','C6','C7','C8','T1','T6','T10','L2','L3','L4','L5','S1'];
   const through = order.slice(0, order.indexOf(seg) + 1).map((l) => `${dst}_cst_${l}`);
   path({
     id: `cst_${side}_${dst}_${seg}`,
     name: `${side} cortex → ${dst} ${muscle} (${seg})`,
     modality: 'motor',
     nodes: [
-      `${side}_mcx_${seg <= 'T1' ? 'arm' : 'leg'}`,
+      `${side}_mcx_${limb}`,
       `${side}_ic`, `${side}_peduncle`, `${side}_pons_cst`, `${side}_med_pyr`,
       'pyr_decuss', ...through, `${dst}_ahn_${seg}`, `${dst}_nerve_${seg}`,
     ],
@@ -209,8 +210,8 @@ for (const [seg, muscle, limb] of [
   ['L2','hip flexors','leg'], ['L3','knee extensors','leg'], ['L4','ankle dorsiflexors','leg'],
   ['L5','great toe extensor','leg'], ['S1','ankle plantarflexors','leg'],
 ]) {
-  corticospinal('L', seg, muscle, `R_${limb}_${seg}`);
-  corticospinal('R', seg, muscle, `L_${limb}_${seg}`);
+  corticospinal('L', seg, muscle, `R_${limb}_${seg}`, limb);
+  corticospinal('R', seg, muscle, `L_${limb}_${seg}`, limb);
 }
 
 /* -------------------------------------------------------- cranial motor ---- */
@@ -380,9 +381,14 @@ for (const s of SIDES) {
 }
 
 /* ------------------------------------------------------------- reflexes ---- */
+/* One arc per root. A reflex is carried by the roots of REFLEX_ROOTS: the biceps and
+   brachioradialis jerks by C5 and C6, the triceps jerk by C7 and C8, the knee jerk by L3 and L4,
+   the ankle jerk by S1 (the MRC's Aids to the examination of the peripheral nervous system).
+   One root of two lost leaves the reflex reduced; both, or the nerve, abolish it. */
+export const REFLEX_ROOTS = { biceps: ['C5', 'C6'], supinator: ['C5', 'C6'], triceps: ['C7', 'C8'], knee: ['L3', 'L4'], ankle: ['S1'] };
 for (const s of SIDES) {
-  for (const [seg, name] of [['C5','biceps jerk'],['C6','brachioradialis'],['C7','triceps jerk'],
-    ['L3','patellar reflex'],['S1','Achilles reflex']]) {
+  for (const [seg, name] of [['C5','biceps and brachioradialis jerks'],['C6','biceps and brachioradialis jerks'],['C7','triceps jerk'],['C8','triceps jerk'],
+    ['L3','patellar reflex'],['L4','patellar reflex'],['S1','Achilles reflex']]) {
     path({ id: `dtr_${s}_${seg}`, name: `${s} ${name} (${seg})`, modality: 'reflex',
       nodes: [`${s}_drg_${seg}`, `${s}_ahn_${seg}`, `${s}_nerve_${seg}`],
       lmnFrom: `${s}_drg_${seg}`, bodyRegion: `${s}_reflex_${seg}`,
