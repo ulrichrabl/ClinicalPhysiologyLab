@@ -29,6 +29,8 @@ export interface FrontCtx {
   back: boolean;                       // seen from behind (turn < 0)
   /* where long hair can fall to (image y), and the head's lying-ness */
   floorY: number;
+  /** 0 the eyes open, 1 closed */
+  eyesShut?: number;
 }
 
 type AZ = [number, number];            // head: a (up), z (across, + patient's left)
@@ -100,14 +102,20 @@ export function faceFront(c: FrontCtx): string {
   const shut = distress >= 2 ? 0.28 : 0;
   for (const sg of [-1, 1]) {
     const E = (a: number, z: number) => H3(c, a, 8.6, z * sg);
-    const almond = [E(8.35, 1.75), E(9.0 - shut, 2.6), E(9.05 - shut, 3.5), E(8.6, 4.8), E(7.95 + shut * 0.4, 3.6), E(7.9 + shut * 0.4, 2.5)];
-    blob(out, almond, pal.sclera);
-    const ic = E(8.42 - shut * 0.2, 3.15);
-    dot(out, ic, 0.58 * u, 0.58 * u, '#4a3426');
-    dot(out, ic, 0.26 * u, 0.26 * u, '#1d1410');
-    dot(out, { x: ic.x - 0.18 * u, y: ic.y - 0.2 * u }, 0.12 * u, 0.12 * u, '#ffffff', 0.85);
-    line(out, [E(8.3, 1.6), E(9.05 - shut, 2.5), E(9.1 - shut, 3.5), E(8.65, 4.9)], '#3b2a22', 0.32 * u);
-    line(out, [E(8.25, 1.9), E(7.85 + shut * 0.4, 3.0), E(8.4, 4.7)], pal.line, 0.16 * u, 0.6);
+    if ((c.eyesShut ?? 0) >= 0.5) {
+      /* closed: the lashes along the lowered lid's margin, a curve open upward, and the lid's fold above */
+      line(out, [E(8.3, 1.6), E(7.95, 2.6), E(7.9, 3.5), E(8.3, 4.8)], '#3b2a22', 0.3 * u);
+      line(out, [E(8.85, 1.8), E(9.15, 3.0), E(8.9, 4.5)], pal.line, 0.15 * u, 0.5);
+    } else {
+      const almond = [E(8.35, 1.75), E(9.0 - shut, 2.6), E(9.05 - shut, 3.5), E(8.6, 4.8), E(7.95 + shut * 0.4, 3.6), E(7.9 + shut * 0.4, 2.5)];
+      blob(out, almond, pal.sclera);
+      const ic = E(8.42 - shut * 0.2, 3.15);
+      dot(out, ic, 0.58 * u, 0.58 * u, '#4a3426');
+      dot(out, ic, 0.26 * u, 0.26 * u, '#1d1410');
+      dot(out, { x: ic.x - 0.18 * u, y: ic.y - 0.2 * u }, 0.12 * u, 0.12 * u, '#ffffff', 0.85);
+      line(out, [E(8.3, 1.6), E(9.05 - shut, 2.5), E(9.1 - shut, 3.5), E(8.65, 4.9)], '#3b2a22', 0.32 * u);
+      line(out, [E(8.25, 1.9), E(7.85 + shut * 0.4, 3.0), E(8.4, 4.7)], pal.line, 0.16 * u, 0.6);
+    }
     if (sh.old > 0.3) line(out, [E(7.5, 2.2), E(7.15, 3.2), E(7.5, 4.3)], pal.line, 0.14 * u, 0.4);
     /* brow: hair colour; distress pulls the inner end down and in */
     const inner = distress >= 2 ? 9.8 : distress === 1 ? 10.15 : 10.3;

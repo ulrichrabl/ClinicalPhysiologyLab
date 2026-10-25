@@ -67,6 +67,11 @@ export interface Pose {
   bed: 'flat' | 'back-raised' | 'edge' | 'none';
   /** 0 the hand at rest; 1 pointing: the other fingers closed and the index straight (finger–nose) [near, far] */
   point?: [number, number];
+  /** an arm held out with the fingers straight (pronator drift): the forearm's rotation from palm up, degrees (0 palm up,
+      90 thumb up) [near, far]; absent, the hand rests or points */
+  outstretch?: [number, number];
+  /** 0 the eyes open, 1 closed (asked to close them: pronator drift, Romberg) */
+  eyes?: number;
   backrest: number;         // backrest angle when raised
   bedLeft: number;          // head end of the mattress (shortened for the head-hanging test)
 }
@@ -107,6 +112,8 @@ function lerpDirect(a: Pose, b: Pose, t: number): Pose {
     thigh: l2(a.thigh, b.thigh), shin: l2(a.shin, b.shin), foot: l2(a.foot, b.foot), prone: l(a.prone, b.prone),
     bed: t < 0.5 ? a.bed : b.bed, backrest: l(a.backrest, b.backrest), bedLeft: l(a.bedLeft, b.bedLeft),
     ...(a.point || b.point ? { point: l2(a.point ?? [0, 0], b.point ?? [0, 0]) } : {}),
+    ...(a.outstretch || b.outstretch ? { outstretch: l2(a.outstretch ?? [0, 0], b.outstretch ?? [0, 0]) } : {}),
+    ...(a.eyes !== undefined || b.eyes !== undefined ? { eyes: l(a.eyes ?? 0, b.eyes ?? 0) } : {}),
   };
 }
 
@@ -363,7 +370,7 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
   const chest = trunk3(pr, k, sh, 27, 99);
   const neckPts = limb3(pr, k.neckRoot, k.neckA, sh.neck, -k.flip, 0, 0);
   const H = headFrame(k);
-  const fctx: FrontCtx = { pr, k, sh, look, pal, back: backView, floorY: FLOOR };
+  const fctx: FrontCtx = { pr, k, sh, look, pal, back: backView, floorY: FLOOR, eyesShut: clamp(p.eyes ?? 0, 0, 1) };
   const headProfile = headOutline({ k, sh, look, pal, support: { p: { x: 0, y: FLOOR }, n: { x: 0, y: -1 } } }).map((q) => pr.P(q));
   const head: Pt[][] = pr.profile ? [headProfile] : [headProfile, headEgg(fctx), ...earsFront(fctx)];
   const leg = (i: 0 | 1) => {
@@ -423,9 +430,12 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
       const foreCut = [...sh.fore.filter((t) => t.s < cut), wst];
       /* how much of the back of the hand faces the viewer: a hanging hand (palm to the thigh) shows its back; a hand
          lying on the thigh or the bed is palm down and shows its edge. Pointing, the forearm is held thumb-up. */
-      const broad = pt >= 0.5 ? 1 : clamp(Math.abs(Math.sin(rad(k.handA[i]))) * 1.3, 0.5, 1);
+      /* Held out (pronator drift), the forearm's rotation decides it: palm up the hand is seen edge-on, turned toward
+         thumb-up it shows its back. */
+      const os = p.outstretch?.[i];
+      const broad = pt >= 0.5 ? 1 : os !== undefined ? clamp(Math.sin(rad(os)), 0.3, 1) : clamp(Math.abs(Math.sin(rad(k.handA[i]))) * 1.3, 0.5, 1);
       const frame = { wrist: k.wrist[i], angle: k.handA[i], thumb: (k.flip > 0 ? -1 : 1) as 1 | -1, u, broad, wristThumb: half * 0.75, wristUlnar: half * 0.75 };
-      const h: { outline: Pt[]; lines: Pt[][]; nail?: Pt; nailLen?: number } = pt >= 0.5 ? pointingHand(frame) : restingHand(frame, curl);
+      const h: { outline: Pt[]; lines: Pt[][]; nail?: Pt; nailLen?: number } = pt >= 0.5 ? pointingHand(frame) : restingHand(frame, os !== undefined ? 4 : curl);
       return { upper: joinShoulder ? limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh + ((z.el - z.sh) * ARM0) / LEN.upper, z.el) : limb3(pr, k.shoulder, k.upperA[i], upperSt, k.flip, z.sh, z.el),
         fore: limb3(pr, k.elbow[i], k.foreA[i], foreCut, k.flip, z.el, z.wr), hand: [h.outline.map((q) => pr.P(q, z.wr))], fingers: [] as Pt[][], thumb: [] as Pt[][],
         /* seen edge-on the fingers' clefts and the nail are hidden */
@@ -475,7 +485,7 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
     out.push(trolley(pr, p.bedLeft, backrest, pillow, clamp(p.ground, 0, 1)));
   }
 
-  const ctx = { k, sh, look, pal, support };
+  const ctx = { k, sh, look, pal, support, eyesShut: clamp(p.eyes ?? 0, 0, 1) };
   if (withHead) { out.push(prof(() => hairBehind(ctx))); if (!backView) out.push(front(() => hairBehindFront(fctx))); }
 
   /* ---- depth: from the side, the far limbs are behind the body, in shade; from the front, both sides are in view ---- */
