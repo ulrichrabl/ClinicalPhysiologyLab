@@ -387,7 +387,16 @@ export class ScenarioRun {
     if (this.nudge === 'rosc-for-good-cpr' && !this.nudgeSpent && this.goodCpr()) { outcome = 'organised'; noRecurrence = true; this.nudgeSpent = true; setUp = ' (set up: good CPR before it)'; }
     this.events.push({ t: this.t, kind: 'chance', stream: 'shock', value: uT, use: `shock ${this.shocks}: ${outcome === 'not-terminated' ? 'the fibrillation goes on' : 'the fibrillation ends'}${setUp}` });
     if (outcome !== 'not-terminated') this.events.push({ t: this.t, kind: 'chance', stream: 'shock-rhythm', value: uR, use: `then ${outcome === 'organised' ? 'an organised rhythm' : 'asystole'} (chance of organised ${(this.live.run.arrest.organisedChance() * 100).toFixed(0)} %)` });
-    if (outcome === 'organised') this.writeModel([['electrical.ventricular', 'none']]);
+    /* A heart that comes back from VF is stunned for now: it has lost a share of its contractility, drawn for each shock
+       that leaves an organised rhythm (gap 26; ARREST.stunMax from Norvik 2022). Drawn every shock, so the streams stay
+       in step. */
+    const uS = this.chance.uniform('stunning');
+    if (outcome === 'organised') {
+      const stun = uS * ARREST.stunMax, arrest = this.live.run.arrest;
+      arrest.stun = Math.max(arrest.stun, stun);
+      this.events.push({ t: this.t, kind: 'chance', stream: 'stunning', value: uS, use: `the heart is stunned: ${Math.round(arrest.stun * 100)} % of its contractility lost for now` });
+      this.writeModel([['electrical.ventricular', 'none']]);
+    }
     if (outcome === 'asystole') this.writeModel([['electrical.ventricular', 'asystole']]);
     /* After a terminating shock VF comes back in most patients, within a minute or two (van Alem 2003). Drawn now. */
     this.refibAt = null;
