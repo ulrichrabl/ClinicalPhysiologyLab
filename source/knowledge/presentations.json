@@ -206,5 +206,6 @@
 {"id": "expose-chest-1", "tests": ["expose.chest"], "signs": ["chest-scars"], "status": "draft"},
 {"id": "expose-chest-2", "tests": ["expose.chest"], "signs": ["barrel-chest"], "syndrome": "hyperinflation-pattern", "status": "draft"},
 {"id": "expose-abdomen-1", "tests": ["expose.abdomen"], "signs": ["abdominal-distension"], "syndrome": "portal-hypertension", "status": "draft"},
-{"id": "expose-abdomen-2", "tests": ["expose.abdomen"], "signs": ["abdomen-still-on-breathing"], "syndrome": "peritonitis-signs", "status": "draft"}
+{"id": "expose-abdomen-2", "tests": ["expose.abdomen"], "signs": ["abdomen-still-on-breathing"], "syndrome": "peritonitis-signs", "status": "draft"},
+{"id": "cover-1", "tests": ["cover.chest", "cover.abdomen"], "signs": [], "note": "Not a test: covering again finds nothing; it is courtesy and warmth.", "status": "draft"}
 ]

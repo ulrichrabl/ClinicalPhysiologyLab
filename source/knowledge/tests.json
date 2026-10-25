@@ -107,5 +107,7 @@
 {"id": "position.left-lateral", "status": "draft"},
 {"id": "position.standing", "status": "draft"},
 {"id": "expose.chest", "status": "draft"},
-{"id": "expose.abdomen", "status": "draft"}
+{"id": "expose.abdomen", "status": "draft"},
+{"id": "cover.chest", "status": "draft"},
+{"id": "cover.abdomen", "status": "draft"}
 ]
