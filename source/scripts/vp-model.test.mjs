@@ -328,7 +328,11 @@ console.log('\nEncounter: preconditions, hazards, history, notes');
   ok('exposing without asking consent is recorded as a hazard, not blocked',
     s.encounter.events.some((e) => e.kind === 'hazard' && e.code === 'no-consent') && s.state.exposure.includes('chest'));
 
-  const drape = session('upper-gi-bleed-peptic-ulcer');
+  /* a patient covered at the start (the shared session helper further down starts with everything exposed) */
+  const drape = (() => {
+    const c = caseById('upper-gi-bleed-peptic-ulcer'), m = modelFromCase(c), snap = settleModel(m, 16).snapshot;
+    return startEncounter(CATALOG, REGISTRY, c, buildView(c, { circulation: snap, chemistry: chemistryState(snap, m.chemistry), state: { ...c.initialState, exposure: [] } }), { locale: 'en' });
+  })();
   perform(drape, 'expose.chest'); perform(drape, 'expose.abdomen');
   const chestExam = perform(drape, 'palpate.chest-expansion');
   const abdomenExam = perform(drape, 'palpate.abdomen');
