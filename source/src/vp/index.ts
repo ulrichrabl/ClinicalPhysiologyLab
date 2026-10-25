@@ -57,10 +57,15 @@ import ida from './cases/iron-deficiency-anaemia-caecal.json';
 import graves from './cases/graves-thyrotoxicosis.json';
 import addisonian from './cases/addisonian-crisis.json';
 import hypercalcaemia from './cases/hypercalcaemia-malignancy.json';
+import caudaEquina from './cases/cauda-equina-central-disc.json';
+import guillainBarre from './cases/guillain-barre-after-diarrhoea.json';
+import myasthenia from './cases/myasthenia-gravis-generalised.json';
+import parkinsons from './cases/parkinsons-disease-early.json';
+import b12Sacd from './cases/b12-subacute-combined-degeneration.json';
 import type { CaseDef } from './model/types.ts';
 
 /** Cases are JSON documents; the validator, not the type system, vouches for them. */
-export const CASES: CaseDef[] = [vestibularNeuritisLeft, exertionalSyncopeAs, acuteStrokeLeftMca, footDropRightL5, pneumoniaRll, peAfterFlight, copdExacerbation, akiHyperkalaemia, diabeticKetoacidosis, hyponatraemiaThiazide, urosepsis, ugib, cirrhosis, ida, graves, addisonian, hypercalcaemia] as unknown as CaseDef[];
+export const CASES: CaseDef[] = [vestibularNeuritisLeft, exertionalSyncopeAs, acuteStrokeLeftMca, footDropRightL5, pneumoniaRll, peAfterFlight, copdExacerbation, akiHyperkalaemia, diabeticKetoacidosis, hyponatraemiaThiazide, urosepsis, ugib, cirrhosis, ida, graves, addisonian, hypercalcaemia, caudaEquina, guillainBarre, myasthenia, parkinsons, b12Sacd] as unknown as CaseDef[];
 
 /* Interventions and scenarios (ADR-018). */
 export type * from './scenario/types.ts';

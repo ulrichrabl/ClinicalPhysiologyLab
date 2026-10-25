@@ -30,5 +30,7 @@
 {"id": "pre-excitation-pattern", "status": "draft", "note": "An accessory pathway activates the ventricles early."},
 {"id": "mobitz-1-pattern", "status": "draft"},
 {"id": "mobitz-2-pattern", "status": "draft"},
-{"id": "complete-av-block-pattern", "status": "draft", "note": "AV dissociation without a ventricular tachycardia: the ventricles beat from an escape focus."}
+{"id": "complete-av-block-pattern", "status": "draft", "note": "AV dissociation without a ventricular tachycardia: the ventricles beat from an escape focus."},
+{"id": "subacute-combined-degeneration", "note": "The dorsal and lateral columns together, usually with a neuropathy: extensor plantars with depressed ankle jerks. Causes: vitamin B₁₂ deficiency (also copper deficiency, nitrous oxide).", "status": "draft"},
+{"id": "parkinsonism", "note": "Bradykinesia with rest tremor or rigidity (MDS criteria, Postuma 2015). Causes: Parkinson’s disease, dopamine-blocking drugs, progressive supranuclear palsy, multiple system atrophy, vascular disease.", "status": "draft"}
 ]

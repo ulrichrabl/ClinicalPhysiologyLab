@@ -10,7 +10,7 @@ const d = (id: string, en: string, de: string, enSyn: string[] = [], deSyn: stri
    level, and the debrief asks for the cause. A syndrome or state is the syndrome of the same id in the knowledge tables. */
 const KINDS: Record<string, DiagnosisKind> = {
   'horner-syndrome': 'syndrome', 'third-nerve-palsy': 'syndrome', 'sixth-nerve-palsy': 'syndrome', 'lateral-medullary-syndrome': 'syndrome',
-  'cauda-equina-syndrome': 'syndrome', sepsis: 'syndrome', thyrotoxicosis: 'state',
+  'cauda-equina-syndrome': 'syndrome', 'subacute-combined-degeneration': 'syndrome', sepsis: 'syndrome', thyrotoxicosis: 'state',
   hyperkalaemia: 'lab-finding', hyponatraemia: 'lab-finding', hypercalcaemia: 'lab-finding',
 };
 
@@ -129,6 +129,19 @@ export const DIAGNOSES: DiagnosisDef[] = [
   d('cauda-equina-syndrome', 'Cauda equina syndrome', 'Kaudasyndrom', ['cauda equina'], ['kauda-syndrom', 'cauda equina']),
   d('myasthenia-gravis', 'Myasthenia gravis', 'Myasthenia gravis', ['myasthenia', 'mg'], ['myasthenie']),
   d('guillain-barre', 'Guillain–Barré syndrome', 'Guillain-Barré-Syndrom', ['gbs'], ['gbs']),
+  d('spinal-cord-compression', 'Spinal cord compression', 'Rückenmarkkompression', ['cord compression', 'mscc', 'myelopathy'], ['myelonkompression', 'rückenmarkskompression', 'myelopathie']),
+  d('mechanical-back-pain', 'Mechanical low back pain', 'Unspezifischer Rückenschmerz', ['back strain', 'lumbago'], ['lumbago', 'hexenschuss']),
+  d('transverse-myelitis', 'Transverse myelitis', 'Myelitis transversa', ['myelitis'], ['myelitis']),
+  d('cidp', 'Chronic inflammatory demyelinating polyneuropathy', 'Chronische inflammatorische demyelinisierende Polyneuropathie', ['cidp'], ['cidp']),
+  d('hypokalaemic-paralysis', 'Hypokalaemic paralysis', 'Hypokaliämische Lähmung', ['periodic paralysis'], ['periodische lähmung']),
+  d('botulism', 'Botulism', 'Botulismus', [], []),
+  d('lambert-eaton', 'Lambert–Eaton myasthenic syndrome', 'Lambert-Eaton-Syndrom', ['lems'], ['lems']),
+  d('parkinsons-disease', "Parkinson's disease", 'Morbus Parkinson', ['parkinson', 'parkinsonism', 'idiopathic parkinson'], ['parkinson', 'idiopathisches parkinson-syndrom', 'parkinsonismus']),
+  d('essential-tremor', 'Essential tremor', 'Essentieller Tremor', ['familial tremor'], ['essentieller tremor']),
+  d('drug-induced-parkinsonism', 'Drug-induced parkinsonism', 'Medikamentös induziertes Parkinson-Syndrom', ['neuroleptic parkinsonism'], ['neuroleptikainduziertes parkinsonoid']),
+  d('progressive-supranuclear-palsy', 'Progressive supranuclear palsy', 'Progressive supranukleäre Blickparese', ['psp', 'steele-richardson'], ['psp']),
+  d('subacute-combined-degeneration', 'Subacute combined degeneration of the cord', 'Funikuläre Myelose', ['sacd'], ['funikuläre myelose', 'funikuläre spinalerkrankung']),
+  d('peripheral-neuropathy', 'Peripheral (length-dependent) polyneuropathy', 'Längenabhängige Polyneuropathie', ['polyneuropathy', 'diabetic neuropathy'], ['polyneuropathie', 'pnp']),
   d('bells-palsy', "Bell's palsy", 'Idiopathische Fazialisparese', ['facial nerve palsy'], ['fazialisparese', 'bell-parese']),
   d('horner-syndrome', "Horner's syndrome", 'Horner-Syndrom', ['horner'], ['horner']),
   // causes of those syndromes (ADR-016: a syndrome links to its causes)

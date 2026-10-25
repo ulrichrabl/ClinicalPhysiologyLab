@@ -389,6 +389,10 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
       return undefined;
     }
     if (ref.property === 'gait.pattern') {
+      /* both legs upper motor neuron weak: a spastic paraparesis, both legs stiff and scissoring (it outweighs the foot drop
+         and the sensory ataxia that may come with it, as in subacute combined degeneration) */
+      if ((['L', 'R'] as Side[]).every((S) => st.plantar[S] === 'extensor' && st.power[S].hipFlexion <= 4))
+        return { value: { pattern: 'spastic' }, basis: 'both legs upper motor neuron weakness' };
       for (const S of ['L', 'R'] as Side[]) {
         if (st.plantar[S] === 'extensor' && st.power[S].hipFlexion <= 4) return { value: { pattern: 'hemiplegic', toward: S }, basis: `${S} leg upper motor neuron weakness` };
       }

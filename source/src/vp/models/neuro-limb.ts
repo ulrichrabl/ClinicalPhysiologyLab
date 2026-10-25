@@ -150,8 +150,12 @@ function derive(view: RuntimeView): LimbState {
     const force = ax <= 0 ? 0 : innervated * Math.max(0, s / ax);
     return { force, bulk: 1 - (1 - innervated) * atrophy };
   };
-  /** the share of a lesion's lost fibres that are cut (the rest blocked): all, unless the lesion is a compression */
-  const axonal = (f: Record<string, any>) => ((pathNodes.get(f.pathwayId) ?? []).some((n) => nodes.has(n) && process[n] === 'compression') ? 1 - NEURO.compressionBlock : 1);
+  /** the share of a lesion's lost fibres that are cut (the rest blocked): all, unless the lesion is a compression (part
+      blocked) or a demyelination (blocked: the axons are kept, so the muscle does not waste while the myelin is lost) */
+  const axonal = (f: Record<string, any>) => {
+    const on = (pathNodes.get(f.pathwayId) ?? []).filter((n) => nodes.has(n));
+    return on.some((n) => process[n] === 'demyelination') ? 0 : on.some((n) => process[n] === 'compression') ? 1 - NEURO.compressionBlock : 1;
+  };
   const myotome = (view.patient as { anatomy?: { myotome?: Record<string, Record<string, number>> } } | undefined)?.anatomy?.myotome ?? {};
   const cortical = (S: Side) => {
     const lesionSide = other(S);

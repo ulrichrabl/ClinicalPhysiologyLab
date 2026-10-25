@@ -476,6 +476,8 @@ export const FORMATTERS: Record<string, Formatter> = {
       reticulocytes: ['reticulocytes', 'Retikulozyten', '%'], ldh: ['LDH', 'LDH', 'U/L'], haptoglobin: ['haptoglobin', 'Haptoglobin', 'g/L'], bilirubinUnconjugated: ['unconjugated bilirubin', 'unkonjugiertes Bilirubin', 'µmol/L'], mlPerKgPerHour: ['', '', 'mL/kg/h'], tsh: ['TSH', 'TSH', 'mU/L'], ft4: ['free T4', 'fT4', 'pmol/L'], ft3: ['free T3', 'fT3', 'pmol/L'],
       cortisol: ['cortisol', 'Cortisol', 'nmol/L'], acth: ['ACTH', 'ACTH', 'ng/L'], cortisol0: ['cortisol at 0 min', 'Cortisol bei 0 min', 'nmol/L'], cortisol30: ['cortisol at 30 min', 'Cortisol nach 30 min', 'nmol/L'],
       renin: ['renin', 'Renin', 'mU/L'], aldosterone: ['aldosterone', 'Aldosteron', 'pmol/L'], calciumTotal: ['calcium (total)', 'Calcium (gesamt)', 'mmol/L'], calcium: ['calcium (adjusted)', 'Calcium (korrigiert)', 'mmol/L'],
+      csfProtein: ['protein', 'Eiweiß', 'g/L'], csfCells: ['cells', 'Zellzahl', '/µL'], csfGlucoseRatio: ['CSF/serum glucose', 'Liquor/Serum-Glukose', ''], achr: ['AChR antibodies', 'AChR-Antikörper', 'nmol/L'],
+      residual: ['residual urine', 'Restharn', 'mL'], mma: ['methylmalonic acid', 'Methylmalonsäure', 'µmol/L'], homocysteine: ['homocysteine', 'Homocystein', 'µmol/L'],
       pth: ['PTH', 'PTH', 'pmol/L'], vitaminD: ['25-OH vitamin D', '25-OH-Vitamin-D', 'nmol/L'], phosphate: ['phosphate', 'Phosphat', 'mmol/L'], albumin: ['albumin', 'Albumin', 'g/L'],
     };
     const inv = cat.investigations[ref.property];
@@ -488,6 +490,7 @@ export const FORMATTERS: Record<string, Formatter> = {
     });
     return `${tr(inv?.label ?? { en: ref.property }, l)}: ${parts.join(', ')}.`;
   },
+  'inv.neurophysiology': (v, _c, l, cat, ref) => `${tr(cat.investigations[ref.property]?.label ?? { en: ref.property }, l)}: ${(v.findings ?? []).map((x: string) => lab(cat, 'neurophysiology', x, l)).join('; ')}.`,
   'inv.imaging': (v, _c, l, cat, ref) => `${tr(cat.investigations[ref.property]?.label ?? { en: ref.property }, l)}: ${(v.findings ?? []).map((x: string) => lab(cat, 'imaging', x, l)).join('; ')}.`,
   'inv.urinalysis': (v, _c, l, cat) => {
     if (!v.voided) return de(l) ? 'Urinstix: kein Urin zu gewinnen (der Patient hat seit Stunden kein Wasser gelassen).' : 'Urine dipstick: no urine to test (none passed for hours).';

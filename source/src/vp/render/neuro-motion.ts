@@ -282,7 +282,7 @@ export function romberg(base: Pose, look: FigureLook, t: number, open: RombergFi
 }
 
 
-export type GaitPattern = 'normal' | 'veers' | 'ataxic' | 'unable' | 'hemiplegic' | 'high-stepping' | 'waddling' | 'sensory-ataxic' | 'parkinsonian';
+export type GaitPattern = 'normal' | 'veers' | 'ataxic' | 'unable' | 'hemiplegic' | 'high-stepping' | 'waddling' | 'sensory-ataxic' | 'parkinsonian' | 'spastic';
 export interface GaitFinding { pattern: GaitPattern; toward?: 'L' | 'R' }
 
 /** A periodic bump on the gait cycle (0–1), centred at c, of width w. */
@@ -299,13 +299,14 @@ function legAngles(phi: number) {
   return { hip, knee, ankle };
 }
 
-const CADENCE: Record<GaitPattern, number> = { parkinsonian: 0.95, normal: 1.1, veers: 1.15, ataxic: 1.45, unable: 1.4, hemiplegic: 1.7, 'high-stepping': 1.25, waddling: 1.4, 'sensory-ataxic': 1.35 };
+const CADENCE: Record<GaitPattern, number> = { parkinsonian: 0.95, normal: 1.1, veers: 1.15, ataxic: 1.45, unable: 1.4, hemiplegic: 1.7, 'high-stepping': 1.25, waddling: 1.4, 'sensory-ataxic': 1.35, spastic: 1.5 };
 
 /** Walking, `t` seconds in, by the gait the examination model finds. Each gait changes the normal curves the way the
     textbooks describe it: hemiplegic (the affected leg stiff, its foot pointed, swung round in a half-circle, the arm held
     bent and still); high-stepping (the hip and knee lifted high to clear a dropped foot, which slaps down); waddling (the
     trunk lurching over each standing leg, the pelvis dropping on the other); ataxic (broad-based, irregular, reeling);
-    sensory-ataxic (broad-based, high steps stamped down, watching the feet); veering (drifting to one side); unable
+    sensory-ataxic (broad-based, high steps stamped down, watching the feet); spastic (both legs stiff, the knees hardly
+    bending, the toes pointed and scraping, each swinging leg drawn across the other: scissoring); veering (drifting to one side); unable
     (standing, needing the examiner's hand). All sizes are placements judged by eye. */
 export function gait(base: Pose, look: FigureLook, t: number, f: GaitFinding): MotionFrame {
   const J = figureJoints(base, look), s = J.anterior.x >= 0 ? 1 : -1, down = -90;
@@ -331,6 +332,8 @@ export function gait(base: Pose, look: FigureLook, t: number, f: GaitFinding): M
     if (f.pattern === 'hemiplegic' && j === aff) { hip = 4 + 9 * Math.cos(2 * Math.PI * phi); knee = 6 + 10 * bump(phi, 0.15, 0.07) + 12 * swing; ankle = -18 * swing - 6; out[j] = 10 * swing; }
     if (f.pattern === 'high-stepping' && (j === aff || aff === -1)) { hip += 22 * swing; knee += 35 * swing; ankle = -28 * bump(phi, 0.8, 0.14) + (phi < 0.06 ? -10 * (1 - phi / 0.06) : 0); }
     if (f.pattern === 'sensory-ataxic') { hip += 14 * swing; knee += 22 * swing; }
+    /* spastic: short steps on stiff knees, the foot pointed (it scrapes), the swinging thigh drawn in across the other */
+    if (f.pattern === 'spastic') { hip = 7.5 + (hip - 7.5) * 0.6; knee = 5 + 9 * swing; ankle = -10 - 8 * swing; out[j] = -2.2 - 1.6 * swing; }
     if (irregular) out[j] = 7 + 2 * Math.sin(2 * Math.PI * (0.17 * t + j));
     thigh[j] = down + s * hip;
     shin[j] = thigh[j] - s * knee;
@@ -342,6 +345,7 @@ export function gait(base: Pose, look: FigureLook, t: number, f: GaitFinding): M
     if (f.pattern === 'hemiplegic' && j === aff) { armUpper[j] = down + s * 12; armFore[j] = down + s * 140; hand[j] = -s * 80; }
     if (irregular) { armUpper[j] = down + s * (arm * 0.5 + 8); }
     if (f.pattern === 'parkinsonian') { armUpper[j] = down + s * (arm * 0.15 + 2); armFore[j] = armUpper[j] + s * 50; }
+    if (f.pattern === 'spastic') { armUpper[j] = down + s * (arm * 0.6 + 6); armFore[j] = armUpper[j] + s * 30; }
   }
   const pose: Pose = { ...base, thigh, shin, foot, armUpper, armFore, hand, legOut: out,
     ...(f.pattern === 'hemiplegic' && aff >= 0 ? { fist: (aff === 0 ? [1, 0] : [0, 1]) as [number, number] } : {}),
@@ -351,11 +355,11 @@ export function gait(base: Pose, look: FigureLook, t: number, f: GaitFinding): M
     ...(f.pattern === 'waddling' ? { pelvis: base.pelvis + 3, torso: base.torso - 4 } : {}) };
   /* how far the hips have come: as fast as a standing foot sweeps back under them (the unaffected leg's stance from
      10 % to 50 % of the cycle), so the foot on the ground stays put */
-  const hipScale = f.pattern === 'parkinsonian' ? 0.45 : 1;
-  const sweep = (phi: number) => { const a0 = legAngles(phi), a = { hip: 7.5 + (a0.hip - 7.5) * hipScale, knee: f.pattern === 'parkinsonian' ? 10 + (a0.knee - 3) * 0.55 : a0.knee }, th = (down + s * a.hip) * D2R, sh = (down + s * (a.hip - a.knee)) * D2R; return LEN.thigh * Math.cos(th) + LEN.shin * Math.cos(sh); };
+  const hipScale = f.pattern === 'parkinsonian' ? 0.45 : f.pattern === 'spastic' ? 0.6 : 1;
+  const sweep = (phi: number) => { const a0 = legAngles(phi), a = { hip: 7.5 + (a0.hip - 7.5) * hipScale, knee: f.pattern === 'parkinsonian' ? 10 + (a0.knee - 3) * 0.55 : f.pattern === 'spastic' ? 5 : a0.knee }, th = (down + s * a.hip) * D2R, sh = (down + s * (a.hip - a.knee)) * D2R; return LEN.thigh * Math.cos(th) + LEN.shin * Math.cos(sh); };
   const speed = (Math.abs(sweep(0.1) - sweep(0.5)) / (0.4 * T)) * J.u * (irregular ? 0.9 : f.pattern === 'parkinsonian' ? 0.8 : 1);
   const ahead = speed * t;
-  const lurch = f.pattern === 'waddling' ? 6 * Math.sin(2 * Math.PI * t / T) : f.pattern === 'hemiplegic' ? 2.5 * Math.sin(2 * Math.PI * t / T) : irregular ? 3 * Math.sin(2 * Math.PI * 0.37 * t) + 2 * Math.sin(2 * Math.PI * 0.9 * t) : 0;
+  const lurch = f.pattern === 'waddling' ? 6 * Math.sin(2 * Math.PI * t / T) : f.pattern === 'hemiplegic' ? 2.5 * Math.sin(2 * Math.PI * t / T) : f.pattern === 'spastic' ? 3.5 * Math.sin(2 * Math.PI * t / T) : irregular ? 3 * Math.sin(2 * Math.PI * 0.37 * t) + 2 * Math.sin(2 * Math.PI * 0.9 * t) : 0;
   const lean = f.toward === 'L' ? -1 : 1;
   const drift = f.pattern === 'veers' ? lean * 12 * ((t % 6) / 6) * J.u : irregular ? 6 * Math.sin(2 * Math.PI * 0.21 * t) * J.u : 0;
   return { pose, props: '', walk: { ahead, drift, lurch } };

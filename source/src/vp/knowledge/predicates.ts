@@ -335,10 +335,11 @@ export const NAMED: Record<string, NamedPredicateDef> = {
     },
   },
   pyramidalPattern: {
-    what: 'Arm extensors weaker than flexors, or leg flexors weaker than extensors.',
+    what: 'Arm extensors weaker than flexors, or both leg flexor groups (hip flexion, ankle dorsiflexion) weaker than their extensors.',
     uses: () => ['arm.power', 'leg.power'],
     holds: (h) => restingPower(h, 'arm.power').some(({ value: v }) => Math.min(v.elbowExtension, v.wristExtension) < Math.min(v.elbowFlexion, v.fingerFlexion))
-      || restingPower(h, 'leg.power').some(({ value: v }) => v.hipFlexion < 5 && Math.min(v.hipFlexion, v.ankleDorsiflexion) < Math.min(v.kneeExtension, v.anklePlantarflexion)),
+      /* both flexor groups weaker than their extensors: a weak hip alone is the proximal weakness of a myopathy or a polyradiculopathy */
+      || restingPower(h, 'leg.power').some(({ value: v }) => v.hipFlexion < v.kneeExtension && v.ankleDorsiflexion < v.anklePlantarflexion),
   },
   symmetricalWeakness: {
     what: 'Weakness on both sides, proximal (shoulders and hips weaker than the feet) or distal (the feet weaker than the hips): a gradient, so a limb paralysed throughout is neither.',
