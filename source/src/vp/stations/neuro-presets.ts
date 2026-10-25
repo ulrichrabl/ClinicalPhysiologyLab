@@ -57,6 +57,8 @@ export const NEURO_PRESETS: NeuroPreset[] = [
     lesions: ['L_cn3'], complete: true, days: 1, signs: ['ptosis', 'fixed-dilated-pupil', 'eye-down-and-out'], look: 'eyes' },
   { id: 'cn6-l', label: L('Left sixth nerve', 'N. abducens links'), lesions: ['L_cn6'], complete: true, days: 7, signs: ['abduction-deficit'], look: 'eyes' },
   { id: 'horner-l', label: L('Left sympathetic chain (Horner’s syndrome)', 'Grenzstrang links (Horner-Syndrom)'), lesions: ['L_scg'], complete: true, days: 30, signs: ['ptosis', 'anisocoria', 'dilation-lag'], look: 'eyes' },
+  { id: 'cn11-r', label: L('Right accessory nerve (after a lymph node biopsy in the neck)', 'N. accessorius rechts (nach Lymphknotenbiopsie am Hals)'), lesions: ['R_cn11'], complete: true, days: 60,
+    signs: ['weak-shrug'], look: 'cranial' },
   { id: 'bell-l', label: L('Left facial nerve (Bell’s palsy)', 'N. facialis links (Bell-Parese)'),
     lesions: ['L_cn7'], complete: true, days: 3, signs: ['lmn-facial-weakness'], look: 'cranial' },
   /* roots, plexus and nerves */
@@ -87,7 +89,7 @@ export const NEURO_PRESETS: NeuroPreset[] = [
 
 export const NEURO_PRESET_GROUPS: Array<{ group: LocalizedText; ids: string[] }> = [
   { group: L('Upper motor neuron', 'Erstes Motoneuron'), ids: ['mca-l', 'capsule-l', 'cord-r', 'cord-t10-r', 'mnd'] },
-  { group: L('Brainstem and cranial nerves', 'Hirnstamm und Hirnnerven'), ids: ['wallenberg-l', 'medial-medulla-l', 'cn3-l', 'cn6-l', 'horner-l', 'bell-l'] },
+  { group: L('Brainstem and cranial nerves', 'Hirnstamm und Hirnnerven'), ids: ['wallenberg-l', 'medial-medulla-l', 'cn3-l', 'cn6-l', 'horner-l', 'bell-l', 'cn11-r'] },
   { group: L('Roots, plexus and nerves', 'Wurzeln, Plexus und Nerven'), ids: ['c6-root-r', 'l4-root-r', 'l5-root-r', 's1-root-r', 'cauda-equina', 'erb-r', 'femoral-r', 'peroneal-r', 'ulnar-r'] },
   { group: L('Junction and muscle', 'Endplatte und Muskel'), ids: ['myasthenia', 'myopathy'] },
   { group: L('Basal ganglia and polyneuropathy', 'Basalganglien und Polyneuropathie'), ids: ['parkinson-l', 'parkinson-both', 'polyneuropathy'] },

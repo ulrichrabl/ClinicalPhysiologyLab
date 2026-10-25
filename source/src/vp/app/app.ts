@@ -22,6 +22,7 @@ import { SHORT_LABELS } from '../data/exam-structure.ts';
 import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
 import { EyeView } from '../render/eye-view.ts';
 import { FaceView, type FaceFinding, type OralFinding } from '../render/face-view.ts';
+import { speechScript, type SpeechLine } from '../text/speech-script.ts';
 import { appearanceOf } from '../render/face-canvas.ts';
 import { figureSvg, figureLookFor, lerpPose, POSES, VIEW_ANGLE, viewAt, type FigureFindings, type FigureLook, type Pose } from '../render/patient-figure.ts';
 import { drawEcgPaper, drawSweep, PAPER_MM } from '../render/ecg-paper.ts';
@@ -209,6 +210,7 @@ type Visual =
   | { kind: 'chest'; site: string; mode: ChestMode; value: any }
   | { kind: 'pulse'; finding: Finding }
   | { kind: 'face'; L: FaceFinding; R: FaceFinding; oral?: OralFinding; only?: string[] }
+  | { kind: 'talk'; script: SpeechLine[]; face?: Record<'L' | 'R', FaceFinding> }
   | { kind: 'ecg'; recorded?: number }
   | { kind: 'neuro'; motion: NeuroMotion; manoeuvre: ManoeuvreDef }
   | null;
@@ -640,13 +642,20 @@ export function mount(root: HTMLElement) {
     const faceL = findings.find((f) => f.property === 'face.movement.L'), faceR = findings.find((f) => f.property === 'face.movement.R');
     if (faceL && faceR) { setVisual({ kind: 'face', L: faceL.value as FaceFinding, R: faceR.value as FaceFinding }); return; }
     /* the mouth: the jaw, the palate and the tongue, on the same face (its movement as the model has it) */
-    if (['test.jaw', 'test.palate', 'test.tongue'].includes(m.id) && s) {
+    /* speech: the patient answers, repeats and counts, as the model has it */
+    if ((m.id === 'test.speech' || m.id === 'test.count-to-50') && s) {
+      const sp = observeIn(s, 'speech.language', {})?.value as any ?? {}, fat = observeIn(s, 'speech.fatigue', { repetition: 50 })?.value as any;
+      setVisual({ kind: 'talk', script: speechScript({ ...sp, fatigue: fat?.voice }, lang), face: { L: observeIn(s, 'face.movement.L', {})?.value as any, R: observeIn(s, 'face.movement.R', {})?.value as any } });
+      return;
+    }
+    if (['test.jaw', 'test.palate', 'test.tongue', 'test.shrug'].includes(m.id) && s) {
       const ob = (ref: string) => observeIn(s!, ref, {})?.value as any;
       const tg = ob('mouth.tongue') ?? {};
       setVisual({ kind: 'face', L: ob('face.movement.L') ?? { forehead: 'normal', eyeClosure: 'normal', mouth: 'normal' }, R: ob('face.movement.R') ?? { forehead: 'normal', eyeClosure: 'normal', mouth: 'normal' },
-        oral: { jawTo: ob('jaw.opening')?.deviatesTo ?? 'none', uvulaTo: ob('mouth.palate')?.uvulaDeviatesTo ?? 'none', tongueTo: tg.deviatesTo ?? 'none', tongueWasting: !!tg.wasting, tongueFasciculation: !!tg.fasciculation },
+        oral: { jawTo: ob('jaw.opening')?.deviatesTo ?? 'none', uvulaTo: ob('mouth.palate')?.uvulaDeviatesTo ?? 'none', tongueTo: tg.deviatesTo ?? 'none', tongueWasting: !!tg.wasting, tongueFasciculation: !!tg.fasciculation,
+          shrug: { R: ob('shoulder.shrug.R')?.power ?? 5, L: ob('shoulder.shrug.L')?.power ?? 5 } },
         /* only the part examined, after a look at the face at rest */
-        only: ['rest', m.id === 'test.jaw' ? 'jaw' : m.id === 'test.palate' ? 'ahh' : 'tongue'] });
+        only: m.id === 'test.shrug' ? ['shrug', 'turn-l', 'turn-r'] : ['rest', m.id === 'test.jaw' ? 'jaw' : m.id === 'test.palate' ? 'ahh' : 'tongue'] });
       return;
     }
     const chest = findings.find((f) => LUNG_PROPS.includes(f.property) && /^chest\.(upper-zone|mid-zone|axilla|upper-back|lung-base)\./.test(f.context?.site ?? ''));
@@ -679,6 +688,12 @@ export function mount(root: HTMLElement) {
       host.innerHTML = '<div class="eyehost"></div>';
       eyeView = new EyeView(host.querySelector('.eyehost')!, appearanceOf(c.patient, seedOf(base.id)));
       eyeView.show((k) => sceneFindings(CATALOG, REGISTRY, c, s!.view, k), v.controls);
+      return;
+    }
+    if (v.kind === 'talk') {
+      host.innerHTML = '<div class="facehost"></div>';
+      faceView = new FaceView(host.querySelector('.facehost')!, appearanceOf(c.patient, seedOf(base.id)));
+      faceView.talk(v.script, lang, !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches, v.face);
       return;
     }
     if (v.kind === 'face') {

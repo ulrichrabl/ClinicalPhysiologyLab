@@ -13,6 +13,7 @@ import { figureLookFor } from '../render/patient-figure.ts';
 import { FREE_CASE } from './free-case.ts';
 import { neuroFrame, neuroViewBox, type NeuroMotion } from './neuro-motion-view.ts';
 import { FaceView } from '../render/face-view.ts';
+import { speechScript } from '../text/speech-script.ts';
 import { EyeView } from '../render/eye-view.ts';
 import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
 import { REGISTRY } from '../registry.ts';
@@ -63,7 +64,6 @@ const T: Record<string, LocalizedText> = {
   check: L('Check', 'Prüfen'), next: L('Next unknown', 'Nächstes Unbekanntes'), seeWhy: L('See why, in Explore', 'Das Warum ansehen, im Erkunden-Modus'),
   hits: L('Named, and there', 'Benannt und vorhanden'), misses: L('There, not named', 'Vorhanden, nicht benannt'), over: L('Named, not there', 'Benannt, nicht vorhanden'),
   mechRight: L('Right', 'Richtig'), mechWrong: L('It was', 'Es war'), score: L('right this session', 'richtig in dieser Sitzung'), foundWhere: L('Where each is found', 'Wo jedes zu finden ist'),
-  patientSays: L('You hear', 'Sie hören'),
 };
 const SINCE: Array<[number, LocalizedText]> = [[1, L('1 day', '1 Tag')], [7, L('1 week', '1 Woche')], [14, L('2 weeks', '2 Wochen')], [30, L('1 month', '1 Monat')],
   [120, L('4 months', '4 Monate')], [180, L('6 months', '6 Monate')], [365, L('1 year', '1 Jahr')], [730, L('2 years', '2 Jahre')]];
@@ -283,7 +283,7 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     if (!box) return;
     if (mode === 'identify') {
       /* nothing is written for the learner but what the patient says */
-      box.innerHTML = test === 'speech' ? `<li><b>${t('patientSays')}:</b></li>${findingLines().map((x) => `<li>${x.replace(/<b class="abn"[^>]*>●<\/b> /, '')}</li>`).join('')}` : '';
+      box.innerHTML = '';   /* what the patient says is heard, in the picture */
       renderVisual();
       return;
     }
@@ -324,12 +324,20 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
       current = null;
       return;
     }
+    if (test === 'speech') {
+      vis.hidden = false; vis.innerHTML = '<div class="facehost"></div>';
+      faceView = new FaceView(vis.querySelector('.facehost')!, appearanceOf(FREE_CASE.patient as any, 7));
+      faceView.talk(speechScript({ ...(val('speech.language') as any), fatigue: (val('speech.fatigue', { repetition: 50 }) as any)?.voice }, lang), lang, reduce, { L: val('face.movement.L') as any, R: val('face.movement.R') as any });
+      current = null;
+      return;
+    }
     if (test === 'cranial') {
       /* the face and the mouth, close up: the same face view the ward uses, moved by the findings */
       vis.hidden = false; vis.innerHTML = '<div class="facehost"></div>';
       faceView = new FaceView(vis.querySelector('.facehost')!, appearanceOf(FREE_CASE.patient as any, 7));
       const fm = (S: Side) => val(`face.movement.${S}`) as any, tg = val('mouth.tongue') as any;
-      faceView.show({ L: fm('L'), R: fm('R') }, lang, { jawTo: (val('jaw.opening') as any)?.deviatesTo ?? 'none', uvulaTo: (val('mouth.palate') as any)?.uvulaDeviatesTo ?? 'none', tongueTo: tg?.deviatesTo ?? 'none', tongueWasting: !!tg?.wasting, tongueFasciculation: !!tg?.fasciculation });
+      faceView.show({ L: fm('L'), R: fm('R') }, lang, { jawTo: (val('jaw.opening') as any)?.deviatesTo ?? 'none', uvulaTo: (val('mouth.palate') as any)?.uvulaDeviatesTo ?? 'none', tongueTo: tg?.deviatesTo ?? 'none', tongueWasting: !!tg?.wasting, tongueFasciculation: !!tg?.fasciculation,
+        shrug: { R: (val('shoulder.shrug.R') as any)?.power ?? 5, L: (val('shoulder.shrug.L') as any)?.power ?? 5 } });
       current = null;
       return;
     }
