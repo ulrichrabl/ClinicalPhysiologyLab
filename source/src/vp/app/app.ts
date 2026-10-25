@@ -21,7 +21,7 @@ import { suggest, type Suggestion } from '../engine/suggest.ts';
 import { SHORT_LABELS } from '../data/exam-structure.ts';
 import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
 import { EyeView } from '../render/eye-view.ts';
-import { FaceView, type FaceFinding } from '../render/face-view.ts';
+import { FaceView, type FaceFinding, type OralFinding } from '../render/face-view.ts';
 import { appearanceOf } from '../render/face-canvas.ts';
 import { figureSvg, figureLookFor, lerpPose, POSES, VIEW_ANGLE, viewAt, type FigureFindings, type FigureLook, type Pose } from '../render/patient-figure.ts';
 import { drawEcgPaper, drawSweep, PAPER_MM } from '../render/ecg-paper.ts';
@@ -76,7 +76,7 @@ const UI: Record<string, Record<Lang, string>> = {
   stationEyesYours: { en: 'Your patient’s eyes', de: 'Die Augen Ihres Patienten' },
   stationPulseYours: { en: 'Your patient’s pulse and neck veins', de: 'Puls und Halsvenen Ihres Patienten' },
   stationPulseText: { en: 'The pulse under the finger and the jugular vein in the neck, beside the pressures that make them: the aorta’s wave and the right atrium’s a, x, v and y, beat by beat.', de: 'Der Puls unter dem Finger und die Jugularvene am Hals, neben den Drücken, die sie erzeugen: die Welle der Aorta und a, x, v und y des rechten Vorhofs, Schlag für Schlag.' },
-  stationNeuroText: { en: 'The limb examination and the ladder of the nervous system: pronator drift, finger–nose and the knee jerk, done on the bedside figure, with the lesion placed on its rung, from cortex to muscle.', de: 'Die Untersuchung der Gliedmaßen und die Leiter des Nervensystems: Armvorhalteversuch, Finger-Nase-Versuch und Patellarsehnenreflex an der Patientenfigur, mit der Läsion auf ihrer Stufe, von der Rinde bis zum Muskel.' },
+  stationNeuroText: { en: 'The limb examination and the ladder of the nervous system: tone, power, reflexes, coordination, gait, sensation and cranial nerves on the bedside figure, with the lesion placed on its rung, from cortex to muscle. Predict, or identify a hidden lesion.', de: 'Die Untersuchung der Gliedmaßen und die Leiter des Nervensystems: Tonus, Kraft, Reflexe, Koordination, Gang, Sensibilität und Hirnnerven an der Patientenfigur, mit der Läsion auf ihrer Stufe, von der Rinde bis zum Muskel. Vorhersagen, oder eine verdeckte Läsion erkennen.' },
   stationEyesText: { en: 'The eye examination and the pathways it reads, side by side: pupils, movements, the cover test, nystagmus, the head impulse and the fields, with the reflex arc, the muscles and nerves, the labyrinths or the visual pathway.', de: 'Die Augenuntersuchung und die Bahnen, die sie prüft, nebeneinander: Pupillen, Motorik, Abdecktest, Nystagmus, Kopfimpuls und Gesichtsfeld, mit Reflexbogen, Muskeln und Nerven, Labyrinthen oder Sehbahn.' },
   stationShows: { en: 'shows', de: 'zeigt' }, stationNormal: { en: 'nothing abnormal', de: 'nichts Auffälliges' },
   openInStation: { en: 'Open in the station', de: 'In der Station öffnen' },
@@ -181,6 +181,7 @@ import { mountNeuroStation } from './station-neuro.ts';
 import { mountPulseStation } from './station-pulse.ts';
 import { mountArrestPractice } from './practice-arrest.ts';
 import { motionSide, mountNeuroMotion, type NeuroMotion } from './neuro-motion-view.ts';
+import { neuroMotionFor } from './neuro-visual.ts';
 import type { FingerNoseFinding, ReflexGrade } from '../render/neuro-motion.ts';
 import { pulseSignsOf } from '../stations/pulse-signs.ts';
 import { eyeSignsOf } from '../stations/eye-signs.ts';
@@ -207,7 +208,7 @@ type Visual =
   | { kind: 'auscultate'; site: string; bell: boolean; value: any; sound: 'heart' | 'lung' }
   | { kind: 'chest'; site: string; mode: ChestMode; value: any }
   | { kind: 'pulse'; finding: Finding }
-  | { kind: 'face'; L: FaceFinding; R: FaceFinding }
+  | { kind: 'face'; L: FaceFinding; R: FaceFinding; oral?: OralFinding; only?: string[] }
   | { kind: 'ecg'; recorded?: number }
   | { kind: 'neuro'; motion: NeuroMotion; manoeuvre: ManoeuvreDef }
   | null;
@@ -619,10 +620,34 @@ export function mount(root: HTMLElement) {
     if (m.id === 'test.pronator-drift' && (driftL || driftR)) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'drift', finding: { drift: [!!driftR?.drift, !!driftL?.drift] } } }); return; }
     const fnSide = (['L', 'R'] as const).find((sd) => fv(`arm.finger-nose.${sd}`));
     if (m.id === 'test.finger-nose' && fnSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'finger-nose', side: fnSide, finding: fv(`arm.finger-nose.${fnSide}`) as FingerNoseFinding } }); return; }
-    const kneeSide = (['L', 'R'] as const).find((sd) => typeof fv(`leg.reflexes.${sd}`)?.knee === 'number');
-    if (m.id === 'test.leg.reflexes' && kneeSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'knee-jerk', side: kneeSide, grade: fv(`leg.reflexes.${kneeSide}`)!.knee as ReflexGrade } }); return; }
+    /* the reflexes and tone: the same pictures the neurological station draws, for the side examined */
+    const sideOf = (prop: string) => (['L', 'R'] as const).find((sd) => fv(`${prop}.${sd}`));
+    const readF = (ref: string) => fv(ref);
+    for (const [mid, prop, test] of [['test.leg.reflexes', 'leg.reflexes', 'leg-reflexes'], ['test.arm.reflexes', 'arm.reflexes', 'arm-reflexes'], ['test.arm.tone', 'arm.tone', 'tone']] as const) {
+      const sd = sideOf(prop);
+      if (m.id === mid && sd) { const motion = neuroMotionFor(test, readF, sd); if (motion) { setVisual({ kind: 'neuro', manoeuvre: m, motion }); return; } }
+    }
+    const hsSide = (['L', 'R'] as const).find((sd) => fv(`leg.heel-shin.${sd}`));
+    if (m.id === 'test.heel-shin' && hsSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'heel-shin', side: hsSide, finding: fv(`leg.heel-shin.${hsSide}`) as any } }); return; }
+    const raSide = (['L', 'R'] as const).find((sd) => fv(`arm.rapid-alternating.${sd}`));
+    if (m.id === 'test.rapid-alternating' && raSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'rapid-alternating', side: raSide, finding: fv(`arm.rapid-alternating.${raSide}`) as any } }); return; }
+    if (m.id === 'test.romberg') {
+      const rf = (closed: boolean) => findings.find((f) => f.property === 'posture.romberg' && !!f.context?.eyesClosed === closed)?.value as any;
+      if (rf(false) || rf(true)) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'romberg', open: rf(false) ?? { stance: 'steady' }, closed: rf(true) ?? { stance: 'steady' } } }); return; }
+    }
+    if (m.id === 'test.gait' && fv('gait.pattern')) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'gait', finding: fv('gait.pattern') as any } }); return; }
     const faceL = findings.find((f) => f.property === 'face.movement.L'), faceR = findings.find((f) => f.property === 'face.movement.R');
     if (faceL && faceR) { setVisual({ kind: 'face', L: faceL.value as FaceFinding, R: faceR.value as FaceFinding }); return; }
+    /* the mouth: the jaw, the palate and the tongue, on the same face (its movement as the model has it) */
+    if (['test.jaw', 'test.palate', 'test.tongue'].includes(m.id) && s) {
+      const ob = (ref: string) => observeIn(s!, ref, {})?.value as any;
+      const tg = ob('mouth.tongue') ?? {};
+      setVisual({ kind: 'face', L: ob('face.movement.L') ?? { forehead: 'normal', eyeClosure: 'normal', mouth: 'normal' }, R: ob('face.movement.R') ?? { forehead: 'normal', eyeClosure: 'normal', mouth: 'normal' },
+        oral: { jawTo: ob('jaw.opening')?.deviatesTo ?? 'none', uvulaTo: ob('mouth.palate')?.uvulaDeviatesTo ?? 'none', tongueTo: tg.deviatesTo ?? 'none', tongueWasting: !!tg.wasting, tongueFasciculation: !!tg.fasciculation },
+        /* only the part examined, after a look at the face at rest */
+        only: ['rest', m.id === 'test.jaw' ? 'jaw' : m.id === 'test.palate' ? 'ahh' : 'tongue'] });
+      return;
+    }
     const chest = findings.find((f) => LUNG_PROPS.includes(f.property) && /^chest\.(upper-zone|mid-zone|axilla|upper-back|lung-base)\./.test(f.context?.site ?? ''));
     if (chest) {
       const mode: ChestMode = chest.property === 'chest.percussion' ? 'percuss' : chest.property === 'chest.resonance' ? 'voice' : 'listen';
@@ -658,14 +683,14 @@ export function mount(root: HTMLElement) {
     if (v.kind === 'face') {
       host.innerHTML = '<div class="facehost"></div>';
       faceView = new FaceView(host.querySelector('.facehost')!, appearanceOf(c.patient, seedOf(base.id)));
-      faceView.show({ L: v.L, R: v.R }, lang);
+      faceView.show({ L: v.L, R: v.R }, lang, v.oral, v.only);
       return;
     }
     if (v.kind === 'neuro') {
       const sd = motionSide(v.motion);
       /* of the leg reflexes only the knee jerk is drawn so far */
-      const name = v.motion.kind === 'knee-jerk' ? (lang === 'de' ? 'Patellarsehnenreflex' : 'Knee jerk') : tr(v.manoeuvre.label, lang);
-      const what = `${name} · ${t(sd === 'L' ? 'left' : 'right').toLowerCase()}`;
+      const name = tr(v.manoeuvre.label, lang);
+      const what = v.motion.kind === 'romberg' || v.motion.kind === 'gait' || v.motion.kind === 'drift' ? name : `${name} · ${t(sd === 'L' ? 'left' : 'right').toLowerCase()}`;
       stopVisual = mountNeuroMotion(host, { look: look().figure, motion: v.motion, caption: what, label: what });
       return;
     }

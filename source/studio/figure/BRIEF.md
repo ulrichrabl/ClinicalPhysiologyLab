@@ -165,7 +165,7 @@ Useful zoom ids:
 - **Gown from the front:** no bust shaping (no drape or fold under the breasts) and no pectoral form.
 - **Hands from the front and back:** still simple mitten-like shapes with a thumb, and fingers only as a line. The side view now has real hands (above); hand examinations (asterixis, tremor) would need the front too.
 - **Lying women from above:** long hair spread on the pillow reads as a dark blob.
-- **Animations of examinations:** pose the skeleton (`Pose` angles), not the outlines. Done: pronator drift, finger–nose and the knee jerk (`render/neuro-motion.ts`). Next: heel–shin, rapid alternating movements, Romberg, gait, the plantar response.
+- **Animations of examinations:** pose the skeleton (`Pose` angles), not the outlines. Done (`render/neuro-motion.ts`): pronator drift, finger–nose, tone, the arm and leg reflexes with the plantar response, heel–shin, rapid alternating movements, Romberg (front view), gait. The fields they added to `Pose`, all interpolated: `point`, `outstretch` (forearm rotation), `eyes` (closed at ≥ 0.5), `legOut` (the leg's lateral offset, for a broad base), `fist` (the resting hand curled, toward 88°), `toe` (the big toe about the forefoot, +up: 55° extensor plantar, −20° flexor).
 
 ## Reference images (in `reference/`)
 

@@ -51,7 +51,9 @@ export { leadVectors as axisLeadVectors, leadVectorsOn as axisLeadVectorsOn, sta
 /* the neurological station (ADR-017 decision 10) */
 export { NEURO_STATION } from '../src/vp/stations/station.ts';
 export { NEURO_PRESETS, NEURO_PRESET_GROUPS, NEURO_STRUCTURES, applyNeuroPreset, neuroNodeLabel } from '../src/vp/stations/neuro-presets.ts';
-export { neuroSigns, neuroSignsOf, neuroObserve, NEURO_TESTS, NEURO_TEST_MANOEUVRE } from '../src/vp/stations/neuro-signs.ts';
+export { neuroSigns, neuroSignsOf, neuroObserve, neuroSignGroups, neuroSignature } from '../src/vp/stations/neuro-signs.ts';
+export { NEURO_TESTS, NEURO_TEST_BY_ID } from '../src/vp/stations/neuro-tests.ts';
+export { EXAM_SYSTEMS as EXAM_STRUCTURE } from '../src/vp/data/exam-structure.ts';
 export { explainNeuro, rungOf } from '../src/vp/stations/neuro-texts.ts';
-export { pronatorDrift, fingerNose, kneeJerk } from '../src/vp/render/neuro-motion.ts';
+export { pronatorDrift, fingerNose, kneeJerk, romberg, gait, heelShin, rapidAlternating } from '../src/vp/render/neuro-motion.ts';
 export { figureLookFor, figureJoints, POSES } from '../src/vp/render/patient-figure.ts';

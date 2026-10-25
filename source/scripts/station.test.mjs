@@ -330,47 +330,77 @@ console.log('\nThe eye station');
 console.log('\nThe neurological station');
 {
   const H = S.healthyModel();
-  ok('a healthy adult: no sign on drift, finger–nose or the leg reflexes', S.neuroSignsOf(H).present.size === 0, J([...S.neuroSignsOf(H).present]));
+  ok('a healthy adult: no sign anywhere in the neurological examination', S.neuroSignsOf(H).present.size === 0, J([...S.neuroSignsOf(H).present]));
   const signs = {};
   for (const p of S.NEURO_PRESETS) {
     const r = S.neuroSignsOf(S.applyNeuroPreset(H, p.id));
     signs[p.id] = r;
     ok(`${p.id}: brings ${p.signs.join(', ')}`, p.signs.every((x) => r.present.has(x)), J([...r.present]));
   }
-  ok('every starting point is in a group, once', J(S.NEURO_PRESET_GROUPS.flatMap((g) => g.ids).sort()) === J(S.NEURO_PRESETS.map((p) => p.id).sort()));
-  ok('the upper motor neuron lesions drift; the roots, the nerve and the cerebellum do not', ['mca-l', 'capsule-l', 'cord-r'].every((id) => signs[id].present.has('pronator-drift'))
-    && ['l4-root-r', 'femoral-r', 's1-root-r', 'cerebellum-l', 'dorsal-columns'].every((id) => !signs[id].present.has('pronator-drift')));
+  ok('every starting point is in a group, once, and looks first at a test the station has', J(S.NEURO_PRESET_GROUPS.flatMap((g) => g.ids).sort()) === J(S.NEURO_PRESETS.map((p) => p.id).sort()) && S.NEURO_PRESETS.every((p) => S.NEURO_TEST_BY_ID[p.look]));
+  {
+    const groups = S.neuroSignGroups(), all = groups.flatMap((g) => g.signs);
+    const seen = new Set(S.NEURO_PRESETS.flatMap((p) => [...signs[p.id].present]));
+    ok('Identify: the sign chips list each sign once, under a test the station has', all.length === new Set(all).size && groups.every((g) => S.NEURO_TEST_BY_ID[g.test]), J(all));
+    ok('…and every sign a starting point can bring is among them', [...seen].every((x) => all.includes(x)), J([...seen].filter((x) => !all.includes(x))));
+    const sig = new Map();
+    for (const p of S.NEURO_PRESETS) { const k = S.neuroSignature(signs[p.id]); sig.set(k, [...(sig.get(k) ?? []), p.id]); }
+    const twins = [...sig.values()].filter((v) => v.length > 1);
+    ok('…no two starting points look the same at the bedside, and none looks healthy', !twins.length && !sig.has(S.neuroSignature(S.neuroSignsOf(H))), J(twins));
+    ok('parkinsonism: rigidity, rest tremor and a shuffling gait on the right for a left substantia nigra', ['rest-tremor', 'shuffling-gait'].every((x) => signs['parkinson-l'].present.has(x)) && J([...(signs['parkinson-l'].sides.get('rest-tremor') ?? [])]) === '["R"]', J([...signs['parkinson-l'].present]));
+    ok('polyneuropathy: stocking loss and lost ankle jerks on both sides', signs.polyneuropathy.present.has('stocking-sensory-loss') && J([...(signs.polyneuropathy.sides.get('absent-ankle-reflex') ?? signs.polyneuropathy.sides.get('reduced-ankle-reflex') ?? [])].sort()) === '["L","R"]', J([...signs.polyneuropathy.present]));
+  }
+  const umn = ['mca-l', 'capsule-l', 'cord-r'], lmn = ['l4-root-r', 'femoral-r', 's1-root-r', 'peroneal-r', 'ulnar-r', 'c6-root-r', 'cerebellum-l', 'dorsal-columns', 'myopathy'];
+  ok('the upper motor neuron lesions drift; the roots, nerves, muscle and the cerebellum do not', umn.every((id) => signs[id].present.has('pronator-drift')) && lmn.every((id) => !signs[id].present.has('pronator-drift')));
   ok('…a left hemisphere drifts the right arm; a right cord lesion, below the decussation, the right arm too', J([...signs['mca-l'].sides.get('pronator-drift')]) === '["R"]' && J([...signs['cord-r'].sides.get('pronator-drift')]) === '["R"]');
   ok('the cerebellum is on the same side: a left hemisphere makes the left finger dysmetric', J([...signs['cerebellum-l'].sides.get('limb-dysmetria')]) === '["L"]');
   {
     const m = S.applyNeuroPreset(H, 'dorsal-columns');
     const open = S.neuroObserve(m, 'arm.finger-nose.R', { eyesClosed: false }).value, shut = S.neuroObserve(m, 'arm.finger-nose.R', { eyesClosed: true }).value;
-    ok('dorsal columns: accurate while the patient watches, dysmetric with the eyes closed (sensory ataxia)', open.dysmetria === 'none' && shut.dysmetria !== 'none', J({ open, shut }));
+    ok('dorsal columns: accurate while the patient watches, dysmetric with the eyes closed, and Romberg’s sign', open.dysmetria === 'none' && shut.dysmetria !== 'none'
+      && S.neuroObserve(m, 'posture.romberg', { eyesClosed: false }).value.stance === 'steady' && S.neuroObserve(m, 'posture.romberg', { eyesClosed: true }).value.stance === 'falls', J({ open, shut }));
   }
   ok('the knee jerk (L3–4) is reduced at the L4 root, lost at the femoral nerve, kept at S1 (where the ankle jerk goes)',
     S.neuroObserve(S.applyNeuroPreset(H, 'l4-root-r'), 'leg.reflexes.R').value.knee === 1 && S.neuroObserve(S.applyNeuroPreset(H, 'femoral-r'), 'leg.reflexes.R').value.knee === 0
     && S.neuroObserve(S.applyNeuroPreset(H, 's1-root-r'), 'leg.reflexes.R').value.knee === 2 && S.neuroObserve(S.applyNeuroPreset(H, 's1-root-r'), 'leg.reflexes.R').value.ankle === 0);
+  {
+    const m = S.applyNeuroPreset(H, 'cord-t10-r'), v = (r, c) => S.neuroObserve(m, r, c).value;
+    ok('a right hemicord at T10: pinprick lost on the left from T10 down, vibration on the right leg; the arms and T6 spared (a level)',
+      v('trunk.pinprick.L').T10 !== 'normal' && v('trunk.pinprick.L').T6 === 'normal' && v('leg.pinprick.L').L4 !== 'normal' && v('leg.pinprick.R').L4 === 'normal'
+      && v('leg.vibration.R').vibration !== 'normal' && v('arm.vibration.R').vibration === 'normal' && v('arm.pinprick.L').C6 === 'normal' && signs['cord-t10-r'].present.has('sensory-level'));
+  }
+  {
+    const m = S.applyNeuroPreset(H, 'sensory-cortex-l'), v = (r, c) => S.neuroObserve(m, r, c).value;
+    ok('the sensory cortex: position sense lost, vibration kept, pinprick only reduced; the saddle and the corneal reflex spared; no sensory level',
+      v('leg.vibration.R').proprioception !== 'normal' && v('leg.vibration.R').vibration === 'normal' && v('leg.pinprick.R').L4 === 'reduced'
+      && v('saddle.sensation').pinprick === 'normal' && v('face.sensation.R').corneal === true && !signs['sensory-cortex-l'].present.has('sensory-level'));
+  }
+  ok('Wallenberg: the face lost on the side of the lesion, the body on the other (crossed), no sensory level and no saddle anaesthesia',
+    signs['wallenberg-l'].present.has('crossed-sensory-loss') && !signs['wallenberg-l'].present.has('sensory-level') && !signs['wallenberg-l'].present.has('saddle-anaesthesia'));
+  ok('myasthenia weakens the proximal muscles first and fatigues; the hands are strong at the first effort', S.neuroObserve(S.applyNeuroPreset(H, 'myasthenia'), 'arm.power.R').value.fingerFlexion === 5 && signs['myasthenia'].present.has('fatigable-weakness'));
+  ok('a proximal myopathy leaves rapid alternating movements of the forearm alone', !signs['myopathy'].present.has('slowed-alternating-movements'));
+  ok('motor neurone disease: fasciculating, wasted hands with brisk reflexes below', signs['mnd'].present.has('fasciculation') && signs['mnd'].present.has('hyperreflexia') && S.neuroObserve(S.applyNeuroPreset(H, 'mnd'), 'arm.tone.R').value.wasting === true);
   const idle = [];
   for (const g of S.NEURO_STRUCTURES) for (const n of g.nodes) {
     const m = structuredClone(H); m.lesions = { nodes: [n.id], complete: true };
-    const ch = ['arm.drift', 'arm.finger-nose', 'leg.reflexes'].some((p) => ['R', 'L'].some((sd) => !S.neuroObserve(m, `${p}.${sd}`).normal || !S.neuroObserve(m, `${p}.${sd}`, { eyesClosed: true }).normal));
+    const ch = S.NEURO_TESTS.some((t) => t.lines().some((l) => !S.neuroObserve(m, l.ref, l.ctx ?? {}).normal));
     if (!ch) idle.push(n.id);
   }
-  ok('every structure the station lets you cut changes drift, finger–nose or the leg reflexes', !idle.length, J(idle));
+  ok('every structure the station lets you cut changes a finding of the examination', !idle.length, J(idle));
   ok('every structure, and every one a starting point cuts, has a name in both languages and a rung on the ladder',
-    [...new Set([...S.NEURO_STRUCTURES.flatMap((g) => g.nodes.map((n) => n.id)), ...S.NEURO_PRESETS.flatMap((p) => p.lesions)])].every((id) => { const l = S.neuroNodeLabel(id); return l.en !== id && l.de !== id && l.en !== l.de && S.rungOf(id); }));
+    [...new Set([...S.NEURO_STRUCTURES.flatMap((g) => g.nodes.map((n) => n.id)), ...S.NEURO_PRESETS.flatMap((p) => p.lesions)])].every((id) => { const l = S.neuroNodeLabel(id); return l.en !== id && l.de !== id && l.en !== l.de && S.rungOf(id); }),
+    J([...new Set([...S.NEURO_STRUCTURES.flatMap((g) => g.nodes.map((n) => n.id)), ...S.NEURO_PRESETS.flatMap((p) => p.lesions)])].filter((id) => { const l = S.neuroNodeLabel(id); return !(l.en !== id && l.de !== id && l.en !== l.de && S.rungOf(id)); })));
   const groups = S.stationSettings(S.NEURO_STATION).map((g) => g.id);
-  ok('the station’s settings are what the tests measure: the lesions of the nervous system', J(groups) === J(['nervous-system/lesions']), J(groups));
-  ok('teaching cards of the three tests link to the neurological station', Object.values(S.NEURO_TEST_MANOEUVRE).every((m) => S.KNOWLEDGE.tests[m]?.animation === 'station:neuro'));
+  ok('the station’s settings are what the tests measure: the lesions of the nervous system', groups.includes('nervous-system/lesions'), J(groups));
+  ok('every manoeuvre of the neurological examination outside the eyes is one of the station’s tests', ['neuro.speech', 'neuro.cranial', 'neuro.motor', 'neuro.sensory', 'neuro.coordination']
+    .flatMap((sec) => S.EXAM_STRUCTURE.flatMap((x) => x.sections).find((x) => x.id === sec).manoeuvres).filter((m) => m !== 'test.slr').every((m) => S.NEURO_TESTS.some((t) => t.manoeuvres.includes(m))));
+  ok('teaching cards of the animated tests link to the neurological station', ['test.pronator-drift', 'test.finger-nose', 'test.leg.reflexes'].every((m) => S.KNOWLEDGE.tests[m]?.animation === 'station:neuro'));
   const txt = [];
   for (const id of ['', ...S.NEURO_PRESETS.map((p) => p.id)]) {
     const m = S.applyNeuroPreset(H, id);
-    const fn = (sd, ec) => S.neuroObserve(m, `arm.finger-nose.${sd}`, { eyesClosed: ec }).value;
-    const ctx = { drift: { R: S.neuroObserve(m, 'arm.drift.R').value.drift, L: S.neuroObserve(m, 'arm.drift.L').value.drift }, fingerNose: { R: fn('R', false), L: fn('L', false) }, fingerNoseClosed: { R: fn('R', true), L: fn('L', true) },
-      reflexes: { R: S.neuroObserve(m, 'leg.reflexes.R').value, L: S.neuroObserve(m, 'leg.reflexes.L').value }, basis: [], rungs: new Set() };
-    for (const t of S.NEURO_TESTS) { const e = S.explainNeuro(t, ctx); txt.push(e.title, ...e.body); }
+    for (const t of S.NEURO_TESTS) { const e = S.explainNeuro(t.id, (ref, ctx) => S.neuroObserve(m, ref, ctx ?? {}).value); txt.push(e.title, ...e.body); }
   }
-  ok('every neurological explanation exists in English and German, with its findings filled in', txt.length > 60 && txt.every((x) => x.en && x.de && x.en !== x.de && !/\$\{|undefined|NaN/.test(x.en + x.de)), `${txt.length} texts`);
+  ok('every neurological explanation exists in English and German, with its findings filled in', txt.length > 300 && txt.every((x) => x.en && x.de && x.en !== x.de && !/\$\{|undefined|NaN|\[object/.test(x.en + x.de)), `${txt.length} texts; ${J(txt.filter((x) => !(x.en && x.de && x.en !== x.de && !/\$\{|undefined|NaN|\[object/.test(x.en + x.de))).slice(0, 3))}`);
   /* the animations follow the finding */
   const look = S.figureLookFor(S.FREE_CASE.patient, { exposure: [] }, 7, {});
   const base = S.POSES.sitting;
@@ -381,6 +411,13 @@ console.log('\nThe neurological station');
   ok('the knee jerk swings by its grade: none when absent, more when brisk', kick(0) === 0 && kick(1) < kick(2) && kick(2) < kick(3), J([0, 1, 2, 3].map(kick)));
   const path = (f) => Array.from({ length: 64 }, (_, i) => S.fingerNose(base, look, i * 0.05, f).pose.armFore[0]);
   ok('finger–nose: a dysmetric, tremulous reach moves differently from an accurate one', J(path({})) !== J(path({ dysmetria: 'marked', intentionTremor: true })));
+  const stand = S.POSES.standing;
+  const sway = (f) => Math.max(...Array.from({ length: 60 }, (_, i) => Math.abs(S.romberg(stand, look, 4.2 + i * 0.13, { stance: 'steady' }, f).sway)));
+  ok('Romberg: steady with the eyes closed sways under a degree; a fall leans past 5°', sway({ stance: 'steady' }) < 1 && sway({ stance: 'falls', toward: 'L' }) > 5, J([sway({ stance: 'steady' }), sway({ stance: 'falls', toward: 'L' })]));
+  const g = (f, t) => S.gait(stand, look, t, f);
+  ok('gait: the hemiplegic leg swings out (circumduction) and its knee hardly bends; a normal swing bends it', Math.max(...Array.from({ length: 34 }, (_, i) => g({ pattern: 'hemiplegic', toward: 'R' }, i * 0.05).pose.legOut[0])) > 6
+    && Math.max(...Array.from({ length: 34 }, (_, i) => { const p = g({ pattern: 'normal' }, i * 0.05).pose; return Math.abs(p.thigh[0] - p.shin[0]); })) > 45
+    && Math.max(...Array.from({ length: 34 }, (_, i) => { const p = g({ pattern: 'hemiplegic', toward: 'R' }, i * 0.05).pose; return Math.abs(p.thigh[0] - p.shin[0]); })) < 25);
 }
 
 

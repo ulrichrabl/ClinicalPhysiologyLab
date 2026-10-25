@@ -1,4 +1,5 @@
-import type { NeuroTest } from '../stations/neuro-signs.ts';
+import { tr, type LocalizedText } from '../model/i18n.ts';
+import { NEURO_TEST_BY_ID, type NeuroTest } from '../stations/neuro-tests.ts';
 import { rungOf, type Rung } from '../stations/neuro-texts.ts';
 import { neuroNodeLabel } from '../stations/neuro-presets.ts';
 
@@ -14,6 +15,7 @@ import { neuroNodeLabel } from '../stations/neuro-presets.ts';
 type T = { en: string; de: string };
 const RUNGS: Array<{ id: Rung; label: T }> = [
   { id: 'cortex', label: { en: 'Cortex', de: 'Rinde' } },
+  { id: 'basal-ganglia', label: { en: 'Basal ganglia', de: 'Basalganglien' } },
   { id: 'capsule', label: { en: 'Internal capsule', de: 'Capsula interna' } },
   { id: 'brainstem', label: { en: 'Brainstem', de: 'Hirnstamm' } },
   { id: 'cord', label: { en: 'Spinal cord', de: 'Rückenmark' } },
@@ -23,18 +25,8 @@ const RUNGS: Array<{ id: Rung; label: T }> = [
   { id: 'junction', label: { en: 'Neuromuscular junction', de: 'Motorische Endplatte' } },
   { id: 'muscle', label: { en: 'Muscle', de: 'Muskel' } },
 ];
-/** The rungs each test reads. */
-const READS: Record<NeuroTest, Rung[]> = {
-  drift: ['cortex', 'capsule', 'brainstem', 'cord'],
-  'finger-nose': ['cerebellum', 'cord', 'root', 'nerve'],
-  'knee-jerk': ['cord', 'root', 'plexus', 'nerve', 'muscle'],
-};
-/** What the test's pathway is on each rung it reads. */
-const PATH: Record<NeuroTest, Partial<Record<Rung, T>>> = {
-  drift: { cortex: { en: 'motor strip, arm', de: 'Motorstreifen, Arm' }, capsule: { en: 'posterior limb', de: 'hinterer Schenkel' }, brainstem: { en: 'pyramid, crossing', de: 'Pyramide, Kreuzung' }, cord: { en: 'lateral corticospinal tract', de: 'Tractus corticospinalis lateralis' } },
-  'finger-nose': { cerebellum: { en: 'hemisphere, same side', de: 'Hemisphäre, gleiche Seite' }, cord: { en: 'dorsal columns (eyes closed)', de: 'Hinterstränge (Augen zu)' }, root: { en: 'dorsal roots', de: 'Hinterwurzeln' }, nerve: { en: 'sensory nerves', de: 'sensible Nerven' } },
-  'knee-jerk': { cord: { en: 'L3–4 segment; tract above damps it', de: 'Segment L3–4; Bahn von oben dämpft' }, root: { en: 'L3, L4', de: 'L3, L4' }, plexus: { en: 'lumbar plexus', de: 'Plexus lumbalis' }, nerve: { en: 'femoral nerve', de: 'N. femoralis' }, muscle: { en: 'quadriceps', de: 'Quadrizeps' } },
-};
+const READS = (test: NeuroTest): Rung[] => NEURO_TEST_BY_ID[test].reads;
+const PATH = (test: NeuroTest): Partial<Record<Rung, LocalizedText>> => NEURO_TEST_BY_ID[test].path;
 
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 const pretty = (id: string, lang: 'en' | 'de') => neuroNodeLabel(id)[lang];
@@ -43,11 +35,11 @@ const pretty = (id: string, lang: 'en' | 'de') => neuroNodeLabel(id)[lang];
 export function neuroLadderSvg(test: NeuroTest, lesions: string[], lang: 'en' | 'de', colors: { fg: string; muted: string; accent: string; abn: string; line: string }, extent: Record<string, number> = {}): string {
   const hit = new Map<Rung, string[]>();
   for (const n of lesions) { const r = rungOf(n); if (r) hit.set(r, [...(hit.get(r) ?? []), n]); }
-  const reads = new Set(READS[test]);
+  const reads = new Set(READS(test));
   const rowH = 30, top = 8, x0 = 14, w = 250;
   const out: string[] = [];
   /* each rung's row grows by a line for every structure cut on it, one name a line */
-  const subs = RUNGS.map((r) => { const cut = hit.get(r.id); return cut ? cut.map((n) => pretty(n, lang) + (extent[n] !== undefined && extent[n] < 1 ? (lang === 'de' ? ` (zu ${Math.round(extent[n] * 100)} %)` : ` (${Math.round(extent[n] * 100)} % of it)`) : '')) : reads.has(r.id) && PATH[test][r.id] ? [PATH[test][r.id]![lang]] : []; });
+  const subs = RUNGS.map((r) => { const cut = hit.get(r.id); return cut ? cut.map((n) => pretty(n, lang) + (extent[n] !== undefined && extent[n] < 1 ? (lang === 'de' ? ` (zu ${Math.round(extent[n] * 100)} %)` : ` (${Math.round(extent[n] * 100)} % of it)`) : '')) : reads.has(r.id) && PATH(test)[r.id] ? [tr(PATH(test)[r.id]!, lang)] : []; });
   const ys: number[] = [];
   let yy = top;
   RUNGS.forEach((_, i) => { ys.push(yy); yy += rowH + 11 * Math.max(0, subs[i].length - 1); });
@@ -63,14 +55,14 @@ export function neuroLadderSvg(test: NeuroTest, lesions: string[], lang: 'en' | 
     subs[i].forEach((line, k) => out.push(`<text x="${x0 + 20}" y="${y + 17 + 11 * k}" font-size="10" fill="${cut ? colors.abn : colors.muted}">${esc(line)}</text>`));
   });
   /* the cerebellum, beside the ladder at the level of the brainstem, joined to the cord and the cortex */
-  const cy = mid(2), cx = x0 + w + 20, cOn = reads.has('cerebellum'), cCut = hit.get('cerebellum');
+  const cy = mid(3), cx = x0 + w + 20, cOn = reads.has('cerebellum'), cCut = hit.get('cerebellum');
   const cc = cCut ? colors.abn : cOn ? colors.accent : colors.muted;
   /* joined to the brainstem by its peduncles: a short link clear of the rung's labels */
   out.push(`<path d="M${x0 + 175} ${cy} L${cx - 14} ${cy}" fill="none" stroke="${cc}" stroke-width="1.5" stroke-dasharray="${cOn || cCut ? '' : '3 3'}"/>`);
   out.push(`<circle cx="${cx}" cy="${cy}" r="${cOn || cCut ? 12 : 9}" fill="${cOn || cCut ? cc : 'none'}" fill-opacity="${cOn || cCut ? 0.85 : 1}" stroke="${cc}" stroke-width="1.5"/>`);
   if (cCut) out.push(`<path d="M${cx - 7} ${cy - 7} l14 14 M${cx + 7} ${cy - 7} l-14 14" stroke="#fff" stroke-width="2.4"/>`);
   out.push(`<text x="${cx}" y="${cy + 26}" font-size="12" text-anchor="middle" font-weight="${cOn || cCut ? 600 : 400}" fill="${cOn || cCut ? colors.fg : colors.muted}">${lang === 'de' ? 'Kleinhirn' : 'Cerebellum'}</text>`);
-  const cSub = cCut ? cCut.map((n) => pretty(n, lang)).join(', ') : cOn ? PATH[test].cerebellum?.[lang] ?? '' : '';
+  const cSub = cCut ? cCut.map((n) => pretty(n, lang)).join(', ') : cOn ? (PATH(test).cerebellum ? tr(PATH(test).cerebellum!, lang) : '') : '';
   if (cSub) out.push(`<text x="${cx}" y="${cy + 39}" font-size="10" text-anchor="middle" fill="${cCut ? colors.abn : colors.muted}">${esc(cSub)}</text>`);
   const h = yy + top;
   return `<svg viewBox="0 0 360 ${h}" width="100%" role="img" style="max-width:520px">${out.join('')}</svg>`;

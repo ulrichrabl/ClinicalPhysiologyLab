@@ -16,7 +16,7 @@ const regions = (f) => new Set(f.map((x) => x.bodyRegion));
 const sides = (f, mod) => new Set(f.filter((x) => x.modality === mod).map((x) => x.side));
 
 console.log('\nAnatomy graph');
-ok('321 nodes (261 central + 60 peripheral)', Object.keys(NODES).length === 321, String(Object.keys(NODES).length));
+ok('372 nodes (311 central + 61 peripheral: the spinothalamic tract and dorsal columns by level, the substantia nigra, the polyneuropathy)', Object.keys(NODES).length === 372, String(Object.keys(NODES).length));
 ok('196 pathways (the knee and triceps jerks each carried by two roots, an arc per root)', PATHWAYS.length === 196, String(PATHWAYS.length));
 ok('every pathway node exists', PATHWAYS.every((p) => p.nodes.every((n) => NODES[n])));
 ok('every lmnFrom is on its own pathway',

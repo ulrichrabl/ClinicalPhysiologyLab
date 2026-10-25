@@ -141,6 +141,7 @@ export const MEASUREMENTS: Record<string, MeasurementSpec> = {
   'saddle.sensation': M([LESIONS], 'S2–S5: spared or lost, it separates conus and cauda equina lesions from those above.', 'S2–S5: Erhalten oder verloren trennt es Konus- und Kaudaläsionen von höheren.'),
   'leg.heel-shin': M([LESIONS, 'vor.tau'], 'Ataxia without weakness points to the ipsilateral cerebellum or its pathways.', 'Ataxie ohne Parese weist auf das ipsilaterale Kleinhirn oder seine Bahnen.'),
   'arm.rapid-alternating': M([LESIONS], 'Dysdiadochokinesis: the timing of alternating agonists breaks down with cerebellar disease.', 'Dysdiadochokinese: Das Timing alternierender Agonisten zerfällt bei Kleinhirnerkrankung.'),
+  'arm.rest-tremor': M([LESIONS], 'A tremor of the hand lying still, 4–6 a second, fading as it moves: the nigrostriatal system (Deuschl 1998).', 'Ein Zittern der ruhenden Hand, 4–6 pro Sekunde, das bei Bewegung nachlässt: das nigrostriatale System (Deuschl 1998).'),
   'arm.finger-nose': M([LESIONS], 'Intention tremor grows as the finger nears the target.', 'Intentionstremor nimmt zu, je näher der Finger dem Ziel kommt.'),
 
   /* ---- investigations ------------------------------------------------------------------------------- */

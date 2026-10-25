@@ -500,7 +500,7 @@ export const MANOEUVRES: ManoeuvreDef[] = [
       { id: `test.${limb}.tone`, verb: 'palpate', target: limb, paired: true,
         label: { en: `Tone: ${L.en}`, de: `Tonus: ${L.de}` },
         phrases: { en: [`${L.en} tone`, `tone in the ${L.en}`, `look at the ${L.enPl} for wasting`, 'fasciculations', 'tone'], de: [`tonus ${L.de.toLowerCase()}`, 'tonus', 'muskeltonus', 'atrophie', 'faszikulationen'] },
-        reveals: [{ property: `${limb}.tone` }], durationSeconds: 30 },
+        reveals: limb === 'arm' ? [{ property: 'arm.rest-tremor' }, { property: `${limb}.tone` }] : [{ property: `${limb}.tone` }], durationSeconds: 30 },
       { id: `test.${limb}.power`, verb: 'test', target: limb, paired: true,
         label: { en: `Power: ${L.en}`, de: `Kraftprüfung: ${L.de}` },
         phrases: { en: [`${L.en} power`, `power in the ${L.en}`, `strength of the ${L.en}`, 'power', 'mrc', 'push against me'], de: [`kraft ${L.de.toLowerCase()}`, 'kraftprüfung', 'kraft', 'kennmuskeln', 'paresen'] },

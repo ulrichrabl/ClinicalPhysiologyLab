@@ -417,6 +417,11 @@ export const PROPERTIES: PropertyDef[] = [
     ];
   }),
   {
+    id: 'arm.rest-tremor', structure: 'arm', paired: true, label: { en: 'Tremor at rest', de: 'Ruhetremor' },
+    value: rec({ tremor: c('rest-tremor') }), normal: { value: { tremor: 'none' } },
+    source: 'model', resolver: 'neuro.motor', formatter: 'arm.rest-tremor',
+  },
+  {
     id: 'arm.drift', structure: 'arm', paired: true, label: { en: 'Pronator drift', de: 'Armvorhalteversuch' },
     value: rec({ drift: bool }), normal: { value: { drift: false } },
     source: 'model', resolver: 'neuro.motor', formatter: 'arm.drift',

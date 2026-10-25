@@ -72,6 +72,12 @@ export interface Pose {
   outstretch?: [number, number];
   /** 0 the eyes open, 1 closed (asked to close them: pronator drift, Romberg) */
   eyes?: number;
+  /** the toes at the ball of the foot, degrees: up (extension, Babinski) when positive, curled when negative [near, far] */
+  toe?: [number, number];
+  /** 0 the hand at rest, 1 a fist (the spastic hand of a hemiplegia) [near, far] */
+  fist?: [number, number];
+  /** how far each foot is carried out to the side, cm (a broad base, circumduction) [near, far]; shows from the front */
+  legOut?: [number, number];
   backrest: number;         // backrest angle when raised
   bedLeft: number;          // head end of the mattress (shortened for the head-hanging test)
 }
@@ -114,6 +120,9 @@ function lerpDirect(a: Pose, b: Pose, t: number): Pose {
     ...(a.point || b.point ? { point: l2(a.point ?? [0, 0], b.point ?? [0, 0]) } : {}),
     ...(a.outstretch || b.outstretch ? { outstretch: l2(a.outstretch ?? [0, 0], b.outstretch ?? [0, 0]) } : {}),
     ...(a.eyes !== undefined || b.eyes !== undefined ? { eyes: l(a.eyes ?? 0, b.eyes ?? 0) } : {}),
+    ...(a.toe || b.toe ? { toe: l2(a.toe ?? [0, 0], b.toe ?? [0, 0]) } : {}),
+    ...(a.fist || b.fist ? { fist: l2(a.fist ?? [0, 0], b.fist ?? [0, 0]) } : {}),
+    ...(a.legOut || b.legOut ? { legOut: l2(a.legOut ?? [0, 0], b.legOut ?? [0, 0]) } : {}),
   };
 }
 
@@ -342,7 +351,8 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
   /* ---- how far each limb lies from the midline: legs under the hips; arms beside the trunk, or over the thighs when
      the hands rest in front of the body ---- */
   const sg = (i: 0 | 1) => (i === 0 ? -1 : 1);
-  const legZ = (i: 0 | 1) => ({ hip: sg(i) * sh.hipZ, knee: sg(i) * (sh.hipZ - 1.0), ankle: sg(i) * (sh.hipZ - 1.3) });
+  /* `legOut` carries the foot out to the side (abduction: a broad base, circumduction); it shows from the front */
+  const legZ = (i: 0 | 1) => { const o = p.legOut?.[i] ?? 0; return { hip: sg(i) * sh.hipZ, knee: sg(i) * (sh.hipZ - 1.0 + o * 0.5), ankle: sg(i) * (sh.hipZ - 1.3 + o) }; };
   const nearSpine = (q: Pt) => { let bi = 0, bd = Infinity; k.spine.forEach((sp, i) => { const d = (sp.p.x - q.x) ** 2 + (sp.p.y - q.y) ** 2; if (d < bd) { bd = d; bi = i; } }); return bi; };
   const sideZ = (q: Pt, minZ: number, extra: number, frontZ: number) => {
     const i = nearSpine(q), sp = k.spine[i], t = stationAt(sh.trunk, i - 14), nA = dir(sp.a - 90 * k.flip);
@@ -435,7 +445,7 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
       const os = p.outstretch?.[i];
       const broad = pt >= 0.5 ? 1 : os !== undefined ? clamp(Math.sin(rad(os)), 0.3, 1) : clamp(Math.abs(Math.sin(rad(k.handA[i]))) * 1.3, 0.5, 1);
       const frame = { wrist: k.wrist[i], angle: k.handA[i], thumb: (k.flip > 0 ? -1 : 1) as 1 | -1, u, broad, wristThumb: half * 0.75, wristUlnar: half * 0.75 };
-      const h: { outline: Pt[]; lines: Pt[][]; nail?: Pt; nailLen?: number } = pt >= 0.5 ? pointingHand(frame) : restingHand(frame, os !== undefined ? 4 : curl);
+      const h: { outline: Pt[]; lines: Pt[][]; nail?: Pt; nailLen?: number } = pt >= 0.5 ? pointingHand(frame) : restingHand(frame, os !== undefined ? 4 : lerp(curl, 88, clamp(p.fist?.[i] ?? 0, 0, 1)));
       return { upper: joinShoulder ? limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh + ((z.el - z.sh) * ARM0) / LEN.upper, z.el) : limb3(pr, k.shoulder, k.upperA[i], upperSt, k.flip, z.sh, z.el),
         fore: limb3(pr, k.elbow[i], k.foreA[i], foreCut, k.flip, z.el, z.wr), hand: [h.outline.map((q) => pr.P(q, z.wr))], fingers: [] as Pt[][], thumb: [] as Pt[][],
         /* seen edge-on the fingers' clefts and the nail are hidden */

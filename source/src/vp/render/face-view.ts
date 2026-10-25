@@ -15,10 +15,14 @@ import { FaceCanvas, neutralFace, type Appearance } from './face-canvas.ts';
 --------------------------------------------------------------------------- */
 
 export interface FaceFinding { forehead: string; eyeClosure: string; mouth: string }
+/** The mouth examination's findings (IX–XII and the trigeminal motor root), when the mouth is examined too. */
+export interface OralFinding { jawTo: 'none' | Side; uvulaTo: 'none' | Side; tongueTo: 'none' | Side; tongueWasting: boolean; tongueFasciculation: boolean }
 
 const STRENGTH: Record<string, number> = { normal: 1, weak: 0.4, absent: 0 };
 const PHASES = ['rest', 'brows', 'eyes', 'smile'] as const;
+const ORAL_PHASES = ['rest', 'brows', 'eyes', 'smile', 'ahh', 'tongue', 'jaw'] as const;
 const LABEL: Record<string, [string, string]> = {
+  ahh: ['“Open wide and say ah”', '„Mund weit auf, Aaa sagen“'], tongue: ['“Put your tongue out”', '„Zunge herausstrecken“'], jaw: ['“Open your mouth” (against resistance)', '„Mund öffnen“ (gegen Widerstand)'],
   rest: ['At rest', 'In Ruhe'], brows: ['“Raise your eyebrows”', '„Stirn runzeln“'],
   eyes: ['“Screw your eyes shut”', '„Augen fest zukneifen“'], smile: ['“Show me your teeth”', '„Zähne zeigen“'],
 };
@@ -34,12 +38,13 @@ export class FaceView {
     this.caption = host.querySelector('.face-caption')!;
   }
 
-  show(f: Record<Side, FaceFinding>, lang: 'en' | 'de') {
+  show(f: Record<Side, FaceFinding>, lang: 'en' | 'de', oral?: OralFinding, only?: readonly string[]) {
+    const phases: readonly string[] = only ?? (oral ? ORAL_PHASES : PHASES);
     cancelAnimationFrame(this.raf);
     const t0 = performance.now();
     const frame = (now: number) => {
       const el = Math.max(0, (now - t0) / 1000);
-      const phase = PHASES[Math.floor(el / PHASE_S) % PHASES.length];
+      const phase = phases[Math.floor(el / PHASE_S) % phases.length];
       const x = (el % PHASE_S) / PHASE_S;
       // effort rises over 0.6 s, is held, and relaxes at the end of the phase
       const effort = Math.min(1, x * PHASE_S / 0.6) * Math.min(1, (1 - x) * PHASE_S / 0.4);
@@ -68,6 +73,19 @@ export class FaceView {
         st.folds[S] = 0.25 + 0.75 * mo + 0.4 * mo * smiling;
       }
       st.mouthOpen = phase === 'smile' ? 0.85 * ease * maxMouth : 0;
+      if (oral && (phase === 'ahh' || phase === 'tongue' || phase === 'jaw')) {
+        /* as drawn the patient's right is on the viewer's left (negative x) */
+        const toX = (sd: 'none' | Side) => (sd === 'R' ? -1 : sd === 'L' ? 1 : 0);
+        /* the palate lifts on the strong side and pulls the uvula toward it; the weak side stays low (a placement in size) */
+        const weakPal: Side | null = oral.uvulaTo === 'none' ? null : oral.uvulaTo === 'R' ? 'L' : 'R';
+        st.oral = {
+          wide: phase === 'tongue' ? 0.25 * ease : ease, jawShift: phase === 'jaw' ? 16 * toX(oral.jawTo) : 0,
+          palate: { L: phase === 'ahh' ? ease * (weakPal === 'L' ? 0.1 : 1) : 0, R: phase === 'ahh' ? ease * (weakPal === 'R' ? 0.1 : 1) : 0 },
+          uvulaShift: phase === 'ahh' ? 9 * toX(oral.uvulaTo) * ease : 0,
+          tongueOut: phase === 'tongue' ? ease : 0, tongueShift: 16 * toX(oral.tongueTo),
+          wasted: oral.tongueWasting && oral.tongueTo !== 'none' ? oral.tongueTo : null, fasciculation: oral.tongueFasciculation, t: el,
+        };
+      }
       this.face.draw(st);
       this.raf = requestAnimationFrame(frame);
     };

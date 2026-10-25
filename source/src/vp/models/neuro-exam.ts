@@ -367,7 +367,7 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
   'neuro.balance': (view, ref, ctx): Resolved | undefined => {
     const s = neuroExamState(view);
     const st = limbState(view);
-    const sensoryAtaxia = st.vibration.L.leg !== 'normal' && st.vibration.R.leg !== 'normal';
+    const sensoryAtaxia = st.proprioception.L.leg !== 'normal' && st.proprioception.R.leg !== 'normal';
     if (ref.property === 'posture.romberg') {
       if (sensoryAtaxia) return { value: ctx.eyesClosed ? { stance: 'falls' } : { stance: 'steady' }, basis: 'joint position sense lost in both legs' };
       if (st.gaitBalance) return { value: { stance: 'sways' }, basis: 'cerebellar vermis' };
@@ -381,9 +381,10 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
       for (const S of ['L', 'R'] as Side[]) {
         if (st.plantar[S] === 'extensor' && st.power[S].hipFlexion <= 4) return { value: { pattern: 'hemiplegic', toward: S }, basis: `${S} leg upper motor neuron weakness` };
       }
-      for (const S of ['L', 'R'] as Side[]) {
-        if (st.power[S].ankleDorsiflexion <= 3) return { value: { pattern: 'high-stepping', toward: S }, basis: `${S} ankle dorsiflexion ${st.power[S].ankleDorsiflexion}/5` };
-      }
+      const drop = (['L', 'R'] as Side[]).filter((S) => st.power[S].ankleDorsiflexion <= 3);
+      if (drop.length === 2) return { value: { pattern: 'high-stepping' }, basis: `ankle dorsiflexion ${st.power.L.ankleDorsiflexion}/5 and ${st.power.R.ankleDorsiflexion}/5: both feet drop` };
+      if (drop.length === 1) { const S = drop[0]; return { value: { pattern: 'high-stepping', toward: S }, basis: `${S} ankle dorsiflexion ${st.power[S].ankleDorsiflexion}/5` }; }
+      if (st.parkinson.L || st.parkinson.R) return { value: { pattern: 'parkinsonian' }, basis: 'substantia nigra (parkinsonism)' };
       if (st.power.L.hipAbduction <= 4 && st.power.R.hipAbduction <= 4) return { value: { pattern: 'waddling' }, basis: 'bilateral hip abductor weakness' };
       if (sensoryAtaxia) return { value: { pattern: 'sensory-ataxic' }, basis: 'joint position sense lost in both legs' };
       if (st.gaitBalance) return { value: { pattern: 'ataxic' }, basis: 'cerebellar vermis' };
@@ -402,9 +403,11 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
     const st = limbState(view);
     const arm = ref.property !== 'leg.heel-shin';
     const limbPower = arm ? Math.min(st.power[S].shoulderAbduction, st.power[S].elbowExtension, st.power[S].elbowFlexion) : Math.min(st.power[S].hipFlexion, st.power[S].kneeExtension);
-    const proprio = arm ? st.vibration[S].arm : st.vibration[S].leg;
+    const proprio = arm ? st.proprioception[S].arm : st.proprioception[S].leg;
     if (ref.property === 'arm.rapid-alternating') {
-      const slowed = st.drift[S] || limbPower <= 3;
+      /* slowed by a pyramidal weakness, or by weakness of the forearm and hand that do the turning; a weak shoulder alone
+         (a myopathy) leaves it */
+      const slowed = st.drift[S] || st.parkinson[S] || Math.min(st.power[S].wristExtension, st.power[S].fingerFlexion, st.power[S].elbowFlexion) <= 2 || Math.min(st.power[S].wristExtension, st.power[S].fingerFlexion) <= 3;
       if (a === 'none' && !slowed) return undefined;
       return { value: { dysdiadochokinesia: a !== 'none', slowed } };
     }

@@ -161,6 +161,7 @@ export const FORMATTERS: Record<string, Formatter> = {
     return parts.length ? `${cap(parts.join(', '))}.` : (de(l) ? 'Keine Leberhautzeichen.' : 'No signs of chronic liver disease.');
   },
   'mouth.mucosa': (v, _c, l, cat) => `${cap(lab(cat, 'mucosa', v.moisture, l))}.`,
+  'arm.rest-tremor': (v, _c, l, cat, ref) => { const sd = ref?.side === 'L' ? (de(l) ? 'Linke Hand' : 'Left hand') : (de(l) ? 'Rechte Hand' : 'Right hand'); return `${sd}: ${lab(cat, 'rest-tremor', v.tremor, l)}.`; },
   'hands.tremor': (v, _c, l, cat) => `${cap(lab(cat, 'tremor', v.tremor, l))}.`,
   'skin.pigmentation': (v, _c, l, cat) => `${cap(lab(cat, 'pigmentation', v.pigmentation, l))}.`,
   'neck.thyroid': (v, _c, l, cat) => `${cap(lab(cat, 'goitre', v.goitre, l))}${v.bruit ? (de(l) ? '; darüber ein Strömungsgeräusch' : '; a bruit over it') : ''}.`,

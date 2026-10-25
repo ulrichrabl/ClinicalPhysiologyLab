@@ -364,6 +364,23 @@ export const NAMED: Record<string, NamedPredicateDef> = {
       return weakSides.size === 1 && !NAMED.pyramidalPattern.holds(h, {});
     },
   },
+  stockingPattern: {
+    what: 'Pinprick lost in the feet (L5 and S1) on both sides with the thighs (L2) spared: length-dependent.',
+    uses: () => ['leg.pinprick'],
+    holds: (h) => { const r = h.rows('leg.pinprick'); const ok = (sd: string) => r.some((x) => x.side === sd && LOST.includes(x.value.L5) && LOST.includes(x.value.S1) && !LOST.includes(x.value.L2)); return ok('L') && ok('R'); },
+  },
+  sensoryLevel: {
+    what: 'Pinprick lost on the trunk (T6 or T10) with the arm of the same side spared: a level, from the cord.',
+    uses: () => ['trunk.pinprick', 'arm.pinprick'],
+    observes: () => [{ obs: 'arm.pinprick', ctx: {} }, { obs: 'trunk.pinprick', ctx: {} }],
+    /* a level needs the arm above it examined too: with the trunk alone it cannot be called (undefined) */
+    holds: (h) => {
+      const trunk = h.rows('trunk.pinprick'), arm = h.rows('arm.pinprick');
+      if (!trunk.length) return false;
+      if (!arm.length) return undefined;
+      return trunk.some((r) => (LOST.includes(r.value.T6) || LOST.includes(r.value.T10)) && arm.some((a) => a.side === r.side && ARM_ROOTS.every((k) => !LOST.includes(a.value[k]))));
+    },
+  },
   dermatomalPattern: {
     what: 'Pinprick reduced in exactly one dermatome of a limb.',
     uses: () => ['arm.pinprick', 'leg.pinprick'],
