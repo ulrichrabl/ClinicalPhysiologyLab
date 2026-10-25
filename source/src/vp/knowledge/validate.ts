@@ -155,7 +155,7 @@ const ALLOWED: Record<RelationRow['rel'], { from: EntityKind[]; to: EntityKind[]
 };
 
 /** Manoeuvres that act on the patient rather than examine; they reveal through the tests done afterwards. */
-const INTERVENTION_VERBS = new Set(['position', 'give', 'expose']);
+const INTERVENTION_VERBS = new Set(['position', 'give', 'expose', 'cover']);
 
 export interface KnowledgeContext {
   catalog: Catalog;
