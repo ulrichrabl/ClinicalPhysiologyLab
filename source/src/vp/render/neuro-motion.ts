@@ -144,32 +144,33 @@ export function kneeJerk(base: Pose, look: FigureLook, t: number, grade: ReflexG
   return { pose, props };
 }
 
-export interface DriftFinding { drift?: boolean }
+/** Drift per arm, [right, left] (arm 0 is the right, as in `Pose`). */
+export interface DriftFinding { drift: [boolean, boolean] }
 
-/** Pronator drift, `t` seconds in, arm i the one examined for drift: both arms raised forward to the horizontal, palms
-    up, the eyes closed, held; a weak arm pronates, its elbow bends and it sinks (the pyramidal pattern: the pronators and
-    flexors overcome the supinators and extensors). The cycle is 16 s: 1.2 s to raise the arms, the eyes closed at 1.6 s,
-    the drift growing over 8 s from 2.5 s and then held, the arms lowered at 14 s. Every size and time here is a
-    placement judged by eye; the finding itself (drift or none) comes from the examination model. */
-export function pronatorDrift(base: Pose, look: FigureLook, t: number, finding: DriftFinding = {}, i: 0 | 1 = 0): MotionFrame {
+/** Pronator drift, `t` seconds in: both arms raised forward to the horizontal, palms up, the eyes closed, held; a weak
+    arm pronates, its elbow bends and it sinks (the pyramidal pattern: the pronators and flexors overcome the supinators
+    and extensors). The cycle is 16 s: 1.2 s to raise the arms, the eyes closed at 1.6 s, the drift growing over 8 s from
+    2.5 s and then held, the arms lowered at 14 s. Every size and time here is a placement judged by eye; the finding
+    itself (drift or none, each arm) comes from the examination model. */
+export function pronatorDrift(base: Pose, look: FigureLook, t: number, finding: DriftFinding = { drift: [false, false] }): MotionFrame {
   const J = figureJoints(base, look);
   const PERIOD = 16, c = ((t % PERIOD) + PERIOD) % PERIOD;
   /* forward and horizontal, whichever way the patient faces in the drawing; s turns "up" into degrees */
   const s = J.anterior.x >= 0 ? 1 : -1, ahead = s > 0 ? 0 : 180;
   const up = c < 1.2 ? minJerk(c / 1.2) : c < 14 ? 1 : 1 - minJerk((c - 14) / 1.2);
-  const d = finding.drift && c >= 2.5 && c < 14 ? minJerk((c - 2.5) / 8) : 0;
+  const grow = c >= 2.5 && c < 14 ? minJerk((c - 2.5) / 8) : 0;
+  const d = (j: 0 | 1) => (finding.drift[j] ? grow : 0);
   /* the drift at its fullest: the upper arm 18° below the horizontal, the elbow bent 22°, the forearm turned 60° from
      palm up, the wrist dropped 10° (placements) */
-  const sink = 18 * d, flex = 22 * d, turn = 60 * d, wrist = -10 * d;
   const pair = (fn: (j: 0 | 1) => number): [number, number] => [fn(0), fn(1)];
   const mix = (a: number, b: number) => a + (b - a) * up;
-  const upper = (j: 0 | 1) => ahead - s * (j === i ? sink : 0);
+  const upper = (j: 0 | 1) => ahead - s * 18 * d(j);
   const pose: Pose = {
     ...base,
     armUpper: pair((j) => mix(base.armUpper[j], upper(j))),
-    armFore: pair((j) => mix(base.armFore[j], upper(j) + s * (j === i ? flex : 0))),
-    hand: pair((j) => mix(base.hand[j], j === i ? s * wrist : 0)),
-    ...(up > 0.5 ? { outstretch: pair((j) => (j === i ? turn : 0)) } : {}),
+    armFore: pair((j) => mix(base.armFore[j], upper(j) + s * 22 * d(j))),
+    hand: pair((j) => mix(base.hand[j], -s * 10 * d(j))),
+    ...(up > 0.5 ? { outstretch: pair((j) => 60 * d(j)) } : {}),
     eyes: c >= 1.6 && c < 14 ? 1 : 0,
   };
   return { pose, props: '' };

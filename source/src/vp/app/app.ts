@@ -178,6 +178,8 @@ import { mountAuscultationStation } from './station-auscultation.ts';
 import { mountEyeStation } from './station-eyes.ts';
 import { mountPulseStation } from './station-pulse.ts';
 import { mountArrestPractice } from './practice-arrest.ts';
+import { motionSide, mountNeuroMotion, type NeuroMotion } from './neuro-motion-view.ts';
+import type { FingerNoseFinding, ReflexGrade } from '../render/neuro-motion.ts';
 import { pulseSignsOf } from '../stations/pulse-signs.ts';
 import { eyeSignsOf } from '../stations/eye-signs.ts';
 import { ecgSignsOf } from '../stations/ecg-signs.ts';
@@ -205,6 +207,7 @@ type Visual =
   | { kind: 'pulse'; finding: Finding }
   | { kind: 'face'; L: FaceFinding; R: FaceFinding }
   | { kind: 'ecg'; recorded?: number }
+  | { kind: 'neuro'; motion: NeuroMotion; manoeuvre: ManoeuvreDef }
   | null;
 
 /* ---- regions of the body for touch ---------------------------------------------- */
@@ -602,6 +605,14 @@ export function mount(root: HTMLElement) {
       setVisual({ kind: 'eyes', controls });
       return;
     }
+    /* the neurological tests that move: the bedside figure does them, driven by the finding (ADR-017 decision 10) */
+    const fv = (prop: string) => findings.find((f) => f.property === prop)?.value as Record<string, any> | undefined;
+    const driftL = fv('arm.drift.L'), driftR = fv('arm.drift.R');
+    if (m.id === 'test.pronator-drift' && (driftL || driftR)) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'drift', finding: { drift: [!!driftR?.drift, !!driftL?.drift] } } }); return; }
+    const fnSide = (['L', 'R'] as const).find((sd) => fv(`arm.finger-nose.${sd}`));
+    if (m.id === 'test.finger-nose' && fnSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'finger-nose', side: fnSide, finding: fv(`arm.finger-nose.${fnSide}`) as FingerNoseFinding } }); return; }
+    const kneeSide = (['L', 'R'] as const).find((sd) => typeof fv(`leg.reflexes.${sd}`)?.knee === 'number');
+    if (m.id === 'test.leg.reflexes' && kneeSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'knee-jerk', side: kneeSide, grade: fv(`leg.reflexes.${kneeSide}`)!.knee as ReflexGrade } }); return; }
     const faceL = findings.find((f) => f.property === 'face.movement.L'), faceR = findings.find((f) => f.property === 'face.movement.R');
     if (faceL && faceR) { setVisual({ kind: 'face', L: faceL.value as FaceFinding, R: faceR.value as FaceFinding }); return; }
     const chest = findings.find((f) => LUNG_PROPS.includes(f.property) && /^chest\.(upper-zone|mid-zone|axilla|upper-back|lung-base)\./.test(f.context?.site ?? ''));
@@ -640,6 +651,14 @@ export function mount(root: HTMLElement) {
       host.innerHTML = '<div class="facehost"></div>';
       faceView = new FaceView(host.querySelector('.facehost')!, appearanceOf(c.patient, seedOf(base.id)));
       faceView.show({ L: v.L, R: v.R }, lang);
+      return;
+    }
+    if (v.kind === 'neuro') {
+      const sd = motionSide(v.motion);
+      /* of the leg reflexes only the knee jerk is drawn so far */
+      const name = v.motion.kind === 'knee-jerk' ? (lang === 'de' ? 'Patellarsehnenreflex' : 'Knee jerk') : tr(v.manoeuvre.label, lang);
+      const what = `${name} · ${t(sd === 'L' ? 'left' : 'right').toLowerCase()}`;
+      stopVisual = mountNeuroMotion(host, { look: look().figure, motion: v.motion, caption: what, label: what });
       return;
     }
     if (v.kind === 'auscultate') {
