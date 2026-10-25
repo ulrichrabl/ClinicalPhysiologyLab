@@ -64,6 +64,8 @@ export interface Pose {
   thigh: [number, number]; shin: [number, number]; foot: [number, number];         // legs absolute; foot = plantar flexion
   prone: number;            // 1 face down
   bed: 'flat' | 'back-raised' | 'edge' | 'none';
+  /** 0 the hand at rest; 1 pointing: the other fingers closed and the index straight (finger–nose) [near, far] */
+  point?: [number, number];
   backrest: number;         // backrest angle when raised
   bedLeft: number;          // head end of the mattress (shortened for the head-hanging test)
 }
@@ -103,6 +105,7 @@ function lerpDirect(a: Pose, b: Pose, t: number): Pose {
     armUpper: l2(a.armUpper, b.armUpper), armFore: l2(a.armFore, b.armFore), hand: l2(a.hand, b.hand),
     thigh: l2(a.thigh, b.thigh), shin: l2(a.shin, b.shin), foot: l2(a.foot, b.foot), prone: l(a.prone, b.prone),
     bed: t < 0.5 ? a.bed : b.bed, backrest: l(a.backrest, b.backrest), bedLeft: l(a.bedLeft, b.bedLeft),
+    ...(a.point || b.point ? { point: l2(a.point ?? [0, 0], b.point ?? [0, 0]) } : {}),
   };
 }
 
@@ -408,11 +411,14 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
   const knuckle = (i: 0 | 1) => add(k.wrist[i], k.handA[i], 9.6 * u);
   const arm = (i: 0 | 1) => {
     const z = armZ(i);
+    /* pointing: the other fingers close into the palm and the index stays straight along the hand */
+    const pt = clamp(p.point?.[i] ?? 0, 0, 1), cu = lerp(curl, 165, pt);
+    const index = pt > 0.05 ? limb3(pr, knuckle(i), k.handA[i] + (1 - pt) * curl * k.flip, sh.fingers.map((t) => ({ ...t, a: t.a * 0.75, p: t.p * 0.75, w: 0.8 })), k.flip, z.wr, z.wr) : [];
     return {
       upper: joinShoulder ? limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh + ((z.el - z.sh) * ARM0) / LEN.upper, z.el).map((pts) => pts) : limb3(pr, k.shoulder, k.upperA[i], upperSt, k.flip, z.sh, z.el), fore: limb3(pr, k.elbow[i], k.foreA[i], sh.fore, k.flip, z.el, z.wr),
       hand: limb3(pr, k.wrist[i], k.handA[i], sh.hand, k.flip, z.wr, z.wr),
-      fingers: limb3(pr, knuckle(i), k.handA[i] + curl * k.flip, sh.fingers, k.flip, z.wr, z.wr),
-      thumb: limb3(pr, add(add(k.wrist[i], k.handA[i], 1.5 * u), k.handA[i] + 90 * k.flip, 1.2 * u), k.handA[i] + (28 + curl * 0.3) * k.flip,
+      fingers: [...limb3(pr, knuckle(i), k.handA[i] + cu * k.flip, pt > 0.05 ? sh.fingers.map((t) => ({ ...t, s: t.s * (1 - 0.6 * pt) })) : sh.fingers, k.flip, z.wr, z.wr), ...index],
+      thumb: limb3(pr, add(add(k.wrist[i], k.handA[i], 1.5 * u), k.handA[i] + 90 * k.flip, 1.2 * u), k.handA[i] + lerp(28 + curl * 0.3, 6, pt) * k.flip,
         [{ s: 0, a: 1.0, p: 1.0, w: 0.9 }, { s: 4.5, a: 0.85, p: 0.8, w: 0.8 }, { s: 6.6, a: 0.5, p: 0.5, w: 0.5 }], k.flip, z.wr - sg(i) * 1.2, z.wr - sg(i) * 1.6),
     };
   };
@@ -581,6 +587,19 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
 
 /** Walking round the bed: 0 the patient's right, 90 the foot of the bed (the front), 180 the patient's left. The front
     is the same picture from either side, so a turn from right to left passes through it without a jump. */
+/** Where the joints are for a pose, in the drawing's coordinates seen from the patient's right (the profile, before any
+    turning), with the tip of the nose: what an animation needs to place a hand on a target (finger–nose). */
+export function figureJoints(p: Pose, look: FigureLook): { k: Skeleton; u: number; nose: Pt; anterior: Pt } {
+  const upright = Math.max(0, Math.sin((p.torso * Math.PI) / 180));
+  const sh = bodyShape(look, upright);
+  const k = place(p, sh);
+  const a0 = trunkPt(k, 40, 0), a1 = trunkPt(k, 40, 1);
+  const anterior = { x: (a1.x - a0.x) / k.u, y: (a1.y - a0.y) / k.u };
+  const head = headOutline({ k, sh, look, pal: palette(look), support: { p: { x: 0, y: FLOOR }, n: { x: 0, y: -1 } } });
+  const nose = head.reduce((m, q) => ((q.x - k.headJoint.x) * anterior.x + (q.y - k.headJoint.y) * anterior.y > (m.x - k.headJoint.x) * anterior.x + (m.y - k.headJoint.y) * anterior.y ? q : m));
+  return { k, u: k.u, nose, anterior };
+}
+
 export const VIEW_ANGLE = { right: 0, front: 90, left: 180 } as const;
 export function viewAt(phi: number): FigureView {
   const x = clamp(phi, 0, 180);
