@@ -1,0 +1,386 @@
+{
+  "schema": "vp.case/1",
+  "id": "myasthenia-gravis-generalised",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Drooping eyelids and double vision by evening: myasthenia gravis",
+    "de": "Hängende Lider und Doppelbilder am Abend: Myasthenia gravis"
+  },
+  "tags": [
+    "ptosis",
+    "diplopia",
+    "fatigue",
+    "neuromuscular-junction",
+    "neurology"
+  ],
+  "difficulty": 3,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-25",
+    "sources": [
+      "Gilhus NE. Myasthenia gravis. N Engl J Med 2016;375:2570-81.",
+      "Golnik KC et al. An ice test for the diagnosis of myasthenia gravis. Ophthalmology 1999;106:1282-6."
+    ]
+  },
+  "patient": {
+    "name": "Gerhard Brandt",
+    "age": 66,
+    "sex": "M",
+    "heightCm": 176,
+    "weightKg": 80,
+    "appearance": {
+      "skinTone": 2,
+      "hair": "white, thinning",
+      "build": "average"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ]
+  },
+  "setting": {
+    "place": {
+      "en": "Neurology clinic",
+      "de": "Neurologische Ambulanz"
+    },
+    "triage": {
+      "en": "Drooping eyelids and double vision for two months, worse in the evenings; now tired when chewing.",
+      "de": "Seit zwei Monaten hängende Lider und Doppelbilder, abends schlimmer; jetzt ermüdet er beim Kauen."
+    }
+  },
+  "pathology": {
+    "lesions": [
+      {
+        "nodes": [
+          "L_nmj_post",
+          "R_nmj_post"
+        ],
+        "complete": true,
+        "days": 60,
+        "process": "inflammation",
+        "label": "Postsynaptic acetylcholine receptors of both sides (antibodies)"
+      }
+    ]
+  },
+  "initialState": {
+    "position": "sitting",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "full",
+    "exposure": []
+  },
+  "observables": {
+    "general.appearance": {
+      "value": {
+        "distress": "none",
+        "colour": "normal",
+        "sweating": false
+      }
+    }
+  },
+  "investigations": {
+    "achr-antibodies": {
+      "value": {
+        "achr": 14.2
+      }
+    },
+    "nerve-conduction": {
+      "value": {
+        "findings": [
+          "decrement-3hz"
+        ]
+      }
+    },
+    "ct-thorax": {
+      "value": {
+        "findings": [
+          "thymus-normal"
+        ]
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "ptosis",
+        "present": true,
+        "attributes": {
+          "variation": "worse in the evening"
+        }
+      },
+      "say": {
+        "en": "By the evening my eyelids droop and I see double. In the morning I'm fine.",
+        "de": "Abends hängen meine Lider und ich sehe doppelt. Morgens ist alles in Ordnung."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "assertion": {
+        "concept": "ptosis",
+        "present": true,
+        "attributes": {
+          "onset": "2 months"
+        }
+      },
+      "say": {
+        "en": "About two months ago. First I noticed it watching television at night; now it's after lunch already.",
+        "de": "Vor etwa zwei Monaten. Zuerst ist es mir abends beim Fernsehen aufgefallen; jetzt schon nach dem Mittagessen."
+      }
+    },
+    {
+      "id": "f-diplopia",
+      "topic": "sx.diplopia",
+      "assertion": {
+        "concept": "diplopia",
+        "present": true,
+        "attributes": {
+          "fatigable": true
+        }
+      },
+      "say": {
+        "en": "Two images, side by side and sometimes one above the other. If I close one eye it goes away. After a rest with my eyes shut it is better for a while.",
+        "de": "Zwei Bilder, nebeneinander und manchmal übereinander. Wenn ich ein Auge zumache, ist es weg. Nach einer Pause mit geschlossenen Augen geht es eine Weile besser."
+      }
+    },
+    {
+      "id": "f-chew",
+      "topic": "sx.speech-swallow",
+      "assertion": {
+        "concept": "fatigable-chewing",
+        "present": true
+      },
+      "say": {
+        "en": "Halfway through a steak my jaw gives up, and I have to rest it. On the telephone my voice goes nasal after a few minutes. Swallowing water is fine.",
+        "de": "Mitten in einem Steak macht mein Kiefer schlapp, ich muss eine Pause machen. Am Telefon wird meine Stimme nach ein paar Minuten näselnd. Wasser schlucken geht."
+      }
+    },
+    {
+      "id": "f-limbs",
+      "topic": "sx.weakness",
+      "assertion": {
+        "concept": "fatigable-weakness",
+        "present": true
+      },
+      "say": {
+        "en": "Combing my hair or putting things on a high shelf, my arms get tired quickly. Climbing stairs at the end of the day is harder.",
+        "de": "Beim Haarekämmen oder wenn ich etwas auf ein hohes Regal stelle, werden die Arme schnell müde. Abends ist Treppensteigen schwerer."
+      }
+    },
+    {
+      "id": "f-breath",
+      "topic": "sx.dyspnoea",
+      "assertion": {
+        "concept": "dyspnoea",
+        "present": false
+      },
+      "say": {
+        "en": "No, my breathing is fine, even lying flat.",
+        "de": "Nein, die Atmung ist gut, auch im Liegen."
+      }
+    },
+    {
+      "id": "f-numb",
+      "topic": "sx.numbness",
+      "assertion": {
+        "concept": "numbness",
+        "present": false
+      },
+      "say": {
+        "en": "No numbness or tingling anywhere.",
+        "de": "Nirgends taub oder kribbelig."
+      }
+    },
+    {
+      "id": "f-pain",
+      "topic": "sx.headache",
+      "assertion": {
+        "concept": "headache",
+        "present": false
+      },
+      "say": {
+        "en": "No headache, no pain around the eye.",
+        "de": "Keine Kopfschmerzen, keine Schmerzen am Auge."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "say": {
+        "en": "An underactive thyroid for ten years, and high blood pressure.",
+        "de": "Seit zehn Jahren eine Schilddrüsenunterfunktion, und Bluthochdruck."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "say": {
+        "en": "Levothyroxine and amlodipine. No new tablets.",
+        "de": "L-Thyroxin und Amlodipin. Keine neuen Tabletten."
+      }
+    },
+    {
+      "id": "f-smoke",
+      "topic": "shx.smoking",
+      "say": {
+        "en": "Never smoked.",
+        "de": "Nie geraucht."
+      }
+    },
+    {
+      "id": "f-driving",
+      "topic": "shx.driving",
+      "say": {
+        "en": "I've stopped driving in the evening because of the double vision.",
+        "de": "Abends fahre ich wegen der Doppelbilder nicht mehr Auto."
+      }
+    },
+    {
+      "id": "f-concerns",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "My wife thinks I had a small stroke.",
+        "de": "Meine Frau meint, ich hätte einen kleinen Schlaganfall gehabt."
+      }
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-ptosis",
+        "kind": "sign",
+        "ref": "fatigable-ptosis",
+        "weight": "essential",
+        "discriminates": [
+          "third-nerve-palsy",
+          "horner-syndrome"
+        ],
+        "why": {
+          "en": "The lid sinks during a minute of sustained upgaze: fatigue of the junction, the hallmark of myasthenia. A third nerve palsy or Horner’s syndrome does not fatigue.",
+          "de": "Das Lid sinkt während einer Minute Blick nach oben: Ermüdung der Endplatte, das Kennzeichen der Myasthenie. Eine Okulomotoriusparese oder ein Horner-Syndrom ermüden nicht."
+        }
+      },
+      {
+        "id": "e-fatigue",
+        "kind": "sign",
+        "ref": "fatigable-weakness",
+        "weight": "essential",
+        "discriminates": [
+          "motor-neurone-disease"
+        ],
+        "why": {
+          "en": "Shoulder abduction fades with repetition: generalised fatigable weakness.",
+          "de": "Die Schulterabduktion lässt bei Wiederholung nach: generalisierte ermüdbare Schwäche."
+        }
+      },
+      {
+        "id": "e-voice",
+        "kind": "sign",
+        "ref": "fatigable-dysarthria",
+        "weight": "supporting",
+        "why": {
+          "en": "Counting to fifty, the voice fades and turns nasal: bulbar involvement, which brings the risk of a crisis.",
+          "de": "Beim Zählen bis 50 wird die Stimme leiser und näselnd: bulbäre Beteiligung, mit dem Risiko einer Krise."
+        }
+      },
+      {
+        "id": "e-pupils",
+        "kind": "sign",
+        "ref": "anisocoria",
+        "present": false,
+        "weight": "discriminating",
+        "discriminates": [
+          "third-nerve-palsy",
+          "pcom-aneurysm"
+        ],
+        "why": {
+          "en": "The pupils are equal and react: the junction spares the pupil (a third nerve compression would not).",
+          "de": "Die Pupillen sind gleich weit und reagieren: Die Endplatte verschont die Pupille (eine Kompression des N. oculomotorius nicht)."
+        }
+      },
+      {
+        "id": "e-reflexes",
+        "kind": "sign",
+        "ref": "areflexia",
+        "present": false,
+        "weight": "discriminating",
+        "discriminates": [
+          "lambert-eaton",
+          "guillain-barre"
+        ],
+        "why": {
+          "en": "Reflexes are normal and sensation intact: not a neuropathy, not Lambert–Eaton (where reflexes are reduced and improve after exercise).",
+          "de": "Reflexe normal, Sensibilität intakt: keine Neuropathie, kein Lambert-Eaton-Syndrom (dort sind die Reflexe abgeschwächt und bessern sich nach Anspannung)."
+        }
+      },
+      {
+        "id": "e-achr",
+        "kind": "investigation",
+        "ref": "achr-antibodies",
+        "weight": "essential",
+        "why": {
+          "en": "Acetylcholine receptor antibodies are raised: about 85 % of generalised myasthenia have them.",
+          "de": "Acetylcholinrezeptor-Antikörper erhöht: etwa 85 % der generalisierten Myasthenien haben sie."
+        }
+      },
+      {
+        "id": "e-rns",
+        "kind": "investigation",
+        "ref": "nerve-conduction",
+        "weight": "supporting",
+        "why": {
+          "en": "A decrement on repetitive stimulation confirms the junction.",
+          "de": "Ein Dekrement bei Serienstimulation bestätigt die Endplatte."
+        }
+      },
+      {
+        "id": "e-ct",
+        "kind": "investigation",
+        "ref": "ct-thorax",
+        "weight": "supporting",
+        "why": {
+          "en": "The thymus is imaged in every new myasthenia: a thymoma is found in about one in ten.",
+          "de": "Bei jeder neuen Myasthenie wird der Thymus abgebildet: In etwa jedem zehnten Fall findet sich ein Thymom."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "fact",
+        "ref": "f-chew",
+        "why": {
+          "en": "Bulbar fatigue (chewing, nasal voice) warns of a myasthenic crisis: ask about swallowing and breathing, measure the vital capacity, and avoid drugs that worsen myasthenia (aminoglycosides, macrolides, magnesium).",
+          "de": "Bulbäre Ermüdung (Kauen, näselnde Stimme) warnt vor einer myasthenen Krise: nach Schlucken und Atmung fragen, die Vitalkapazität messen und Medikamente meiden, die die Myasthenie verschlechtern (Aminoglykoside, Makrolide, Magnesium)."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 15,
+    "summary": {
+      "en": "Two months of fluctuating ptosis and diplopia worse in the evening, fatigable chewing and nasal voice, tiring arms; ptosis on sustained upgaze, fatiguing shoulder abduction, voice fading on counting; pupils, reflexes and sensation normal. Generalised myasthenia gravis: AChR antibodies raised, decrement on repetitive stimulation, thymus normal on CT.",
+      "de": "Seit zwei Monaten wechselnde Ptose und Doppelbilder, abends schlimmer, ermüdbares Kauen und näselnde Stimme, ermüdende Arme; Ptose bei anhaltendem Blick nach oben, ermüdende Schulterabduktion, Stimme beim Zählen leiser; Pupillen, Reflexe und Sensibilität normal. Generalisierte Myasthenia gravis: AChR-Antikörper erhöht, Dekrement bei Serienstimulation, Thymus im CT unauffällig."
+    }
+  },
+  "diagnosis": {
+    "primary": "myasthenia-gravis",
+    "accepted": [],
+    "differential": [
+      "lambert-eaton",
+      "third-nerve-palsy",
+      "botulism",
+      "motor-neurone-disease",
+      "ischaemic-stroke-left-mca",
+      "graves-disease"
+    ]
+  }
+}

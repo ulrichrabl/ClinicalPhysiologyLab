@@ -1,0 +1,405 @@
+{
+  "schema": "vp.case/1",
+  "id": "b12-subacute-combined-degeneration",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Tingling feet and falls in the shower: subacute combined degeneration",
+    "de": "Kribbelnde Füße und Stürze unter der Dusche: funikuläre Myelose"
+  },
+  "tags": [
+    "sensory-ataxia",
+    "myelopathy",
+    "neuropathy",
+    "b12",
+    "neurology",
+    "localisation"
+  ],
+  "difficulty": 4,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-25",
+    "sources": [
+      "Hunt A, Harrington D, Robinson S. Vitamin B12 deficiency. BMJ 2014;349:g5226.",
+      "Lindenbaum J et al. Neuropsychiatric disorders caused by cobalamin deficiency in the absence of anemia or macrocytosis. N Engl J Med 1988;318:1720-8."
+    ]
+  },
+  "patient": {
+    "name": "Ingrid Schulz",
+    "age": 59,
+    "sex": "F",
+    "heightCm": 164,
+    "weightKg": 70,
+    "appearance": {
+      "skinTone": 2,
+      "hair": "auburn, shoulder length",
+      "build": "average"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ]
+  },
+  "setting": {
+    "place": {
+      "en": "Neurology clinic",
+      "de": "Neurologische Ambulanz"
+    },
+    "triage": {
+      "en": "Tingling feet for three months, unsteady, and twice nearly fallen in the shower.",
+      "de": "Seit drei Monaten kribbelnde Füße, unsicherer Gang, unter der Dusche zweimal fast gestürzt."
+    }
+  },
+  "pathology": {
+    "lesions": [
+      {
+        "nodes": [
+          "L_dc_asc",
+          "R_dc_asc"
+        ],
+        "complete": false,
+        "extent": 0.8,
+        "days": 120,
+        "process": "demyelination",
+        "label": "Dorsal columns of both sides, demyelinated"
+      },
+      {
+        "nodes": [
+          "L_cst_T6",
+          "R_cst_T6"
+        ],
+        "complete": false,
+        "extent": 0.5,
+        "days": 120,
+        "process": "demyelination",
+        "label": "Lateral corticospinal tracts of both sides in the thoracic cord"
+      },
+      {
+        "nodes": [
+          "polyneuropathy"
+        ],
+        "complete": false,
+        "days": 120,
+        "process": "degeneration",
+        "label": "Length-dependent axonal neuropathy"
+      }
+    ],
+    "body": {
+      "b12Deficiency": 0.5,
+      "courseHours": 2880
+    }
+  },
+  "initialState": {
+    "position": "sitting",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "full",
+    "exposure": []
+  },
+  "observables": {
+    "general.appearance": {
+      "value": {
+        "distress": "none",
+        "colour": "normal",
+        "sweating": false
+      }
+    }
+  },
+  "investigations": {
+    "methylmalonic-acid": {
+      "value": {
+        "mma": 2.4,
+        "homocysteine": 48
+      }
+    },
+    "mri-whole-spine": {
+      "value": {
+        "findings": [
+          "dorsal-column-t2-signal"
+        ]
+      }
+    },
+    "nerve-conduction": {
+      "value": {
+        "findings": [
+          "axonal-sensory-neuropathy-mild"
+        ]
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "paraesthesia",
+        "present": true,
+        "attributes": {
+          "area": "feet"
+        }
+      },
+      "say": {
+        "en": "My feet tingle all the time, and I've become unsteady. Twice I nearly fell in the shower.",
+        "de": "Meine Füße kribbeln ständig, und ich bin unsicher geworden. Unter der Dusche bin ich zweimal fast gestürzt."
+      }
+    },
+    {
+      "id": "f-dark",
+      "topic": "sx.unsteadiness",
+      "assertion": {
+        "concept": "unsteadiness",
+        "present": true,
+        "attributes": {
+          "worse": "eyes closed, dark"
+        }
+      },
+      "say": {
+        "en": "It's when I close my eyes to wash my hair, I start to topple. And in the dark, getting to the loo at night, I hold on to the wall.",
+        "de": "Wenn ich zum Haarewaschen die Augen schließe, fange ich an zu kippen. Und im Dunkeln, nachts auf dem Weg zur Toilette, halte ich mich an der Wand fest."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "assertion": {
+        "concept": "paraesthesia",
+        "present": true,
+        "attributes": {
+          "onset": "3 months",
+          "course": "progressive"
+        }
+      },
+      "say": {
+        "en": "It crept up over about three months. First the toes, now up to the ankles, and lately my fingertips too.",
+        "de": "Es kam schleichend über etwa drei Monate. Zuerst die Zehen, jetzt bis zu den Knöcheln, und neuerdings auch die Fingerspitzen."
+      }
+    },
+    {
+      "id": "f-legs",
+      "topic": "sx.weakness",
+      "assertion": {
+        "concept": "stiffness",
+        "present": true
+      },
+      "say": {
+        "en": "My legs feel stiff and heavy, as if I am wading. I would not call them weak.",
+        "de": "Meine Beine fühlen sich steif und schwer an, wie beim Waten. Schwach würde ich nicht sagen."
+      }
+    },
+    {
+      "id": "f-tired",
+      "topic": "sx.confusion",
+      "say": {
+        "en": "I'm tired and a bit forgetful, and short of breath on the hill to the shops.",
+        "de": "Ich bin müde und etwas vergesslich, und am Berg zum Einkaufen außer Atem."
+      }
+    },
+    {
+      "id": "f-sphincter",
+      "topic": "sx.sphincter",
+      "say": {
+        "en": "Sometimes I have to rush to the toilet, but no accidents.",
+        "de": "Manchmal muss ich mich auf der Toilette beeilen, aber nichts geht daneben."
+      }
+    },
+    {
+      "id": "f-back",
+      "topic": "sx.back-pain",
+      "assertion": {
+        "concept": "back-pain",
+        "present": false
+      },
+      "say": {
+        "en": "No back pain.",
+        "de": "Keine Rückenschmerzen."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "assertion": {
+        "concept": "autoimmune-disease",
+        "present": true
+      },
+      "say": {
+        "en": "An underactive thyroid, and type 2 diabetes for eight years. And vitiligo, those white patches on my hands.",
+        "de": "Eine Schilddrüsenunterfunktion und seit acht Jahren Typ-2-Diabetes. Und Vitiligo, die weißen Flecken an den Händen."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "assertion": {
+        "concept": "b12-lowering-drugs",
+        "present": true
+      },
+      "say": {
+        "en": "Metformin for years, levothyroxine, and omeprazole for heartburn since my gallbladder operation.",
+        "de": "Seit Jahren Metformin, L-Thyroxin, und Omeprazol gegen Sodbrennen seit der Gallenblasen-OP."
+      }
+    },
+    {
+      "id": "f-diet",
+      "topic": "shx.living",
+      "say": {
+        "en": "I eat meat and fish. My mother had pernicious anaemia, she had injections.",
+        "de": "Ich esse Fleisch und Fisch. Meine Mutter hatte eine perniziöse Anämie, sie bekam Spritzen."
+      }
+    },
+    {
+      "id": "f-alcohol",
+      "topic": "shx.alcohol",
+      "say": {
+        "en": "A glass of wine at the weekend.",
+        "de": "Am Wochenende ein Glas Wein."
+      }
+    },
+    {
+      "id": "f-concerns",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "My GP said it was diabetic nerves, but it's getting worse so fast.",
+        "de": "Mein Hausarzt sagt, es seien die Nerven vom Diabetes, aber es wird so schnell schlimmer."
+      }
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-romberg",
+        "kind": "sign",
+        "ref": "romberg-sign",
+        "weight": "essential",
+        "discriminates": [
+          "peripheral-neuropathy"
+        ],
+        "why": {
+          "en": "Steady with the eyes open, falling with them closed: sensory ataxia, the dorsal columns (or large-fibre nerves) no longer telling where the feet are.",
+          "de": "Sicherer Stand mit offenen Augen, Fallneigung mit geschlossenen: sensible Ataxie, die Hinterstränge (oder dicken Nervenfasern) melden nicht mehr, wo die Füße sind."
+        }
+      },
+      {
+        "id": "e-vibration",
+        "kind": "sign",
+        "ref": "distal-vibration-loss",
+        "weight": "essential",
+        "why": {
+          "en": "Vibration and joint position are lost at the toes: the dorsal columns.",
+          "de": "Vibration und Lagesinn sind an den Zehen aufgehoben: die Hinterstränge."
+        }
+      },
+      {
+        "id": "e-plantar",
+        "kind": "sign",
+        "ref": "extensor-plantar",
+        "weight": "essential",
+        "discriminates": [
+          "peripheral-neuropathy"
+        ],
+        "why": {
+          "en": "Both plantars are extensor, with brisk knee jerks: the lateral corticospinal tracts too. Dorsal and lateral columns together: subacute combined degeneration.",
+          "de": "Babinski beidseits positiv, mit lebhaften PSR: auch die lateralen Pyramidenbahnen. Hinter- und Seitenstränge zusammen: funikuläre Myelose."
+        }
+      },
+      {
+        "id": "e-ankle",
+        "kind": "sign",
+        "ref": "reduced-ankle-reflex",
+        "weight": "discriminating",
+        "discriminates": [
+          "spinal-cord-compression",
+          "multiple-sclerosis"
+        ],
+        "why": {
+          "en": "The ankle jerks are depressed despite the extensor plantars: a neuropathy with a myelopathy. That combination points to B12 deficiency (or copper deficiency, Friedreich’s ataxia, syphilis).",
+          "de": "Die ASR sind abgeschwächt trotz positiver Babinski-Zeichen: eine Neuropathie mit einer Myelopathie. Diese Kombination weist auf einen B12-Mangel (oder Kupfermangel, Friedreich-Ataxie, Syphilis)."
+        }
+      },
+      {
+        "id": "e-gait",
+        "kind": "sign",
+        "ref": "spastic-gait",
+        "weight": "supporting",
+        "why": {
+          "en": "Both legs stiff and scissoring: a spastic paraparesis. With the eyes closed she also loses her balance: spastic and sensory ataxic together.",
+          "de": "Beide Beine steif, mit Scherengang: eine spastische Paraparese. Mit geschlossenen Augen verliert sie zudem das Gleichgewicht: spastisch und sensibel-ataktisch zugleich."
+        }
+      },
+      {
+        "id": "e-meds",
+        "kind": "fact",
+        "ref": "f-meds",
+        "weight": "supporting",
+        "why": {
+          "en": "Metformin and a proton pump inhibitor both lower B12 absorption; autoimmune thyroid disease, vitiligo and a mother with pernicious anaemia point to pernicious anaemia itself.",
+          "de": "Metformin und ein Protonenpumpenhemmer senken beide die B12-Aufnahme; Autoimmunthyreoiditis, Vitiligo und eine Mutter mit perniziöser Anämie weisen auf eine perniziöse Anämie selbst."
+        }
+      },
+      {
+        "id": "e-b12",
+        "kind": "investigation",
+        "ref": "haematinics",
+        "weight": "essential",
+        "why": {
+          "en": "B12 is low-normal (about 180 pmol/L), with a mild macrocytic anaemia (MCV 100). A low-normal B12 does not exclude deficiency: methylmalonic acid and homocysteine decide.",
+          "de": "B12 ist niedrig-normal (etwa 180 pmol/L), bei leichter makrozytärer Anämie (MCV 100). Ein niedrig-normaler Wert schließt den Mangel nicht aus: Methylmalonsäure und Homocystein entscheiden."
+        }
+      },
+      {
+        "id": "e-mma",
+        "kind": "investigation",
+        "ref": "methylmalonic-acid",
+        "weight": "supporting",
+        "why": {
+          "en": "Methylmalonic acid and homocysteine are high: tissue B12 deficiency.",
+          "de": "Methylmalonsäure und Homocystein sind erhöht: B12-Mangel im Gewebe."
+        }
+      },
+      {
+        "id": "e-mri",
+        "kind": "investigation",
+        "ref": "mri-whole-spine",
+        "weight": "supporting",
+        "why": {
+          "en": "High signal in the dorsal columns (an inverted V) and no compression.",
+          "de": "Signalanhebung in den Hintersträngen (umgekehrtes V) und keine Kompression."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "fact",
+        "ref": "f-pc",
+        "why": {
+          "en": "Treat at once with intramuscular hydroxocobalamin: the deficit recovers only if treated early. Never give folic acid alone, which can worsen the cord.",
+          "de": "Sofort mit intramuskulärem Hydroxocobalamin behandeln: Das Defizit erholt sich nur bei früher Behandlung. Nie Folsäure allein geben, sie kann das Rückenmark verschlechtern."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 15,
+    "summary": {
+      "en": "Three months of ascending paraesthesia, falls when she closes her eyes, stiff legs; Romberg positive, vibration and position lost distally, extensor plantars with brisk knees and reduced ankle jerks. A myelopathy of the dorsal and lateral columns with a neuropathy: subacute combined degeneration from B12 deficiency (pernicious anaemia, metformin and a PPI). B12 low-normal with a mild macrocytosis, MMA and homocysteine high (the deficiency is real), dorsal column signal on MRI. Hydroxocobalamin now.",
+      "de": "Seit drei Monaten aufsteigende Parästhesien, Stürze bei geschlossenen Augen, steife Beine; Romberg positiv, Vibration und Lagesinn distal aufgehoben, Babinski positiv mit lebhaften PSR und abgeschwächten ASR. Eine Myelopathie der Hinter- und Seitenstränge mit Neuropathie: funikuläre Myelose bei B12-Mangel (perniziöse Anämie, Metformin und PPI). B12 niedrig-normal mit leichter Makrozytose, MMA und Homocystein erhöht (der Mangel ist echt), Hinterstrangsignal in der MRT. Sofort Hydroxocobalamin."
+    }
+  },
+  "diagnosis": {
+    "primary": "b12-deficiency",
+    "accepted": [
+      "subacute-combined-degeneration"
+    ],
+    "differential": [
+      "spinal-cord-compression",
+      "multiple-sclerosis",
+      "peripheral-neuropathy",
+      "transverse-myelitis"
+    ]
+  }
+}

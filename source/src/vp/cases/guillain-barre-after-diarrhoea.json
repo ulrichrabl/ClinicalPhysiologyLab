@@ -1,0 +1,419 @@
+{
+  "schema": "vp.case/1",
+  "id": "guillain-barre-after-diarrhoea",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Tingling hands and feet, then weak legs: Guillain–Barré syndrome",
+    "de": "Kribbeln in Händen und Füßen, dann schwache Beine: Guillain-Barré-Syndrom"
+  },
+  "tags": [
+    "weakness",
+    "areflexia",
+    "neuropathy",
+    "neurology",
+    "emergency"
+  ],
+  "difficulty": 3,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-25",
+    "sources": [
+      "Willison HJ, Jacobs BC, van Doorn PA. Guillain-Barré syndrome. Lancet 2016;388:717-27.",
+      "Leonhard SE et al. Diagnosis and management of Guillain-Barré syndrome in ten steps. Nat Rev Neurol 2019;15:671-83."
+    ]
+  },
+  "patient": {
+    "name": "Lena Hoffmann",
+    "age": 31,
+    "sex": "F",
+    "heightCm": 168,
+    "weightKg": 61,
+    "appearance": {
+      "skinTone": 2,
+      "hair": "fair, short",
+      "build": "slim"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ]
+  },
+  "setting": {
+    "place": {
+      "en": "Medical admissions unit",
+      "de": "Interdisziplinäre Aufnahmestation"
+    },
+    "triage": {
+      "en": "Tingling in the hands and feet for five days; for two days her legs are weak and she struggles on the stairs.",
+      "de": "Seit fünf Tagen Kribbeln in Händen und Füßen; seit zwei Tagen schwache Beine, Treppensteigen fällt schwer."
+    }
+  },
+  "pathology": {
+    "lesions": [
+      {
+        "nodes": [
+          "L_nerve_C5",
+          "R_nerve_C5",
+          "L_nerve_C6",
+          "R_nerve_C6",
+          "L_nerve_C7",
+          "R_nerve_C7",
+          "L_nerve_C8",
+          "R_nerve_C8",
+          "L_nerve_T1",
+          "R_nerve_T1",
+          "L_nerve_L2",
+          "R_nerve_L2",
+          "L_nerve_L3",
+          "R_nerve_L3",
+          "L_nerve_L4",
+          "R_nerve_L4",
+          "L_nerve_L5",
+          "R_nerve_L5",
+          "L_nerve_S1",
+          "R_nerve_S1"
+        ],
+        "complete": true,
+        "extent": 0.7,
+        "days": 7,
+        "process": "demyelination",
+        "label": "Ventral roots of both sides, demyelinated (acute inflammatory demyelinating polyradiculoneuropathy)"
+      }
+    ]
+  },
+  "initialState": {
+    "position": "reclined-45",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "full",
+    "exposure": []
+  },
+  "observables": {
+    "general.appearance": {
+      "value": {
+        "distress": "mild",
+        "colour": "normal",
+        "sweating": false
+      }
+    }
+  },
+  "investigations": {
+    "csf": {
+      "value": {
+        "csfProtein": 1.1,
+        "csfCells": 3,
+        "csfGlucoseRatio": 0.62
+      }
+    },
+    "nerve-conduction": {
+      "value": {
+        "findings": [
+          "demyelinating-polyradiculoneuropathy"
+        ]
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "weakness",
+        "present": true,
+        "attributes": {
+          "distribution": "legs, both"
+        }
+      },
+      "say": {
+        "en": "My legs have gone weak. I couldn't get up the stairs to my flat this morning without pulling myself up on the rail.",
+        "de": "Meine Beine sind schwach geworden. Heute früh kam ich die Treppe zu meiner Wohnung nur hoch, indem ich mich am Geländer hochgezogen habe."
+      }
+    },
+    {
+      "id": "f-tingle",
+      "topic": "sx.numbness",
+      "assertion": {
+        "concept": "paraesthesia",
+        "present": true,
+        "attributes": {
+          "distribution": "glove and stocking, rising"
+        }
+      },
+      "say": {
+        "en": "It started five days ago with pins and needles in my toes and fingertips, both sides at once. Now it is up to my ankles and wrists.",
+        "de": "Vor fünf Tagen fing es mit Kribbeln in den Zehen und Fingerspitzen an, auf beiden Seiten gleichzeitig. Jetzt geht es bis zu den Knöcheln und Handgelenken."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "assertion": {
+        "concept": "weakness",
+        "present": true,
+        "attributes": {
+          "onset": "2 days",
+          "course": "progressive"
+        }
+      },
+      "say": {
+        "en": "The weakness came two days ago and it is getting worse every day. Getting up from a chair is hard now.",
+        "de": "Die Schwäche kam vor zwei Tagen und wird jeden Tag schlimmer. Aus dem Stuhl hochzukommen ist jetzt schwer."
+      }
+    },
+    {
+      "id": "f-diarrhoea",
+      "topic": "sx.diarrhoea",
+      "assertion": {
+        "concept": "diarrhoea",
+        "present": true,
+        "attributes": {
+          "when": "2 weeks ago"
+        }
+      },
+      "say": {
+        "en": "About two weeks ago I had a nasty stomach bug after a barbecue: diarrhoea for four days, some blood, cramps. It settled by itself.",
+        "de": "Vor etwa zwei Wochen hatte ich nach einem Grillfest einen heftigen Magen-Darm-Infekt: vier Tage Durchfall, etwas Blut, Krämpfe. Es ging von selbst vorbei."
+      }
+    },
+    {
+      "id": "f-back",
+      "topic": "sx.back-pain",
+      "assertion": {
+        "concept": "back-pain",
+        "present": true
+      },
+      "say": {
+        "en": "My lower back and thighs ache, a deep ache, worse at night.",
+        "de": "Der untere Rücken und die Oberschenkel tun weh, ein tiefer Schmerz, nachts schlimmer."
+      }
+    },
+    {
+      "id": "f-breath",
+      "topic": "sx.dyspnoea",
+      "assertion": {
+        "concept": "dyspnoea",
+        "present": false
+      },
+      "say": {
+        "en": "My breathing is fine. I can still sing in the car.",
+        "de": "Die Atmung ist in Ordnung. Im Auto kann ich noch singen."
+      }
+    },
+    {
+      "id": "f-swallow",
+      "topic": "sx.speech-swallow",
+      "assertion": {
+        "concept": "dysphagia",
+        "present": false
+      },
+      "say": {
+        "en": "Swallowing and talking are normal.",
+        "de": "Schlucken und Sprechen sind normal."
+      }
+    },
+    {
+      "id": "f-face",
+      "topic": "sx.diplopia",
+      "assertion": {
+        "concept": "diplopia",
+        "present": false
+      },
+      "say": {
+        "en": "No double vision. My face feels normal.",
+        "de": "Keine Doppelbilder. Mein Gesicht fühlt sich normal an."
+      }
+    },
+    {
+      "id": "f-sphincter",
+      "topic": "sx.sphincter",
+      "assertion": {
+        "concept": "sphincter-disturbance",
+        "present": false
+      },
+      "say": {
+        "en": "Bladder and bowels are completely normal, and no numbness down below.",
+        "de": "Blase und Darm ganz normal, und unten herum nicht taub."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "say": {
+        "en": "Nothing. I was completely well until the stomach bug.",
+        "de": "Nichts. Bis zu dem Infekt war ich völlig gesund."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "say": {
+        "en": "Only the pill.",
+        "de": "Nur die Pille."
+      }
+    },
+    {
+      "id": "f-vacc",
+      "topic": "sx.infection",
+      "say": {
+        "en": "No vaccinations recently. No cold or sore throat.",
+        "de": "Keine Impfungen in letzter Zeit. Keine Erkältung, kein Halsweh."
+      }
+    },
+    {
+      "id": "f-work",
+      "topic": "shx.occupation",
+      "say": {
+        "en": "I'm a primary school teacher.",
+        "de": "Ich bin Grundschullehrerin."
+      }
+    },
+    {
+      "id": "f-concerns",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "I'm scared it's MS. My aunt has MS.",
+        "de": "Ich habe Angst, dass es MS ist. Meine Tante hat MS."
+      }
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-areflexia",
+        "kind": "sign",
+        "ref": "areflexia",
+        "weight": "essential",
+        "discriminates": [
+          "spinal-cord-compression",
+          "myasthenia-gravis",
+          "transverse-myelitis"
+        ],
+        "why": {
+          "en": "All tendon reflexes are absent: the reflex arcs are blocked in the roots and nerves. Weakness with areflexia rising over days is Guillain–Barré until shown otherwise.",
+          "de": "Alle Muskeleigenreflexe fehlen: Die Reflexbögen sind in Wurzeln und Nerven blockiert. Eine über Tage aufsteigende Schwäche mit Areflexie ist ein Guillain-Barré-Syndrom bis zum Beweis des Gegenteils."
+        }
+      },
+      {
+        "id": "e-weak",
+        "kind": "sign",
+        "ref": "proximal-symmetrical-weakness",
+        "weight": "essential",
+        "discriminates": [
+          "peripheral-neuropathy",
+          "cidp"
+        ],
+        "why": {
+          "en": "Weakness of both sides, the hips weaker than the feet: a polyradiculoneuropathy reaches the proximal muscles through the roots, unlike a length-dependent neuropathy.",
+          "de": "Schwäche beidseits, die Hüften schwächer als die Füße: Eine Polyradikuloneuropathie erreicht über die Wurzeln die proximalen Muskeln, anders als eine längenabhängige Neuropathie."
+        }
+      },
+      {
+        "id": "e-plantar",
+        "kind": "sign",
+        "ref": "extensor-plantar",
+        "present": false,
+        "weight": "discriminating",
+        "discriminates": [
+          "spinal-cord-compression",
+          "transverse-myelitis"
+        ],
+        "why": {
+          "en": "Plantars flexor: no upper motor neuron sign, so not the cord.",
+          "de": "Babinski negativ: kein Zeichen des ersten Motoneurons, also nicht das Rückenmark."
+        }
+      },
+      {
+        "id": "e-level",
+        "kind": "sign",
+        "ref": "sensory-level",
+        "present": false,
+        "weight": "discriminating",
+        "discriminates": [
+          "spinal-cord-compression",
+          "transverse-myelitis"
+        ],
+        "why": {
+          "en": "No sensory level on the trunk, and the bladder is normal: a cord lesion is unlikely.",
+          "de": "Kein sensibles Niveau am Rumpf, und die Blase ist normal: Eine Rückenmarkläsion ist unwahrscheinlich."
+        }
+      },
+      {
+        "id": "e-trigger",
+        "kind": "fact",
+        "ref": "f-diarrhoea",
+        "weight": "supporting",
+        "why": {
+          "en": "Bloody diarrhoea two weeks before, likely Campylobacter jejuni: the commonest trigger, whose antigens the antibodies mistake for the nerve’s gangliosides.",
+          "de": "Blutiger Durchfall zwei Wochen zuvor, wahrscheinlich Campylobacter jejuni: der häufigste Auslöser, dessen Antigene die Antikörper mit den Gangliosiden des Nervs verwechseln."
+        }
+      },
+      {
+        "id": "e-csf",
+        "kind": "investigation",
+        "ref": "csf",
+        "weight": "supporting",
+        "why": {
+          "en": "Raised protein with a normal cell count (albuminocytological dissociation). It may still be normal in the first week; a high cell count would suggest another cause.",
+          "de": "Erhöhtes Eiweiß bei normaler Zellzahl (zytoalbuminäre Dissoziation). In der ersten Woche kann der Befund noch normal sein; eine hohe Zellzahl spräche für eine andere Ursache."
+        }
+      },
+      {
+        "id": "e-ncs",
+        "kind": "investigation",
+        "ref": "nerve-conduction",
+        "weight": "supporting",
+        "why": {
+          "en": "Demyelinating features with sural sparing: acute inflammatory demyelinating polyradiculoneuropathy.",
+          "de": "Demyelinisierende Zeichen mit ausgespartem N. suralis: akute inflammatorische demyelinisierende Polyradikuloneuropathie."
+        }
+      },
+      {
+        "id": "e-fvc",
+        "kind": "investigation",
+        "ref": "spirometry",
+        "weight": "essential",
+        "why": {
+          "en": "Vital capacity is measured now and repeatedly: a quarter need ventilation. Her FVC is normal today.",
+          "de": "Die Vitalkapazität wird jetzt und wiederholt gemessen: Ein Viertel muss beatmet werden. Heute ist ihre FVC normal."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "fact",
+        "ref": "f-breath",
+        "why": {
+          "en": "Breathing and swallowing can fail within hours: measure the vital capacity (not the oxygen saturation, which falls late) and watch the autonomic system.",
+          "de": "Atmung und Schlucken können binnen Stunden versagen: Vitalkapazität messen (nicht die Sauerstoffsättigung, die spät fällt) und das autonome Nervensystem überwachen."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 15,
+    "summary": {
+      "en": "Rising paraesthesia then symmetrical leg and arm weakness over a week, two weeks after bloody diarrhoea; areflexia, flexor plantars, no sensory level, normal bladder. Guillain–Barré syndrome (AIDP): CSF protein raised with normal cells, demyelinating nerve conduction. Monitor vital capacity; treat with intravenous immunoglobulin or plasma exchange.",
+      "de": "Aufsteigende Parästhesien, dann symmetrische Bein- und Armschwäche über eine Woche, zwei Wochen nach blutigem Durchfall; Areflexie, Babinski negativ, kein sensibles Niveau, Blase normal. Guillain-Barré-Syndrom (AIDP): Liquoreiweiß erhöht bei normaler Zellzahl, demyelinisierende Neurographie. Vitalkapazität überwachen; Behandlung mit intravenösen Immunglobulinen oder Plasmapherese."
+    }
+  },
+  "diagnosis": {
+    "primary": "guillain-barre",
+    "accepted": [],
+    "differential": [
+      "spinal-cord-compression",
+      "transverse-myelitis",
+      "myasthenia-gravis",
+      "cidp",
+      "hypokalaemic-paralysis",
+      "botulism",
+      "multiple-sclerosis"
+    ]
+  }
+}

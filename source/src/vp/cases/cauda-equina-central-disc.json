@@ -1,0 +1,422 @@
+{
+  "schema": "vp.case/1",
+  "id": "cauda-equina-central-disc",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "Back pain, both legs and no urine: cauda equina syndrome",
+    "de": "Rückenschmerz, beide Beine und kein Urin: Kaudasyndrom"
+  },
+  "tags": [
+    "back-pain",
+    "sciatica",
+    "urinary-retention",
+    "neurology",
+    "emergency",
+    "localisation"
+  ],
+  "difficulty": 3,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-25",
+    "sources": [
+      "Todd NV. Cauda equina syndrome: the timing of surgery probably does influence outcome. Br J Neurosurg 2005;19:301-6.",
+      "Fraser S, Roberts L, Murphy E. Cauda equina syndrome: a literature review of its definition and clinical presentation. Arch Phys Med Rehabil 2009;90:1964-8."
+    ]
+  },
+  "patient": {
+    "name": "Thomas Keller",
+    "age": 46,
+    "sex": "M",
+    "heightCm": 182,
+    "weightKg": 88,
+    "appearance": {
+      "skinTone": 2,
+      "hair": "short, greying",
+      "build": "heavy"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ]
+  },
+  "setting": {
+    "place": {
+      "en": "Emergency department",
+      "de": "Notaufnahme"
+    },
+    "triage": {
+      "en": "Back pain for two weeks; since yesterday pain down both legs, and he has not passed urine since last night.",
+      "de": "Seit zwei Wochen Rückenschmerzen; seit gestern Schmerzen in beiden Beinen, seit gestern Abend kein Wasserlassen."
+    }
+  },
+  "pathology": {
+    "lesions": [
+      {
+        "nodes": [
+          "L_nerve_S1",
+          "R_nerve_S1",
+          "L_drg_S1",
+          "R_drg_S1",
+          "L_drg_S2",
+          "R_drg_S2",
+          "L_drg_S3",
+          "R_drg_S3",
+          "L_drg_S4",
+          "R_drg_S4"
+        ],
+        "complete": true,
+        "days": 1,
+        "process": "compression",
+        "label": "The sacral roots of both sides, compressed by a central L4/5 disc"
+      }
+    ]
+  },
+  "initialState": {
+    "position": "supine",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "full",
+    "exposure": []
+  },
+  "observables": {
+    "general.appearance": {
+      "value": {
+        "distress": "moderate",
+        "colour": "normal",
+        "sweating": false
+      }
+    },
+    "leg.slr.R": {
+      "value": {
+        "positive": true,
+        "angleDeg": 45
+      }
+    },
+    "leg.slr.L": {
+      "value": {
+        "positive": true,
+        "angleDeg": 50
+      }
+    }
+  },
+  "investigations": {
+    "mri-lumbar": {
+      "value": {
+        "findings": [
+          "disc-l45-central-cauda"
+        ]
+      }
+    },
+    "bladder-scan": {
+      "value": {
+        "residual": 850
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "radicular-pain",
+        "present": true,
+        "attributes": {
+          "side": "both"
+        }
+      },
+      "say": {
+        "en": "My back's been bad for a fortnight, but since yesterday the pain shoots down both legs. And I haven't been able to wee since last night.",
+        "de": "Mein Rücken ist seit zwei Wochen schlecht, aber seit gestern schießt der Schmerz in beide Beine. Und seit gestern Abend kann ich nicht mehr Wasser lassen."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "assertion": {
+        "concept": "back-pain",
+        "present": true,
+        "attributes": {
+          "onset": "2 weeks ago, worse yesterday"
+        }
+      },
+      "say": {
+        "en": "It started when we were moving a wardrobe two weeks ago. Yesterday morning I bent down to tie my shoe and it went much worse, into both legs.",
+        "de": "Es fing vor zwei Wochen an, als wir einen Schrank getragen haben. Gestern früh habe ich mich zum Schuhebinden gebückt, da wurde es viel schlimmer, bis in beide Beine."
+      }
+    },
+    {
+      "id": "f-pain",
+      "topic": "sx.back-pain",
+      "assertion": {
+        "concept": "radicular-pain",
+        "present": true,
+        "attributes": {
+          "distribution": "both legs, posterior, to the soles"
+        }
+      },
+      "say": {
+        "en": "Down the back of both thighs and calves into the soles. The left a bit less than the right.",
+        "de": "Hinten an beiden Oberschenkeln und Waden entlang bis in die Fußsohlen. Links etwas weniger als rechts."
+      }
+    },
+    {
+      "id": "f-character",
+      "topic": "hpc.character",
+      "say": {
+        "en": "Burning and shooting, like an electric shock. Coughing makes it go right down both legs.",
+        "de": "Brennend und einschießend, wie ein Stromschlag. Beim Husten zieht es bis in beide Beine."
+      }
+    },
+    {
+      "id": "f-sphincter",
+      "topic": "sx.sphincter",
+      "assertion": {
+        "concept": "urinary-retention",
+        "present": true,
+        "attributes": {
+          "painless": true
+        }
+      },
+      "say": {
+        "en": "I haven't passed water since last night, and the odd thing is I don't even feel desperate. I haven't opened my bowels either, and I didn't notice wanting to.",
+        "de": "Seit gestern Abend habe ich kein Wasser gelassen, und komischerweise habe ich nicht mal Harndrang. Stuhlgang hatte ich auch keinen, und ich habe auch nichts gemerkt."
+      }
+    },
+    {
+      "id": "f-saddle",
+      "topic": "sx.numbness",
+      "assertion": {
+        "concept": "saddle-anaesthesia",
+        "present": true,
+        "attributes": {
+          "area": "perineum, soles"
+        }
+      },
+      "say": {
+        "en": "When I wiped after the toilet this morning it felt numb, like after the dentist's. And the soles of my feet feel woolly.",
+        "de": "Als ich mich heute früh nach der Toilette abgewischt habe, war alles taub, wie nach einer Spritze beim Zahnarzt. Und die Fußsohlen fühlen sich pelzig an."
+      }
+    },
+    {
+      "id": "f-weak",
+      "topic": "sx.weakness",
+      "assertion": {
+        "concept": "weakness",
+        "present": true,
+        "attributes": {
+          "movement": "plantarflexion, both"
+        }
+      },
+      "say": {
+        "en": "My calves feel weak; I can't push off properly when I walk, and I couldn't stand on tiptoe.",
+        "de": "Die Waden fühlen sich schwach an; ich kann mich beim Gehen nicht richtig abdrücken, und auf die Zehenspitzen komme ich nicht."
+      }
+    },
+    {
+      "id": "f-fever",
+      "topic": "sx.fever",
+      "assertion": {
+        "concept": "fever",
+        "present": false
+      },
+      "say": {
+        "en": "No fever, no shivers.",
+        "de": "Kein Fieber, kein Schüttelfrost."
+      }
+    },
+    {
+      "id": "f-weight",
+      "topic": "sx.weight",
+      "assertion": {
+        "concept": "weight-loss",
+        "present": false
+      },
+      "say": {
+        "en": "No, I haven't lost any weight.",
+        "de": "Nein, abgenommen habe ich nicht."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "say": {
+        "en": "Nothing serious. I've never had cancer. The back has gone a few times over the years.",
+        "de": "Nichts Ernstes. Krebs hatte ich nie. Der Rücken hat sich über die Jahre ein paarmal gemeldet."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "say": {
+        "en": "Ibuprofen, and since yesterday co-codamol my wife had in the cupboard.",
+        "de": "Ibuprofen, und seit gestern Paracetamol mit Codein, das meine Frau noch im Schrank hatte."
+      }
+    },
+    {
+      "id": "f-sex",
+      "topic": "sx.urine",
+      "say": {
+        "en": "Now you ask, it's all numb down there. I hadn't wanted to say.",
+        "de": "Jetzt wo Sie fragen: Untenherum ist alles taub. Ich wollte es nicht ansprechen."
+      }
+    },
+    {
+      "id": "f-work",
+      "topic": "shx.occupation",
+      "say": {
+        "en": "I run a removals firm. Lots of lifting.",
+        "de": "Ich habe eine Umzugsfirma. Viel Heben."
+      }
+    },
+    {
+      "id": "f-concerns",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "Is it a slipped disc? I just need something stronger for the pain.",
+        "de": "Ist das ein Bandscheibenvorfall? Ich brauche einfach was Stärkeres gegen die Schmerzen."
+      }
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-saddle",
+        "kind": "sign",
+        "ref": "saddle-anaesthesia",
+        "weight": "essential",
+        "discriminates": [
+          "l5-radiculopathy",
+          "s1-radiculopathy",
+          "mechanical-back-pain"
+        ],
+        "why": {
+          "en": "Pinprick is lost around the anus and perineum (S2–4) on both sides: the sacral roots of the cauda equina, which a single-root sciatica does not reach.",
+          "de": "Spitz-stumpf fehlt um Anus und Damm (S2–4) beidseits: die sakralen Wurzeln der Cauda equina, die eine einzelne Wurzelkompression nicht erreicht."
+        }
+      },
+      {
+        "id": "e-retention",
+        "kind": "fact",
+        "ref": "f-sphincter",
+        "weight": "essential",
+        "why": {
+          "en": "Painless retention of urine, with no urge: the bladder has lost its sacral innervation. With saddle anaesthesia it means cauda equina syndrome with retention, an emergency.",
+          "de": "Schmerzloser Harnverhalt ohne Harndrang: Die Blase hat ihre sakrale Innervation verloren. Mit der Reithosenanästhesie bedeutet das ein Kaudasyndrom mit Harnverhalt, einen Notfall."
+        }
+      },
+      {
+        "id": "e-bladder",
+        "kind": "investigation",
+        "ref": "bladder-scan",
+        "weight": "essential",
+        "why": {
+          "en": "A residual of about 850 mL confirms the retention. Note that his codeine could add to it, but does not explain the numb saddle.",
+          "de": "Ein Restharn von etwa 850 mL bestätigt den Verhalt. Das Codein kann beitragen, erklärt aber die taube Reithose nicht."
+        }
+      },
+      {
+        "id": "e-ankle",
+        "kind": "sign",
+        "ref": "absent-ankle-reflex",
+        "weight": "discriminating",
+        "discriminates": [
+          "l5-radiculopathy",
+          "spinal-cord-compression"
+        ],
+        "why": {
+          "en": "Both ankle jerks are lost (S1 on both sides): bilateral root involvement, not a single sciatica; knee jerks are kept, so the lesion is below L4.",
+          "de": "Beide ASR fehlen (S1 beidseits): eine beidseitige Wurzelschädigung, kein einzelner Ischias; die PSR sind erhalten, die Läsion liegt also unterhalb L4."
+        }
+      },
+      {
+        "id": "e-plantar",
+        "kind": "sign",
+        "ref": "extensor-plantar",
+        "present": false,
+        "weight": "discriminating",
+        "discriminates": [
+          "spinal-cord-compression"
+        ],
+        "why": {
+          "en": "The plantars are flexor: the roots, not the cord (a cord compression above the conus gives extensor plantars and a sensory level).",
+          "de": "Babinski negativ: die Wurzeln, nicht das Rückenmark (eine Myelonkompression oberhalb des Konus gibt einen positiven Babinski und ein sensibles Niveau)."
+        }
+      },
+      {
+        "id": "e-slr",
+        "kind": "sign",
+        "ref": "positive-slr",
+        "weight": "supporting",
+        "why": {
+          "en": "Straight leg raising is positive on both sides: irritated lower lumbosacral roots on both sides.",
+          "de": "Lasègue beidseits positiv: gereizte untere lumbosakrale Wurzeln auf beiden Seiten."
+        }
+      },
+      {
+        "id": "e-mri",
+        "kind": "investigation",
+        "ref": "mri-lumbar",
+        "weight": "essential",
+        "why": {
+          "en": "An emergency MRI shows a large central L4/5 disc filling the canal: decompression should not wait.",
+          "de": "Die Notfall-MRT zeigt einen großen medialen Bandscheibenvorfall L4/5, der den Kanal ausfüllt: Die Dekompression darf nicht warten."
+        }
+      },
+      {
+        "id": "e-fever",
+        "kind": "fact",
+        "ref": "f-fever",
+        "weight": "supporting",
+        "why": {
+          "en": "No fever and no cancer history: an epidural abscess or metastatic compression are less likely than a disc, though MRI decides.",
+          "de": "Kein Fieber und keine Tumorvorgeschichte: Ein epiduraler Abszess oder eine Metastasenkompression sind weniger wahrscheinlich als ein Bandscheibenvorfall; die MRT entscheidet."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "fact",
+        "ref": "f-sphincter",
+        "why": {
+          "en": "Retention of urine with sciatica is cauda equina syndrome until an MRI says otherwise: the bladder may not recover if decompression is late.",
+          "de": "Harnverhalt mit Ischias ist ein Kaudasyndrom, bis eine MRT das Gegenteil zeigt: Die Blase erholt sich bei später Dekompression oft nicht."
+        }
+      },
+      {
+        "kind": "fact",
+        "ref": "f-saddle",
+        "why": {
+          "en": "Saddle numbness reported by the patient: examine the perineum and ask about the bladder, bowel and sexual function.",
+          "de": "Vom Patienten berichtete Reithosentaubheit: Damm untersuchen, nach Blase, Darm und Sexualfunktion fragen."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 15,
+    "summary": {
+      "en": "Bilateral sciatica after two weeks of back pain, with saddle anaesthesia and painless retention (residual 850 mL); both ankle jerks lost, knee jerks kept, plantars flexor, straight leg raise positive on both sides. Cauda equina syndrome with retention from a large central L4/5 disc: emergency MRI and decompression.",
+      "de": "Beidseitiger Ischias nach zwei Wochen Rückenschmerzen, mit Reithosenanästhesie und schmerzlosem Harnverhalt (Restharn 850 mL); beide ASR fehlen, PSR erhalten, Babinski negativ, Lasègue beidseits positiv. Kaudasyndrom mit Harnverhalt durch einen großen medialen Bandscheibenvorfall L4/5: Notfall-MRT und Dekompression."
+    }
+  },
+  "diagnosis": {
+    "primary": "central-disc-prolapse",
+    "accepted": [
+      "cauda-equina-syndrome"
+    ],
+    "differential": [
+      "l5-radiculopathy",
+      "s1-radiculopathy",
+      "spinal-cord-compression",
+      "mechanical-back-pain",
+      "guillain-barre"
+    ]
+  }
+}

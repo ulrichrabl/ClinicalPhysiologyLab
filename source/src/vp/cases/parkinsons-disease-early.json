@@ -1,0 +1,352 @@
+{
+  "schema": "vp.case/1",
+  "id": "parkinsons-disease-early",
+  "version": "0.1.0",
+  "status": "draft",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "title": {
+    "en": "A shaking hand at rest: early Parkinson’s disease",
+    "de": "Eine zitternde Hand in Ruhe: früher Morbus Parkinson"
+  },
+  "tags": [
+    "tremor",
+    "bradykinesia",
+    "movement-disorder",
+    "neurology"
+  ],
+  "difficulty": 2,
+  "authoring": {
+    "authors": [
+      "Clinical Physiology Lab"
+    ],
+    "reviewers": [],
+    "updated": "2026-10-25",
+    "sources": [
+      "Postuma RB et al. MDS clinical diagnostic criteria for Parkinson’s disease. Mov Disord 2015;30:1591-1601.",
+      "Bloem BR, Okun MS, Klein C. Parkinson’s disease. Lancet 2021;397:2284-2303."
+    ]
+  },
+  "patient": {
+    "name": "Rolf Wagner",
+    "age": 67,
+    "sex": "M",
+    "heightCm": 178,
+    "weightKg": 76,
+    "appearance": {
+      "skinTone": 2,
+      "hair": "grey",
+      "build": "average"
+    },
+    "speaks": [
+      "en",
+      "de"
+    ]
+  },
+  "setting": {
+    "place": {
+      "en": "Neurology clinic (GP referral)",
+      "de": "Neurologische Ambulanz (Überweisung vom Hausarzt)"
+    },
+    "triage": {
+      "en": "His right hand has shaken at rest for a year; he is slower, and his handwriting has become small.",
+      "de": "Seit einem Jahr zittert seine rechte Hand in Ruhe; er ist langsamer geworden, und seine Schrift ist klein geworden."
+    }
+  },
+  "pathology": {
+    "lesions": [
+      {
+        "nodes": [
+          "L_snc"
+        ],
+        "complete": true,
+        "days": 420,
+        "process": "degeneration",
+        "label": "Left substantia nigra (dopaminergic neurons), degenerating"
+      }
+    ]
+  },
+  "initialState": {
+    "position": "sitting",
+    "avpu": "A",
+    "orientation": "oriented",
+    "cooperation": "full",
+    "exposure": []
+  },
+  "observables": {
+    "general.appearance": {
+      "value": {
+        "distress": "none",
+        "colour": "normal",
+        "sweating": false
+      }
+    }
+  },
+  "investigations": {},
+  "history": [
+    {
+      "id": "f-pc",
+      "topic": "pc",
+      "volunteered": true,
+      "assertion": {
+        "concept": "rest-tremor",
+        "present": true,
+        "attributes": {
+          "side": "right"
+        }
+      },
+      "say": {
+        "en": "My right hand shakes when it's resting on my lap. When I pick something up it stops.",
+        "de": "Meine rechte Hand zittert, wenn sie auf dem Schoß liegt. Wenn ich etwas greife, hört es auf."
+      }
+    },
+    {
+      "id": "f-onset",
+      "topic": "hpc.onset",
+      "assertion": {
+        "concept": "rest-tremor",
+        "present": true,
+        "attributes": {
+          "onset": "1 year"
+        }
+      },
+      "say": {
+        "en": "About a year ago. My wife noticed it first, watching television.",
+        "de": "Vor etwa einem Jahr. Meine Frau hat es zuerst bemerkt, beim Fernsehen."
+      }
+    },
+    {
+      "id": "f-slow",
+      "topic": "sx.weakness",
+      "assertion": {
+        "concept": "bradykinesia",
+        "present": true
+      },
+      "say": {
+        "en": "I'm not weak, just slow. Buttons take ages, and shaving with my right hand is clumsy. My handwriting has got tiny, it shrinks across the line.",
+        "de": "Ich bin nicht schwach, nur langsam. Knöpfe dauern ewig, und Rasieren mit rechts ist ungeschickt. Meine Schrift ist winzig geworden, sie schrumpft über die Zeile."
+      }
+    },
+    {
+      "id": "f-tremor",
+      "topic": "sx.tremor",
+      "assertion": {
+        "concept": "rest-tremor",
+        "present": true,
+        "attributes": {
+          "alcohol": "no effect"
+        }
+      },
+      "say": {
+        "en": "It's worse when I'm nervous. A glass of wine doesn't change it. Holding a cup it is fine.",
+        "de": "Wenn ich nervös bin, ist es schlimmer. Ein Glas Wein ändert nichts. Wenn ich eine Tasse halte, ist es gut."
+      }
+    },
+    {
+      "id": "f-smell",
+      "topic": "hpc.previous",
+      "assertion": {
+        "concept": "anosmia",
+        "present": true
+      },
+      "say": {
+        "en": "Funny you ask: I lost my sense of smell years ago. And my wife says I've been shouting and kicking in my sleep for a long time.",
+        "de": "Komisch, dass Sie fragen: Meinen Geruchssinn habe ich schon vor Jahren verloren. Und meine Frau sagt, ich schreie und trete seit langem im Schlaf."
+      }
+    },
+    {
+      "id": "f-falls",
+      "topic": "sx.falls",
+      "assertion": {
+        "concept": "falls",
+        "present": false
+      },
+      "say": {
+        "en": "No falls. My balance is fine; I still walk the dog every day.",
+        "de": "Keine Stürze. Mein Gleichgewicht ist gut; ich gehe noch jeden Tag mit dem Hund."
+      }
+    },
+    {
+      "id": "f-eyes",
+      "topic": "sx.eyes",
+      "say": {
+        "en": "My eyes are fine. No trouble looking down when I go downstairs.",
+        "de": "Meine Augen sind in Ordnung. Beim Treppabgehen nach unten schauen geht gut."
+      }
+    },
+    {
+      "id": "f-meds",
+      "topic": "meds",
+      "assertion": {
+        "concept": "dopamine-antagonist",
+        "present": false
+      },
+      "say": {
+        "en": "Ramipril for blood pressure. Never had anything for sickness or for nerves.",
+        "de": "Ramipril gegen den Blutdruck. Nie etwas gegen Übelkeit oder für die Nerven."
+      }
+    },
+    {
+      "id": "f-fhx",
+      "topic": "fhx",
+      "say": {
+        "en": "Nobody in the family had a tremor.",
+        "de": "Niemand in der Familie hatte ein Zittern."
+      }
+    },
+    {
+      "id": "f-mood",
+      "topic": "sx.mood",
+      "say": {
+        "en": "I've been a bit low, to be honest. And constipated for years.",
+        "de": "Ehrlich gesagt bin ich etwas niedergeschlagen. Und seit Jahren verstopft."
+      }
+    },
+    {
+      "id": "f-pmh",
+      "topic": "pmh",
+      "say": {
+        "en": "High blood pressure. Otherwise well.",
+        "de": "Bluthochdruck. Sonst gesund."
+      }
+    },
+    {
+      "id": "f-work",
+      "topic": "shx.occupation",
+      "say": {
+        "en": "Retired engineer.",
+        "de": "Ingenieur im Ruhestand."
+      }
+    },
+    {
+      "id": "f-concerns",
+      "topic": "ice.concerns",
+      "say": {
+        "en": "Is it Parkinson's? Will I end up in a wheelchair?",
+        "de": "Ist das Parkinson? Lande ich im Rollstuhl?"
+      }
+    }
+  ],
+  "reference": {
+    "evidence": [
+      {
+        "id": "e-tremor",
+        "kind": "sign",
+        "ref": "rest-tremor",
+        "side": "R",
+        "weight": "essential",
+        "discriminates": [
+          "essential-tremor"
+        ],
+        "why": {
+          "en": "A 4–6 Hz tremor of the right hand at rest, disappearing on movement: the parkinsonian tremor. An essential tremor is postural and action, both hands, often eased by alcohol.",
+          "de": "Ein Tremor der rechten Hand in Ruhe mit 4–6 Hz, der bei Bewegung verschwindet: der Parkinsontremor. Ein essentieller Tremor ist ein Halte- und Aktionstremor beider Hände, oft durch Alkohol gebessert."
+        }
+      },
+      {
+        "id": "e-brady",
+        "kind": "sign",
+        "ref": "slowed-alternating-movements",
+        "side": "R",
+        "weight": "essential",
+        "why": {
+          "en": "Rapid alternating movements are slow and shrink as they repeat on the right: bradykinesia, the core of parkinsonism.",
+          "de": "Rasche Wechselbewegungen sind rechts langsam und werden bei Wiederholung kleiner: Bradykinese, der Kern des Parkinsonismus."
+        }
+      },
+      {
+        "id": "e-rigid",
+        "kind": "sign",
+        "ref": "rigidity",
+        "side": "R",
+        "weight": "essential",
+        "why": {
+          "en": "Rigidity on the right, the same through the whole range, with cogwheeling over the tremor: the basal ganglia, not the pyramidal tract (whose spasticity catches and gives way).",
+          "de": "Rigor rechts, gleich durch den ganzen Bewegungsumfang, mit Zahnradphänomen über dem Tremor: die Basalganglien, nicht die Pyramidenbahn (deren Spastik einrastet und nachgibt)."
+        }
+      },
+      {
+        "id": "e-gait",
+        "kind": "sign",
+        "ref": "shuffling-gait",
+        "weight": "supporting",
+        "why": {
+          "en": "Short steps, stooped, the right arm not swinging.",
+          "de": "Kleine Schritte, vornübergebeugt, der rechte Arm schwingt nicht mit."
+        }
+      },
+      {
+        "id": "e-pull",
+        "kind": "sign",
+        "ref": "postural-instability",
+        "present": false,
+        "weight": "discriminating",
+        "discriminates": [
+          "progressive-supranuclear-palsy"
+        ],
+        "why": {
+          "en": "The pull test is normal: postural reflexes are kept early in Parkinson’s disease. Early falls and instability point to progressive supranuclear palsy.",
+          "de": "Der Zugtest ist normal: Die Haltungsreflexe sind beim frühen Morbus Parkinson erhalten. Frühe Stürze und Instabilität sprechen für eine progressive supranukleäre Blickparese."
+        }
+      },
+      {
+        "id": "e-pyramidal",
+        "kind": "sign",
+        "ref": "extensor-plantar",
+        "present": false,
+        "weight": "discriminating",
+        "why": {
+          "en": "Plantars flexor and reflexes normal: no pyramidal sign, against a vascular parkinsonism or multiple system atrophy.",
+          "de": "Babinski negativ und Reflexe normal: kein Pyramidenbahnzeichen, gegen ein vaskuläres Parkinson-Syndrom oder eine Multisystematrophie."
+        }
+      },
+      {
+        "id": "e-meds",
+        "kind": "fact",
+        "ref": "f-meds",
+        "weight": "essential",
+        "why": {
+          "en": "No dopamine-blocking drug (metoclopramide, antipsychotics): drug-induced parkinsonism is excluded.",
+          "de": "Kein Dopaminantagonist (Metoclopramid, Neuroleptika): ein medikamentös induziertes Parkinson-Syndrom ist ausgeschlossen."
+        }
+      },
+      {
+        "id": "e-prodrome",
+        "kind": "fact",
+        "ref": "f-smell",
+        "weight": "supporting",
+        "why": {
+          "en": "Loss of smell and dream enactment (REM sleep behaviour disorder) years before the tremor: the prodrome of Parkinson’s disease.",
+          "de": "Riechverlust und das Ausleben von Träumen (REM-Schlaf-Verhaltensstörung) Jahre vor dem Tremor: das Prodromalstadium des Morbus Parkinson."
+        }
+      }
+    ],
+    "redFlags": [
+      {
+        "kind": "fact",
+        "ref": "f-falls",
+        "why": {
+          "en": "Early falls, a downward gaze palsy, or rapid progression would point away from Parkinson’s disease (progressive supranuclear palsy, multiple system atrophy).",
+          "de": "Frühe Stürze, eine Blicklähmung nach unten oder ein rasches Fortschreiten sprächen gegen einen Morbus Parkinson (progressive supranukleäre Blickparese, Multisystematrophie)."
+        }
+      }
+    ],
+    "timeBudgetMinutes": 12,
+    "summary": {
+      "en": "A year of right-sided rest tremor with slowness and micrographia, after years of anosmia and dream enactment; rest tremor, rigidity and bradykinesia on the right, a shuffling gait, normal pull test, no pyramidal signs, no dopamine-blocking drugs. Early Parkinson’s disease (Hoehn & Yahr 1): a clinical diagnosis by the MDS criteria; a trial of levodopa supports it.",
+      "de": "Seit einem Jahr Ruhetremor rechts mit Verlangsamung und Mikrographie, nach Jahren mit Riechverlust und Ausleben von Träumen; Ruhetremor, Rigor und Bradykinese rechts, kleinschrittiger Gang, Zugtest normal, keine Pyramidenbahnzeichen, keine Dopaminantagonisten. Früher Morbus Parkinson (Hoehn und Yahr 1): eine klinische Diagnose nach den MDS-Kriterien; ein Levodopa-Versuch stützt sie."
+    }
+  },
+  "diagnosis": {
+    "primary": "parkinsons-disease",
+    "accepted": [],
+    "differential": [
+      "essential-tremor",
+      "drug-induced-parkinsonism",
+      "progressive-supranuclear-palsy",
+      "ischaemic-stroke-left-mca"
+    ]
+  }
+}

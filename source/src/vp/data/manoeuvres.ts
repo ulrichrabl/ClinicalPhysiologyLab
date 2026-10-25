@@ -498,7 +498,8 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     id: 'test.sustained-upgaze', verb: 'test', target: 'eyes',
     label: { en: 'Sustained upgaze (Simpson test)', de: 'Simpson-Test' },
     phrases: { en: ['sustained upgaze', 'look up for a minute', 'fatigability', 'simpson'], de: ['simpson', 'nach oben blicken eine minute', 'ermüdbarkeit'] },
-    reveals: [{ property: 'eye.lid', side: 'both', context: { sustainedSeconds: 60, gaze: 'up' } }], requires: { ability: ['follows-commands'] }, durationSeconds: 70,
+    /* the lid is looked at first, in primary gaze, so the fall is measured against it */
+    reveals: [{ property: 'eye.lid', side: 'both', context: { gaze: 'primary' } }, { property: 'eye.lid', side: 'both', context: { sustainedSeconds: 60, gaze: 'up' } }], requires: { ability: ['follows-commands'] }, durationSeconds: 70,
   },
 
   /* ---- neurological: limbs and trunk -------------------------------------------- */
@@ -533,7 +534,8 @@ export const MANOEUVRES: ManoeuvreDef[] = [
     id: 'test.power-repeated', verb: 'test', target: 'arm', paired: true,
     label: { en: 'Repeated shoulder abduction', de: 'Wiederholte Schulterabduktion' },
     phrases: { en: ['repeated shoulder abduction', 'fatigable weakness', 'repeat twenty times'], de: ['wiederholte abduktion', 'ermüdbare schwäche', 'zwanzigmal wiederholen'] },
-    reveals: [{ property: 'arm.power', context: { repetition: 20 } }], requires: { ability: ['follows-commands'] }, durationSeconds: 60,
+    /* the first abduction is graded, then the twentieth */
+    reveals: [{ property: 'arm.power' }, { property: 'arm.power', context: { repetition: 20 } }], requires: { ability: ['follows-commands'] }, durationSeconds: 60,
   },
   {
     id: 'test.pronator-drift', verb: 'test', target: 'arm',
