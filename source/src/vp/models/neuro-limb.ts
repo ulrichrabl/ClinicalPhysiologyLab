@@ -82,6 +82,10 @@ export interface LimbState {
   bulbarFatigue: boolean;
   ocularFatigue: boolean;
   gaitBalance: boolean;                                // vermis
+  /** the substantia nigra on the other side lost: rigidity, bradykinesia, a rest tremor */
+  parkinson: Record<Side, boolean>;
+  /** a length-dependent polyneuropathy */
+  polyneuropathy: boolean;
   basis: string[];
 }
 
@@ -183,6 +187,28 @@ function derive(view: RuntimeView): LimbState {
     }
   }
 
+  /* ---- the extrapyramidal system and the longest nerves ---------------------------- */
+  /* Parkinsonism: the nigrostriatal system lost on one side shows on the other side of the body: rigid tone through the
+     whole range, slow movements that shrink as they repeat (bradykinesia), a 4–6 Hz tremor at rest (Deuschl 1998). */
+  const parkinson = { L: nodes.has('R_snc'), R: nodes.has('L_snc') };
+  for (const S of SIDES) if (parkinson[S]) {
+    for (const limb of ['arm', 'leg'] as const) if (tone[S][limb] === 'normal') tone[S][limb] = 'rigid';
+    basis.push(`${S} limbs: substantia nigra on the other side (parkinsonism)`);
+  }
+  /* A length-dependent polyneuropathy reaches the longest nerves first: the feet before the hands, the ankle jerks lost
+     before the knee jerks, the toes' dorsiflexors weak before anything proximal. */
+  const poly = nodes.has('polyneuropathy');
+  if (poly) {
+    basis.push('length-dependent polyneuropathy: the longest nerves first');
+    for (const S of SIDES) {
+      power[S].ankleDorsiflexion = Math.min(power[S].ankleDorsiflexion, complete ? 3 : 4);
+      power[S].footEversion = Math.min(power[S].footEversion, complete ? 3 : 4);
+      if (complete) { power[S].anklePlantarflexion = Math.min(power[S].anklePlantarflexion, 4); power[S].fingerAbduction = Math.min(power[S].fingerAbduction, 4); }
+      reflex[S].ankle = Math.min(reflex[S].ankle, complete ? 0 : 1);
+      if (complete) reflex[S].knee = Math.min(reflex[S].knee, 1);
+    }
+  }
+
   /* ---- sensation ---------------------------------------------------------------- */
   const pinprick = { L: {}, R: {} } as LimbState['pinprick'];
   const territories = { L: [] as string[], R: [] as string[] };
@@ -208,6 +234,13 @@ function derive(view: RuntimeView): LimbState {
     const dc = (segs: string[], cortexCounts: boolean) => { const fs = col(segs); return fs.every((x) => x.length) && (cortexCounts || !fs.flat().every(onlyCortex)) ? lvl : 'normal'; };
     vibration[S] = { arm: dc(['C7', 'C8'], false), leg: dc(['L5', 'S1'], false) };
     proprioception[S] = { arm: dc(['C7', 'C8'], true), leg: dc(['L5', 'S1'], true) };
+  }
+  if (poly) for (const S of SIDES) {
+    /* stockings, and gloves when it is severe */
+    for (const g of complete ? ['L4', 'L5', 'S1'] : ['L5', 'S1']) pinprick[S][g] = pinprick[S][g] === 'normal' ? lvl : pinprick[S][g];
+    if (complete) for (const g of ['C7', 'C8']) pinprick[S][g] = pinprick[S][g] === 'normal' ? 'reduced' : pinprick[S][g];
+    vibration[S].leg = lvl; proprioception[S].leg = lvl;
+    if (complete) { vibration[S].arm = 'reduced'; }
   }
   /* the saddle is both sides' S3–5: one side lost leaves it reduced */
   /* the saddle is felt in both hemispheres: a lesion of one sensory cortex leaves it */
@@ -261,7 +294,7 @@ function derive(view: RuntimeView): LimbState {
   return {
     power, fatigable, tone, wasting, fasciculation, reflex, plantar, drift, pinprick, territories, vibration, proprioception, saddle,
     face, faceSensation, jawTo, uvulaTo, gag, voice, shrug, tongue, speech, bulbarFatigue, ocularFatigue,
-    gaitBalance: has('gait_balance'), basis,
+    gaitBalance: has('gait_balance'), parkinson, polyneuropathy: poly, basis,
   };
 }
 
@@ -283,6 +316,7 @@ export const NEURO_LIMB_RESOLVERS: Record<string, Resolver> = {
     switch (ref.property) {
       case 'arm.power': return { value: Object.fromEntries(ARM_MOVES.map(([m]) => [m, powerAt(st, S, m, ctx)])), basis };
       case 'leg.power': return { value: Object.fromEntries(LEG_MOVES.map(([m]) => [m, powerAt(st, S, m, ctx)])), basis };
+      case 'arm.rest-tremor': return { value: { tremor: st.parkinson[S!] ? 'rest' : 'none' }, ...(st.parkinson[S!] ? { basis: 'substantia nigra on the other side' } : {}) };
       case 'arm.tone': return { value: { tone: st.tone[S].arm, wasting: st.wasting[S].arm, fasciculation: st.fasciculation[S].arm }, basis };
       case 'leg.tone': return { value: { tone: st.tone[S].leg, wasting: st.wasting[S].leg, fasciculation: st.fasciculation[S].leg }, basis };
       case 'arm.drift': return { value: { drift: st.drift[S] }, basis };

@@ -76,8 +76,7 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     const d = NEURO_TEST_BY_ID[test];
     const sd = d.sided ? seg('data-side', [['R', t('right')], ['L', t('left')]], side, t('side')) : '';
     const ey = d.eyes ? seg('data-eyes', [['open', t('open')], ['closed', t('closed')]], eyesClosed ? 'closed' : 'open', t('eyes')) : '';
-    const note = test === 'leg-reflexes' ? `<span class="muted small">${t('later')}</span>` : '';
-    return sd + ey + note;
+    return sd + ey;
   };
 
   const render = () => {
@@ -150,7 +149,7 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     vis.hidden = !current && !chart;
   };
   let current: NeuroMotion | null = null;
-  const STILL: Partial<Record<NeuroMotion['kind'], number>> = { drift: 12, 'finger-nose': 1.0, 'knee-jerk': 0.75, 'heel-shin': 2, 'rapid-alternating': 0.3, romberg: 10, gait: 0.8 };
+  const STILL: Partial<Record<NeuroMotion['kind'], number>> = { drift: 12, 'finger-nose': 1.0, 'knee-jerk': 0.75, 'heel-shin': 2, 'rapid-alternating': 0.3, romberg: 10, gait: 0.8, tone: 1.5, 'arm-reflexes': 0.7, 'leg-reflexes': 0.75 };
   const start = () => {
     cancelAnimationFrame(raf);
     const svg = host.querySelector<SVGSVGElement>('svg.neuro-motion');

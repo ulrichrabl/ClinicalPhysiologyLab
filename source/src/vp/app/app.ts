@@ -181,6 +181,7 @@ import { mountNeuroStation } from './station-neuro.ts';
 import { mountPulseStation } from './station-pulse.ts';
 import { mountArrestPractice } from './practice-arrest.ts';
 import { motionSide, mountNeuroMotion, type NeuroMotion } from './neuro-motion-view.ts';
+import { neuroMotionFor } from './neuro-visual.ts';
 import type { FingerNoseFinding, ReflexGrade } from '../render/neuro-motion.ts';
 import { pulseSignsOf } from '../stations/pulse-signs.ts';
 import { eyeSignsOf } from '../stations/eye-signs.ts';
@@ -619,8 +620,13 @@ export function mount(root: HTMLElement) {
     if (m.id === 'test.pronator-drift' && (driftL || driftR)) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'drift', finding: { drift: [!!driftR?.drift, !!driftL?.drift] } } }); return; }
     const fnSide = (['L', 'R'] as const).find((sd) => fv(`arm.finger-nose.${sd}`));
     if (m.id === 'test.finger-nose' && fnSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'finger-nose', side: fnSide, finding: fv(`arm.finger-nose.${fnSide}`) as FingerNoseFinding } }); return; }
-    const kneeSide = (['L', 'R'] as const).find((sd) => typeof fv(`leg.reflexes.${sd}`)?.knee === 'number');
-    if (m.id === 'test.leg.reflexes' && kneeSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'knee-jerk', side: kneeSide, grade: fv(`leg.reflexes.${kneeSide}`)!.knee as ReflexGrade } }); return; }
+    /* the reflexes and tone: the same pictures the neurological station draws, for the side examined */
+    const sideOf = (prop: string) => (['L', 'R'] as const).find((sd) => fv(`${prop}.${sd}`));
+    const readF = (ref: string) => fv(ref);
+    for (const [mid, prop, test] of [['test.leg.reflexes', 'leg.reflexes', 'leg-reflexes'], ['test.arm.reflexes', 'arm.reflexes', 'arm-reflexes'], ['test.arm.tone', 'arm.tone', 'tone']] as const) {
+      const sd = sideOf(prop);
+      if (m.id === mid && sd) { const motion = neuroMotionFor(test, readF, sd); if (motion) { setVisual({ kind: 'neuro', manoeuvre: m, motion }); return; } }
+    }
     const hsSide = (['L', 'R'] as const).find((sd) => fv(`leg.heel-shin.${sd}`));
     if (m.id === 'test.heel-shin' && hsSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'heel-shin', side: hsSide, finding: fv(`leg.heel-shin.${hsSide}`) as any } }); return; }
     const raSide = (['L', 'R'] as const).find((sd) => fv(`arm.rapid-alternating.${sd}`));
@@ -673,7 +679,7 @@ export function mount(root: HTMLElement) {
     if (v.kind === 'neuro') {
       const sd = motionSide(v.motion);
       /* of the leg reflexes only the knee jerk is drawn so far */
-      const name = v.motion.kind === 'knee-jerk' ? (lang === 'de' ? 'Patellarsehnenreflex' : 'Knee jerk') : tr(v.manoeuvre.label, lang);
+      const name = tr(v.manoeuvre.label, lang);
       const what = v.motion.kind === 'romberg' || v.motion.kind === 'gait' || v.motion.kind === 'drift' ? name : `${name} · ${t(sd === 'L' ? 'left' : 'right').toLowerCase()}`;
       stopVisual = mountNeuroMotion(host, { look: look().figure, motion: v.motion, caption: what, label: what });
       return;

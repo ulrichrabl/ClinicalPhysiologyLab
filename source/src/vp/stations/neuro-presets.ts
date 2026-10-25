@@ -67,6 +67,9 @@ export const NEURO_PRESETS: NeuroPreset[] = [
   /* junction and muscle */
   { id: 'myasthenia', label: L('Myasthenia gravis', 'Myasthenia gravis'), lesions: ['L_nmj_post', 'R_nmj_post'], complete: true, signs: ['fatigable-weakness', 'fatigable-dysarthria'], look: 'power' },
   { id: 'myopathy', label: L('Proximal myopathy', 'Proximale Myopathie'), lesions: ['L_muscle_prox', 'R_muscle_prox'], complete: true, signs: ['proximal-symmetrical-weakness', 'waddling-gait'], look: 'gait' },
+  /* the extrapyramidal system and the longest nerves */
+  { id: 'parkinson-l', label: L('Left substantia nigra (parkinsonism, right side)', 'Substantia nigra links (Parkinsonismus rechts)'), lesions: ['L_snc'], complete: true, signs: ['rigidity', 'rest-tremor', 'slowed-alternating-movements', 'shuffling-gait'], look: 'gait' },
+  { id: 'polyneuropathy', label: L('Length-dependent polyneuropathy', 'Längenabhängige Polyneuropathie'), lesions: ['polyneuropathy'], complete: true, signs: ['stocking-sensory-loss', 'absent-ankle-reflex', 'distal-vibration-loss', 'foot-drop'], look: 'sensation' },
   /* coordination and sensation */
   { id: 'cerebellum-l', label: L('Left cerebellar hemisphere', 'Kleinhirnhemisphäre links'), lesions: ['L_cerebellum'], complete: true, signs: ['limb-dysmetria', 'intention-tremor'], look: 'finger-nose' },
   { id: 'vermis', label: L('Cerebellar vermis', 'Kleinhirnwurm (Vermis)'), lesions: ['vermis'], complete: true, signs: ['truncal-ataxia', 'ataxic-gait'], look: 'gait' },
@@ -79,6 +82,7 @@ export const NEURO_PRESET_GROUPS: Array<{ group: LocalizedText; ids: string[] }>
   { group: L('Brainstem and cranial nerves', 'Hirnstamm und Hirnnerven'), ids: ['wallenberg-l', 'medial-medulla-l', 'bell-l'] },
   { group: L('Roots, plexus and nerves', 'Wurzeln, Plexus und Nerven'), ids: ['c6-root-r', 'l4-root-r', 'l5-root-r', 's1-root-r', 'cauda-equina', 'erb-r', 'femoral-r', 'peroneal-r', 'ulnar-r'] },
   { group: L('Junction and muscle', 'Endplatte und Muskel'), ids: ['myasthenia', 'myopathy'] },
+  { group: L('Basal ganglia and polyneuropathy', 'Basalganglien und Polyneuropathie'), ids: ['parkinson-l', 'polyneuropathy'] },
   { group: L('Coordination and sensation', 'Koordination und Sensibilität'), ids: ['cerebellum-l', 'vermis', 'dorsal-columns', 'sensory-cortex-l'] },
 ];
 
@@ -102,6 +106,7 @@ export const NEURO_STRUCTURES: Array<{ group: LocalizedText; nodes: Array<{ id: 
     ...both((s) => `${s}_mcx_leg`, 'Motor cortex (leg)', 'Motorkortex (Bein)'), ...both((s) => `${s}_scx`, 'Sensory cortex', 'Sensibler Kortex'),
     ...both((s) => `${s}_ic`, 'Internal capsule', 'Capsula interna'),
   ] },
+  { group: L('Basal ganglia', 'Basalganglien'), nodes: [...both((s) => `${s}_snc`, 'Substantia nigra', 'Substantia nigra')] },
   { group: L('Brainstem', 'Hirnstamm'), nodes: [
     ...both((s) => `${s}_med_pyr`, 'Medullary pyramid', 'Pyramide der Medulla'), ...both((s) => `${s}_icp`, 'Inferior cerebellar peduncle', 'Unterer Kleinhirnstiel'),
     ...both((s) => `${s}_cn5_sens`, 'Trigeminal sensory nucleus', 'Sensibler Trigeminuskern'), ...both((s) => `${s}_cn10_nuc`, 'Nucleus ambiguus (IX, X)', 'Nucleus ambiguus (IX, X)'),
@@ -125,6 +130,7 @@ export const NEURO_STRUCTURES: Array<{ group: LocalizedText; nodes: Array<{ id: 
     ...both((s) => `${s}_n_radial`, 'Radial nerve', 'N. radialis'), ...both((s) => `${s}_n_median`, 'Median nerve', 'N. medianus'), ...both((s) => `${s}_n_ulnar_elbow`, 'Ulnar nerve at the elbow', 'N. ulnaris am Ellenbogen'),
     ...both((s) => `${s}_n_femoral`, 'Femoral nerve', 'N. femoralis'), ...both((s) => `${s}_n_sciatic`, 'Sciatic nerve', 'N. ischiadicus'), ...both((s) => `${s}_n_peroneal_head`, 'Common peroneal nerve', 'N. peroneus communis'),
   ] },
+  { group: L('All the nerves', 'Alle Nerven'), nodes: [{ id: 'polyneuropathy', label: L('Length-dependent polyneuropathy', 'Längenabhängige Polyneuropathie') }] },
   { group: L('Junction and muscle', 'Endplatte und Muskel'), nodes: [
     ...both((s) => `${s}_nmj_post`, 'Neuromuscular junction', 'Motorische Endplatte'), ...both((s) => `${s}_muscle_prox`, 'Proximal muscles', 'Proximale Muskulatur'),
   ] },
@@ -135,6 +141,8 @@ export const NEURO_STRUCTURES: Array<{ group: LocalizedText; nodes: Array<{ id: 
 const NAMED: Array<[RegExp, (m: RegExpMatchArray) => [string, string]]> = [
   [/^(R|L)_mcx_(face|arm|leg)$/, (m) => [`Motor cortex (${m[2]})`, `Motorkortex (${({ face: 'Gesicht', arm: 'Arm', leg: 'Bein' } as Record<string, string>)[m[2]]})`]],
   [/^(R|L)_scx$/, () => ['Sensory cortex', 'Sensibler Kortex']],
+  [/^(R|L)_snc$/, () => ['Substantia nigra', 'Substantia nigra']],
+  [/^polyneuropathy$/, () => ['All the longest nerves (polyneuropathy)', 'Alle längsten Nerven (Polyneuropathie)']],
   [/^L_broca$/, () => ['Broca’s area', 'Broca-Areal']],
   [/^(R|L)_ic$/, () => ['Internal capsule', 'Capsula interna']],
   [/^(R|L)_cst_(\w+)$/, (m) => [`Corticospinal tract at ${m[2]}`, `Pyramidenbahn in Höhe ${m[2].replace('T', 'Th')}`]],

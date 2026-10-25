@@ -1,5 +1,5 @@
 import { figureSvg, POSES, viewAt, type FigureLook } from '../render/patient-figure.ts';
-import { fingerNose, gait, heelShin, kneeJerk, pronatorDrift, rapidAlternating, romberg, type DriftFinding, type FingerNoseFinding, type GaitFinding, type HeelShinFinding, type MotionFrame, type RapidAlternatingFinding, type ReflexGrade, type RombergFinding } from '../render/neuro-motion.ts';
+import { armReflexes, fingerNose, gait, heelShin, kneeJerk, legReflexes, toneTest, type ArmReflexFinding, type LegReflexFinding, type ToneFinding, pronatorDrift, rapidAlternating, romberg, type DriftFinding, type FingerNoseFinding, type GaitFinding, type HeelShinFinding, type MotionFrame, type RapidAlternatingFinding, type ReflexGrade, type RombergFinding } from '../render/neuro-motion.ts';
 
 /* ---------------------------------------------------------------------------
    The neurological examination, moving (ADR-017 decision 10): the bedside
@@ -21,7 +21,10 @@ export type NeuroMotion =
   | { kind: 'heel-shin'; side: 'L' | 'R'; finding: HeelShinFinding; eyesClosed?: boolean }
   | { kind: 'rapid-alternating'; side: 'L' | 'R'; finding: RapidAlternatingFinding }
   | { kind: 'romberg'; open: RombergFinding; closed: RombergFinding }
-  | { kind: 'gait'; finding: GaitFinding };
+  | { kind: 'gait'; finding: GaitFinding }
+  | { kind: 'tone'; side: 'L' | 'R'; finding: ToneFinding }
+  | { kind: 'arm-reflexes'; side: 'L' | 'R'; finding: ArmReflexFinding }
+  | { kind: 'leg-reflexes'; side: 'L' | 'R'; finding: LegReflexFinding };
 
 /** The drawing's view box: walking is drawn twice, from the side and from the front. */
 export const neuroViewBox = (m: NeuroMotion) => (m.kind === 'gait' && m.finding.pattern !== 'unable' ? '0 0 720 380' : '0 0 360 380');
@@ -39,6 +42,9 @@ export function neuroFrame(m: NeuroMotion, look: FigureLook, t: number): string 
         : m.kind === 'rapid-alternating' ? rapidAlternating(base, look, t, m.finding, i)
           : m.kind === 'romberg' ? romberg(base, look, t, m.open, m.closed)
             : m.kind === 'gait' ? gait(base, look, t, m.finding)
+              : m.kind === 'tone' ? toneTest(base, look, t, m.finding, i)
+                : m.kind === 'arm-reflexes' ? armReflexes(base, look, t, m.finding, i)
+                  : m.kind === 'leg-reflexes' ? legReflexes(base, look, t, m.finding, i)
             : kneeJerk(base, look, t, m.grade, i);
   if ((m.kind === 'finger-nose' || m.kind === 'heel-shin') && m.eyesClosed) fr.pose.eyes = 1;
   const angle = fr.view ?? (side === 'L' ? 180 : 0);
@@ -85,7 +91,7 @@ export function neuroFrame(m: NeuroMotion, look: FigureLook, t: number): string 
 }
 
 /** The moment that shows the result best, for a still: the drift at its fullest, the finger near the target, the leg at the top of its kick. */
-const STILL: Record<NeuroMotion['kind'], number> = { drift: 12, 'finger-nose': 1.0, 'knee-jerk': 0.75, 'heel-shin': 2.0, 'rapid-alternating': 0.3, romberg: 10, gait: 0.8 };
+const STILL: Record<NeuroMotion['kind'], number> = { drift: 12, 'finger-nose': 1.0, 'knee-jerk': 0.75, 'heel-shin': 2.0, 'rapid-alternating': 0.3, romberg: 10, gait: 0.8, tone: 1.5, 'arm-reflexes': 0.7, 'leg-reflexes': 0.75 };
 
 export function mountNeuroMotion(host: HTMLElement, opts: { look: FigureLook; motion: NeuroMotion; caption: string; label: string }): () => void {
   host.innerHTML = `<div class="neurohost"><svg class="neuro-motion" viewBox="${neuroViewBox(opts.motion)}" role="img" aria-label="${opts.label.replace(/"/g, '&quot;')}"></svg>`

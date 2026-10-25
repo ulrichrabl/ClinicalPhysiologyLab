@@ -15,6 +15,7 @@ import { neuroNodeLabel } from '../stations/neuro-presets.ts';
 type T = { en: string; de: string };
 const RUNGS: Array<{ id: Rung; label: T }> = [
   { id: 'cortex', label: { en: 'Cortex', de: 'Rinde' } },
+  { id: 'basal-ganglia', label: { en: 'Basal ganglia', de: 'Basalganglien' } },
   { id: 'capsule', label: { en: 'Internal capsule', de: 'Capsula interna' } },
   { id: 'brainstem', label: { en: 'Brainstem', de: 'Hirnstamm' } },
   { id: 'cord', label: { en: 'Spinal cord', de: 'Rückenmark' } },
@@ -54,7 +55,7 @@ export function neuroLadderSvg(test: NeuroTest, lesions: string[], lang: 'en' | 
     subs[i].forEach((line, k) => out.push(`<text x="${x0 + 20}" y="${y + 17 + 11 * k}" font-size="10" fill="${cut ? colors.abn : colors.muted}">${esc(line)}</text>`));
   });
   /* the cerebellum, beside the ladder at the level of the brainstem, joined to the cord and the cortex */
-  const cy = mid(2), cx = x0 + w + 20, cOn = reads.has('cerebellum'), cCut = hit.get('cerebellum');
+  const cy = mid(3), cx = x0 + w + 20, cOn = reads.has('cerebellum'), cCut = hit.get('cerebellum');
   const cc = cCut ? colors.abn : cOn ? colors.accent : colors.muted;
   /* joined to the brainstem by its peduncles: a short link clear of the rung's labels */
   out.push(`<path d="M${x0 + 175} ${cy} L${cx - 14} ${cy}" fill="none" stroke="${cc}" stroke-width="1.5" stroke-dasharray="${cOn || cCut ? '' : '3 3'}"/>`);

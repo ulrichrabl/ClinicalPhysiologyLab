@@ -279,7 +279,7 @@ export function romberg(base: Pose, look: FigureLook, t: number, open: RombergFi
 }
 
 
-export type GaitPattern = 'normal' | 'veers' | 'ataxic' | 'unable' | 'hemiplegic' | 'high-stepping' | 'waddling' | 'sensory-ataxic';
+export type GaitPattern = 'normal' | 'veers' | 'ataxic' | 'unable' | 'hemiplegic' | 'high-stepping' | 'waddling' | 'sensory-ataxic' | 'parkinsonian';
 export interface GaitFinding { pattern: GaitPattern; toward?: 'L' | 'R' }
 
 /** A periodic bump on the gait cycle (0–1), centred at c, of width w. */
@@ -296,7 +296,7 @@ function legAngles(phi: number) {
   return { hip, knee, ankle };
 }
 
-const CADENCE: Record<GaitPattern, number> = { normal: 1.1, veers: 1.15, ataxic: 1.45, unable: 1.4, hemiplegic: 1.7, 'high-stepping': 1.25, waddling: 1.4, 'sensory-ataxic': 1.35 };
+const CADENCE: Record<GaitPattern, number> = { parkinsonian: 0.95, normal: 1.1, veers: 1.15, ataxic: 1.45, unable: 1.4, hemiplegic: 1.7, 'high-stepping': 1.25, waddling: 1.4, 'sensory-ataxic': 1.35 };
 
 /** Walking, `t` seconds in, by the gait the examination model finds. Each gait changes the normal curves the way the
     textbooks describe it: hemiplegic (the affected leg stiff, its foot pointed, swung round in a half-circle, the arm held
@@ -321,6 +321,8 @@ export function gait(base: Pose, look: FigureLook, t: number, f: GaitFinding): M
   for (const j of [0, 1] as const) {
     const phi = (((tt / T + (j === 0 ? 0 : 0.5)) % 1) + 1) % 1;
     let { hip, knee, ankle } = legAngles(phi);
+    /* parkinsonian: short, shuffling steps (the hip's swing under half), feet barely lifted and landing flat */
+    if (f.pattern === 'parkinsonian') { hip = 7.5 + (hip - 7.5) * 0.45; knee = 10 + (knee - 3) * 0.55; ankle *= 0.3; }
     const swing = bump(phi, 0.78, 0.12);
     if (irregular) { const k = 1 + 0.25 * Math.sin(2 * Math.PI * (0.23 * t + j * 0.4)); hip *= k; }
     if (f.pattern === 'hemiplegic' && j === aff) { hip = 4 + 9 * Math.cos(2 * Math.PI * phi); knee = 6 + 10 * bump(phi, 0.15, 0.07) + 12 * swing; ankle = -18 * swing - 6; out[j] = 10 * swing; }
@@ -336,18 +338,166 @@ export function gait(base: Pose, look: FigureLook, t: number, f: GaitFinding): M
     armFore[j] = armUpper[j] + s * (18 + 6 * Math.sin(2 * Math.PI * phi));
     if (f.pattern === 'hemiplegic' && j === aff) { armUpper[j] = down + s * 12; armFore[j] = down + s * 140; hand[j] = -s * 80; }
     if (irregular) { armUpper[j] = down + s * (arm * 0.5 + 8); }
+    if (f.pattern === 'parkinsonian') { armUpper[j] = down + s * (arm * 0.15 + 2); armFore[j] = armUpper[j] + s * 50; }
   }
   const pose: Pose = { ...base, thigh, shin, foot, armUpper, armFore, hand, legOut: out,
     ...(f.pattern === 'hemiplegic' && aff >= 0 ? { fist: (aff === 0 ? [1, 0] : [0, 1]) as [number, number] } : {}),
     ...(f.pattern === 'sensory-ataxic' ? { neck: -22, head: -8 } : {}),
+    /* stooped: the trunk and neck bent forward */
+    ...(f.pattern === 'parkinsonian' ? { torso: base.torso - s * 14, pelvis: base.pelvis - s * 4, neck: -14, head: 6 } : {}),
     ...(f.pattern === 'waddling' ? { pelvis: base.pelvis + 3, torso: base.torso - 4 } : {}) };
   /* how far the hips have come: as fast as a standing foot sweeps back under them (the unaffected leg's stance from
      10 % to 50 % of the cycle), so the foot on the ground stays put */
-  const sweep = (phi: number) => { const a = legAngles(phi), th = (down + s * a.hip) * D2R, sh = (down + s * (a.hip - a.knee)) * D2R; return LEN.thigh * Math.cos(th) + LEN.shin * Math.cos(sh); };
-  const speed = (Math.abs(sweep(0.1) - sweep(0.5)) / (0.4 * T)) * J.u * (irregular ? 0.9 : 1);
+  const hipScale = f.pattern === 'parkinsonian' ? 0.45 : 1;
+  const sweep = (phi: number) => { const a0 = legAngles(phi), a = { hip: 7.5 + (a0.hip - 7.5) * hipScale, knee: f.pattern === 'parkinsonian' ? 10 + (a0.knee - 3) * 0.55 : a0.knee }, th = (down + s * a.hip) * D2R, sh = (down + s * (a.hip - a.knee)) * D2R; return LEN.thigh * Math.cos(th) + LEN.shin * Math.cos(sh); };
+  const speed = (Math.abs(sweep(0.1) - sweep(0.5)) / (0.4 * T)) * J.u * (irregular ? 0.9 : f.pattern === 'parkinsonian' ? 0.8 : 1);
   const ahead = speed * t;
   const lurch = f.pattern === 'waddling' ? 6 * Math.sin(2 * Math.PI * t / T) : f.pattern === 'hemiplegic' ? 2.5 * Math.sin(2 * Math.PI * t / T) : irregular ? 3 * Math.sin(2 * Math.PI * 0.37 * t) + 2 * Math.sin(2 * Math.PI * 0.9 * t) : 0;
   const lean = f.toward === 'L' ? -1 : 1;
   const drift = f.pattern === 'veers' ? lean * 12 * ((t % 6) / 6) * J.u : irregular ? 6 * Math.sin(2 * Math.PI * 0.21 * t) * J.u : 0;
   return { pose, props: '', walk: { ahead, drift, lurch } };
+}
+
+
+export interface ToneFinding { tone?: 'normal' | 'reduced' | 'spastic' | 'rigid'; restTremor?: boolean }
+
+/** A hand of the examiner, gripping at `at`, the sleeve coming in from `from` (a direction in degrees). */
+function grip(at: Pt, u: number, from: number): string {
+  const d = dir(from), sx = at.x + d.x * 26 * u, sy = at.y + d.y * 26 * u;
+  return `<path d="M${f(sx)} ${f(sy)} L${f(at.x + d.x * 5 * u)} ${f(at.y + d.y * 5 * u)}" stroke="#4f7f86" stroke-width="${f(6.5 * u)}" stroke-linecap="round"/>`
+    + `<ellipse cx="${f(at.x)}" cy="${f(at.y)}" rx="${f(4.6 * u)}" ry="${f(3.4 * u)}" fill="#e2b89a" stroke="#b98d70" stroke-width="${f(0.35 * u)}" transform="rotate(${f(-from)} ${f(at.x)} ${f(at.y)})"/>`;
+}
+
+/** Tone, sitting, arm i, `t` seconds in (a 9 s cycle): 3 s of the hands lying still on the thighs, where a rest tremor
+    shows (4–6 Hz, Deuschl 1998; 5 Hz here, about 6° at the wrist: a placement), then the examiner bends and straightens
+    the relaxed elbow, once a second each way. Normal tone moves smoothly; spastic tone catches on the stretch and gives way
+    (clasp-knife); rigid tone is stiff all the way, in small steps (cogwheel); reduced tone lets the hand flop. The sizes
+    and times of each are placements. */
+export function toneTest(base: Pose, look: FigureLook, t: number, finding: ToneFinding = {}, i: 0 | 1 = 0): MotionFrame {
+  const J0 = figureJoints(base, look), s = J0.anterior.x >= 0 ? 1 : -1;
+  const set = (pair: [number, number], v: number): [number, number] => (i === 0 ? [v, pair[1]] : [pair[0], v]);
+  const CYCLE = 9, c = ((t % CYCLE) + CYCLE) % CYCLE;
+  const tremor = finding.restTremor ? 6 * Math.sin(2 * Math.PI * 5 * t) : 0;
+  if (c < 3) {
+    /* at rest on the thigh; a rest tremor rolls the hand */
+    const hand = set(base.hand, base.hand[i] + tremor);
+    const other = i === 0 ? 1 : 0, h2: [number, number] = [hand[0], hand[1]];
+    if (finding.restTremor) h2[other] = base.hand[other];
+    return { pose: { ...base, hand: h2 }, props: '' };
+  }
+  /* the examiner's passive movement: the elbow from 20° to 120° of flexion and back (2 s) */
+  const x = (c - 3) % 2, flexing = x < 1, ph = flexing ? x : x - 1;
+  let e = 20 + 100 * (flexing ? minJerk(ph) : 1 - minJerk(ph));
+  let handLag = 0;
+  const tone = finding.tone ?? 'normal';
+  if (tone === 'spastic' && !flexing) {
+    /* stretching the flexors: the resistance builds, then gives way at once (clasp-knife) */
+    const held = 0.35, catchAt = 0.3;
+    const pp = ph < catchAt ? ph : ph < catchAt + held ? catchAt : catchAt + (ph - catchAt - held) * ((1 - catchAt) / (1 - catchAt - held));
+    e = 20 + 100 * (1 - minJerk(pp));
+  }
+  if (tone === 'rigid') e = 20 + 100 * (flexing ? ph : 1 - ph) + 2.5 * Math.sign(Math.sin(2 * Math.PI * 6 * t));
+  if (tone === 'reduced') handLag = -s * 22 * Math.sin(Math.PI * ph);
+  const upper = -90 + s * 8, fore = upper + s * e;
+  const pose: Pose = { ...base, armUpper: set(base.armUpper, upper), armFore: set(base.armFore, fore), hand: set(base.hand, handLag + (finding.restTremor ? tremor * 0.3 : 0)) };
+  const J = figureJoints(pose, look), u = J.u;
+  /* the examiner stands in front: one hand round the wrist, the other cupping the elbow, both arms coming from the front */
+  const props = `<g class="examiner" pointer-events="none">${grip(J.k.wrist[i], u, s > 0 ? 18 : 162)}${grip(J.k.elbow[i], u, s > 0 ? -22 : 202)}</g>`;
+  return { pose, props };
+}
+
+/* ---- the tendon reflexes, one after another -------------------------------------------------------------------- */
+
+/** The hammer, held at `pivot` (the examiner's hand), its head brought down onto `target` at `strike` s into a beat of
+    `c` s and lifted away again; `lift` turns the raised hammer one way or the other. */
+function hammerAt(target: Pt, pivot: Pt, c: number, strike: number, u: number, lift: 1 | -1 = 1): string {
+  const swing = (c < strike ? 55 * (1 - minJerk(c / strike)) : 55 * (1 - (1 - Math.min(1, (c - strike) / 0.25)) ** 2)) * lift;
+  const r = dist(pivot, target), a0 = ang(pivot, target) - swing;
+  const head = { x: pivot.x + Math.cos(a0 * D2R) * r, y: pivot.y - Math.sin(a0 * D2R) * r }, hd = dir(a0 + 90);
+  const back = dir(ang(target, pivot));
+  return `<path d="M${f(pivot.x)} ${f(pivot.y)} L${f(head.x)} ${f(head.y)}" stroke="#6b6f76" stroke-width="${f(1.1 * u)}" stroke-linecap="round"/>`
+    + `<path d="M${f(head.x - hd.x * 4 * u)} ${f(head.y - hd.y * 4 * u)} L${f(head.x + hd.x * 4 * u)} ${f(head.y + hd.y * 4 * u)}" stroke="#c0392b" stroke-width="${f(3 * u)}" stroke-linecap="round"/>`
+    + `<path d="M${f(pivot.x + back.x * 3 * u)} ${f(pivot.y + back.y * 3 * u)} L${f(pivot.x + back.x * 28 * u)} ${f(pivot.y + back.y * 28 * u + 6 * u)}" stroke="#4f7f86" stroke-width="${f(7.5 * u)}" stroke-linecap="round"/>`
+    + `<rect x="${f(pivot.x - 2.5 * u)}" y="${f(pivot.y - 3.2 * u)}" width="${f(7.5 * u)}" height="${f(6.4 * u)}" rx="${f(2.6 * u)}" fill="#e2b89a" stroke="#b98d70" stroke-width="${f(0.35 * u)}"/>`;
+}
+
+/** The muscle's jerk after the tap, as a share of its size: one quick contraction and back with a small overswing, and
+    at grade 4 a few further beats at about 6 Hz (clonus). Times are placements, as for the knee jerk. */
+function jerk(since: number, grade: ReflexGrade): number {
+  const pulse = (x: number) => (x <= 0 ? 0 : x < 0.3 ? Math.sin((Math.PI * x) / 0.3) : -0.12 * Math.sin(Math.PI * Math.min(1, (x - 0.3) / 0.3)));
+  let k = pulse(since);
+  if (grade >= 4) for (let b = 1; b <= 5; b++) k += 0.45 * Math.pow(0.8, b) * Math.max(0, Math.sin(Math.PI * Math.min(1, Math.max(0, since - 0.3 - (b - 1) / 6) * 6)));
+  return grade === 0 ? 0 : k;
+}
+
+export interface ArmReflexFinding { biceps: ReflexGrade; supinator: ReflexGrade; triceps: ReflexGrade }
+export const ARM_REFLEX_ORDER = ['biceps', 'supinator', 'triceps'] as const;
+
+/** The arm reflexes, sitting, arm i, `t` seconds in: biceps, supinator, triceps, 2.4 s each. For the biceps and the
+    supinator the forearm rests bent across the lap and the jerk bends the elbow; for the triceps the examiner holds the
+    upper arm out in front with the forearm hanging, and the jerk straightens it. Swing sizes by grade are placements:
+    0, 5, 12, 22° (biceps, triceps), 0, 3, 8, 15° (supinator). Returns which reflex is being tested. */
+export function armReflexes(base: Pose, look: FigureLook, t: number, g: ArmReflexFinding, i: 0 | 1 = 0): MotionFrame & { reflex: typeof ARM_REFLEX_ORDER[number] } {
+  const J0 = figureJoints(base, look), s = J0.anterior.x >= 0 ? 1 : -1, u = J0.u;
+  const set = (pair: [number, number], v: number): [number, number] => (i === 0 ? [v, pair[1]] : [pair[0], v]);
+  const BEAT = 2.4, STRIKE = 0.55, n = Math.floor((((t % (3 * BEAT)) + 3 * BEAT) % (3 * BEAT)) / BEAT), c = ((t % BEAT) + BEAT) % BEAT;
+  const reflex = ARM_REFLEX_ORDER[n], since = c - STRIKE - 0.02;
+  const AMP: Record<string, number[]> = { biceps: [0, 5, 12, 22, 22], supinator: [0, 3, 8, 15, 15], triceps: [0, 5, 12, 22, 22] };
+  const k = jerk(since, g[reflex]) * AMP[reflex][g[reflex]];
+  let pose: Pose, target: Pt, pivot: Pt, lift: 1 | -1 = 1;
+  if (reflex === 'triceps') {
+    const upper = s > 0 ? 0 : 180, fore = -90 + s * k;   // the jerk swings the forearm forward
+    pose = { ...base, armUpper: set(base.armUpper, upper - s * 5), armFore: set(base.armFore, fore), hand: set(base.hand, 0) };
+    const J = figureJoints(pose, look), el = J.k.elbow[i];
+    target = { x: el.x - s * 1 * u, y: el.y - 4 * u };          // just above the olecranon, behind the elbow
+    pivot = { x: target.x - s * 6 * u, y: target.y - 24 * u }; lift = s > 0 ? -1 : 1;
+  } else {
+    /* forearm across the lap, elbow at about 100°: the jerk bends it */
+    const upper = -90 + s * 6, fore = upper + s * (100 + k);
+    pose = { ...base, armUpper: set(base.armUpper, upper), armFore: set(base.armFore, fore), hand: set(base.hand, -s * 10) };
+    const J = figureJoints(pose, look), el = J.k.elbow[i], wr = J.k.wrist[i];
+    const fd = dir(J.k.foreA[i]);
+    target = reflex === 'biceps' ? { x: el.x + fd.x * 3 * u - s * 0 * u, y: el.y + fd.y * 3 * u - 3 * u }   // the examiner's thumb on the tendon at the elbow
+      : { x: wr.x - fd.x * 6 * u, y: wr.y - fd.y * 6 * u - 2.5 * u };                                     // the radius, a hand's breadth above the wrist
+    /* held from above and in front, raised away from the arm */
+    pivot = { x: target.x + s * 12 * u, y: target.y - 24 * u }; lift = s > 0 ? -1 : 1;
+  }
+  const thumb = reflex === 'biceps' ? `<ellipse cx="${f(target.x)}" cy="${f(target.y + 1.2 * u)}" rx="${f(2.6 * u)}" ry="${f(1.6 * u)}" fill="#e2b89a" stroke="#b98d70" stroke-width="${f(0.3 * u)}"/>` : '';
+  return { pose, props: `<g class="examiner" pointer-events="none">${thumb}${hammerAt(target, pivot, c, STRIKE, u, lift)}</g>`, reflex };
+}
+
+export interface LegReflexFinding { knee: ReflexGrade; ankle: ReflexGrade; plantar: 'flexor' | 'extensor' }
+
+/** The leg reflexes, sitting, leg i, `t` seconds in: the knee jerk (2.4 s), the ankle jerk (2.4 s; the examiner's hand
+    under the sole holds the foot up a little, the hammer strikes the Achilles tendon and the foot jerks down, with
+    clonus at grade 4), and the plantar response (3 s; a blunt point drawn along the outer sole toward the little toe:
+    the toes curl down when flexor, the big toe goes up when extensor, Babinski's sign). Sizes are placements. */
+export function legReflexes(base: Pose, look: FigureLook, t: number, g: LegReflexFinding, i: 0 | 1 = 0): MotionFrame & { reflex: 'knee' | 'ankle' | 'plantar' } {
+  const CYCLE = 7.8, c0 = ((t % CYCLE) + CYCLE) % CYCLE;
+  if (c0 < 2.4) return { ...kneeJerk(base, look, c0, g.knee, i), reflex: 'knee' };
+  const J0 = figureJoints(base, look), s = J0.anterior.x >= 0 ? 1 : -1, u = J0.u;
+  const set = (pair: [number, number], v: number): [number, number] => (i === 0 ? [v, pair[1]] : [pair[0], v]);
+  if (c0 < 4.8) {
+    const c = c0 - 2.4, STRIKE = 0.55, since = c - STRIKE - 0.03;
+    const k = jerk(since, g.ankle) * [0, 6, 14, 22, 22][g.ankle];
+    /* held a little dorsiflexed (foot -12°), the jerk plantarflexes it */
+    const pose: Pose = { ...base, foot: set(base.foot, base.foot[i] - 12 + k) };
+    const J = figureJoints(pose, look), an = J.k.ankle[i], sd = dir(J.k.shinA[i]);
+    const back = dir(J.k.shinA[i] - 90 * s);
+    const target = { x: an.x - sd.x * 4 * u + back.x * 4 * u, y: an.y - sd.y * 4 * u + back.y * 4 * u };   // the Achilles tendon above the heel
+    const pivot = { x: target.x - s * 22 * u, y: target.y - 8 * u };
+    const fa = J.k.footA[i], sole = { x: an.x + dir(fa).x * 12 * u + dir(fa - 90 * s).x * 7 * u, y: an.y + dir(fa).y * 12 * u + dir(fa - 90 * s).y * 7 * u };
+    const hand = `<path d="M${f(sole.x + s * 26 * u)} ${f(sole.y + 10 * u)} L${f(sole.x + s * 4 * u)} ${f(sole.y + 2 * u)}" stroke="#4f7f86" stroke-width="${f(6.5 * u)}" stroke-linecap="round"/><ellipse cx="${f(sole.x)}" cy="${f(sole.y + 1.5 * u)}" rx="${f(5 * u)}" ry="${f(3 * u)}" fill="#e2b89a" stroke="#b98d70" stroke-width="${f(0.35 * u)}"/>`;
+    return { pose, props: `<g class="examiner" pointer-events="none">${hand}${hammerAt(target, pivot, c, STRIKE, u, s > 0 ? -1 : 1)}</g>`, reflex: 'ankle' };
+  }
+  /* the plantar response: the stroke takes 1.2 s from the heel; the toes answer from 0.6 s */
+  const c = c0 - 4.8, prog = clamp(c / 1.2, 0, 1), resp = minJerk(clamp((c - 0.6) / 0.5, 0, 1)) * (c < 2.6 ? 1 : 1 - minJerk((c - 2.6) / 0.4));
+  const ext = g.plantar === 'extensor';
+  const pose: Pose = { ...base, toe: set((base.toe ?? [0, 0]) as [number, number], ext ? 55 * resp : -20 * resp), foot: set(base.foot, base.foot[i] - (ext ? 6 * resp : 0)) };
+  const J = figureJoints(pose, look), an = J.k.ankle[i], fa = J.k.footA[i];
+  const along = dir(fa), under = dir(fa - 90 * s);
+  const at = (x: number) => ({ x: an.x + along.x * x * u + under.x * 7.4 * u, y: an.y + along.y * x * u + under.y * 7.4 * u });
+  const tip = at(-4 + 19 * prog), tail = { x: tip.x + s * 10 * u, y: tip.y + 12 * u };
+  const pen = c < 1.6 ? `<path d="M${f(tail.x)} ${f(tail.y)} L${f(tip.x)} ${f(tip.y)}" stroke="#3a3f47" stroke-width="${f(1.4 * u)}" stroke-linecap="round"/><path d="M${f(tail.x + s * 2 * u)} ${f(tail.y + 2.4 * u)} L${f(tail.x + s * 18 * u)} ${f(tail.y + 12 * u)}" stroke="#4f7f86" stroke-width="${f(6.5 * u)}" stroke-linecap="round"/>` : '';
+  return { pose, props: `<g class="examiner" pointer-events="none">${pen}</g>`, reflex: 'plantar' };
 }

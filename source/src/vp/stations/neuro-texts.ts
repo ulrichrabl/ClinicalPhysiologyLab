@@ -12,10 +12,12 @@ import type { NeuroTest } from './neuro-tests.ts';
 const L = (en: string, de: string): LocalizedText => ({ en, de });
 export { NEURO_TEST_LABEL } from './neuro-tests.ts';
 
-export type Rung = 'cortex' | 'capsule' | 'brainstem' | 'cord' | 'root' | 'plexus' | 'nerve' | 'junction' | 'muscle' | 'cerebellum';
+export type Rung = 'cortex' | 'basal-ganglia' | 'capsule' | 'brainstem' | 'cord' | 'root' | 'plexus' | 'nerve' | 'junction' | 'muscle' | 'cerebellum';
 /** The rung of the ladder a structure of the nervous-system graph sits on. */
 export function rungOf(node: string): Rung | null {
   if (/cerebell|vermis|_icp$|_mcp$|_scp$|dentate|red_nuc/.test(node)) return 'cerebellum';
+  if (/_snc$|_putamen$|_bg$/.test(node)) return 'basal-ganglia';
+  if (node === 'polyneuropathy') return 'nerve';
   if (/_dc_nuc$|_cn\d+_(nuc|sens|mot)$|_lat_med$|_med_med$|_med_pons$|_lat_pons$/.test(node)) return 'brainstem';
   if (/_cn\d+(_nerve)?$/.test(node)) return 'nerve';
   if (/_mcx_|_scx$|broca|wernicke|arcuate|vis_cx/.test(node)) return 'cortex';
@@ -64,7 +66,8 @@ export function explainNeuro(test: NeuroTest, v: NeuroRead): { title: LocalizedT
         else if (t.tone === 'reduced') add(`The ${sideEn(x)} ${le}: floppy${t.wasting ? ', wasted' : ''}${t.fasciculation ? ', fasciculating' : ''}. A lower motor neuron lesion${t.fasciculation ? ', the anterior horn itself' : ''}.`, `${ld} ${sideDe(x)}: schlaff${t.wasting ? ', atrophisch' : ''}${t.fasciculation ? ', mit Faszikulationen' : ''}. Eine Läsion des zweiten Motoneurons${t.fasciculation ? ', das Vorderhorn selbst' : ''}.`);
         else if (t.wasting) add(`The ${sideEn(x)} ${le}: wasted, tone normal.`, `${ld} ${sideDe(x)}: atrophisch, Tonus normal.`);
       }
-      if (out.length === 1) add('Tone and bulk are normal in all four limbs.', 'Tonus und Trophik sind an allen vier Extremitäten normal.');
+      for (const x of SIDES) if (v(`arm.rest-tremor.${x}`)?.tremor === 'rest') add(`The ${sideEn(x)} hand, lying still, trembles 4–6 times a second and steadies as it moves: a rest tremor, parkinsonism.`, `Die ${x === 'R' ? 'rechte' : 'linke'} Hand zittert in Ruhe 4–6-mal pro Sekunde und wird bei Bewegung ruhiger: ein Ruhetremor, Parkinsonismus.`);
+      if (out.length === 1) add('Tone and bulk are normal in all four limbs, and the hands are still at rest.', 'Tonus und Trophik sind an allen vier Extremitäten normal, die Hände in Ruhe still.');
       return { title: L('Tone: what the relaxed limb gives', 'Tonus: was die entspannte Extremität hergibt'), body: out };
     }
     case 'power': {
@@ -140,7 +143,7 @@ export function explainNeuro(test: NeuroTest, v: NeuroRead): { title: LocalizedT
         'Die Hand so schnell wie möglich nach oben und unten gedreht oder abwechselnd mit Handfläche und Handrücken auf die andere Hand geklopft. Die Kleinhirnhemisphäre derselben Seite schaltet Agonist und Antagonist rechtzeitig um; ohne sie zerfallen Rhythmus und Ausmaß (Dysdiadochokinese). Ein schwacher oder steifer Arm tut es langsam, aber regelmäßig.');
       for (const x of SIDES) { const r = v(`arm.rapid-alternating.${x}`) ?? {};
         if (r.dysdiadochokinesia) add(`Irregular on the ${sideEn(x)}: dysdiadochokinesia, the cerebellum on that side.`, `Unregelmäßig ${sideDe(x)}: Dysdiadochokinese, das Kleinhirn dieser Seite.`);
-        else if (r.slowed) add(`Slow but regular on the ${sideEn(x)}: weakness or stiffness, not the cerebellum.`, `Langsam, aber regelmäßig ${sideDe(x)}: Schwäche oder Steifigkeit, nicht das Kleinhirn.`); }
+        else if (r.slowed) add(`Slow but regular on the ${sideEn(x)}: weakness, or the slowness of parkinsonism (bradykinesia), not the cerebellum.`, `Langsam, aber regelmäßig ${sideDe(x)}: Schwäche oder die Verlangsamung des Parkinsonismus (Bradykinese), nicht das Kleinhirn.`); }
       if (out.length === 1) add('Quick and regular on both sides.', 'Beidseits rasch und regelmäßig.');
       return { title: L('Rapid alternating movements', 'Diadochokinese'), body: out };
     }
@@ -155,11 +158,12 @@ export function explainNeuro(test: NeuroTest, v: NeuroRead): { title: LocalizedT
       return { title: L('Romberg: sight, labyrinths and the sense of position', 'Romberg: Sehen, Labyrinth und Lagesinn'), body: out };
     }
     case 'gait': {
-      add('Watching the patient walk shows the whole motor system at once. Each lesion has its gait: hemiplegic (the leg stiff and swung round, the arm bent and still) after an upper motor neuron lesion; high-stepping, the foot slapping down, when the ankle cannot be lifted (a peroneal nerve or L5 root); waddling, the trunk lurching over each standing leg, when the hip abductors are weak (myopathy); broad-based and reeling with a cerebellar lesion; stamping and watching the feet when the sense of position is lost.',
-        'Den Patienten gehen zu sehen, zeigt das ganze motorische System auf einmal. Jede Läsion hat ihren Gang: hemiparetisch (das Bein steif und herumgeschwungen, der Arm gebeugt und still) nach einer Läsion des ersten Motoneurons; Steppergang, der Fuß klatscht auf, wenn der Fuß nicht gehoben werden kann (N. peroneus oder Wurzel L5); watschelnd, der Rumpf neigt sich über jedes Standbein, wenn die Hüftabduktoren schwach sind (Myopathie); breitbasig und taumelnd bei einer Kleinhirnläsion; stampfend, den Blick auf die Füße, wenn der Lagesinn fehlt.');
+      add('Watching the patient walk shows the whole motor system at once. Each lesion has its gait: hemiplegic (the leg stiff and swung round, the arm bent and still) after an upper motor neuron lesion; high-stepping, the foot slapping down, when the ankle cannot be lifted (a peroneal nerve or L5 root); waddling, the trunk lurching over each standing leg, when the hip abductors are weak (myopathy); broad-based and reeling with a cerebellar lesion; stamping and watching the feet when the sense of position is lost; short, shuffling steps, stooped, with little arm swing, in parkinsonism.',
+        'Den Patienten gehen zu sehen, zeigt das ganze motorische System auf einmal. Jede Läsion hat ihren Gang: hemiparetisch (das Bein steif und herumgeschwungen, der Arm gebeugt und still) nach einer Läsion des ersten Motoneurons; Steppergang, der Fuß klatscht auf, wenn der Fuß nicht gehoben werden kann (N. peroneus oder Wurzel L5); watschelnd, der Rumpf neigt sich über jedes Standbein, wenn die Hüftabduktoren schwach sind (Myopathie); breitbasig und taumelnd bei einer Kleinhirnläsion; stampfend, den Blick auf die Füße, wenn der Lagesinn fehlt; kleine, schlurfende Schritte, vornübergebeugt, mit wenig Armschwung, beim Parkinsonismus.');
       const g = v('gait.pattern') ?? { pattern: 'normal' };
       const PAT: Record<string, [string, string]> = { normal: ['normal', 'unauffällig'], veers: ['veering to one side', 'mit Abweichtendenz'], ataxic: ['broad-based and ataxic: the cerebellum', 'breitbasig-ataktisch: das Kleinhirn'], unable: ['unable to walk', 'Gehen nicht möglich'],
-        hemiplegic: ['hemiplegic: an upper motor neuron lesion', 'hemiparetisch: eine Läsion des ersten Motoneurons'], 'high-stepping': ['high-stepping: the foot cannot be lifted', 'Steppergang: der Fuß kann nicht gehoben werden'], waddling: ['waddling: weak hip abductors', 'watschelnd: schwache Hüftabduktoren'], 'sensory-ataxic': ['stamping and broad-based: the sense of position lost', 'stampfend und breitbasig: der Lagesinn fehlt'] };
+        hemiplegic: ['hemiplegic: an upper motor neuron lesion', 'hemiparetisch: eine Läsion des ersten Motoneurons'], 'high-stepping': ['high-stepping: the foot cannot be lifted', 'Steppergang: der Fuß kann nicht gehoben werden'], waddling: ['waddling: weak hip abductors', 'watschelnd: schwache Hüftabduktoren'], 'sensory-ataxic': ['stamping and broad-based: the sense of position lost', 'stampfend und breitbasig: der Lagesinn fehlt'],
+        parkinsonian: ['shuffling and stooped, with little arm swing: parkinsonism', 'kleinschrittig und vornübergebeugt, mit wenig Armschwung: Parkinsonismus'] };
       const pe = PAT[g.pattern] ?? [g.pattern, g.pattern];
       add(`This patient: ${pe[0]}${g.toward ? ` (${sideEn(g.toward)})` : ''}.`, `Dieser Patient: ${pe[1]}${g.toward ? ` (${sideDe(g.toward)})` : ''}.`);
       return { title: L('Gait', 'Gangbild'), body: out };

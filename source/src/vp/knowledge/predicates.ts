@@ -364,6 +364,11 @@ export const NAMED: Record<string, NamedPredicateDef> = {
       return weakSides.size === 1 && !NAMED.pyramidalPattern.holds(h, {});
     },
   },
+  stockingPattern: {
+    what: 'Pinprick lost in the feet (L5 and S1) on both sides with the thighs (L2) spared: length-dependent.',
+    uses: () => ['leg.pinprick'],
+    holds: (h) => { const r = h.rows('leg.pinprick'); const ok = (sd: string) => r.some((x) => x.side === sd && LOST.includes(x.value.L5) && LOST.includes(x.value.S1) && !LOST.includes(x.value.L2)); return ok('L') && ok('R'); },
+  },
   sensoryLevel: {
     what: 'Pinprick lost on the trunk (T6 or T10) with the arm of the same side spared: a level, from the cord.',
     uses: () => ['trunk.pinprick', 'arm.pinprick'],

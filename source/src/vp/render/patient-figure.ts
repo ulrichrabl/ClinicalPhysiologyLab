@@ -72,6 +72,8 @@ export interface Pose {
   outstretch?: [number, number];
   /** 0 the eyes open, 1 closed (asked to close them: pronator drift, Romberg) */
   eyes?: number;
+  /** the toes at the ball of the foot, degrees: up (extension, Babinski) when positive, curled when negative [near, far] */
+  toe?: [number, number];
   /** 0 the hand at rest, 1 a fist (the spastic hand of a hemiplegia) [near, far] */
   fist?: [number, number];
   /** how far each foot is carried out to the side, cm (a broad base, circumduction) [near, far]; shows from the front */
@@ -118,6 +120,7 @@ function lerpDirect(a: Pose, b: Pose, t: number): Pose {
     ...(a.point || b.point ? { point: l2(a.point ?? [0, 0], b.point ?? [0, 0]) } : {}),
     ...(a.outstretch || b.outstretch ? { outstretch: l2(a.outstretch ?? [0, 0], b.outstretch ?? [0, 0]) } : {}),
     ...(a.eyes !== undefined || b.eyes !== undefined ? { eyes: l(a.eyes ?? 0, b.eyes ?? 0) } : {}),
+    ...(a.toe || b.toe ? { toe: l2(a.toe ?? [0, 0], b.toe ?? [0, 0]) } : {}),
     ...(a.fist || b.fist ? { fist: l2(a.fist ?? [0, 0], b.fist ?? [0, 0]) } : {}),
     ...(a.legOut || b.legOut ? { legOut: l2(a.legOut ?? [0, 0], b.legOut ?? [0, 0]) } : {}),
   };

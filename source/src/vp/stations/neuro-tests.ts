@@ -51,8 +51,8 @@ const MOTOR_PATH = {
 
 export const NEURO_TESTS: NeuroTestDef[] = [
   { id: 'tone', group: 'motor', label: L('Tone and bulk', 'Tonus und Trophik'), manoeuvres: ['test.arm.tone', 'test.leg.tone'], sided: true,
-    lines: () => [...bothSides('arm.tone'), ...bothSides('leg.tone')],
-    reads: ['cortex', 'capsule', 'brainstem', 'cord', 'root', 'nerve', 'muscle'], path: { ...MOTOR_PATH, cortex: L('motor strip; basal ganglia', 'Motorstreifen; Basalganglien') } },
+    lines: () => [...bothSides('arm.rest-tremor'), ...bothSides('arm.tone'), ...bothSides('leg.tone')],
+    reads: ['cortex', 'basal-ganglia', 'capsule', 'brainstem', 'cord', 'root', 'nerve', 'muscle'], path: { ...MOTOR_PATH, 'basal-ganglia': L('substantia nigra and striatum (rigidity, rest tremor)', 'Substantia nigra und Striatum (Rigor, Ruhetremor)') } },
   { id: 'power', group: 'motor', label: L('Power', 'Kraft'), manoeuvres: ['test.arm.power', 'test.leg.power', 'test.power-repeated'], sided: true,
     lines: () => [...bothSides('arm.power'), ...bothSides('leg.power'), ...bothSides('arm.power', { repetition: 20 }, L('After 20 repetitions', 'Nach 20 Wiederholungen'))],
     reads: ['cortex', 'capsule', 'brainstem', 'cord', 'root', 'plexus', 'nerve', 'junction', 'muscle'], path: MOTOR_PATH },
@@ -70,7 +70,7 @@ export const NEURO_TESTS: NeuroTestDef[] = [
     reads: ['cerebellum', 'cord', 'root', 'nerve'], path: { cerebellum: L('hemisphere, same side', 'Hemisphäre, gleiche Seite'), cord: L('dorsal columns (eyes closed)', 'Hinterstränge (Augen zu)'), root: L('dorsal roots', 'Hinterwurzeln'), nerve: L('sensory nerves', 'sensible Nerven') } },
   { id: 'rapid-alternating', group: 'coordination', label: L('Rapid alternating movements', 'Diadochokinese'), manoeuvres: ['test.rapid-alternating'], sided: true,
     lines: () => bothSides('arm.rapid-alternating'),
-    reads: ['cerebellum', 'cortex', 'capsule'], path: { cerebellum: L('hemisphere, same side', 'Hemisphäre, gleiche Seite'), cortex: L('motor strip (slowed when weak)', 'Motorstreifen (verlangsamt bei Parese)'), capsule: L('posterior limb', 'hinterer Schenkel') } },
+    reads: ['cerebellum', 'cortex', 'basal-ganglia', 'capsule'], path: { cerebellum: L('hemisphere, same side', 'Hemisphäre, gleiche Seite'), cortex: L('motor strip (slowed when weak)', 'Motorstreifen (verlangsamt bei Parese)'), 'basal-ganglia': L('substantia nigra (bradykinesia)', 'Substantia nigra (Bradykinese)'), capsule: L('posterior limb', 'hinterer Schenkel') } },
   { id: 'heel-shin', group: 'coordination', label: L('Heel–shin', 'Knie-Hacke-Versuch'), manoeuvres: ['test.heel-shin'], sided: true, eyes: true,
     lines: () => S2.flatMap((S) => [{ ref: `leg.heel-shin.${S}`, ctx: { eyesClosed: false }, label: OPEN }, { ref: `leg.heel-shin.${S}`, ctx: { eyesClosed: true }, label: SHUT }]),
     reads: ['cerebellum', 'cord', 'root', 'nerve'], path: { cerebellum: L('hemisphere, same side', 'Hemisphäre, gleiche Seite'), cord: L('dorsal columns (eyes closed)', 'Hinterstränge (Augen zu)'), root: L('dorsal roots', 'Hinterwurzeln'), nerve: L('sensory nerves', 'sensible Nerven') } },
@@ -79,7 +79,7 @@ export const NEURO_TESTS: NeuroTestDef[] = [
     reads: ['cerebellum', 'brainstem', 'cord', 'root', 'nerve'], path: { cerebellum: L('vermis', 'Vermis'), brainstem: L('vestibular nuclei', 'Vestibulariskerne'), cord: L('dorsal columns', 'Hinterstränge'), root: L('dorsal roots', 'Hinterwurzeln'), nerve: L('sensory nerves of the legs', 'sensible Beinnerven') } },
   { id: 'gait', group: 'stance', label: L('Gait', 'Gangbild'), manoeuvres: ['test.gait'],
     lines: () => [{ ref: 'gait.pattern' }],
-    reads: ['cortex', 'capsule', 'brainstem', 'cord', 'root', 'nerve', 'muscle', 'cerebellum'], path: { ...MOTOR_PATH, cerebellum: L('vermis and hemispheres', 'Vermis und Hemisphären') } },
+    reads: ['cortex', 'basal-ganglia', 'capsule', 'brainstem', 'cord', 'root', 'nerve', 'muscle', 'cerebellum'], path: { ...MOTOR_PATH, 'basal-ganglia': L('substantia nigra (shuffling)', 'Substantia nigra (Kleinschrittigkeit)'), cerebellum: L('vermis and hemispheres', 'Vermis und Hemisphären') } },
   { id: 'sensation', group: 'sensation', label: L('Sensation', 'Sensibilität'), manoeuvres: ['test.arm.pinprick', 'test.leg.pinprick', 'test.trunk.pinprick', 'test.saddle', 'test.arm.vibration', 'test.leg.vibration', 'test.face-sensation'],
     lines: () => [...bothSides('arm.pinprick'), ...bothSides('leg.pinprick'), ...bothSides('trunk.pinprick'), { ref: 'saddle.sensation' }, ...bothSides('arm.vibration'), ...bothSides('leg.vibration'), ...bothSides('face.sensation')],
     reads: ['cortex', 'capsule', 'brainstem', 'cord', 'root', 'plexus', 'nerve'], path: { cortex: L('sensory strip', 'sensibler Kortex'), capsule: L('thalamus and capsule', 'Thalamus und Kapsel'), brainstem: L('medial lemniscus; spinothalamic tract; trigeminal', 'Lemniscus medialis; Tractus spinothalamicus; Trigeminus'), cord: L('dorsal columns (same side); spinothalamic (crossed)', 'Hinterstränge (gleiche Seite); Tractus spinothalamicus (gekreuzt)'), root: L('dorsal roots: dermatomes', 'Hinterwurzeln: Dermatome'), plexus: L('plexus', 'Plexus'), nerve: L('nerve territories', 'Nervenversorgungsgebiete') } },

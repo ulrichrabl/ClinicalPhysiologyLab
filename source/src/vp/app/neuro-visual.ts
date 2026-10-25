@@ -24,7 +24,9 @@ export function neuroMotionFor(test: NeuroTest, read: NeuroReadFn, side: Side, e
     case 'rapid-alternating': return { kind: 'rapid-alternating', side: S, finding: read(`arm.rapid-alternating.${S}`) ?? {} };
     case 'romberg': return { kind: 'romberg', open: read('posture.romberg', { eyesClosed: false }) ?? { stance: 'steady' }, closed: read('posture.romberg', { eyesClosed: true }) ?? { stance: 'steady' } };
     case 'gait': return { kind: 'gait', finding: read('gait.pattern') ?? { pattern: 'normal' } };
-    case 'leg-reflexes': return { kind: 'knee-jerk', side: S, grade: grade(read(`leg.reflexes.${S}`)?.knee) };
+    case 'leg-reflexes': { const r = read(`leg.reflexes.${S}`) ?? {}; return { kind: 'leg-reflexes', side: S, finding: { knee: grade(r.knee), ankle: grade(r.ankle), plantar: r.plantar === 'extensor' ? 'extensor' : 'flexor' } }; }
+    case 'arm-reflexes': { const r = read(`arm.reflexes.${S}`) ?? {}; return { kind: 'arm-reflexes', side: S, finding: { biceps: grade(r.biceps), supinator: grade(r.supinator), triceps: grade(r.triceps) } }; }
+    case 'tone': return { kind: 'tone', side: S, finding: { tone: read(`arm.tone.${S}`)?.tone ?? 'normal', restTremor: read(`arm.rest-tremor.${S}`)?.tremor === 'rest' } };
     default: return null;
   }
 }

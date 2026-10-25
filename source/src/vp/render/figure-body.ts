@@ -198,6 +198,8 @@ export interface Skeleton {
   hip: Pt; shoulder: Pt; neckRoot: Pt; headJoint: Pt;
   neckA: number; headA: number;           // neck direction; the head's "up"
   knee: [Pt, Pt]; ankle: [Pt, Pt]; thighA: [number, number]; shinA: [number, number]; footA: [number, number];
+  /** the toes at the ball of the foot: extended (up, toward the instep) when positive, curled when negative, degrees */
+  toeA: [number, number];
   elbow: [Pt, Pt]; wrist: [Pt, Pt]; upperA: [number, number]; foreA: [number, number]; handA: [number, number];
   flip: number;                           // 1 when prone: everything anterior faces the bed
 }
@@ -232,6 +234,7 @@ export function skeleton(p: Pose, sh: Shape, hip: Pt): Skeleton {
     u, spine, hip, shoulder, neckRoot, headJoint, neckA, headA, knee, ankle,
     thighA: [p.thigh[0], p.thigh[1]], shinA: [p.shin[0], p.shin[1]],
     footA: two((i) => p.shin[i] + (90 - p.foot[i]) * flip),
+    toeA: [p.toe?.[0] ?? 0, p.toe?.[1] ?? 0],
     elbow, wrist, upperA: [p.armUpper[0], p.armUpper[1]], foreA: [p.armFore[0], p.armFore[1]],
     handA: two((i) => p.armFore[i] + p.hand[i] * flip), flip,
   };
@@ -283,8 +286,16 @@ export function limbOutline(from: Pt, a: number, st: Station[], u: number, flip 
 }
 
 export function footOutline(k: Skeleton, sh: Shape, i: 0 | 1, grow = 0): Pt[] {
-  return sh.foot.map((q) => {
+  /* the toes turn about the ball of the foot (the metatarsal heads, 14.5 cm in front of the ankle, near the sole); the
+     points just behind it follow part of the way, so the forefoot bends rather than breaks */
+  const ta = ((k.toeA?.[i] ?? 0) * Math.PI) / 180, cx = 14.5, cy = -5.0;
+  return sh.foot.map((q0) => {
     const g = grow ? 1 + grow / 8 : 1;
+    let q = q0;
+    if (ta && q0.x > cx - 1) {
+      const w = Math.min(1, (q0.x - (cx - 1)) / 2), a = ta * w, dx = q0.x - cx, dy = q0.y - cy;
+      q = { x: cx + dx * Math.cos(a) - dy * Math.sin(a), y: cy + dx * Math.sin(a) + dy * Math.cos(a) };
+    }
     return off(k.ankle[i], k.footA[i], q.x * sh.u * g, q.y * sh.u * k.flip * g);
   });
 }

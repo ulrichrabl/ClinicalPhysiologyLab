@@ -39,6 +39,11 @@ node('L_broca', 'L Broca area (speech production)', 'cortex', 'L');
 node('L_wernicke', 'L Wernicke area (speech comprehension)', 'cortex', 'L');
 node('L_arcuate', 'L arcuate fasciculus', 'cortex', 'L');
 
+/* the nigrostriatal system: its loss is parkinsonism, on the other side of the body (models/neuro-limb.ts reads it) */
+node('L_snc', 'L substantia nigra (pars compacta)', 'midbrain', 'L');
+node('R_snc', 'R substantia nigra (pars compacta)', 'midbrain', 'R');
+/* a length-dependent sensorimotor polyneuropathy: the longest nerves first, both sides (models/neuro-limb.ts reads it) */
+node('polyneuropathy', 'Length-dependent sensorimotor polyneuropathy', 'peripheral', 'B');
 node('L_ic', 'L internal capsule', 'ic', 'L');
 node('R_ic', 'R internal capsule', 'ic', 'R');
 node('L_thal', 'L thalamus', 'thalamus', 'L');
