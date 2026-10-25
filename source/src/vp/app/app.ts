@@ -76,6 +76,7 @@ const UI: Record<string, Record<Lang, string>> = {
   stationEyesYours: { en: 'Your patient’s eyes', de: 'Die Augen Ihres Patienten' },
   stationPulseYours: { en: 'Your patient’s pulse and neck veins', de: 'Puls und Halsvenen Ihres Patienten' },
   stationPulseText: { en: 'The pulse under the finger and the jugular vein in the neck, beside the pressures that make them: the aorta’s wave and the right atrium’s a, x, v and y, beat by beat.', de: 'Der Puls unter dem Finger und die Jugularvene am Hals, neben den Drücken, die sie erzeugen: die Welle der Aorta und a, x, v und y des rechten Vorhofs, Schlag für Schlag.' },
+  stationNeuroText: { en: 'The limb examination and the ladder of the nervous system: pronator drift, finger–nose and the knee jerk, done on the bedside figure, with the lesion placed on its rung, from cortex to muscle.', de: 'Die Untersuchung der Gliedmaßen und die Leiter des Nervensystems: Armvorhalteversuch, Finger-Nase-Versuch und Patellarsehnenreflex an der Patientenfigur, mit der Läsion auf ihrer Stufe, von der Rinde bis zum Muskel.' },
   stationEyesText: { en: 'The eye examination and the pathways it reads, side by side: pupils, movements, the cover test, nystagmus, the head impulse and the fields, with the reflex arc, the muscles and nerves, the labyrinths or the visual pathway.', de: 'Die Augenuntersuchung und die Bahnen, die sie prüft, nebeneinander: Pupillen, Motorik, Abdecktest, Nystagmus, Kopfimpuls und Gesichtsfeld, mit Reflexbogen, Muskeln und Nerven, Labyrinthen oder Sehbahn.' },
   stationShows: { en: 'shows', de: 'zeigt' }, stationNormal: { en: 'nothing abnormal', de: 'nichts Auffälliges' },
   openInStation: { en: 'Open in the station', de: 'In der Station öffnen' },
@@ -172,12 +173,15 @@ import { FREE_CASE } from './free-case.ts';
 import { installReport } from './report.ts';
 import { installRecorder, trailTail } from './session-record.ts';
 import { mountEcgStation, type StationHandle } from './station-ecg.ts';
-import { ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION } from '../stations/station.ts';
-type StationId = 'ecg' | 'auscultation' | 'eyes' | 'pulse' | 'arrest';
+import { ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION, NEURO_STATION } from '../stations/station.ts';
+type StationId = 'ecg' | 'auscultation' | 'eyes' | 'pulse' | 'neuro' | 'arrest';
 import { mountAuscultationStation } from './station-auscultation.ts';
 import { mountEyeStation } from './station-eyes.ts';
+import { mountNeuroStation } from './station-neuro.ts';
 import { mountPulseStation } from './station-pulse.ts';
 import { mountArrestPractice } from './practice-arrest.ts';
+import { motionSide, mountNeuroMotion, type NeuroMotion } from './neuro-motion-view.ts';
+import type { FingerNoseFinding, ReflexGrade } from '../render/neuro-motion.ts';
 import { pulseSignsOf } from '../stations/pulse-signs.ts';
 import { eyeSignsOf } from '../stations/eye-signs.ts';
 import { ecgSignsOf } from '../stations/ecg-signs.ts';
@@ -205,6 +209,7 @@ type Visual =
   | { kind: 'pulse'; finding: Finding }
   | { kind: 'face'; L: FaceFinding; R: FaceFinding }
   | { kind: 'ecg'; recorded?: number }
+  | { kind: 'neuro'; motion: NeuroMotion; manoeuvre: ManoeuvreDef }
   | null;
 
 /* ---- regions of the body for touch ---------------------------------------------- */
@@ -347,6 +352,12 @@ export function mount(root: HTMLElement) {
       <p class="bed-triage">${t('stationEyesText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
     ec.querySelector('button')!.onclick = () => openStation('eyes');
     wl.appendChild(ec);
+    const nc = document.createElement('article');
+    nc.className = 'bedcard free';
+    nc.innerHTML = `<span class="tag">${t('stationTag')}</span><h2>${esc(tr(NEURO_STATION.title, lang))}</h2>
+      <p class="bed-triage">${t('stationNeuroText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
+    nc.querySelector('button')!.onclick = () => openStation('neuro');
+    wl.appendChild(nc);
     const pc = document.createElement('article');
     pc.className = 'bedcard free';
     pc.innerHTML = `<span class="tag">${t('stationTag')}</span><h2>${esc(tr(PULSE_STATION.title, lang))}</h2>
@@ -370,7 +381,7 @@ export function mount(root: HTMLElement) {
     if (from === 'ward') stopLive(); else live?.stop();
     show('station');
     stationNow = which;
-    const mount = which === 'ecg' ? mountEcgStation : which === 'eyes' ? mountEyeStation : which === 'pulse' ? mountPulseStation : which === 'arrest' ? mountArrestPractice : mountAuscultationStation;
+    const mount = which === 'ecg' ? mountEcgStation : which === 'eyes' ? mountEyeStation : which === 'neuro' ? mountNeuroStation : which === 'pulse' ? mountPulseStation : which === 'arrest' ? mountArrestPractice : mountAuscultationStation;
     station = mount($('#station'), {
       lang,
       ...(withPatient ? { patient: { model: structuredClone(live!.model), name: { en: base.patient.name, de: base.patient.name } } } : {}),
@@ -602,6 +613,14 @@ export function mount(root: HTMLElement) {
       setVisual({ kind: 'eyes', controls });
       return;
     }
+    /* the neurological tests that move: the bedside figure does them, driven by the finding (ADR-017 decision 10) */
+    const fv = (prop: string) => findings.find((f) => f.property === prop)?.value as Record<string, any> | undefined;
+    const driftL = fv('arm.drift.L'), driftR = fv('arm.drift.R');
+    if (m.id === 'test.pronator-drift' && (driftL || driftR)) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'drift', finding: { drift: [!!driftR?.drift, !!driftL?.drift] } } }); return; }
+    const fnSide = (['L', 'R'] as const).find((sd) => fv(`arm.finger-nose.${sd}`));
+    if (m.id === 'test.finger-nose' && fnSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'finger-nose', side: fnSide, finding: fv(`arm.finger-nose.${fnSide}`) as FingerNoseFinding } }); return; }
+    const kneeSide = (['L', 'R'] as const).find((sd) => typeof fv(`leg.reflexes.${sd}`)?.knee === 'number');
+    if (m.id === 'test.leg.reflexes' && kneeSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'knee-jerk', side: kneeSide, grade: fv(`leg.reflexes.${kneeSide}`)!.knee as ReflexGrade } }); return; }
     const faceL = findings.find((f) => f.property === 'face.movement.L'), faceR = findings.find((f) => f.property === 'face.movement.R');
     if (faceL && faceR) { setVisual({ kind: 'face', L: faceL.value as FaceFinding, R: faceR.value as FaceFinding }); return; }
     const chest = findings.find((f) => LUNG_PROPS.includes(f.property) && /^chest\.(upper-zone|mid-zone|axilla|upper-back|lung-base)\./.test(f.context?.site ?? ''));
@@ -640,6 +659,14 @@ export function mount(root: HTMLElement) {
       host.innerHTML = '<div class="facehost"></div>';
       faceView = new FaceView(host.querySelector('.facehost')!, appearanceOf(c.patient, seedOf(base.id)));
       faceView.show({ L: v.L, R: v.R }, lang);
+      return;
+    }
+    if (v.kind === 'neuro') {
+      const sd = motionSide(v.motion);
+      /* of the leg reflexes only the knee jerk is drawn so far */
+      const name = v.motion.kind === 'knee-jerk' ? (lang === 'de' ? 'Patellarsehnenreflex' : 'Knee jerk') : tr(v.manoeuvre.label, lang);
+      const what = `${name} · ${t(sd === 'L' ? 'left' : 'right').toLowerCase()}`;
+      stopVisual = mountNeuroMotion(host, { look: look().figure, motion: v.motion, caption: what, label: what });
       return;
     }
     if (v.kind === 'auscultate') {

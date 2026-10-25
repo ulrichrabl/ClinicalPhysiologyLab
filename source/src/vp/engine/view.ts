@@ -17,6 +17,8 @@ export function buildView(
   const lesions = caseDef.pathology.lesions ?? [];
   const nodes = [...new Set(lesions.flatMap((l) => l.nodes))];
   const complete = lesions.every((l) => l.complete !== false);
+  const extent: Record<string, number> = {};
+  for (const l of lesions) if (l.extent !== undefined) for (const n of l.nodes) extent[n] = l.extent;
   return {
     patient: caseDef.patient,
     state: opts.state ?? caseDef.initialState,
@@ -24,7 +26,7 @@ export function buildView(
     chemistry: opts.chemistry ?? (chemistryState(opts.circulation, caseDef.pathology.chemistry, opts.respiratory) as unknown as Record<string, number>),
     respiratory: opts.respiratory ?? (opts.circulation?.resp as RespSnapshot | undefined),
     body: opts.circulation?.body as BodySnapshot | undefined,
-    neuro: nodes.length ? { nodes, complete, findings: findingsForNodes(nodes, complete) as Array<Record<string, any>> } : undefined,
+    neuro: nodes.length ? { nodes, complete, ...(Object.keys(extent).length ? { extent } : {}), findings: findingsForNodes(nodes, complete) as Array<Record<string, any>> } : undefined,
     conditions: caseDef.pathology.conditions,
     minutes: opts.minutes ?? 0,
   };

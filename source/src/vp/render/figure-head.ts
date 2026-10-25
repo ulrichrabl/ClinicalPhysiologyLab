@@ -25,7 +25,7 @@ export interface Palette {
 }
 /** The surface under the head that hair rests on: a point on it and its normal, pointing up into the air. */
 export interface Support { p: Pt; n: Pt }
-export interface HeadCtx { k: Skeleton; sh: Shape; look: FigureLook; pal: Palette; support: Support }
+export interface HeadCtx { k: Skeleton; sh: Shape; look: FigureLook; pal: Palette; support: Support; /** 0 open, 1 closed */ eyesShut?: number }
 
 export const HEAD_SCALE = 1.06;   // a touch larger than life: 7.5 heads tall, and the face reads at 190 px
 
@@ -278,11 +278,17 @@ export function face(c: HeadCtx): string {
 
   /* Eye: a profile eye is a small wedge open toward the front; the iris shows as a dark arc. Distress narrows it. */
   const shut = distress >= 2 ? 0.25 : 0;
-  out.push(`<path d="${closedPath(P([[8.95 - shut, 8.5], [8.5, 9.0], [7.8 + shut * 0.6, 8.7], [8.3, 7.1]]))}" fill="${pal.sclera}"/>`);
-  const iris = H(8.35, 8.55);
-  out.push(`<ellipse cx="${f(iris.x)}" cy="${f(iris.y)}" rx="${f(0.42 * u)}" ry="${f(0.55 * u)}" fill="#3a2a20"/>`);
-  out.push(`<path d="${openPath(P([[8.5, 7.0], [9.05 - shut, 8.2], [8.6, 9.15]]))}" fill="none" stroke="#3b2a22" stroke-width="${sw(0.32)}" stroke-linecap="round"/>`);  // upper lid and lashes
-  out.push(`<path d="${openPath(P([[8.2, 7.2], [7.75 + shut * 0.6, 8.4], [8.0, 9.0]]))}" fill="none" stroke="${pal.line}" stroke-width="${sw(0.18)}" opacity=".7"/>`);
+  if ((c.eyesShut ?? 0) >= 0.5) {
+    /* Closed: the upper lid drawn down to the lower, the lashes along its margin, the lid's fold above. */
+    out.push(`<path d="${openPath(P([[8.45, 7.1], [8.0, 8.2], [8.15, 9.1]]))}" fill="none" stroke="#3b2a22" stroke-width="${sw(0.3)}" stroke-linecap="round"/>`);
+    out.push(`<path d="${openPath(P([[8.9, 7.2], [9.15, 8.2], [8.85, 9.0]]))}" fill="none" stroke="${pal.line}" stroke-width="${sw(0.16)}" opacity=".55"/>`);
+  } else {
+    out.push(`<path d="${closedPath(P([[8.95 - shut, 8.5], [8.5, 9.0], [7.8 + shut * 0.6, 8.7], [8.3, 7.1]]))}" fill="${pal.sclera}"/>`);
+    const iris = H(8.35, 8.55);
+    out.push(`<ellipse cx="${f(iris.x)}" cy="${f(iris.y)}" rx="${f(0.42 * u)}" ry="${f(0.55 * u)}" fill="#3a2a20"/>`);
+    out.push(`<path d="${openPath(P([[8.5, 7.0], [9.05 - shut, 8.2], [8.6, 9.15]]))}" fill="none" stroke="#3b2a22" stroke-width="${sw(0.32)}" stroke-linecap="round"/>`);  // upper lid and lashes
+    out.push(`<path d="${openPath(P([[8.2, 7.2], [7.75 + shut * 0.6, 8.4], [8.0, 9.0]]))}" fill="none" stroke="${pal.line}" stroke-width="${sw(0.18)}" opacity=".7"/>`);
+  }
   /* Brow: hair colour; in distress the inner end pulls down and in. */
   const brow: AB[] = distress >= 2 ? [[10.7, 6.2], [10.9, 8.0], [10.2, 9.6]] : distress === 1 ? [[10.5, 6.2], [10.95, 8.0], [10.6, 9.6]] : [[10.3, 6.2], [10.85, 8.0], [10.75, 9.6]];
   out.push(`<path d="${openPath(P(brow))}" fill="none" stroke="${pal.hairDark}" stroke-width="${sw(sh.female ? 0.4 : 0.55)}" stroke-linecap="round" opacity=".85"/>`);

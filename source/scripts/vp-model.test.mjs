@@ -429,7 +429,7 @@ console.log('\nNeurological examination (from the nervous-system graph)');
     const [c, w] = les(['R_n_ulnar_elbow']); const [c8, w8] = les(['R_ahn_C8', 'R_drg_C8']);
     const u = o(c, w, 'arm.power.R'), r = o(c8, w8, 'arm.power.R');
     ok('ulnar nerve vs C8 root: thumb abduction spared only in the ulnar lesion', u.fingerAbduction <= 1 && u.thumbAbduction === 5 && r.thumbAbduction <= 3 && r.fingerAbduction <= 3);
-    ok('C8 root loses the triceps reflex (C7–8), the ulnar nerve does not', o(c8, w8, 'arm.reflexes.R').triceps === 0 && o(c, w, 'arm.reflexes.R').triceps === 2);
+    ok('C8 root reduces the triceps reflex (C7–8, one root of two), the ulnar nerve does not touch it', o(c8, w8, 'arm.reflexes.R').triceps === 1 && o(c, w, 'arm.reflexes.R').triceps === 2);
   }
   {
     const [c, w] = les(['L_cn7']);
@@ -453,6 +453,26 @@ console.log('\nNeurological examination (from the nervous-system graph)');
     const [c, w] = les(['R_cst_L2', 'R_cst_L3', 'R_cst_L4', 'R_cst_L5', 'R_cst_S1', 'R_dc_asc', 'R_stt_asc']);
     ok('Brown-Séquard: weakness and vibration loss on the side of the lesion, pinprick lost on the other',
       o(c, w, 'leg.power.R').hipFlexion < 5 && o(c, w, 'leg.vibration.R').vibration === 'absent' && o(c, w, 'leg.pinprick.L').L4 === 'absent' && o(c, w, 'leg.pinprick.R').L4 === 'normal');
+    /* below the decussation the tract serving the right leg runs on the right: the whole tract is cut, so the reflexes are brisk */
+    ok('Brown-Séquard: brisk knee jerk and extensor plantar on the side of the lesion', o(c, w, 'leg.reflexes.R').knee >= 3 && o(c, w, 'leg.reflexes.R').plantar === 'extensor' && o(c, w, 'leg.reflexes.L').knee === 2,
+      JSON.stringify(o(c, w, 'leg.reflexes.R')));
+  }
+  {
+    /* the graph as a real patient: the leg's fibres start in the leg's part of the strip and run down the thoracic cord;
+       each reflex is carried by its own roots (MRC Aids: biceps C5–6, triceps C7, knee L3–4, ankle S1) */
+    const [cl, wl] = les(['L_mcx_leg']);
+    ok('a lesion of the leg’s part of the motor strip weakens the opposite leg, spares the arm, and the plantar goes up',
+      o(cl, wl, 'leg.power.R').hipFlexion < 5 && o(cl, wl, 'arm.power.R').shoulderAbduction === 5 && o(cl, wl, 'leg.reflexes.R').plantar === 'extensor', JSON.stringify(o(cl, wl, 'leg.power.R')));
+    const [ct, wt] = les(['R_cst_T10']);
+    ok('a corticospinal lesion at T10 reaches the leg on its own side and spares the arms',
+      o(ct, wt, 'leg.reflexes.R').plantar === 'extensor' && o(ct, wt, 'leg.reflexes.R').knee >= 3 && o(ct, wt, 'arm.power.R').shoulderAbduction === 5 && o(ct, wt, 'leg.reflexes.L').plantar === 'flexor');
+    const knee = (nodes) => { const [c2, w2] = les(nodes); return o(c2, w2, 'leg.reflexes.R').knee; };
+    ok('the knee jerk is carried by L3 and L4: one root reduces it, both abolish it, as the femoral nerve does', knee(['R_nerve_L4', 'R_drg_L4']) === 1 && knee(['R_nerve_L3', 'R_drg_L3']) === 1
+      && knee(['R_nerve_L3', 'R_drg_L3', 'R_nerve_L4', 'R_drg_L4']) === 0 && knee(['R_n_femoral']) === 0, JSON.stringify([knee(['R_nerve_L4', 'R_drg_L4']), knee(['R_nerve_L3', 'R_drg_L3'])]));
+    const [c6, w6] = les(['R_nerve_C6', 'R_drg_C6']);
+    ok('a C6 root reduces the biceps and supinator jerks and leaves the triceps (C7–8)', o(c6, w6, 'arm.reflexes.R').biceps === 1 && o(c6, w6, 'arm.reflexes.R').supinator === 1 && o(c6, w6, 'arm.reflexes.R').triceps === 2, JSON.stringify(o(c6, w6, 'arm.reflexes.R')));
+    const [cr, wr] = les(['R_n_radial']);
+    ok('a radial nerve lesion abolishes the supinator and triceps jerks', o(cr, wr, 'arm.reflexes.R').supinator === 0 && o(cr, wr, 'arm.reflexes.R').triceps === 0, JSON.stringify(o(cr, wr, 'arm.reflexes.R')));
   }
   {
     const [c, w] = les(['L_cn5_sens', 'L_lat_bs', 'L_icp', 'L_cn9_nuc', 'L_cn10_nuc', 'L_stt_asc']);

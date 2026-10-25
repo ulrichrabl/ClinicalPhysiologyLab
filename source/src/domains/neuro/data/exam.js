@@ -12,8 +12,8 @@
 
 const ARM_SEGS = ['C5', 'C6', 'C7', 'C8', 'T1'];
 const LEG_SEGS = ['L2', 'L3', 'L4', 'L5', 'S1'];
-const ARM_REFLEX = [['C5', 'Biceps jerk'], ['C6', 'Brachioradialis'], ['C7', 'Triceps jerk']];
-const LEG_REFLEX = [['L3', 'Patellar reflex'], ['S1', 'Achilles reflex']];
+const ARM_REFLEX = [['C5', 'Biceps jerk', ['C5', 'C6']], ['C6', 'Brachioradialis', ['C5', 'C6']], ['C7', 'Triceps jerk', ['C7', 'C8']]];
+const LEG_REFLEX = [['L3', 'Patellar reflex', ['L3', 'L4']], ['S1', 'Achilles reflex', ['S1']]];
 
 const test = (id, label, match, normal, hint) => ({ id, label, match, normal, hint });
 
@@ -90,7 +90,8 @@ const power = (side, limb) => (f) =>
 const derm = (side, modality, segs) => (f) =>
   f.modality === modality && segs.some((s) => f.bodyRegion === `${side}_dermatome_${s}`);
 
-const reflexAt = (side, seg) => (f) => f.bodyRegion === `${side}_reflex_${seg}`;
+/* a reflex is touched when any of the roots that carry it is */
+const reflexAt = (side, roots) => (f) => roots.some((r) => f.bodyRegion === `${side}_reflex_${r}`);
 
 const region = (side, name) => (f) => f.bodyRegion === `${side}_${name}`;
 
@@ -108,8 +109,8 @@ function limbTests(side, limb) {
     test(`vib_${side}_${limb}`, 'Vibration & joint position', derm(side, 'proprioception', segs),
       'Vibration felt at 128 Hz distally. Joint position sense accurate at the toes/fingers.',
       'Dorsal column. Romberg becomes positive when this is lost bilaterally.'),
-    ...reflexes.map(([seg, name]) =>
-      test(`dtr_${side}_${seg}`, `${name} (${seg})`, reflexAt(side, seg),
+    ...reflexes.map(([seg, name, roots]) =>
+      test(`dtr_${side}_${seg}`, `${name} (${roots.join('–')})`, reflexAt(side, roots),
         'Reflex 2+ and symmetrical.',
         'Absent points at the arc — root, nerve or anterior horn. Brisk points above it.')),
     test(`coord_${side}_${limb}`, `${coordLabel}`, region(side, 'coordination'),

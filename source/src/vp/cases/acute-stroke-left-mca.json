@@ -74,6 +74,14 @@
         ],
         "complete": false,
         "label": "Left MCA, superior division"
+      },
+      {
+        "nodes": [
+          "L_mcx_leg"
+        ],
+        "complete": false,
+        "extent": 0.3,
+        "label": "The infarct's edge, grazing the leg's fibres: the leg nearly spared"
       }
     ],
     "physiology": {

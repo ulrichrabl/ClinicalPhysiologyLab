@@ -249,6 +249,7 @@ export function validateCase(c: CaseDef, cat: Catalog, reg: Registry): Issue[] {
   }
   for (const [i, les] of (c.pathology.lesions ?? []).entries()) {
     for (const n of les.nodes) if (!(n in NODES)) out.push({ level: 'error', path: `pathology.lesions[${i}]`, message: `unknown nervous-system node ${n}` });
+    if (les.extent !== undefined && !(les.extent > 0 && les.extent <= 1)) out.push({ level: 'error', path: `pathology.lesions[${i}].extent`, message: `extent ${les.extent} is not a share between 0 and 1` });
   }
   for (const [i, cond] of (c.pathology.conditions ?? []).entries()) {
     const def = reg.conditions[cond.id];

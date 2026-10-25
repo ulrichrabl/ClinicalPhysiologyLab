@@ -40,6 +40,7 @@ import { LEN, bodyShape, footOutline, limb3, limbOutline, skeleton, stationAt, t
 import { ear, face, hairBehind, hairFront, hairOver, headFrame, headOutline, oxygenSvg, type Palette, type Support } from './figure-head.ts';
 import { BED_TOP, FLOOR, bra, cloth, dressDefs, gown, sleeveSvg, trolley } from './figure-dress.ts';
 import { Projector, frontness, onTube, VIEW_RIGHT, type FigureView } from './figure-view.ts';
+import { pointingHand, restingHand } from './figure-hand.ts';
 import { braFront, breastFront, chestFront, earsFront, faceFront, gownLinesFront, hairBehindFront, hairFront3, headEgg, oxygenFront, trunkFront, type FrontCtx } from './figure-front.ts';
 
 export { VIEW_RIGHT, VIEW_LEFT, VIEW_FRONT, VIEW_BACK, type FigureView } from './figure-view.ts';
@@ -64,6 +65,13 @@ export interface Pose {
   thigh: [number, number]; shin: [number, number]; foot: [number, number];         // legs absolute; foot = plantar flexion
   prone: number;            // 1 face down
   bed: 'flat' | 'back-raised' | 'edge' | 'none';
+  /** 0 the hand at rest; 1 pointing: the other fingers closed and the index straight (finger–nose) [near, far] */
+  point?: [number, number];
+  /** an arm held out with the fingers straight (pronator drift): the forearm's rotation from palm up, degrees (0 palm up,
+      90 thumb up) [near, far]; absent, the hand rests or points */
+  outstretch?: [number, number];
+  /** 0 the eyes open, 1 closed (asked to close them: pronator drift, Romberg) */
+  eyes?: number;
   backrest: number;         // backrest angle when raised
   bedLeft: number;          // head end of the mattress (shortened for the head-hanging test)
 }
@@ -103,6 +111,9 @@ function lerpDirect(a: Pose, b: Pose, t: number): Pose {
     armUpper: l2(a.armUpper, b.armUpper), armFore: l2(a.armFore, b.armFore), hand: l2(a.hand, b.hand),
     thigh: l2(a.thigh, b.thigh), shin: l2(a.shin, b.shin), foot: l2(a.foot, b.foot), prone: l(a.prone, b.prone),
     bed: t < 0.5 ? a.bed : b.bed, backrest: l(a.backrest, b.backrest), bedLeft: l(a.bedLeft, b.bedLeft),
+    ...(a.point || b.point ? { point: l2(a.point ?? [0, 0], b.point ?? [0, 0]) } : {}),
+    ...(a.outstretch || b.outstretch ? { outstretch: l2(a.outstretch ?? [0, 0], b.outstretch ?? [0, 0]) } : {}),
+    ...(a.eyes !== undefined || b.eyes !== undefined ? { eyes: l(a.eyes ?? 0, b.eyes ?? 0) } : {}),
   };
 }
 
@@ -359,7 +370,7 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
   const chest = trunk3(pr, k, sh, 27, 99);
   const neckPts = limb3(pr, k.neckRoot, k.neckA, sh.neck, -k.flip, 0, 0);
   const H = headFrame(k);
-  const fctx: FrontCtx = { pr, k, sh, look, pal, back: backView, floorY: FLOOR };
+  const fctx: FrontCtx = { pr, k, sh, look, pal, back: backView, floorY: FLOOR, eyesShut: clamp(p.eyes ?? 0, 0, 1) };
   const headProfile = headOutline({ k, sh, look, pal, support: { p: { x: 0, y: FLOOR }, n: { x: 0, y: -1 } } }).map((q) => pr.P(q));
   const head: Pt[][] = pr.profile ? [headProfile] : [headProfile, headEgg(fctx), ...earsFront(fctx)];
   const leg = (i: 0 | 1) => {
@@ -408,11 +419,34 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
   const knuckle = (i: 0 | 1) => add(k.wrist[i], k.handA[i], 9.6 * u);
   const arm = (i: 0 | 1) => {
     const z = armZ(i);
+    /* pointing: the other fingers close into the palm and the index stays straight along the hand */
+    const pt = clamp(p.point?.[i] ?? 0, 0, 1), cu = lerp(curl, 165, pt);
+    /* From the side the hand is drawn whole, its back to the viewer (figure-hand.ts): pointing, or at rest. From the
+       front and back it stays the tube of the arm's stations, seen edge-on. */
+    if (pt >= 0.5 || !joinShoulder) {
+      /* the forearm stops 2.5 cm short of the wrist and the hand takes over there at the forearm's own width, so the
+         forearm's rounded end lies inside the hand */
+      const cut = LEN.fore - 2.5, wst = stationAt(sh.fore, cut), half = (wst.a + wst.p) / 2;
+      const foreCut = [...sh.fore.filter((t) => t.s < cut), wst];
+      /* how much of the back of the hand faces the viewer: a hanging hand (palm to the thigh) shows its back; a hand
+         lying on the thigh or the bed is palm down and shows its edge. Pointing, the forearm is held thumb-up. */
+      /* Held out (pronator drift), the forearm's rotation decides it: palm up the hand is seen edge-on, turned toward
+         thumb-up it shows its back. */
+      const os = p.outstretch?.[i];
+      const broad = pt >= 0.5 ? 1 : os !== undefined ? clamp(Math.sin(rad(os)), 0.3, 1) : clamp(Math.abs(Math.sin(rad(k.handA[i]))) * 1.3, 0.5, 1);
+      const frame = { wrist: k.wrist[i], angle: k.handA[i], thumb: (k.flip > 0 ? -1 : 1) as 1 | -1, u, broad, wristThumb: half * 0.75, wristUlnar: half * 0.75 };
+      const h: { outline: Pt[]; lines: Pt[][]; nail?: Pt; nailLen?: number } = pt >= 0.5 ? pointingHand(frame) : restingHand(frame, os !== undefined ? 4 : curl);
+      return { upper: joinShoulder ? limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh + ((z.el - z.sh) * ARM0) / LEN.upper, z.el) : limb3(pr, k.shoulder, k.upperA[i], upperSt, k.flip, z.sh, z.el),
+        fore: limb3(pr, k.elbow[i], k.foreA[i], foreCut, k.flip, z.el, z.wr), hand: [h.outline.map((q) => pr.P(q, z.wr))], fingers: [] as Pt[][], thumb: [] as Pt[][],
+        /* seen edge-on the fingers' clefts and the nail are hidden */
+        lines: broad < 0.7 ? [] : h.lines.map((l) => l.map((q) => pr.P(q, z.wr))), nail: h.nail && broad >= 0.7 ? { p: pr.P(h.nail, z.wr), len: h.nailLen ?? 1 } : null };
+    }
+    const index = pt > 0.05 ? limb3(pr, knuckle(i), k.handA[i] + (1 - pt) * curl * k.flip, sh.fingers.map((t) => ({ ...t, a: t.a * 0.75, p: t.p * 0.75, w: 0.8 })), k.flip, z.wr, z.wr) : [];
     return {
       upper: joinShoulder ? limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh + ((z.el - z.sh) * ARM0) / LEN.upper, z.el).map((pts) => pts) : limb3(pr, k.shoulder, k.upperA[i], upperSt, k.flip, z.sh, z.el), fore: limb3(pr, k.elbow[i], k.foreA[i], sh.fore, k.flip, z.el, z.wr),
       hand: limb3(pr, k.wrist[i], k.handA[i], sh.hand, k.flip, z.wr, z.wr),
-      fingers: limb3(pr, knuckle(i), k.handA[i] + curl * k.flip, sh.fingers, k.flip, z.wr, z.wr),
-      thumb: limb3(pr, add(add(k.wrist[i], k.handA[i], 1.5 * u), k.handA[i] + 90 * k.flip, 1.2 * u), k.handA[i] + (28 + curl * 0.3) * k.flip,
+      fingers: [...limb3(pr, knuckle(i), k.handA[i] + cu * k.flip, pt > 0.05 ? sh.fingers.map((t) => ({ ...t, s: t.s * (1 - 0.6 * pt) })) : sh.fingers, k.flip, z.wr, z.wr), ...index],
+      thumb: limb3(pr, add(add(k.wrist[i], k.handA[i], 1.5 * u), k.handA[i] + 90 * k.flip, 1.2 * u), k.handA[i] + lerp(28 + curl * 0.3, 6, pt) * k.flip,
         [{ s: 0, a: 1.0, p: 1.0, w: 0.9 }, { s: 4.5, a: 0.85, p: 0.8, w: 0.8 }, { s: 6.6, a: 0.5, p: 0.5, w: 0.5 }], k.flip, z.wr - sg(i) * 1.2, z.wr - sg(i) * 1.6),
     };
   };
@@ -451,7 +485,7 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
     out.push(trolley(pr, p.bedLeft, backrest, pillow, clamp(p.ground, 0, 1)));
   }
 
-  const ctx = { k, sh, look, pal, support };
+  const ctx = { k, sh, look, pal, support, eyesShut: clamp(p.eyes ?? 0, 0, 1) };
   if (withHead) { out.push(prof(() => hairBehind(ctx))); if (!backView) out.push(front(() => hairBehindFront(fctx))); }
 
   /* ---- depth: from the side, the far limbs are behind the body, in shade; from the front, both sides are in view ---- */
@@ -471,7 +505,11 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
   const armFills = (i: 0 | 1): [string, string, string] => {
     const z = armZ(i), s0 = pr.P(k.shoulder, z.sh), el = pr.P(k.elbow[i], z.el), wr = pr.P(k.wrist[i], z.wr);
     /* from the front the upper arms share the chest's light (one body, no seam at the shoulder) */
-    return [joinShoulder ? gWide : g(`upper${i}`, mid(s0, el), ang(s0, el), 5), joinShoulder ? gWide : g(`fore${i}`, mid(el, wr), ang(el, wr), 3.6), joinShoulder ? gWide : g(`hand${i}`, wr, ang(wr, pr.P(knuckle(i), z.wr)), 3)];
+    if (joinShoulder) return [gWide, gWide, gWide];
+    /* From the side the upper arm and the forearm share one light, across the line from shoulder to wrist: a bent
+       elbow then shows no seam where the forearm's end lies over the upper arm's (each part's own light did). */
+    const whole = g(`arm${i}`, mid(s0, wr), ang(s0, wr), 8);
+    return [whole, whole, whole];
   };
   const sideAttr = (i: 0 | 1) => (i === 0 ? 'R' : 'L');
   const dress = gown(pr, k, { ...sh, upper: upperSt }, look, pal, {
@@ -543,7 +581,10 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
     out.push(layer([{ attrs: `data-region="arm" data-side="${sideAttr(i)}"`, parts: armParts(i, armFills(i)) }], pal.line, lineW));
     /* the top of the arm proper and its inner edge above the armpit disappear under the shoulder (its fill, inside its outline) */
     if (joinShoulder && !dress.sleeve) out.push(`<path d="${closedPath(shoulderShape(i, 0, 0.45, 13, 0.5))}" fill="${armFills(i)[0]}" pointer-events="none"/>`);
-    if (i === 0 && near === 0) out.push(prof(() => armDetails(k, look, pal, curl)));
+    const sideHand = (p.point?.[i] ?? 0) >= 0.5 || !joinShoulder;
+    if (i === 0 && near === 0 && !sideHand) out.push(prof(() => armDetails(k, look, pal, curl)));
+    if (sideHand) { const ah = arm(i) as { lines?: Pt[][]; nail?: { p: Pt; len: number } | null }, ln = ah.lines ?? [];
+      if (ah.nail) out.push(`<ellipse cx="${f(ah.nail.p.x)}" cy="${f(ah.nail.p.y)}" rx="${f(ah.nail.len * u)}" ry="${f(0.5 * u)}" fill="${pal.nail}" opacity="${f(1 - fp)}" transform="rotate(${f(-k.handA[i])} ${f(ah.nail.p.x)} ${f(ah.nail.p.y)})" pointer-events="none"/>`); out.push(`<g pointer-events="none" opacity="${f(1 - fp * 0.6)}">${ln.map((l) => `<path d="${openPath(l)}" fill="none" stroke="${pal.line}" stroke-width=".45" stroke-linecap="round" opacity=".55"/>`).join('')}</g>`); }
     if (dress.sleeve) out.push(joinShoulder ? sleeveOver(i) : sleeveSvg(dress.sleeve[i], gownFill, pal.gownLine, pr.profile ? dress.sleeveCut[i] : ''));
   }
   /* the bare chest's anatomy lies over the tops of the arms (the shoulder) */
@@ -581,6 +622,19 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
 
 /** Walking round the bed: 0 the patient's right, 90 the foot of the bed (the front), 180 the patient's left. The front
     is the same picture from either side, so a turn from right to left passes through it without a jump. */
+/** Where the joints are for a pose, in the drawing's coordinates seen from the patient's right (the profile, before any
+    turning), with the tip of the nose: what an animation needs to place a hand on a target (finger–nose). */
+export function figureJoints(p: Pose, look: FigureLook): { k: Skeleton; u: number; nose: Pt; anterior: Pt } {
+  const upright = Math.max(0, Math.sin((p.torso * Math.PI) / 180));
+  const sh = bodyShape(look, upright);
+  const k = place(p, sh);
+  const a0 = trunkPt(k, 40, 0), a1 = trunkPt(k, 40, 1);
+  const anterior = { x: (a1.x - a0.x) / k.u, y: (a1.y - a0.y) / k.u };
+  const head = headOutline({ k, sh, look, pal: palette(look), support: { p: { x: 0, y: FLOOR }, n: { x: 0, y: -1 } } });
+  const nose = head.reduce((m, q) => ((q.x - k.headJoint.x) * anterior.x + (q.y - k.headJoint.y) * anterior.y > (m.x - k.headJoint.x) * anterior.x + (m.y - k.headJoint.y) * anterior.y ? q : m));
+  return { k, u: k.u, nose, anterior };
+}
+
 export const VIEW_ANGLE = { right: 0, front: 90, left: 180 } as const;
 export function viewAt(phi: number): FigureView {
   const x = clamp(phi, 0, 180);

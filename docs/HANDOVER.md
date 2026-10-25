@@ -285,6 +285,18 @@ A station pairs one test with the mechanism that writes it, on one clock. Read `
   - **Starting points:** `stations/pulse-presets.ts`: aortic stenosis and regurgitation, pulmonary hypertension, severe tricuspid regurgitation, AF, Wenckebach, complete heart block and VT, each checked to bring its signs.
   - **Not modelled:** the c wave, and the respiratory signs (Kussmaul's sign, pulsus paradoxus), which wait on gap 13. Gap 18: the model's tricuspid regurgitation is too small to fill in the x descent.
   - **Predict and Identify,** as at the other stations. The signs are offered beside the manoeuvre that finds each one (`pulseSignGroups`). Identify gives what the bedside gives: the pulse and the neck at 45°, with no ECG, no named waves, no findings and no beat in detail. A test checks that every starting point can be told from health and from the others by its signs.
+- **The neurological station (Explore, ADR-017 decision 10, step 8a):** a Station card opens `app/station-neuro.ts`.
+  - **Tests:** pronator drift, finger–nose (each side, eyes open or closed) and the knee jerk (each side), done by the bedside figure sitting on the edge of the bed (`render/neuro-motion.ts`, shown through `app/neuro-motion-view.ts`), moved by the examination model's finding. The findings are worded as the encounter words them; the leg reflexes also give the ankle jerk and the plantar response in words.
+  - **Mechanism:** the ladder a clinician descends (`render/neuro-mechanism.ts`): cortex, capsule, brainstem, cord, root, plexus, nerve, junction, muscle, and the cerebellum beside it. The rungs the test reads are strong, the lesion's rung is marked with its structures named. The explanations (`stations/neuro-texts.ts`, EN/DE, drafts) say what the test reads and what this patient's finding says, with the model's own reason (`basis`).
+  - **Settings:** the lesions, as a curated list by rung (`NEURO_STRUCTURES`), and complete or partial.
+  - **Starting points:** `stations/neuro-presets.ts`: left MCA stroke, left internal capsule, right half of the cervical cord, right L4 root, right femoral nerve, right S1 root, left cerebellar hemisphere, dorsal columns. Each is checked to bring its signs (`stations/neuro-signs.ts`, read from the knowledge tables).
+  - **Model fixes made for it** (owner: "of course it should do exactly what it would do in a real patient"):
+    - The nervous-system graph (`domains/neuro/data/anatomy.js`): the tracts to the leg segments start in the leg's part of the motor strip (a string comparison had sent them from the arm's part) and run down the thoracic cord (T6, T10). Each tendon reflex has one arc per root it runs through (`REFLEX_ROOTS`, after the MRC's Aids to the examination of the peripheral nervous system): biceps and supinator C5–6, triceps C7–8, knee L3–4, ankle S1. One root of two reduces the reflex; both, or the muscle's nerve or plexus, abolish it (the radial nerve now takes the supinator jerk too).
+    - `cortical()` in `models/neuro-limb.ts` no longer gives an untouched part of the strip 0.3 of a lesion. A part the lesion does not reach is spared; a part it reaches loses the share a case gives as the lesion's `extent` (new, 0–1, default 1). The stroke case now states what its patient has: face and arm, and the infarct's edge grazing the leg's fibres (`L_mcx_leg`, extent 0.3: "leg… bit", the leg nearly spared, extensor plantar). Its findings are unchanged.
+    - A corticospinal lesion in the cord counts on its own side (below the decussation).
+    - Sensory ataxia (`ataxiaOnlyEyesClosed`) is read limb by limb.
+    - New sign: `reduced-knee-reflex` (reduced or absent).
+  - **Later:** Predict and Identify (8c); heel–shin, rapid alternating movements, Romberg and gait (8b); the plantar response and the arm reflexes drawn.
 - **Next:** open for the owner. The heart–lung chain (gaps 16, 12, 13, 15) is parked; with it would come pulsus paradoxus and Kussmaul's sign at this station.
 
 ## Interventions and scenarios (ADR-018)
@@ -361,9 +373,10 @@ Every visual is driven by findings, never by the lesion directly, so it shows ex
 | Pulses | Arterial pressure trace from the running circulation | `app.ts` (pulse visual), `app/sound.ts` |
 | 12-lead ECG | Electrodes placed by the learner; live 12-lead monitor and bedside lead II strip from the running dipole; printed paper with the measuring tool | `app/focus-ecg.ts`, `render/ecg-monitor.ts`, `render/ecg-paper.ts`, `app/ecg-measure-tool.ts` |
 | Positions and views | The whole-patient figure moves between poses by interpolating joint angles, and turns between right, front and left (eased) | `render/patient-figure.ts`, `render/figure-view.ts` |
+| Pronator drift, finger–nose, knee jerk | The bedside figure on the edge of the bed: arms out with eyes closed and the weak arm turning, bending and sinking; the finger's reach with overshoot and intention tremor; the hammer and the kick by grade, with clonus. In the ward (after the test) and the neurological station | `render/neuro-motion.ts`, `app/neuro-motion-view.ts` |
 | Physiology chapters | Living diagrams of the running models | `app/diagrams.ts` |
 
-The dispatch from a performed manoeuvre to its visual is `visualFor` in `app/app.ts`. Everything else, including all limb, coordination, reflex, sensory, abdominal and general tests, currently produces text only.
+The dispatch from a performed manoeuvre to its visual is `visualFor` in `app/app.ts`. Everything else, including the other limb, coordination, reflex, sensory, abdominal and general tests, currently produces text only.
 
 ### Where to hook in
 

@@ -194,6 +194,7 @@
 {"id": "hyperreflexia", "site": "limb", "definition": {"any": [{"obs": "arm.reflexes", "path": "biceps", "op": "ge", "value": 3}, {"obs": "arm.reflexes", "path": "triceps", "op": "ge", "value": 3}, {"obs": "arm.reflexes", "path": "supinator", "op": "ge", "value": 3}, {"obs": "leg.reflexes", "path": "knee", "op": "ge", "value": 3}, {"obs": "leg.reflexes", "path": "ankle", "op": "ge", "value": 3}]}, "status": "draft"},
 {"id": "areflexia", "site": "limb", "definition": {"fn": "allReflexesAbsent"}, "status": "draft"},
 {"id": "absent-ankle-reflex", "site": "limb.lower", "definition": {"obs": "leg.reflexes", "path": "ankle", "op": "eq", "value": 0}, "status": "draft"},
+{"id": "reduced-knee-reflex", "site": "limb.lower", "definition": {"obs": "leg.reflexes", "path": "knee", "op": "le", "value": 1}, "status": "draft"},
 {"id": "extensor-plantar", "site": "limb.lower", "definition": {"obs": "leg.reflexes", "path": "plantar", "op": "eq", "value": "extensor"}, "status": "draft"},
 {"id": "pronator-drift", "site": "limb.upper", "definition": {"obs": "arm.drift", "path": "drift", "op": "eq", "value": true}, "status": "draft"},
 {"id": "pseudoathetosis", "site": "limb.upper", "definition": null, "status": "draft"},

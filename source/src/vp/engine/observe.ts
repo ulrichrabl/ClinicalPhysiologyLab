@@ -33,7 +33,8 @@ export interface RuntimeView {
   /** The internal milieu: volumes, plasma concentrations, the kidney's output, hormones. */
   body?: BodySnapshot;
   /** Nervous system: lesioned graph nodes, and the findings the graph derives from them. */
-  neuro?: { nodes: string[]; complete: boolean; findings: Array<Record<string, any>> };
+  /** extent: the share of a structure's fibres a lesion takes, where a case gives less than all (default 1) */
+  neuro?: { nodes: string[]; complete: boolean; extent?: Record<string, number>; findings: Array<Record<string, any>> };
   /** Named conditions the case declares, for models that read them (e.g. vestibular hypofunction). */
   conditions?: Array<{ id: string; params?: Record<string, unknown> }>;
   /** Simulated minutes since the encounter began. */
