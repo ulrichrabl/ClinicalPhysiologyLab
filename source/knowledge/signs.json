@@ -180,7 +180,7 @@
 {"id": "fatigable-dysarthria", "site": "speech", "definition": {"obs": "speech.fatigue", "path": "voice", "op": "in", "value": ["fading-nasal", "hoarse"], "ctx": {"repetition": 50}}, "status": "draft"},
 {"id": "reduced-single-breath-count", "site": "speech", "definition": null, "status": "draft"},
 {"id": "spasticity", "site": "limb", "definition": {"any": [{"obs": "arm.tone", "path": "tone", "op": "eq", "value": "spastic"}, {"obs": "leg.tone", "path": "tone", "op": "eq", "value": "spastic"}]}, "status": "draft"},
-{"id": "sustained-clonus", "site": "limb.lower", "definition": {"obs": "leg.reflexes", "path": "ankle", "op": "eq", "value": 4}, "note": "Grade 4 at the ankle: the jerk repeats on its own (clonus).", "status": "draft"},
+{"id": "sustained-clonus", "site": "limb.lower", "definition": {"obs": "leg.reflexes", "path": "ankle", "op": "eq", "value": 4}, "note": "Grade 4 at the ankle: the jerk repeats on its own (clonus). At the bedside also elicited by a brisk dorsiflexion of the foot while testing tone; the model records it with the ankle reflex.", "status": "draft"},
 {"id": "rigidity", "site": "limb", "definition": {"any": [{"obs": "arm.tone", "path": "tone", "op": "eq", "value": "rigid"}, {"obs": "leg.tone", "path": "tone", "op": "eq", "value": "rigid"}]}, "note": "The value exists; there are no basal ganglia, so nothing produces it.", "status": "draft"},
 {"id": "rest-tremor", "site": "hands", "definition": {"obs": "arm.rest-tremor", "path": "tremor", "op": "eq", "value": "rest"}, "status": "draft"},
 {"id": "shuffling-gait", "site": "gait", "definition": {"obs": "gait.pattern", "path": "pattern", "op": "eq", "value": "parkinsonian"}, "status": "draft"},
