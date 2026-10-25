@@ -105,3 +105,50 @@ export function restingHand(h: HandFrame, curl: number): { outline: Pt[]; lines:
   /* the nail of the middle finger, on its back near the tip: where cyanosis and pallor show first (shortened as the finger bends) */
   return { outline: out.map(w), lines: lines.map((l) => l.map(w)), nail: w([K + L * 0.98 - 1.1, -0.2]), nailLen: 1.1 * Math.max(0.3, Math.cos((Math.PI / 2) * c)) };
 }
+
+/* ===========================================================================
+   The hand seen from its thumb edge: how a hand hanging at the side (the palm
+   toward the thigh) looks from the front. The silhouette is the hand's
+   thickness, about 3 cm across the metacarpals and 2 cm at the fingers; the
+   fingers bend toward the palm by `curl`; the thumb is nearest the viewer,
+   laid along the index, its own shape drawn over the hand. Template
+   centimetres as above: x from the wrist crease toward the fingertips, y
+   across, positive toward the palm (the frame's `thumb` sign says which way
+   that is on the page).
+=========================================================================== */
+
+export type Cm = [number, number];
+/** In the hand's own centimetres: the caller lays x along the hand and y across the body toward the palm (the rows at
+    |y| = 1 are the wrist, to take the forearm's own half-width). */
+export function radialHand(curl: number): { outline: Cm[]; thumb: Cm[]; lines: Cm[][] } {
+  const c = Math.max(0, Math.min(1, curl / 90));
+  /* the index's centre line from its knuckle: three phalanges (4.6, 2.6, 2.0 cm), each joint bending toward the palm */
+  const K: [number, number] = [9.6, 0.15];
+  /* a full fist bends the knuckle about 90°, the middle joint 100°, the end joint 70°; at rest a fifth of that */
+  const bend = [90, 100, 70].map((d) => c * d * (Math.PI / 180));
+  const centre: Array<[number, number]> = [K];
+  let a = 0;
+  for (const [i, len] of [4.6, 2.6, 2.0].entries()) { a += bend[i]; const [x, y] = centre[centre.length - 1]; centre.push([x + len * Math.cos(a), y + len * Math.sin(a)]); }
+  /* the index in front, the other fingers just behind it and a little more bent: together a little thicker than one */
+  const half = [1.3, 1.2, 1.05, 0.85];
+  const side = (sg: number) => centre.map(([x, y], i) => { const aa = i === 0 ? bend[0] / 2 : i === 3 ? a : (bend.slice(0, i).reduce((s, b) => s + b, 0) + bend[i] / 2); return [x - sg * half[i] * Math.sin(aa), y + sg * half[i] * Math.cos(aa)] as [number, number]; });
+  const back = side(-1), palm = side(1), tip = centre[3];
+  const cap: [number, number] = [tip[0] + 0.7 * Math.cos(a), tip[1] + 0.7 * Math.sin(a)];
+  const out: Array<[number, number]> = [
+    [-3.0, -1], [0, -1.7], [4.5, -1.7], [8.4, -1.6], [9.4, -1.4],            // the back of the hand, the knuckle's bump
+    ...back.slice(1),                                                         // the back of the fingers
+    cap,                                                                      // the fingertip
+    /* the finger pads back to the palm; closed into a fist they lie against it, hidden, and the knot is rounded */
+    ...palm.slice(1).reverse().filter(([x]) => x > 9.4),
+    [9.0, 1.55], [6.2, 2.05], [3.6, 2.4], [1.4, 2.0], [0, 1.7], [-3.0, 1],  // the palm, the thenar eminence, the wrist
+  ];
+  /* the thumb, nearest the viewer: from the thenar eminence along the index, its tip by the index's middle phalanx */
+  /* its tip by the middle of the index's first phalanx, drawn in toward the palm as the hand closes */
+  const tb: [number, number] = [11.6 - 1.8 * c, 0.9 + 1.3 * c];
+  const thumb: Array<[number, number]> = [[2.4, 0.2], [5.0, 0.2], [8.0, 0.25], [tb[0] - 0.4, tb[1] - 0.6], [tb[0] + 0.45, tb[1]], [tb[0] - 0.4, tb[1] + 0.6], [7.6, 1.75], [4.4, 2.0], [2.4, 1.6]];
+  const lines: Array<Array<[number, number]>> = [
+    thumb.slice(1, 8),                                                        // the thumb's edge, over the hand
+    [[K[0] - 0.2, -0.9], [K[0] + 0.3, -0.2]],                                // the index's knuckle
+  ];
+  return { outline: out, thumb, lines };
+}
