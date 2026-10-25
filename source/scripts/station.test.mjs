@@ -359,6 +359,9 @@ console.log('\nThe neurological station');
     ok('…a root shares its muscles with its neighbours: C6 weakens to 4/5, and the survivors sprout back to 5/5 by four months',
       pw(at('c6-root-r', 1), 'arm.power.R').elbowFlexion === 4 && pw(at('c6-root-r', 120), 'arm.power.R').elbowFlexion === 5);
     ok('…a fresh medullary infarct deviates the tongue but has not wasted it; a month later it has', !pw(at('medial-medulla-l', 1), 'mouth.tongue').wasting && pw(at('medial-medulla-l', 30), 'mouth.tongue').wasting);
+    ok('fasciculation only from degenerating motor neurons: bulbar motor neurone disease fasciculates the tongue, an infarct of the same nucleus wastes it without',
+      pw(at('mnd-bulbar', 365), 'mouth.tongue').fasciculation && pw(at('mnd-bulbar', 365), 'mouth.tongue').wasting && !pw(at('medial-medulla-l', 60), 'mouth.tongue').fasciculation && pw(at('medial-medulla-l', 60), 'mouth.tongue').wasting);
+    { const m = at('mnd', 365); delete m.lesions.process; ok('…the same anterior horn lesions without degeneration (an infarct of the cord) do not fasciculate', !pw(m, 'arm.tone.R').fasciculation && pw(at('mnd', 365), 'arm.tone.R').fasciculation); }
     ok('the pull test: lost late in parkinsonism on both sides (Hoehn & Yahr 3, a median 7.4 years), kept on one side or early',
       pw(at('parkinson-both', 2920), 'posture.pull-test').response === 'steps' && pw(at('parkinson-both', 365), 'posture.pull-test').response === 'recovers' && pw(at('parkinson-l', 3650), 'posture.pull-test').response === 'recovers');
     ok('…the L5 root\'s own muscle: big toe extension paralysed, dorsiflexion only weak', pw(at('l5-root-r', 14), 'leg.power.R').toeExtension === 0 && pw(at('l5-root-r', 14), 'leg.power.R').ankleDorsiflexion === 4);

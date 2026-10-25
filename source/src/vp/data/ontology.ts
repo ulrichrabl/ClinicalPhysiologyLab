@@ -141,7 +141,7 @@ export const VALUE_SETS: ValueSetDef[] = [
   vs('dipstick', [['negative', 'negative', 'negativ'], ['trace', 'trace', 'Spur'], ['1+', '+', '+'], ['2+', '++', '++'], ['3+', '+++', '+++'], ['4+', '++++', '++++']]),
   vs('oedema', [['none', 'no oedema', 'keine Ödeme'], ['ankle', 'pitting oedema to the ankles', 'Knöchelödeme, eindrückbar'], ['shin', 'pitting oedema to mid-shin', 'eindrückbare Ödeme bis Unterschenkelmitte'], ['knee', 'pitting oedema to the knees', 'eindrückbare Ödeme bis zu den Knien']]),
   vs('tone', [['normal', 'normal tone', 'normaler Tonus'], ['reduced', 'reduced tone', 'verminderter Tonus'], ['spastic', 'increased tone, spastic catch', 'spastisch erhöhter Tonus'], ['rigid', 'rigid', 'rigide']]),
-  vs('plantar', [['flexor', 'flexor', 'Plantarreflex beugend'], ['extensor', 'extensor (Babinski positive)', 'Babinski positiv'], ['equivocal', 'equivocal', 'fraglich']]),
+  vs('plantar', [['flexor', 'flexor', 'Plantarreflex beugend'], ['extensor', 'extensor (Babinski positive)', 'Babinski positiv'], ['equivocal', 'equivocal', 'fraglich'], ['mute', 'no response', 'keine Reaktion']]),
   vs('sense-level', [['normal', 'normal', 'normal'], ['reduced', 'reduced', 'vermindert'], ['absent', 'absent', 'aufgehoben']]),
   vs('territory', [['axillary', 'axillary nerve (regimental badge)', 'N. axillaris (Schulteraußenseite)'], ['musculocutaneous', 'musculocutaneous nerve (lateral forearm)', 'N. musculocutaneus (radialer Unterarm)'],
     ['radial', 'radial nerve (dorsal first web space)', 'N. radialis (dorsale erste Interdigitalfalte)'], ['median', 'median nerve (palmar thumb and index finger)', 'N. medianus (palmar Daumen und Zeigefinger)'],

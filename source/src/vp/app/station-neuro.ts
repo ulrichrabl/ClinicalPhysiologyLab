@@ -22,7 +22,7 @@ import { appearanceOf } from '../render/face-canvas.ts';
 import { KNOWLEDGE, labelOf } from '../knowledge/index.ts';
 import type { Lang } from './diagrams.ts';
 import { patientBanner, type StationHandle, type StationOptions } from './station-ecg.ts';
-import type { ExamContext, Side } from '../model/types.ts';
+import type { ExamContext, LesionProcess, Side } from '../model/types.ts';
 
 /* ---------------------------------------------------------------------------
    The neurological station (ADR-017 decision 10, step 8a): Explore.
@@ -42,6 +42,8 @@ const T: Record<string, LocalizedText> = {
   settingsNote: L('A lesion on one rung of the nervous system. The examination model derives the rest.', 'Eine Läsion auf einer Stufe des Nervensystems. Das Untersuchungsmodell leitet den Rest ab.'),
   startFrom: L('Start from', 'Ausgangspunkt'), choose: L('Choose a lesion…', 'Läsion wählen…'), healthy: L('Reset to healthy', 'Auf gesund zurücksetzen'),
   complete: L('Complete lesion', 'Komplette Läsion'),
+  process: L('What the lesion is', 'Art der Läsion'), notSaid: L('Not said', 'Nicht angegeben'),
+  processNote: L('Only dying motor neurons (motor neurone disease) fasciculate; a compressed root or nerve is weak partly by conduction block, which does not waste the muscle.', 'Nur sterbende Motoneurone (Motoneuronerkrankung) faszikulieren; eine komprimierte Wurzel oder ein komprimierter Nerv ist zum Teil durch Leitungsblock schwach, der den Muskel nicht atrophieren lässt.'),
   since: L('Time since onset', 'Zeit seit Beginn'),
   sinceNote: L('A cut nerve weakens at once; its muscle wastes from about three weeks. Where some fibres survive they sprout over months and win back strength.', 'Ein durchtrennter Nerv schwächt sofort; sein Muskel atrophiert ab etwa drei Wochen. Wo Fasern überleben, sprossen sie über Monate aus und gewinnen Kraft zurück.'),
   completeNote: L('A partial lesion of the corticospinal tract leaves the arm strong enough to hold up, and drifting.', 'Eine partielle Läsion der Pyramidenbahn lässt den Arm kräftig genug, ihn zu halten, und er driftet.'),
@@ -67,6 +69,8 @@ const T: Record<string, LocalizedText> = {
 };
 const SINCE: Array<[number, LocalizedText]> = [[1, L('1 day', '1 Tag')], [7, L('1 week', '1 Woche')], [14, L('2 weeks', '2 Wochen')], [30, L('1 month', '1 Monat')],
   [120, L('4 months', '4 Monate')], [180, L('6 months', '6 Monate')], [365, L('1 year', '1 Jahr')], [730, L('2 years', '2 Jahre')]];
+const PROCESSES: Array<[string, LocalizedText]> = [['', L('', '')], ['infarct', L('Infarct', 'Infarkt')], ['haemorrhage', L('Haemorrhage', 'Blutung')], ['compression', L('Compression', 'Kompression')],
+  ['section', L('Cut', 'Durchtrennung')], ['degeneration', L('Degeneration (motor neurone disease)', 'Degeneration (Motoneuronerkrankung)')], ['demyelination', L('Demyelination', 'Demyelinisierung')], ['inflammation', L('Inflammation', 'Entzündung')]];
 const IDENTIFY_POOL = ['healthy', ...NEURO_PRESETS.map((p) => p.id)];
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 const SIDES: Side[] = ['R', 'L'];
@@ -139,6 +143,10 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
             <select data-days>${SINCE.map(([d, lab]) => `<option value="${d}" ${(model.lesions.days ?? 1) === d ? 'selected' : ''}>${esc(tr(lab, lang))}</option>`).join('')}${SINCE.some(([d]) => d === (model.lesions.days ?? 1)) ? '' : `<option value="${model.lesions.days}" selected>${model.lesions.days} d</option>`}</select>
           </label>
           <p class="muted small">${t('sinceNote')}</p>
+          <label class="st-preset">${t('process')}
+            <select data-process>${PROCESSES.map(([v, lab]) => `<option value="${v}" ${(Object.values(model.lesions.process ?? {})[0] ?? '') === v ? 'selected' : ''}>${esc(v ? tr(lab, lang) : t('notSaid'))}</option>`).join('')}</select>
+          </label>
+          <p class="muted small">${t('processNote')}</p>
           ${NEURO_STRUCTURES.map((g) => `<fieldset class="st-lesions"><legend>${esc(tr(g.group, lang))}</legend>${g.nodes.map((n) =>
             `<label class="st-var st-check"><input type="checkbox" data-node="${n.id}" ${cut.has(n.id) ? 'checked' : ''}><span>${esc(tr(n.label, lang))}</span></label>`).join('')}</fieldset>`).join('')}
         </aside>
@@ -386,6 +394,12 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     if (pr) pr.onchange = () => { predict = pr.checked; };
     const hb = host.querySelector<HTMLButtonElement>('[data-healthy]');
     if (hb) hb.onclick = () => { pending = null; feedback = null; change(applyNeuroPreset(model, '')); };
+    const ps = host.querySelector<HTMLSelectElement>('[data-process]');
+    if (ps) ps.onchange = () => {
+      const next = structuredClone(model);
+      if (ps.value) next.lesions.process = Object.fromEntries(next.lesions.nodes.map((n) => [n, ps.value as LesionProcess])); else delete next.lesions.process;
+      change(next);
+    };
     const ds = host.querySelector<HTMLSelectElement>('[data-days]');
     if (ds) ds.onchange = () => { const next = structuredClone(model); next.lesions.days = Number(ds.value); change(next); };
     const cb = host.querySelector<HTMLInputElement>('[data-complete]');

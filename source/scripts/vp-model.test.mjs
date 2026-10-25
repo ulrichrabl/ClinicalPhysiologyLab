@@ -400,8 +400,10 @@ console.log('\nNeurological examination (from the nervous-system graph)');
   const arm = o(STROKE, v, 'arm.power.R'), leg = o(STROKE, v, 'leg.power.R');
   ok('MCA stroke: pyramidal arm weakness, extensors weaker than flexors', arm.elbowExtension < arm.elbowFlexion && arm.elbowExtension <= 3, J(arm));
   ok('MCA stroke: face and arm more than leg', Math.min(...Object.values(leg)) > Math.min(...Object.values(arm)), J(leg));
-  ok('MCA stroke: brisk right arm reflexes, extensor plantar, pronator drift',
-    o(STROKE, v, 'arm.reflexes.R').biceps === 3 && o(STROKE, v, 'leg.reflexes.R').plantar === 'extensor' && o(STROKE, v, 'arm.drift.R').drift && !o(STROKE, v, 'arm.drift.L').drift);
+  /* 50 minutes after onset: tone and reflexes are released only over days, and only in severe weakness (Opheim 2014,
+     Sommerfeld 2004); the plantar is extensor at once */
+  ok('MCA stroke at 50 minutes: arm reflexes not (yet) brisk, tone not raised; extensor plantar, pronator drift',
+    o(STROKE, v, 'arm.reflexes.R').biceps === 2 && o(STROKE, v, 'arm.tone.R').tone === 'normal' && o(STROKE, v, 'leg.reflexes.R').plantar === 'extensor' && o(STROKE, v, 'arm.drift.R').drift && !o(STROKE, v, 'arm.drift.L').drift);
   const sp = o(STROKE, v, 'speech.language');
   ok('MCA stroke: non-fluent aphasia with comprehension preserved', sp.fluency === 'impaired' && sp.comprehension === 'normal' && sp.repetition === 'impaired');
   ok('MCA stroke: sensation spared', obs(STROKE, v, 'arm.pinprick.R').normal);
@@ -410,16 +412,29 @@ console.log('\nNeurological examination (from the nervous-system graph)');
 
   const lv = buildView(L5);
   const lp = o(L5, lv, 'leg.power.R');
-  ok('L5 root: dorsiflexion, eversion, inversion and hip abduction weak together; the big toe, the L5 root\'s own muscle, the weakest', lp.ankleDorsiflexion < 5 && lp.footEversion < 5 && lp.footInversion < 5 && lp.hipAbduction < 5 && lp.toeExtension < lp.ankleDorsiflexion && lp.kneeExtension === 5 && lp.anklePlantarflexion === 5, J(lp));
-  gap('L5 root: the case\'s foot drop (dorsiflexion ≤ 3)', lp.ankleDorsiflexion <= 3, `dorsiflexion ${lp.ankleDorsiflexion}/5: ${'a complete L5 root takes 73 % of tibialis anterior’s units (London 2022): 27 % of its force is left, MRC 4 (Dvir 1997), not the foot drop of the case'}`);
+  ok('L5 root: dorsiflexion, big toe, eversion, inversion and hip abduction weak together; knee and plantarflexion spared', lp.ankleDorsiflexion < 5 && lp.toeExtension < 5 && lp.footEversion < 5 && lp.footInversion < 5 && lp.hipAbduction < 5 && lp.kneeExtension === 5 && lp.anklePlantarflexion === 5, J(lp));
+  ok('L5 root: foot drop in this patient, whose tibialis anterior L5 alone supplies (as in about 40 % with no L4 response, Hashimoto 2023)', lp.ankleDorsiflexion <= 3, J(lp));
   ok('L5 root: knee and ankle reflexes preserved, plantar flexor', J(o(L5, lv, 'leg.reflexes.R')) === J({ knee: 2, ankle: 2, plantar: 'flexor' }));
   const pin = o(L5, lv, 'leg.pinprick.R');
   ok('L5 root: dermatomal sensory loss, no nerve territory', pin.L5 === 'absent' && pin.L4 === 'normal' && pin.territories.length === 0);
   ok('L5 root: big-toe vibration preserved (a single root rarely abolishes it)', obs(L5, lv, 'leg.vibration.R').normal);
-  gap('L5 root: high-stepping gait on the right', J(o(L5, lv, 'gait.pattern')) === J({ pattern: 'high-stepping', toward: 'R' }), J(o(L5, lv, 'gait.pattern')));
+  ok('L5 root: high-stepping gait on the right', J(o(L5, lv, 'gait.pattern')) === J({ pattern: 'high-stepping', toward: 'R' }), J(o(L5, lv, 'gait.pattern')));
   ok('straight leg raise comes from the case layer', obs(L5, lv, 'leg.slr.R').provenance === 'case' && obs(L5, lv, 'leg.slr.L').provenance === 'default-normal');
 
-  const les = (nodes, complete = true) => { const c = clone(L5); c.pathology.lesions = [{ nodes, complete }]; return [c, buildView(c)]; };
+  /* a lesion in a patient of the usual anatomy, examined on day `days` */
+  const les = (nodes, complete = true, days) => { const c = clone(L5); delete c.patient.anatomy; c.pathology.lesions = [{ nodes, complete, ...(days !== undefined ? { days } : {}) }]; return [c, buildView(c)]; };
+  {
+    const [c1, w1] = les(['L_ic'], true, 1), [c30, w30] = les(['L_ic'], true, 30), [p30, q30] = les(['L_ic'], false, 30);
+    ok('a dense capsular hemiplegia: floppy with normal reflexes on day 1, spastic with brisk reflexes and ankle clonus by day 30; a mild one stays unreleased',
+      o(c1, w1, 'arm.tone.R').tone === 'reduced' && o(c1, w1, 'arm.reflexes.R').biceps === 2 && o(c30, w30, 'arm.tone.R').tone === 'spastic' && o(c30, w30, 'arm.reflexes.R').biceps === 3
+      && o(c30, w30, 'leg.reflexes.R').ankle === 4 && o(p30, q30, 'arm.reflexes.R').biceps === 2, J([o(c1, w1, 'arm.tone.R'), o(c30, w30, 'leg.reflexes.R'), o(p30, q30, 'arm.reflexes.R')]));
+    const T = ['L_cst_T10', 'R_cst_T10', 'L_dc_T10', 'R_dc_T10', 'L_stt_T10', 'R_stt_T10'];
+    const at = (d) => { const [c, w] = les(T, true, d); return { r: o(c, w, 'leg.reflexes.R'), t: o(c, w, 'leg.tone.R').tone }; };
+    const d1 = at(1), d10 = at(10), d20 = at(20), d40 = at(40);
+    ok('a complete transection at T10: spinal shock (reflexes and plantar silent, legs floppy), the ankle jerk back at a week, the knee at two, brisk and spastic with clonus by a month (Ko 1999, Ditunno 2004)',
+      d1.r.knee === 0 && d1.r.ankle === 0 && d1.r.plantar === 'mute' && d1.t === 'reduced' && d10.r.ankle === 2 && d10.r.knee === 0 && d10.r.plantar === 'extensor'
+      && d20.r.knee === 2 && d40.r.knee === 3 && d40.r.ankle === 4 && d40.t === 'spastic', J([d1, d10, d20, d40]));
+  }
   {
     const [c, w] = les(['R_n_peroneal_head']);
     const p = o(c, w, 'leg.power.R');
@@ -451,7 +466,7 @@ console.log('\nNeurological examination (from the nervous-system graph)');
     ok('myopathy: proximal weakness, distal power and reflexes normal, waddling gait', p.hipFlexion <= 3 && p.ankleDorsiflexion === 5 && o(c, w, 'leg.reflexes.R').knee === 2 && o(c, w, 'gait.pattern').pattern === 'waddling');
   }
   {
-    const [c, w] = les(['R_cst_L2', 'R_cst_L3', 'R_cst_L4', 'R_cst_L5', 'R_cst_S1', 'R_dc_asc', 'R_stt_asc']);
+    const [c, w] = les(['R_cst_L2', 'R_cst_L3', 'R_cst_L4', 'R_cst_L5', 'R_cst_S1', 'R_dc_asc', 'R_stt_asc'], true, 7);
     ok('Brown-Séquard: weakness and vibration loss on the side of the lesion, pinprick lost on the other',
       o(c, w, 'leg.power.R').hipFlexion < 5 && o(c, w, 'leg.vibration.R').vibration === 'absent' && o(c, w, 'leg.pinprick.L').L4 === 'absent' && o(c, w, 'leg.pinprick.R').L4 === 'normal');
     /* below the decussation the tract serving the right leg runs on the right: the whole tract is cut, so the reflexes are brisk */
@@ -464,7 +479,7 @@ console.log('\nNeurological examination (from the nervous-system graph)');
     const [cl, wl] = les(['L_mcx_leg']);
     ok('a lesion of the leg’s part of the motor strip weakens the opposite leg, spares the arm, and the plantar goes up',
       o(cl, wl, 'leg.power.R').hipFlexion < 5 && o(cl, wl, 'arm.power.R').shoulderAbduction === 5 && o(cl, wl, 'leg.reflexes.R').plantar === 'extensor', JSON.stringify(o(cl, wl, 'leg.power.R')));
-    const [ct, wt] = les(['R_cst_T10']);
+    const [ct, wt] = les(['R_cst_T10'], true, 7);
     ok('a corticospinal lesion at T10 reaches the leg on its own side and spares the arms',
       o(ct, wt, 'leg.reflexes.R').plantar === 'extensor' && o(ct, wt, 'leg.reflexes.R').knee >= 3 && o(ct, wt, 'arm.power.R').shoulderAbduction === 5 && o(ct, wt, 'leg.reflexes.L').plantar === 'flexor');
     const knee = (nodes) => { const [c2, w2] = les(nodes); return o(c2, w2, 'leg.reflexes.R').knee; };
@@ -481,7 +496,7 @@ console.log('\nNeurological examination (from the nervous-system graph)');
     ok('Wallenberg: uvula pulled away from the weak left palate, hoarse voice', o(c, w, 'mouth.palate').uvulaDeviatesTo === 'R' && o(c, w, 'mouth.palate').voice === 'hoarse');
   }
   const t = (c, view, ref, ctx = {}, l = 'de') => text(obs(c, view, ref, ctx), l);
-  ok('German motor text', /^Kraft rechtes Bein \(MRC\): Hüftabduktion 4\/5, Fußhebung 4\/5, Großzehenhebung 0\/5, Fußeversion 4\/5, Fußinversion 4\/5; übrige 5\/5\.$/.test(t(L5, lv, 'leg.power.R')), t(L5, lv, 'leg.power.R'));
+  ok('German motor text', /^Kraft rechtes Bein \(MRC\): Hüftabduktion 4\/5, Fußhebung 0\/5, Großzehenhebung 0\/5, Fußeversion 4\/5, Fußinversion 4\/5; übrige 5\/5\.$/.test(t(L5, lv, 'leg.power.R')), t(L5, lv, 'leg.power.R'));
   ok('German reflex and speech text', /Babinski positiv/.test(t(STROKE, v, 'leg.reflexes.R')) && /Spontansprache nicht flüssig/.test(t(STROKE, v, 'speech.language')));
 }
 
@@ -1467,21 +1482,18 @@ console.log('\nKnowledge tables: tests, signs, syndromes, conditions (ADR-016)')
   const lacks = (cid, ...ids) => ids.every((x) => per[cid][x] === false);
   ok('cirrhosis: jaundice, shifting dullness, asterixis, spider naevi', has('decompensated-cirrhosis', 'jaundice', 'shifting-dullness', 'asterixis', 'spider-naevi'));
   ok('left MCA stroke: upper motor neuron signs, forehead-sparing facial weakness, expressive aphasia',
-    has('acute-stroke-left-mca', 'extensor-plantar', 'hyperreflexia', 'pyramidal-weakness', 'pronator-drift', 'umn-facial-weakness', 'expressive-aphasia') && lacks('acute-stroke-left-mca', 'lmn-facial-weakness'));
+    has('acute-stroke-left-mca', 'extensor-plantar', 'pyramidal-weakness', 'pronator-drift', 'umn-facial-weakness', 'expressive-aphasia') && lacks('acute-stroke-left-mca', 'lmn-facial-weakness', 'hyperreflexia', 'spasticity'));
   ok('vestibular neuritis: peripheral pattern; no direction-changing nystagmus, no skew',
     has('vestibular-neuritis-left', 'unidirectional-nystagmus', 'head-impulse-positive') && lacks('vestibular-neuritis-left', 'gaze-evoked-nystagmus', 'skew-deviation')
     && syndromePresent(KNOWLEDGE, 'peripheral-vestibular-pattern', per['vestibular-neuritis-left']) && !syndromePresent(KNOWLEDGE, 'central-vestibular-pattern', per['vestibular-neuritis-left']));
   ok('healthy eyes: end-point nystagmus is named as the normal variant, not as gaze-evoked nystagmus',
     has('iron-deficiency-anaemia-caecal', 'endpoint-nystagmus', 'conjunctival-pallor') && lacks('iron-deficiency-anaemia-caecal', 'gaze-evoked-nystagmus'));
-  ok('L5 radiculopathy: a myotomal and a dermatomal pattern, positive straight leg raise', has('foot-drop-right-l5', 'myotomal-weakness', 'dermatomal-sensory-loss', 'positive-slr'));
-  gap('L5 radiculopathy: the case\'s foot drop', has('foot-drop-right-l5', 'foot-drop'), 'a complete L5 root takes 73 % of tibialis anterior’s units (London 2022): 27 % of its force is left, MRC 4 (Dvir 1997), not the foot drop of the case');
+  ok('L5 radiculopathy: foot drop, a myotomal and a dermatomal pattern, positive straight leg raise', has('foot-drop-right-l5', 'foot-drop', 'myotomal-weakness', 'dermatomal-sensory-loss', 'positive-slr'));
   ok('resting vital signs are read lying, not from the standing half of the lying-and-standing test', lacks('upper-gi-bleed-peptic-ulcer', 'hypotension') && has('upper-gi-bleed-peptic-ulcer', 'orthostatic-hypotension'));
   /* The expert reference in signs (ADR-016 §10): every sign item says something true of its case. */
-  /* reference items the model cannot show yet: known gaps, each with its reason (not hidden, and not passed) */
-  const REFERENCE_GAPS = { 'foot-drop-right-l5 e-gait': 'no steppage gait: a complete L5 root takes 73 % of tibialis anterior’s units (London 2022): 27 % of its force is left, MRC 4 (Dvir 1997), not the foot drop of the case' };
+  const REFERENCE_GAPS = {};
   const wrongAll = CASES.flatMap((c) => c.reference.evidence.filter((e) => e.kind === 'sign' && per[c.id][e.ref] !== (e.present !== false))
     .map((e) => ({ key: `${c.id} ${e.id}`, text: `${c.id} ${e.id}: ${e.ref} is ${per[c.id][e.ref]} in the case, the reference says ${e.present !== false}` })));
-  for (const [k, why] of Object.entries(REFERENCE_GAPS)) gap(`expert reference ${k}`, !wrongAll.some((w) => w.key === k), why);
   const wrongItems = wrongAll.filter((w) => !REFERENCE_GAPS[w.key]).map((w) => w.text);
   ok('every sign in an expert reference is shown by its case, and every pertinent negative is absent', !wrongItems.length, wrongItems.join('; '));
   /* An examiner who does every test that can show each reference sign gets every sign item. */

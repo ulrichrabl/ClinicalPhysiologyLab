@@ -469,7 +469,7 @@ export function armReflexes(base: Pose, look: FigureLook, t: number, g: ArmRefle
   return { pose, props: `<g class="examiner" pointer-events="none">${thumb}${hammerAt(target, pivot, c, STRIKE, u, lift)}</g>`, reflex };
 }
 
-export interface LegReflexFinding { knee: ReflexGrade; ankle: ReflexGrade; plantar: 'flexor' | 'extensor' }
+export interface LegReflexFinding { knee: ReflexGrade; ankle: ReflexGrade; plantar: 'flexor' | 'extensor' | 'mute' }
 
 /** The leg reflexes, sitting, leg i, `t` seconds in: the knee jerk (2.4 s), the ankle jerk (2.4 s; the examiner's hand
     under the sole holds the foot up a little, the hammer strikes the Achilles tendon and the foot jerks down, with
@@ -495,8 +495,9 @@ export function legReflexes(base: Pose, look: FigureLook, t: number, g: LegRefle
   }
   /* the plantar response: the stroke takes 1.2 s from the heel; the toes answer from 0.6 s */
   const c = c0 - 4.8, prog = clamp(c / 1.2, 0, 1), resp = minJerk(clamp((c - 0.6) / 0.5, 0, 1)) * (c < 2.6 ? 1 : 1 - minJerk((c - 2.6) / 0.4));
-  const ext = g.plantar === 'extensor';
-  const pose: Pose = { ...base, toe: set((base.toe ?? [0, 0]) as [number, number], ext ? 55 * resp : -20 * resp), foot: set(base.foot, base.foot[i] - (ext ? 6 * resp : 0)) };
+  /* extensor: the big toe up; flexor: the toes curl down; in spinal shock nothing moves */
+  const ext = g.plantar === 'extensor', toeTo = ext ? 55 : g.plantar === 'mute' ? 0 : -20;
+  const pose: Pose = { ...base, toe: set((base.toe ?? [0, 0]) as [number, number], toeTo * resp), foot: set(base.foot, base.foot[i] - (ext ? 6 * resp : 0)) };
   const J = figureJoints(pose, look), an = J.k.ankle[i], fa = J.k.footA[i];
   const along = dir(fa), under = dir(fa - 90 * s);
   const at = (x: number) => ({ x: an.x + along.x * x * u + under.x * 7.4 * u, y: an.y + along.y * x * u + under.y * 7.4 * u });
