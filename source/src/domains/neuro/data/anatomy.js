@@ -121,6 +121,9 @@ const MYOTOMES = [['C5','deltoid'],['C6','biceps'],['C7','triceps/wrist ext'],['
   ['L5','great toe extensor'],['S1','ankle plantarflexors']];
 const DRG_LEVELS = ['C5','C6','C7','C8','T1','T6','T10','L2','L3','L4','L5','S1','S2','S3','S4'];
 const DERMATOMES = ['C5','C6','C7','C8','T1','T6','T10','L2','L3','L4','L5','S1'];
+/* the levels the ascending tracts are named at, top to bottom; a dermatome's fibres pass every level above its own */
+const ASC_LEVELS = DERMATOMES;
+const above = (seg) => ASC_LEVELS.slice(0, ASC_LEVELS.indexOf(seg) + 1).reverse();
 
 const cordLevel = (seg) => 'cord_' + seg[0];
 
@@ -138,6 +141,12 @@ for (const s of SIDES) {
 for (const s of SIDES) {
   for (const l of DERMATOMES) {
     node(`${s}_stt_cross_${l}`, `${s}→${other(s)} STT crossing at ${l}`, cordLevel(l), s, true);
+  }
+  /* the two ascending tracts at each segment, carrying what entered at and below it; `_asc` is the whole tract above
+     the cord's top (cut there, everything below is lost) */
+  for (const l of ASC_LEVELS) {
+    node(`${s}_stt_${l}`, `${s} anterolateral tract at ${l}`, cordLevel(l), s);
+    node(`${s}_dc_${l}`, `${s} dorsal column at ${l}`, cordLevel(l), s);
   }
   node(`${s}_stt_asc`, `${s} anterolateral tract (ascending)`, 'cord_T', s);
   node(`${s}_dc_asc`, `${s} dorsal column (ascending)`, 'cord_T', s);
@@ -291,13 +300,13 @@ for (const s of SIDES) {
   for (const seg of DERMATOMES) {
     path({ id: `stt_${s}_${seg}`, name: `${s} ${seg} pain/temp → ${other(s)} cortex`,
       modality: 'pain_temp',
-      nodes: [`${s}_drg_${seg}`, `${s}_stt_cross_${seg}`, `${other(s)}_stt_asc`,
+      nodes: [`${s}_drg_${seg}`, `${s}_stt_cross_${seg}`, ...above(seg).map((l) => `${other(s)}_stt_${l}`), `${other(s)}_stt_asc`,
         `${other(s)}_thal`, `${other(s)}_scx`],
       bodyRegion: `${s}_dermatome_${seg}`, testMethod: `Test pinprick at ${seg} dermatome` });
 
     path({ id: `dc_${s}_${seg}`, name: `${s} ${seg} proprioception → ${other(s)} cortex`,
       modality: 'proprioception',
-      nodes: [`${s}_drg_${seg}`, `${s}_dc_asc`, `${s}_dc_nuc`, 'ml_decuss',
+      nodes: [`${s}_drg_${seg}`, ...above(seg).map((l) => `${s}_dc_${l}`), `${s}_dc_asc`, `${s}_dc_nuc`, 'ml_decuss',
         `${other(s)}_ml`, `${other(s)}_thal`, `${other(s)}_scx`],
       bodyRegion: `${s}_dermatome_${seg}`,
       testMethod: `Test vibration (tuning fork) and joint position sense at ${seg} level` });
@@ -374,7 +383,7 @@ for (const s of SIDES) {
     testMethod: 'Ask about urinary retention/incontinence' });
   for (const seg of ['S2', 'S3', 'S4']) {
     path({ id: `saddle_${s}_${seg}`, name: `${s} ${seg} perineal sensation`, modality: 'pain_temp',
-      nodes: [`${s}_drg_${seg}`, `${s}_stt_cross_S1`, `${other(s)}_stt_asc`,
+      nodes: [`${s}_drg_${seg}`, `${s}_stt_cross_S1`, ...above('S1').map((l) => `${other(s)}_stt_${l}`), `${other(s)}_stt_asc`,
         `${other(s)}_thal`, `${other(s)}_scx`],
       bodyRegion: `${s}_saddle_${seg}`, testMethod: 'Test perianal sensation (pin prick)' });
   }

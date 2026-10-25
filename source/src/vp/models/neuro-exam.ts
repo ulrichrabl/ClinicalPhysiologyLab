@@ -367,7 +367,7 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
   'neuro.balance': (view, ref, ctx): Resolved | undefined => {
     const s = neuroExamState(view);
     const st = limbState(view);
-    const sensoryAtaxia = st.vibration.L.leg !== 'normal' && st.vibration.R.leg !== 'normal';
+    const sensoryAtaxia = st.proprioception.L.leg !== 'normal' && st.proprioception.R.leg !== 'normal';
     if (ref.property === 'posture.romberg') {
       if (sensoryAtaxia) return { value: ctx.eyesClosed ? { stance: 'falls' } : { stance: 'steady' }, basis: 'joint position sense lost in both legs' };
       if (st.gaitBalance) return { value: { stance: 'sways' }, basis: 'cerebellar vermis' };
@@ -402,9 +402,11 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
     const st = limbState(view);
     const arm = ref.property !== 'leg.heel-shin';
     const limbPower = arm ? Math.min(st.power[S].shoulderAbduction, st.power[S].elbowExtension, st.power[S].elbowFlexion) : Math.min(st.power[S].hipFlexion, st.power[S].kneeExtension);
-    const proprio = arm ? st.vibration[S].arm : st.vibration[S].leg;
+    const proprio = arm ? st.proprioception[S].arm : st.proprioception[S].leg;
     if (ref.property === 'arm.rapid-alternating') {
-      const slowed = st.drift[S] || limbPower <= 3;
+      /* slowed by a pyramidal weakness, or by weakness of the forearm and hand that do the turning; a weak shoulder alone
+         (a myopathy) leaves it */
+      const slowed = st.drift[S] || Math.min(st.power[S].wristExtension, st.power[S].fingerFlexion, st.power[S].elbowFlexion) <= 2 || Math.min(st.power[S].wristExtension, st.power[S].fingerFlexion) <= 3;
       if (a === 'none' && !slowed) return undefined;
       return { value: { dysdiadochokinesia: a !== 'none', slowed } };
     }

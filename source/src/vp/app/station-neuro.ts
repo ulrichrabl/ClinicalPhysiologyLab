@@ -4,17 +4,18 @@ import { FORMATTERS } from '../text/formatters.ts';
 import { tr, type LocalizedText } from '../model/i18n.ts';
 import { NEURO_STATION } from '../stations/station.ts';
 import { NEURO_PRESETS, NEURO_PRESET_GROUPS, NEURO_STRUCTURES, applyNeuroPreset } from '../stations/neuro-presets.ts';
-import { neuroObserve, neuroSignsOf, NEURO_TESTS, NEURO_TEST_MANOEUVRE, type NeuroTest } from '../stations/neuro-signs.ts';
-import { explainNeuro, NEURO_TEST_LABEL, rungOf, type NeuroContext } from '../stations/neuro-texts.ts';
+import { neuroObserve, neuroSignsOf } from '../stations/neuro-signs.ts';
+import { NEURO_TESTS, NEURO_TEST_BY_ID, NEURO_GROUP_LABEL, NEURO_TEST_LABEL, type NeuroTest } from '../stations/neuro-tests.ts';
+import { explainNeuro } from '../stations/neuro-texts.ts';
+import { neuroChartFor, neuroMotionFor } from './neuro-visual.ts';
 import { neuroLadderSvg } from '../render/neuro-mechanism.ts';
 import { figureLookFor } from '../render/patient-figure.ts';
 import { FREE_CASE } from './free-case.ts';
-import { neuroFrame, type NeuroMotion } from './neuro-motion-view.ts';
+import { neuroFrame, neuroViewBox, type NeuroMotion } from './neuro-motion-view.ts';
 import { KNOWLEDGE, labelOf } from '../knowledge/index.ts';
 import type { Lang } from './diagrams.ts';
 import { patientBanner, type StationHandle, type StationOptions } from './station-ecg.ts';
 import type { ExamContext, Side } from '../model/types.ts';
-import type { ReflexGrade } from '../render/neuro-motion.ts';
 
 /* ---------------------------------------------------------------------------
    The neurological station (ADR-017 decision 10, step 8a): Explore.
@@ -60,38 +61,23 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
   const signLabel = (x: string) => labelOf(KNOWLEDGE, `sign:${x}`, lang);
   const val = (ref: string, ctx: ExamContext = {}) => neuroObserve(model, ref, ctx).value as Record<string, any>;
 
-  const context = (): NeuroContext => {
-    const fn = (S: Side, closed: boolean) => val(`arm.finger-nose.${S}`, { eyesClosed: closed }) as any;
-    const basis = new Set<string>();
-    for (const S of SIDES) for (const r of [`arm.drift.${S}`, `arm.finger-nose.${S}`, `leg.reflexes.${S}`]) { const b = neuroObserve(model, r).basis; if (b) basis.add(b); }
-    return {
-      drift: { R: !!val('arm.drift.R').drift, L: !!val('arm.drift.L').drift },
-      fingerNose: { R: fn('R', false), L: fn('L', false) }, fingerNoseClosed: { R: fn('R', true), L: fn('L', true) },
-      reflexes: { R: val('leg.reflexes.R') as any, L: val('leg.reflexes.L') as any },
-      basis: [...basis], rungs: new Set(model.lesions.nodes.map(rungOf).filter((x): x is NonNullable<typeof x> => !!x)),
-    };
-  };
-  const motion = (): NeuroMotion => {
-    const c = context();
-    if (test === 'drift') return { kind: 'drift', finding: { drift: [c.drift.R, c.drift.L] } };
-    if (test === 'finger-nose') return { kind: 'finger-nose', side: side as 'L' | 'R', finding: (eyesClosed ? c.fingerNoseClosed : c.fingerNose)[side], eyesClosed };
-    return { kind: 'knee-jerk', side: side as 'L' | 'R', grade: Math.max(0, Math.min(4, c.reflexes[side].knee)) as ReflexGrade };
-  };
+  /** the basis the model gives for this test's observations */
+  const basisOf = () => { const b = new Set<string>(); for (const l of NEURO_TEST_BY_ID[test].lines()) { const x = neuroObserve(model, l.ref, l.ctx).basis; if (x) b.add(x); } return [...b]; };
+  const motion = (): NeuroMotion | null => neuroMotionFor(test, val, side, eyesClosed);
   /** The side to look at first: the abnormal one. */
   const abnormalSide = (): Side => {
-    const c = context();
-    const bad = (S: Side) => test === 'finger-nose' ? c.fingerNose[S].dysmetria !== 'none' || c.fingerNoseClosed[S].dysmetria !== 'none' || !!c.fingerNose[S].limitedByWeakness
-      : test === 'knee-jerk' ? c.reflexes[S].knee !== 2 || c.reflexes[S].ankle !== 2 || c.reflexes[S].plantar !== 'flexor' : c.drift[S];
+    const bad = (S: Side) => NEURO_TEST_BY_ID[test].lines().some((l) => l.ref.endsWith(`.${S}`) && !neuroObserve(model, l.ref, l.ctx).normal);
     return bad('R') ? 'R' : bad('L') ? 'L' : side;
   };
 
   const seg = (attr: string, items: Array<[string, string]>, cur: string, label: string) =>
     `<span class="seg" role="radiogroup" aria-label="${esc(label)}">${items.map(([v, lab]) => `<button type="button" role="radio" aria-checked="${v === cur}" ${attr}="${v}">${esc(lab)}</button>`).join('')}</span>`;
   const testControls = () => {
-    if (test === 'drift') return '';
-    const s = seg('data-side', [['R', t('right')], ['L', t('left')]], side, t('side'));
-    if (test === 'finger-nose') return s + seg('data-eyes', [['open', t('open')], ['closed', t('closed')]], eyesClosed ? 'closed' : 'open', t('eyes'));
-    return s + `<span class="muted small">${t('later')}</span>`;
+    const d = NEURO_TEST_BY_ID[test];
+    const sd = d.sided ? seg('data-side', [['R', t('right')], ['L', t('left')]], side, t('side')) : '';
+    const ey = d.eyes ? seg('data-eyes', [['open', t('open')], ['closed', t('closed')]], eyesClosed ? 'closed' : 'open', t('eyes')) : '';
+    const note = test === 'leg-reflexes' ? `<span class="muted small">${t('later')}</span>` : '';
+    return sd + ey + note;
   };
 
   const render = () => {
@@ -117,9 +103,9 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
         <div class="st-main">
           <section class="panel st-signal" aria-labelledby="st-see-h">
             <div class="st-row"><div><h2 id="st-see-h">${t('see')}</h2><div class="muted small">${t('seeNote')}</div></div></div>
-            <div class="st-tests" role="tablist" aria-label="${t('test')}">${NEURO_TESTS.map((x) => `<button type="button" role="tab" class="tog" aria-selected="${x === test}" data-test="${x}">${esc(tr(NEURO_TEST_LABEL[x], lang))}</button>`).join('')}</div>
+            <div class="st-test-groups">${(Object.keys(NEURO_GROUP_LABEL) as Array<keyof typeof NEURO_GROUP_LABEL>).map((g) => `<div class="st-test-group"><div class="muted small">${esc(tr(NEURO_GROUP_LABEL[g], lang))}</div><div class="st-tests" role="tablist" aria-label="${esc(tr(NEURO_GROUP_LABEL[g], lang))}">${NEURO_TESTS.filter((x) => x.group === g).map((x) => `<button type="button" role="tab" class="tog" aria-selected="${x.id === test}" data-test="${x.id}">${esc(tr(x.label, lang))}</button>`).join('')}</div></div>`).join('')}</div>
             <div class="st-listen" data-test-controls>${testControls()}</div>
-            <div class="neurohost"><svg class="neuro-motion" viewBox="0 0 360 380" role="img" aria-label="${t('figure')}"></svg></div>
+            <div class="neurohost" data-visual></div>
             <ul class="st-findings plain small" data-findings aria-live="polite"></ul>
             <div class="st-signs" data-signs aria-live="polite"></div>
           </section>
@@ -136,43 +122,44 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
   };
 
   const css = (n: string) => getComputedStyle(host).getPropertyValue(n).trim() || '#888';
-  const findingLines = (): string[] => {
-    const line = (ref: string, ctx: ExamContext = {}, label = '') => {
-      const f = neuroObserve(model, ref, ctx);
-      const prop = ref.replace(/\.(L|R)$/, ''), S = /\.(L|R)$/.exec(ref)?.[1] as Side | undefined;
-      const text = FORMATTERS[CATALOG.properties[prop]?.formatter ?? prop]?.(f.value, ctx, lang, CATALOG, { property: prop, side: S } as any) ?? JSON.stringify(f.value);
-      return `${f.normal ? '' : '<b class="abn" aria-label="abnormal">●</b> '}${label ? `<b>${esc(label)}</b>: ` : ''}${esc(text)}`;
-    };
-    if (test === 'drift') return SIDES.map((S) => line(`arm.drift.${S}`, { eyesClosed: true }));
-    if (test === 'finger-nose') return SIDES.flatMap((S) => [line(`arm.finger-nose.${S}`, { eyesClosed: false }, t('open')), line(`arm.finger-nose.${S}`, { eyesClosed: true }, t('closed'))]);
-    return SIDES.map((S) => line(`leg.reflexes.${S}`));
-  };
+  const findingLines = (): string[] => NEURO_TEST_BY_ID[test].lines().map((l) => {
+    const f = neuroObserve(model, l.ref, l.ctx ?? {});
+    const prop = l.ref.replace(/\.(L|R)$/, ''), S = /\.(L|R)$/.exec(l.ref)?.[1] as Side | undefined;
+    const text = FORMATTERS[CATALOG.properties[prop]?.formatter ?? prop]?.(f.value, l.ctx ?? {}, lang, CATALOG, { property: prop, side: S } as any) ?? JSON.stringify(f.value);
+    return `${f.normal ? '' : '<b class="abn" aria-label="abnormal">●</b> '}${l.label ? `<b>${esc(tr(l.label, lang))}</b>: ` : ''}${esc(text)}`;
+  });
+  const colors = () => ({ fg: css('--fg'), muted: css('--muted'), accent: css('--accent'), abn: css('--abn'), line: css('--line'), surface: css('--surface') });
   const refresh = () => {
     const box = host.querySelector<HTMLElement>('[data-findings]');
     if (!box) return;
     box.innerHTML = findingLines().map((x) => `<li>${x}</li>`).join('');
     const r = neuroSignsOf(model);
     host.querySelector<HTMLElement>('[data-signs]')!.innerHTML = `<span class="muted small">${t('signsNow')}:</span> ${r.present.size
-      ? [...r.present].map((x) => `<span class="sign" title="${esc(`${t('at')}: ${(r.where.get(x) ?? []).map((m) => tr(CATALOG.manoeuvres[NEURO_TEST_MANOEUVRE[m]]?.label ?? NEURO_TEST_LABEL[m], lang)).join('; ')}`)}">${esc(signLabel(x))}${[...(r.sides.get(x) ?? [])].length === 1 ? ` (${t([...r.sides.get(x)!][0] === 'R' ? 'right' : 'left').toLowerCase()})` : ''}</span>`).join('')
+      ? [...r.present].map((x) => `<span class="sign" title="${esc(`${t('at')}: ${(r.where.get(x) ?? []).map((m) => tr(NEURO_TEST_LABEL[m], lang)).join('; ')}`)}">${esc(signLabel(x))}${[...(r.sides.get(x) ?? [])].length === 1 ? ` (${t([...r.sides.get(x)!][0] === 'R' ? 'right' : 'left').toLowerCase()})` : ''}</span>`).join('')
       : `<span class="muted small">${t('noSigns')}</span>`}`;
-    const c = context();
-    const ex = explainNeuro(test, c);
+    const ex = explainNeuro(test, val);
+    const basis = basisOf();
     host.querySelector<HTMLElement>('[data-title]')!.textContent = tr(ex.title, lang);
     host.querySelector<HTMLElement>('[data-body]')!.innerHTML = ex.body.map((p) => `<p>${esc(tr(p, lang))}</p>`).join('')
-      + (c.basis.length ? `<p class="muted small"><b>${t('basis')}:</b> ${esc(c.basis.join('; '))}</p>` : '');
-    host.querySelector<HTMLElement>('[data-ladder]')!.innerHTML = neuroLadderSvg(test, model.lesions.nodes, lang, { fg: css('--fg'), muted: css('--muted'), accent: css('--accent'), abn: css('--abn'), line: css('--line') }, model.lesions.extent ?? {});
+      + (basis.length ? `<p class="muted small"><b>${t('basis')}:</b> ${esc(basis.join('; '))}</p>` : '');
+    host.querySelector<HTMLElement>('[data-ladder]')!.innerHTML = neuroLadderSvg(test, model.lesions.nodes, lang, colors(), model.lesions.extent ?? {});
     current = motion();
+    const vis = host.querySelector<HTMLElement>('[data-visual]')!;
+    const chart = current ? null : neuroChartFor(test, val, lang, colors());
+    vis.innerHTML = current ? `<svg class="neuro-motion" viewBox="${neuroViewBox(current)}" role="img" aria-label="${t('figure')}"></svg>` : chart ?? '';
+    vis.hidden = !current && !chart;
   };
-  let current: NeuroMotion = motion();
-  const STILL: Record<NeuroTest, number> = { drift: 12, 'finger-nose': 1.0, 'knee-jerk': 0.75 };
+  let current: NeuroMotion | null = null;
+  const STILL: Partial<Record<NeuroMotion['kind'], number>> = { drift: 12, 'finger-nose': 1.0, 'knee-jerk': 0.75, 'heel-shin': 2, 'rapid-alternating': 0.3, romberg: 10, gait: 0.8 };
   const start = () => {
     cancelAnimationFrame(raf);
     const svg = host.querySelector<SVGSVGElement>('svg.neuro-motion');
-    if (!svg) return;
-    if (reduce) { svg.innerHTML = neuroFrame(current, look, STILL[test]); return; }
+    if (!svg || !current) return;
+    const m = current;
+    if (reduce) { svg.innerHTML = neuroFrame(m, look, STILL[m.kind] ?? 1); return; }
     const step = (now: number) => {
-      if (stopped) return;
-      if (now - last >= 33) { last = now; svg.innerHTML = neuroFrame(current, look, (now - t0) / 1000); }
+      if (stopped || current !== m) return;
+      if (now - last >= 33) { last = now; svg.innerHTML = neuroFrame(m, look, (now - t0) / 1000); }
       raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);

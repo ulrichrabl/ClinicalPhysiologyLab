@@ -1,6 +1,6 @@
 import type { ExamContext, Side } from '../model/types.ts';
 import type { Resolved, Resolver, RuntimeView } from '../engine/observe.ts';
-import { MOTOR_UNITS, REFLEX_ROOTS as ANATOMY_REFLEX_ROOTS } from '../../domains/neuro/data/anatomy.js';
+import { MOTOR_UNITS, PATHWAYS, REFLEX_ROOTS as ANATOMY_REFLEX_ROOTS } from '../../domains/neuro/data/anatomy.js';
 
 /* ===========================================================================
    Neurological examination model: cranial nerves V, VII, IX–XII, speech,
@@ -59,12 +59,16 @@ export interface LimbState {
   fatigable: Record<Side, boolean>;
   tone: Record<Side, { arm: string; leg: string }>;
   wasting: Record<Side, { arm: boolean; leg: boolean }>;
+  /** fasciculations: the anterior horn cell itself sick (motor neurone disease), not a root or a nerve */
+  fasciculation: Record<Side, { arm: boolean; leg: boolean }>;
   reflex: Record<Side, Record<string, number>>;        // biceps, supinator, triceps, knee, ankle
   plantar: Record<Side, 'flexor' | 'extensor'>;
   drift: Record<Side, boolean>;
   pinprick: Record<Side, Record<string, Level>>;       // C5..S1, T6, T10
   territories: Record<Side, string[]>;
   vibration: Record<Side, { arm: Level; leg: Level }>;
+  /** joint position sense: lost with vibration in the cord and nerves, alone with the sensory cortex */
+  proprioception: Record<Side, { arm: Level; leg: Level }>;
   saddle: Level;
   face: Record<Side, { forehead: string; eyeClosure: string; mouth: string }>;
   faceSensation: Record<Side, { V1: Level; V2: Level; V3: Level; corneal: boolean }>;
@@ -112,6 +116,7 @@ function derive(view: RuntimeView): LimbState {
   const fatigable = { L: false, R: false };
   const tone = { L: { arm: 'normal', leg: 'normal' }, R: { arm: 'normal', leg: 'normal' } };
   const wasting = { L: { arm: false, leg: false }, R: { arm: false, leg: false } };
+  const fasciculation = { L: { arm: false, leg: false }, R: { arm: false, leg: false } };
   const reflex = { L: { biceps: 2, supinator: 2, triceps: 2, knee: 2, ankle: 2 }, R: { biceps: 2, supinator: 2, triceps: 2, knee: 2, ankle: 2 } } as LimbState['reflex'];
   const plantar = { L: 'flexor', R: 'flexor' } as LimbState['plantar'];
   const drift = { L: false, R: false };
@@ -146,7 +151,8 @@ function derive(view: RuntimeView): LimbState {
         // the muscle's own final common path
         for (const f of find((x) => x.modality === 'peripheral_motor' && x.bodyRegion === `${S}_muscle_${muscle.replace(/\s+/g, '_')}`)) {
           const r = f.rung;
-          if (r === 'nmj') { fatigable[S] = true; p = Math.min(p, complete ? 4 : 5); }
+          /* the junction: fatigable, and proximal (limb-girdle) muscles first; distal ones are kept at first effort */
+          if (r === 'nmj') { fatigable[S] = true; if (u.bulk === 'prox') p = Math.min(p, complete ? 4 : 5); }
           else if (r === 'muscle') p = Math.min(p, complete ? 3 : 4);
           else if (r === 'nerve') p = Math.min(p, complete ? 1 : 4);
           else if (r === 'plexus') p = Math.min(p, complete ? 2 : 4);
@@ -156,6 +162,8 @@ function derive(view: RuntimeView): LimbState {
         lowest = Math.min(lowest, p);
       }
       if (lowest <= 2 && !umnSegs.size) tone[S][limb] = 'reduced';
+      /* the anterior horn's disease is a slow one: its muscles fasciculate, and waste wherever they are weak */
+      if ((segs as readonly string[]).some((g) => nodes.has(`${S}_ahn_${g}`))) { fasciculation[S][limb] = true; if (lowest < 5) wasting[S][limb] = true; }
       if (complete && (lmnSegs.size || find((x) => x.modality === 'peripheral_motor' && x.bodyRegion.startsWith(`${S}_muscle_`) && (x.rung === 'nerve' || x.rung === 'root')).length) && lowest <= 1) wasting[S][limb] = true;
       // reflexes: upper motor neuron brisk, lower motor neuron arc lost
       /* a reflex is lost with the nerve or plexus of its muscle (the brachioradialis too, which power testing leaves out);
@@ -180,19 +188,31 @@ function derive(view: RuntimeView): LimbState {
   const territories = { L: [] as string[], R: [] as string[] };
   const vibration = { L: { arm: 'normal' as Level, leg: 'normal' as Level }, R: { arm: 'normal' as Level, leg: 'normal' as Level } };
   const lvl: Level = complete ? 'absent' : 'reduced';
+  /* A lesion of the sensory cortex alone loses discrimination and the sense of position, but pain, temperature and
+     vibration reach consciousness at the thalamus: pinprick is at most reduced and vibration kept. So a pathway cut only
+     at the cortex counts for less than one cut below it. */
+  const pathNodes = new Map<string, string[]>(); for (const pw of PATHWAYS as Array<{ id: string; nodes: string[] }>) pathNodes.set(pw.id, pw.nodes);
+  const onlyCortex = (f: Record<string, any>) => (pathNodes.get(f.pathwayId) ?? []).filter((n) => nodes.has(n)).every((n) => /_scx$/.test(n));
+  const level = (fs: Array<Record<string, any>>): Level => (!fs.length ? 'normal' : fs.every(onlyCortex) ? 'reduced' : lvl);
+  const proprioception = { L: { arm: 'normal' as Level, leg: 'normal' as Level }, R: { arm: 'normal' as Level, leg: 'normal' as Level } };
   for (const S of SIDES) {
     for (const seg of [...ARM_SEGS, 'T6', 'T10', ...LEG_SEGS]) {
-      pinprick[S][seg] = find((f) => f.modality === 'pain_temp' && f.bodyRegion === `${S}_dermatome_${seg}`).length ? lvl : 'normal';
+      pinprick[S][seg] = level(find((f) => f.modality === 'pain_temp' && f.bodyRegion === `${S}_dermatome_${seg}`));
     }
     for (const f of find((x) => x.modality === 'cutaneous' && x.bodyRegion.startsWith(`${S}_skin_`))) {
       const t = SKIN_TERRITORY[f.bodyRegion.slice(`${S}_skin_`.length)];
       if (t && (f.rung === 'nerve' || f.rung === 'plexus') && !territories[S].includes(t)) territories[S].push(t);
     }
     // Vibration at the finger or big toe is lost only when the column (or several roots) is: a single root rarely abolishes it.
-    const dc = (segs: string[]) => segs.every((g) => find((f) => f.modality === 'proprioception' && f.bodyRegion === `${S}_dermatome_${g}`).length) ? lvl : 'normal';
-    vibration[S] = { arm: dc(['C7', 'C8']), leg: dc(['L5', 'S1']) };
+    const col = (segs: string[]) => segs.map((g) => find((f) => f.modality === 'proprioception' && f.bodyRegion === `${S}_dermatome_${g}`));
+    const dc = (segs: string[], cortexCounts: boolean) => { const fs = col(segs); return fs.every((x) => x.length) && (cortexCounts || !fs.flat().every(onlyCortex)) ? lvl : 'normal'; };
+    vibration[S] = { arm: dc(['C7', 'C8'], false), leg: dc(['L5', 'S1'], false) };
+    proprioception[S] = { arm: dc(['C7', 'C8'], true), leg: dc(['L5', 'S1'], true) };
   }
-  const saddle: Level = find((f) => f.modality === 'pain_temp' && /_saddle_/.test(f.bodyRegion)).length ? lvl : 'normal';
+  /* the saddle is both sides' S3–5: one side lost leaves it reduced */
+  /* the saddle is felt in both hemispheres: a lesion of one sensory cortex leaves it */
+  const saddleSides = SIDES.filter((S) => find((f) => f.modality === 'pain_temp' && f.bodyRegion.startsWith(`${S}_saddle_`) && !onlyCortex(f)).length);
+  const saddle: Level = saddleSides.length === 2 ? lvl : saddleSides.length === 1 ? 'reduced' : 'normal';
 
   /* ---- cranial nerves ------------------------------------------------------------ */
   const face = { L: { forehead: 'normal', eyeClosure: 'normal', mouth: 'normal' }, R: { forehead: 'normal', eyeClosure: 'normal', mouth: 'normal' } };
@@ -210,9 +230,12 @@ function derive(view: RuntimeView): LimbState {
     }
     for (const v of ['V1', 'V2', 'V3'] as const) {
       const region = { V1: 'face_V1_forehead', V2: 'face_V2_cheek', V3: 'face_V3_jaw' }[v];
-      if (find((x) => x.modality === 'face_sensation' && x.bodyRegion === `${S}_${region}`).length) faceSensation[S][v] = lvl;
+      faceSensation[S][v] = level(find((x) => x.modality === 'face_sensation' && x.bodyRegion === `${S}_${region}`));
     }
-    faceSensation[S].corneal = faceSensation[S].V1 === 'normal' && face[S].eyeClosure !== 'absent';
+    /* the corneal reflex is the brainstem's: lost with the first division in the nerve or the brainstem, or with the eye's
+       own closure (VII); a hemisphere lesion leaves it */
+    const v1Below = find((x) => x.modality === 'face_sensation' && x.bodyRegion === `${S}_face_V1_forehead` && (pathNodes.get(x.pathwayId) ?? []).some((n) => nodes.has(n) && /_cn5_/.test(n))).length > 0;
+    faceSensation[S].corneal = !v1Below && face[S].eyeClosure !== 'absent';
     if (find((x) => x.bodyRegion === `${S}_jaw`).length) jawTo = S;
     if (find((x) => x.bodyRegion === `${S}_palate_vocal`).length) { uvulaTo = other(S); voice = 'hoarse'; }
     if (find((x) => x.bodyRegion === `${S}_pharynx`).length) gag[S] = false;
@@ -236,7 +259,7 @@ function derive(view: RuntimeView): LimbState {
   const ocularFatigue = find((x) => x.rung === 'nmj' && /_muscle_ocular$/.test(x.bodyRegion)).length > 0;
 
   return {
-    power, fatigable, tone, wasting, reflex, plantar, drift, pinprick, territories, vibration, saddle,
+    power, fatigable, tone, wasting, fasciculation, reflex, plantar, drift, pinprick, territories, vibration, proprioception, saddle,
     face, faceSensation, jawTo, uvulaTo, gag, voice, shrug, tongue, speech, bulbarFatigue, ocularFatigue,
     gaitBalance: has('gait_balance'), basis,
   };
@@ -260,8 +283,8 @@ export const NEURO_LIMB_RESOLVERS: Record<string, Resolver> = {
     switch (ref.property) {
       case 'arm.power': return { value: Object.fromEntries(ARM_MOVES.map(([m]) => [m, powerAt(st, S, m, ctx)])), basis };
       case 'leg.power': return { value: Object.fromEntries(LEG_MOVES.map(([m]) => [m, powerAt(st, S, m, ctx)])), basis };
-      case 'arm.tone': return { value: { tone: st.tone[S].arm, wasting: st.wasting[S].arm, fasciculation: false }, basis };
-      case 'leg.tone': return { value: { tone: st.tone[S].leg, wasting: st.wasting[S].leg, fasciculation: false }, basis };
+      case 'arm.tone': return { value: { tone: st.tone[S].arm, wasting: st.wasting[S].arm, fasciculation: st.fasciculation[S].arm }, basis };
+      case 'leg.tone': return { value: { tone: st.tone[S].leg, wasting: st.wasting[S].leg, fasciculation: st.fasciculation[S].leg }, basis };
       case 'arm.drift': return { value: { drift: st.drift[S] }, basis };
       default: return { value: undefined };
     }
@@ -277,8 +300,8 @@ export const NEURO_LIMB_RESOLVERS: Record<string, Resolver> = {
     switch (ref.property) {
       case 'arm.pinprick': return { value: { ...lv(st, S!, ARM_SEGS), territories: st.territories[S!].filter((t) => ARM_TERRITORIES.has(t)) } };
       case 'leg.pinprick': return { value: { ...lv(st, S!, LEG_SEGS), territories: st.territories[S!].filter((t) => !ARM_TERRITORIES.has(t)) } };
-      case 'arm.vibration': return { value: { vibration: st.vibration[S!].arm, proprioception: st.vibration[S!].arm } };
-      case 'leg.vibration': return { value: { vibration: st.vibration[S!].leg, proprioception: st.vibration[S!].leg } };
+      case 'arm.vibration': return { value: { vibration: st.vibration[S!].arm, proprioception: st.proprioception[S!].arm } };
+      case 'leg.vibration': return { value: { vibration: st.vibration[S!].leg, proprioception: st.proprioception[S!].leg } };
       case 'trunk.pinprick': return { value: lv(st, S!, ['T6', 'T10']) };
       case 'saddle.sensation': return { value: { pinprick: st.saddle } };
       case 'face.sensation': return { value: { ...st.faceSensation[S!] } };

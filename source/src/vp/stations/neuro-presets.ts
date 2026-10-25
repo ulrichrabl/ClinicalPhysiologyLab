@@ -34,28 +34,52 @@ export interface NeuroPreset {
 }
 
 export const NEURO_PRESETS: NeuroPreset[] = [
+  /* upper motor neuron */
   { id: 'mca-l', label: L('Left middle cerebral artery stroke (face and arm)', 'Mediainfarkt links (Gesicht und Arm)'),
     lesions: ['L_mcx_face', 'L_mcx_arm', 'L_broca', 'L_mcx_leg'], extent: { L_mcx_leg: 0.3 }, complete: false, signs: ['pronator-drift', 'extensor-plantar'], look: 'drift' },
   { id: 'capsule-l', label: L('Left internal capsule (lacunar stroke)', 'Capsula interna links (lakunärer Infarkt)'),
-    lesions: ['L_ic'], complete: false, signs: ['pronator-drift', 'hyperreflexia', 'extensor-plantar'], look: 'knee-jerk' },
+    lesions: ['L_ic'], complete: false, signs: ['pronator-drift', 'hyperreflexia', 'extensor-plantar'], look: 'leg-reflexes' },
   { id: 'cord-r', label: L('Right half of the cervical cord (Brown-Séquard)', 'Rechte Hälfte des Halsmarks (Brown-Séquard)'),
     lesions: ['R_cst_C5', 'R_dc_asc', 'R_stt_asc'], complete: false, signs: ['pronator-drift', 'hyperreflexia', 'extensor-plantar', 'limb-ataxia-eyes-closed'], look: 'drift' },
-  { id: 'l4-root-r', label: L('Right L4 root', 'Wurzel L4 rechts'),
-    lesions: ['R_nerve_L4', 'R_drg_L4'], complete: true, signs: ['reduced-knee-reflex'], look: 'knee-jerk' },
-  { id: 'femoral-r', label: L('Right femoral nerve', 'N. femoralis rechts'),
-    lesions: ['R_n_femoral'], complete: true, signs: ['reduced-knee-reflex'], look: 'knee-jerk' },
-  { id: 's1-root-r', label: L('Right S1 root', 'Wurzel S1 rechts'),
-    lesions: ['R_nerve_S1', 'R_drg_S1'], complete: true, signs: ['absent-ankle-reflex'], look: 'knee-jerk' },
-  { id: 'cerebellum-l', label: L('Left cerebellar hemisphere', 'Kleinhirnhemisphäre links'),
-    lesions: ['L_cerebellum'], complete: true, signs: ['limb-dysmetria', 'intention-tremor'], look: 'finger-nose' },
-  { id: 'dorsal-columns', label: L('Dorsal columns, both sides (sensory ataxia)', 'Hinterstränge beidseits (sensible Ataxie)'),
-    lesions: ['L_dc_asc', 'R_dc_asc'], complete: true, signs: ['limb-ataxia-eyes-closed'], look: 'finger-nose' },
+  { id: 'cord-t10-r', label: L('Right half of the thoracic cord at T10', 'Rechte Hälfte des Brustmarks in Höhe Th10'),
+    lesions: ['R_cst_T10', 'R_dc_T10', 'R_stt_T10'], complete: false, signs: ['hyperreflexia', 'extensor-plantar', 'sensory-level', 'distal-vibration-loss'], look: 'sensation' },
+  { id: 'mnd', label: L('Motor neurone disease (upper and lower)', 'Motoneuronerkrankung (erstes und zweites Motoneuron)'),
+    lesions: ['L_ahn_C8', 'R_ahn_C8', 'L_ahn_T1', 'R_ahn_T1', 'L_cst_L2', 'R_cst_L2', 'L_cst_L3', 'R_cst_L3', 'L_cst_L4', 'R_cst_L4', 'L_cst_L5', 'R_cst_L5', 'L_cst_S1', 'R_cst_S1'], complete: false,
+    signs: ['fasciculation', 'hyperreflexia', 'extensor-plantar'], look: 'tone' },
+  /* brainstem and cranial nerves */
+  { id: 'wallenberg-l', label: L('Left lateral medulla (Wallenberg)', 'Laterale Medulla links (Wallenberg)'),
+    lesions: ['L_cn5_sens', 'L_lat_bs', 'L_icp', 'L_cn9_nuc', 'L_cn10_nuc', 'L_stt_asc'], complete: true, signs: ['crossed-sensory-loss', 'limb-dysmetria', 'uvula-deviation'], look: 'sensation' },
+  { id: 'medial-medulla-l', label: L('Left medial medulla', 'Mediale Medulla links'),
+    lesions: ['L_med_pyr', 'L_dc_nuc', 'L_cn12_nuc'], complete: true, signs: ['pronator-drift', 'extensor-plantar', 'tongue-deviation', 'tongue-wasting'], look: 'cranial' },
+  { id: 'bell-l', label: L('Left facial nerve (Bell’s palsy)', 'N. facialis links (Bell-Parese)'),
+    lesions: ['L_cn7'], complete: true, signs: ['lmn-facial-weakness'], look: 'cranial' },
+  /* roots, plexus and nerves */
+  { id: 'c6-root-r', label: L('Right C6 root', 'Wurzel C6 rechts'), lesions: ['R_nerve_C6', 'R_drg_C6'], complete: true, signs: ['myotomal-weakness', 'dermatomal-sensory-loss'], look: 'sensation' },
+  { id: 'l4-root-r', label: L('Right L4 root', 'Wurzel L4 rechts'), lesions: ['R_nerve_L4', 'R_drg_L4'], complete: true, signs: ['reduced-knee-reflex'], look: 'leg-reflexes' },
+  { id: 'l5-root-r', label: L('Right L5 root', 'Wurzel L5 rechts'), lesions: ['R_nerve_L5', 'R_drg_L5'], complete: true, signs: ['foot-drop', 'dermatomal-sensory-loss', 'steppage-gait'], look: 'power' },
+  { id: 's1-root-r', label: L('Right S1 root', 'Wurzel S1 rechts'), lesions: ['R_nerve_S1', 'R_drg_S1'], complete: true, signs: ['absent-ankle-reflex'], look: 'leg-reflexes' },
+  { id: 'cauda-equina', label: L('Cauda equina (sacral roots, both sides)', 'Cauda equina (sakrale Wurzeln beidseits)'),
+    lesions: ['L_nerve_S1', 'R_nerve_S1', 'L_drg_S1', 'R_drg_S1', 'L_drg_S2', 'R_drg_S2', 'L_drg_S3', 'R_drg_S3', 'L_drg_S4', 'R_drg_S4'], complete: true, signs: ['saddle-anaesthesia', 'absent-ankle-reflex'], look: 'sensation' },
+  { id: 'erb-r', label: L('Right upper brachial plexus (Erb)', 'Oberer Plexus brachialis rechts (Erb)'), lesions: ['R_bp_upper'], complete: true, signs: ['myotomal-weakness'], look: 'power' },
+  { id: 'femoral-r', label: L('Right femoral nerve', 'N. femoralis rechts'), lesions: ['R_n_femoral'], complete: true, signs: ['reduced-knee-reflex'], look: 'leg-reflexes' },
+  { id: 'peroneal-r', label: L('Right common peroneal nerve (fibular head)', 'N. peroneus communis rechts (Fibulaköpfchen)'), lesions: ['R_n_peroneal_head'], complete: true, signs: ['foot-drop', 'steppage-gait'], look: 'gait' },
+  { id: 'ulnar-r', label: L('Right ulnar nerve at the elbow', 'N. ulnaris rechts am Ellenbogen'), lesions: ['R_n_ulnar_elbow'], complete: true, signs: ['myotomal-weakness', 'muscle-wasting'], look: 'power' },
+  /* junction and muscle */
+  { id: 'myasthenia', label: L('Myasthenia gravis', 'Myasthenia gravis'), lesions: ['L_nmj_post', 'R_nmj_post'], complete: true, signs: ['fatigable-weakness', 'fatigable-dysarthria'], look: 'power' },
+  { id: 'myopathy', label: L('Proximal myopathy', 'Proximale Myopathie'), lesions: ['L_muscle_prox', 'R_muscle_prox'], complete: true, signs: ['proximal-symmetrical-weakness', 'waddling-gait'], look: 'gait' },
+  /* coordination and sensation */
+  { id: 'cerebellum-l', label: L('Left cerebellar hemisphere', 'Kleinhirnhemisphäre links'), lesions: ['L_cerebellum'], complete: true, signs: ['limb-dysmetria', 'intention-tremor'], look: 'finger-nose' },
+  { id: 'vermis', label: L('Cerebellar vermis', 'Kleinhirnwurm (Vermis)'), lesions: ['vermis'], complete: true, signs: ['truncal-ataxia', 'ataxic-gait'], look: 'gait' },
+  { id: 'dorsal-columns', label: L('Dorsal columns, both sides (sensory ataxia)', 'Hinterstränge beidseits (sensible Ataxie)'), lesions: ['L_dc_asc', 'R_dc_asc'], complete: true, signs: ['limb-ataxia-eyes-closed'], look: 'romberg' },
+  { id: 'sensory-cortex-l', label: L('Left sensory cortex', 'Sensibler Kortex links'), lesions: ['L_scx'], complete: true, signs: ['hemisensory-loss'], look: 'sensation' },
 ];
 
 export const NEURO_PRESET_GROUPS: Array<{ group: LocalizedText; ids: string[] }> = [
-  { group: L('Upper motor neuron', 'Erstes Motoneuron'), ids: ['mca-l', 'capsule-l', 'cord-r'] },
-  { group: L('Lower motor neuron: root or nerve', 'Zweites Motoneuron: Wurzel oder Nerv'), ids: ['l4-root-r', 'femoral-r', 's1-root-r'] },
-  { group: L('Coordination', 'Koordination'), ids: ['cerebellum-l', 'dorsal-columns'] },
+  { group: L('Upper motor neuron', 'Erstes Motoneuron'), ids: ['mca-l', 'capsule-l', 'cord-r', 'cord-t10-r', 'mnd'] },
+  { group: L('Brainstem and cranial nerves', 'Hirnstamm und Hirnnerven'), ids: ['wallenberg-l', 'medial-medulla-l', 'bell-l'] },
+  { group: L('Roots, plexus and nerves', 'Wurzeln, Plexus und Nerven'), ids: ['c6-root-r', 'l4-root-r', 'l5-root-r', 's1-root-r', 'cauda-equina', 'erb-r', 'femoral-r', 'peroneal-r', 'ulnar-r'] },
+  { group: L('Junction and muscle', 'Endplatte und Muskel'), ids: ['myasthenia', 'myopathy'] },
+  { group: L('Coordination and sensation', 'Koordination und Sensibilität'), ids: ['cerebellum-l', 'vermis', 'dorsal-columns', 'sensory-cortex-l'] },
 ];
 
 /** A healthy adult with this preset's lesion. */
@@ -74,28 +98,75 @@ const both = (id: (s: 'R' | 'L') => string, en: string, de: string) => (['R', 'L
 }));
 export const NEURO_STRUCTURES: Array<{ group: LocalizedText; nodes: Array<{ id: string; label: LocalizedText }> }> = [
   { group: L('Cortex and internal capsule', 'Rinde und Capsula interna'), nodes: [
-    ...both((s) => `${s}_mcx_arm`, 'Motor cortex (arm)', 'Motorkortex (Arm)'), ...both((s) => `${s}_mcx_leg`, 'Motor cortex (leg)', 'Motorkortex (Bein)'),
+    ...both((s) => `${s}_mcx_face`, 'Motor cortex (face)', 'Motorkortex (Gesicht)'), ...both((s) => `${s}_mcx_arm`, 'Motor cortex (arm)', 'Motorkortex (Arm)'),
+    ...both((s) => `${s}_mcx_leg`, 'Motor cortex (leg)', 'Motorkortex (Bein)'), ...both((s) => `${s}_scx`, 'Sensory cortex', 'Sensibler Kortex'),
     ...both((s) => `${s}_ic`, 'Internal capsule', 'Capsula interna'),
+  ] },
+  { group: L('Brainstem', 'Hirnstamm'), nodes: [
+    ...both((s) => `${s}_med_pyr`, 'Medullary pyramid', 'Pyramide der Medulla'), ...both((s) => `${s}_icp`, 'Inferior cerebellar peduncle', 'Unterer Kleinhirnstiel'),
+    ...both((s) => `${s}_cn5_sens`, 'Trigeminal sensory nucleus', 'Sensibler Trigeminuskern'), ...both((s) => `${s}_cn10_nuc`, 'Nucleus ambiguus (IX, X)', 'Nucleus ambiguus (IX, X)'),
+    ...both((s) => `${s}_cn12_nuc`, 'Hypoglossal nucleus (XII)', 'Hypoglossuskern (XII)'),
+  ] },
+  { group: L('Cranial nerves', 'Hirnnerven'), nodes: [
+    ...both((s) => `${s}_cn7`, 'Facial nerve (VII)', 'N. facialis (VII)'), ...both((s) => `${s}_cn12`, 'Hypoglossal nerve (XII)', 'N. hypoglossus (XII)'),
+    ...both((s) => `${s}_cn11`, 'Accessory nerve (XI)', 'N. accessorius (XI)'),
   ] },
   { group: L('Cord', 'Rückenmark'), nodes: [
     ...both((s) => `${s}_cst_C5`, 'Corticospinal tract at C5', 'Pyramidenbahn in Höhe C5'), ...both((s) => `${s}_cst_T10`, 'Corticospinal tract at T10', 'Pyramidenbahn in Höhe Th10'),
-    ...both((s) => `${s}_dc_asc`, 'Dorsal column', 'Hinterstrang'),
+    ...both((s) => `${s}_dc_asc`, 'Dorsal column (cervical)', 'Hinterstrang (zervikal)'), ...both((s) => `${s}_dc_T10`, 'Dorsal column at T10', 'Hinterstrang in Höhe Th10'),
+    ...both((s) => `${s}_stt_asc`, 'Spinothalamic tract (cervical)', 'Tractus spinothalamicus (zervikal)'), ...both((s) => `${s}_stt_T10`, 'Spinothalamic tract at T10', 'Tractus spinothalamicus in Höhe Th10'),
+    ...both((s) => `${s}_ahn_C8`, 'Anterior horn C8', 'Vorderhorn C8'),
   ] },
-  { group: L('Roots and nerves', 'Wurzeln und Nerven'), nodes: [
-    ...both((s) => `${s}_nerve_L3`, 'L3 root', 'Wurzel L3'), ...both((s) => `${s}_nerve_L4`, 'L4 root', 'Wurzel L4'), ...both((s) => `${s}_nerve_S1`, 'S1 root', 'Wurzel S1'),
-    ...both((s) => `${s}_n_femoral`, 'Femoral nerve', 'N. femoralis'), ...both((s) => `${s}_n_sciatic`, 'Sciatic nerve', 'N. ischiadicus'),
+  { group: L('Roots and plexus', 'Wurzeln und Plexus'), nodes: [
+    ...(['C6', 'C7', 'L4', 'L5', 'S1'] as const).flatMap((r) => both((s) => `${s}_nerve_${r}`, `${r} root`, `Wurzel ${r}`)),
+    ...both((s) => `${s}_bp_upper`, 'Upper brachial plexus', 'Oberer Plexus brachialis'),
   ] },
-  { group: L('Cerebellum', 'Kleinhirn'), nodes: [...both((s) => `${s}_cerebellum`, 'Cerebellar hemisphere', 'Kleinhirnhemisphäre')] },
+  { group: L('Nerves', 'Nerven'), nodes: [
+    ...both((s) => `${s}_n_radial`, 'Radial nerve', 'N. radialis'), ...both((s) => `${s}_n_median`, 'Median nerve', 'N. medianus'), ...both((s) => `${s}_n_ulnar_elbow`, 'Ulnar nerve at the elbow', 'N. ulnaris am Ellenbogen'),
+    ...both((s) => `${s}_n_femoral`, 'Femoral nerve', 'N. femoralis'), ...both((s) => `${s}_n_sciatic`, 'Sciatic nerve', 'N. ischiadicus'), ...both((s) => `${s}_n_peroneal_head`, 'Common peroneal nerve', 'N. peroneus communis'),
+  ] },
+  { group: L('Junction and muscle', 'Endplatte und Muskel'), nodes: [
+    ...both((s) => `${s}_nmj_post`, 'Neuromuscular junction', 'Motorische Endplatte'), ...both((s) => `${s}_muscle_prox`, 'Proximal muscles', 'Proximale Muskulatur'),
+  ] },
+  { group: L('Cerebellum', 'Kleinhirn'), nodes: [...both((s) => `${s}_cerebellum`, 'Cerebellar hemisphere', 'Kleinhirnhemisphäre'), { id: 'vermis', label: L('Cerebellar vermis', 'Kleinhirnwurm (Vermis)') }] },
 ];
 
-/** Structures the starting points cut that the hand-cut list does not offer. */
-const EXTRA: Array<{ id: string; label: LocalizedText }> = [
-  ...both((s) => `${s}_mcx_face`, 'Motor cortex (face)', 'Motorkortex (Gesicht)'),
-  { id: 'L_broca', label: L('Broca’s area, left', 'Broca-Areal links') },
-  ...both((s) => `${s}_stt_asc`, 'Spinothalamic tract', 'Tractus spinothalamicus'),
-  ...(['L3', 'L4', 'S1'] as const).flatMap((r) => both((s) => `${s}_drg_${r}`, `${r} dorsal root ganglion`, `Spinalganglion ${r}`)),
+/** A structure's name, for the station: from the hand-cut list, or read from its id (its id if neither). */
+const NAMED: Array<[RegExp, (m: RegExpMatchArray) => [string, string]]> = [
+  [/^(R|L)_mcx_(face|arm|leg)$/, (m) => [`Motor cortex (${m[2]})`, `Motorkortex (${({ face: 'Gesicht', arm: 'Arm', leg: 'Bein' } as Record<string, string>)[m[2]]})`]],
+  [/^(R|L)_scx$/, () => ['Sensory cortex', 'Sensibler Kortex']],
+  [/^L_broca$/, () => ['Broca’s area', 'Broca-Areal']],
+  [/^(R|L)_ic$/, () => ['Internal capsule', 'Capsula interna']],
+  [/^(R|L)_cst_(\w+)$/, (m) => [`Corticospinal tract at ${m[2]}`, `Pyramidenbahn in Höhe ${m[2].replace('T', 'Th')}`]],
+  [/^(R|L)_dc_asc$/, () => ['Dorsal column', 'Hinterstrang']],
+  [/^(R|L)_dc_nuc$/, () => ['Dorsal column nuclei (medulla)', 'Hinterstrangkerne (Medulla)']],
+  [/^(R|L)_dc_(\w+)$/, (m) => [`Dorsal column at ${m[2]}`, `Hinterstrang in Höhe ${m[2].replace('T', 'Th')}`]],
+  [/^(R|L)_stt_asc$/, () => ['Spinothalamic tract', 'Tractus spinothalamicus']],
+  [/^(R|L)_stt_(\w+)$/, (m) => [`Spinothalamic tract at ${m[2]}`, `Tractus spinothalamicus in Höhe ${m[2].replace('T', 'Th')}`]],
+  [/^(R|L)_ahn_(\w+)$/, (m) => [`Anterior horn ${m[2]}`, `Vorderhorn ${m[2]}`]],
+  [/^(R|L)_nerve_(\w+)$/, (m) => [`${m[2]} root`, `Wurzel ${m[2]}`]],
+  [/^(R|L)_drg_(\w+)$/, (m) => [`${m[2]} dorsal root ganglion`, `Spinalganglion ${m[2]}`]],
+  [/^(R|L)_bp_upper$/, () => ['Upper trunk of the brachial plexus', 'Oberer Primärstrang des Plexus brachialis']],
+  [/^(R|L)_n_femoral$/, () => ['Femoral nerve', 'N. femoralis']], [/^(R|L)_n_sciatic$/, () => ['Sciatic nerve', 'N. ischiadicus']],
+  [/^(R|L)_n_peroneal_head$/, () => ['Common peroneal nerve at the fibular head', 'N. peroneus communis am Fibulaköpfchen']],
+  [/^(R|L)_n_ulnar_elbow$/, () => ['Ulnar nerve at the elbow', 'N. ulnaris am Ellenbogen']],
+  [/^(R|L)_n_radial$/, () => ['Radial nerve', 'N. radialis']], [/^(R|L)_n_median$/, () => ['Median nerve', 'N. medianus']],
+  [/^(R|L)_nmj_post$/, () => ['Neuromuscular junction (acetylcholine receptors)', 'Motorische Endplatte (Acetylcholinrezeptoren)']],
+  [/^(R|L)_muscle_prox$/, () => ['Proximal muscles', 'Proximale Muskulatur']],
+  [/^(R|L)_cerebellum$/, () => ['Cerebellar hemisphere', 'Kleinhirnhemisphäre']], [/^vermis$/, () => ['Cerebellar vermis', 'Kleinhirnwurm']],
+  [/^(R|L)_icp$/, () => ['Inferior cerebellar peduncle', 'Unterer Kleinhirnstiel']],
+  [/^(R|L)_lat_bs$/, () => ['Lateral medulla', 'Laterale Medulla']], [/^(R|L)_med_pyr$/, () => ['Medullary pyramid', 'Pyramide der Medulla']],
+  [/^(R|L)_cn5_sens$/, () => ['Trigeminal sensory nucleus', 'Sensibler Trigeminuskern']],
+  [/^(R|L)_cn(\d+)_nuc$/, (m) => [`Nucleus of cranial nerve ${m[2]}`, `Kern des Hirnnerven ${m[2]}`]],
+  [/^(R|L)_cn(\d+)$/, (m) => [`Cranial nerve ${m[2]}`, `Hirnnerv ${m[2]}`]],
 ];
 /** A structure's name, for the station (its id if it has none). */
 export function neuroNodeLabel(id: string): LocalizedText {
-  return [...NEURO_STRUCTURES.flatMap((g) => g.nodes), ...EXTRA].find((n) => n.id === id)?.label ?? L(id, id);
+  const listed = NEURO_STRUCTURES.flatMap((g) => g.nodes).find((n) => n.id === id);
+  if (listed) return listed.label;
+  for (const [re, f] of NAMED) {
+    const m = id.match(re);
+    if (m) { const [en, de] = f(m); const sd = /^(R|L)_/.exec(id)?.[1]; return sd ? L(`${en}, ${sd === 'R' ? 'right' : 'left'}`, `${de} ${sd === 'R' ? 'rechts' : 'links'}`) : L(en, de); }
+  }
+  return L(id, id);
 }

@@ -621,6 +621,15 @@ export function mount(root: HTMLElement) {
     if (m.id === 'test.finger-nose' && fnSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'finger-nose', side: fnSide, finding: fv(`arm.finger-nose.${fnSide}`) as FingerNoseFinding } }); return; }
     const kneeSide = (['L', 'R'] as const).find((sd) => typeof fv(`leg.reflexes.${sd}`)?.knee === 'number');
     if (m.id === 'test.leg.reflexes' && kneeSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'knee-jerk', side: kneeSide, grade: fv(`leg.reflexes.${kneeSide}`)!.knee as ReflexGrade } }); return; }
+    const hsSide = (['L', 'R'] as const).find((sd) => fv(`leg.heel-shin.${sd}`));
+    if (m.id === 'test.heel-shin' && hsSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'heel-shin', side: hsSide, finding: fv(`leg.heel-shin.${hsSide}`) as any } }); return; }
+    const raSide = (['L', 'R'] as const).find((sd) => fv(`arm.rapid-alternating.${sd}`));
+    if (m.id === 'test.rapid-alternating' && raSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'rapid-alternating', side: raSide, finding: fv(`arm.rapid-alternating.${raSide}`) as any } }); return; }
+    if (m.id === 'test.romberg') {
+      const rf = (closed: boolean) => findings.find((f) => f.property === 'posture.romberg' && !!f.context?.eyesClosed === closed)?.value as any;
+      if (rf(false) || rf(true)) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'romberg', open: rf(false) ?? { stance: 'steady' }, closed: rf(true) ?? { stance: 'steady' } } }); return; }
+    }
+    if (m.id === 'test.gait' && fv('gait.pattern')) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'gait', finding: fv('gait.pattern') as any } }); return; }
     const faceL = findings.find((f) => f.property === 'face.movement.L'), faceR = findings.find((f) => f.property === 'face.movement.R');
     if (faceL && faceR) { setVisual({ kind: 'face', L: faceL.value as FaceFinding, R: faceR.value as FaceFinding }); return; }
     const chest = findings.find((f) => LUNG_PROPS.includes(f.property) && /^chest\.(upper-zone|mid-zone|axilla|upper-back|lung-base)\./.test(f.context?.site ?? ''));
@@ -665,7 +674,7 @@ export function mount(root: HTMLElement) {
       const sd = motionSide(v.motion);
       /* of the leg reflexes only the knee jerk is drawn so far */
       const name = v.motion.kind === 'knee-jerk' ? (lang === 'de' ? 'Patellarsehnenreflex' : 'Knee jerk') : tr(v.manoeuvre.label, lang);
-      const what = `${name} · ${t(sd === 'L' ? 'left' : 'right').toLowerCase()}`;
+      const what = v.motion.kind === 'romberg' || v.motion.kind === 'gait' || v.motion.kind === 'drift' ? name : `${name} · ${t(sd === 'L' ? 'left' : 'right').toLowerCase()}`;
       stopVisual = mountNeuroMotion(host, { look: look().figure, motion: v.motion, caption: what, label: what });
       return;
     }
