@@ -4,7 +4,7 @@ import { FORMATTERS } from '../text/formatters.ts';
 import { tr, type LocalizedText } from '../model/i18n.ts';
 import { NEURO_STATION } from '../stations/station.ts';
 import { NEURO_PRESETS, NEURO_PRESET_GROUPS, NEURO_STRUCTURES, applyNeuroPreset } from '../stations/neuro-presets.ts';
-import { neuroObserve, neuroSignsOf } from '../stations/neuro-signs.ts';
+import { neuroObserve, neuroSignsOf, neuroSignGroups } from '../stations/neuro-signs.ts';
 import { NEURO_TESTS, NEURO_TEST_BY_ID, NEURO_GROUP_LABEL, NEURO_TEST_LABEL, type NeuroTest } from '../stations/neuro-tests.ts';
 import { explainNeuro } from '../stations/neuro-texts.ts';
 import { neuroChartFor, neuroMotionFor } from './neuro-visual.ts';
@@ -45,8 +45,21 @@ const T: Record<string, LocalizedText> = {
   mechanism: L('Where the lesion is', 'Wo die Läsion liegt'), diagram: L('The nervous system as a ladder, with the lesion on it', 'Das Nervensystem als Leiter, mit der Läsion darauf'),
   figure: L('The patient doing the test', 'Der Patient beim Test'),
   basis: L('The model’s reason', 'Die Begründung des Modells'),
-  later: L('Drawn so far: the knee jerk. The ankle jerk and the plantar response are in the findings.', 'Bisher gezeichnet: der Patellarsehnenreflex. Achillessehnenreflex und Fußsohlenreflex stehen in den Befunden.'),
+  explore: L('Explore', 'Erkunden'), identify: L('Identify', 'Erkennen'), mode: L('Mode', 'Modus'),
+  predict: L('Predict first', 'Erst vorhersagen'), predictNote: L('Choosing a starting point first asks which signs it will bring.', 'Bei der Wahl eines Ausgangspunkts fragt die Station zuerst, welche Zeichen er bringt.'),
+  predictQ: L('Which signs will this lesion bring?', 'Welche Zeichen wird diese Läsion bringen?'),
+  showIt: L('Show it', 'Zeigen'), cancel: L('Cancel', 'Abbrechen'),
+  brought: L('It brought', 'Es brachte'), youMissed: L('Not predicted', 'Nicht vorhergesagt'), notCome: L('Predicted, did not come', 'Vorhergesagt, kam nicht'), nothing: L('nothing', 'nichts'),
+  allRight: L('Every sign as you predicted.', 'Jedes Zeichen wie vorhergesagt.'),
+  unknown: L('Unknown', 'Unbekannt'), unknownNote: L('A healthy adult with a hidden lesion, or none. Examine as at the bedside: every test, both sides, eyes open and closed. No findings are written for you; what the patient says, you hear.', 'Ein gesunder Erwachsener mit einer verdeckten Läsion, oder ohne. Untersuchen Sie wie am Bett: jeder Test, beide Seiten, Augen offen und geschlossen. Befunde werden Ihnen nicht vorgeschrieben; was der Patient sagt, hören Sie.'),
+  nameSigns: L('Name the signs', 'Zeichen benennen'), nameSignsNote: L('Pick every sign you find. Naming one that is not there counts too.', 'Wählen Sie jedes Zeichen, das Sie finden. Ein Zeichen zu nennen, das nicht da ist, zählt auch.'),
+  nameMech: L('Where is the lesion?', 'Wo liegt die Läsion?'), healthyPatient: L('No lesion: a healthy patient', 'Keine Läsion: ein gesunder Patient'), chooseMech: L('Choose…', 'Wählen…'),
+  check: L('Check', 'Prüfen'), next: L('Next unknown', 'Nächstes Unbekanntes'), seeWhy: L('See why, in Explore', 'Das Warum ansehen, im Erkunden-Modus'),
+  hits: L('Named, and there', 'Benannt und vorhanden'), misses: L('There, not named', 'Vorhanden, nicht benannt'), over: L('Named, not there', 'Benannt, nicht vorhanden'),
+  mechRight: L('Right', 'Richtig'), mechWrong: L('It was', 'Es war'), score: L('right this session', 'richtig in dieser Sitzung'), foundWhere: L('Where each is found', 'Wo jedes zu finden ist'),
+  patientSays: L('You hear', 'Sie hören'),
 };
+const IDENTIFY_POOL = ['healthy', ...NEURO_PRESETS.map((p) => p.id)];
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 const SIDES: Side[] = ['R', 'L'];
 
@@ -62,6 +75,16 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const signLabel = (x: string) => labelOf(KNOWLEDGE, `sign:${x}`, lang);
   const val = (ref: string, ctx: ExamContext = {}) => neuroObserve(model, ref, ctx).value as Record<string, any>;
+  let mode: 'explore' | 'identify' = 'explore';
+  let predict = false;
+  let pending: { id: string; picked: Set<string> } | null = null;
+  let feedback: { brought: string[]; took: string[]; picked: string[] } | null = null;
+  const id = { pool: [] as string[], n: 0, hidden: 'healthy', named: new Set<string>(), mech: '', checked: false, right: 0, done: 0 };
+  const presetLabel = (pid: string) => (pid === 'healthy' ? t('healthyPatient') : tr(NEURO_PRESETS.find((p) => p.id === pid)?.label ?? L(pid, pid), lang));
+  const chips = (ids: string[], on: Set<string>, attr: string, disabled = false) => ids.map((x) =>
+    `<button type="button" class="chip st-chip" ${attr}="${x}" aria-pressed="${on.has(x)}" ${disabled ? 'disabled' : ''}>${esc(signLabel(x))}</button>`).join('');
+  const groupedChips = (on: Set<string>, attr: string, disabled = false) => neuroSignGroups().map((g) =>
+    `<div class="st-chip-group"><div class="muted small">${esc(tr(NEURO_TEST_LABEL[g.test], lang))}</div><div class="st-chips">${chips(g.signs, on, attr, disabled)}</div></div>`).join('');
 
   /** the basis the model gives for this test's observations */
   const basisOf = () => { const b = new Set<string>(); for (const l of NEURO_TEST_BY_ID[test].lines()) { const x = neuroObserve(model, l.ref, l.ctx).basis; if (x) b.add(x); } return [...b]; };
@@ -81,21 +104,27 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     return sd + ey;
   };
 
-  const render = () => {
-    const cut = new Set(model.lesions.nodes);
-    host.innerHTML = `<div class="st-head">
+  const head = () => `<div class="st-head">
         <button type="button" class="ghost" data-leave>← ${o.backLabel ? tr(o.backLabel, lang) : t('back')}</button>
         <div class="st-title"><div class="eyebrow">${t('eyebrow')}</div><h1>${esc(tr(NEURO_STATION.title, lang))}</h1><p class="lede">${esc(tr(NEURO_STATION.summary, lang))}</p></div>
+        <span class="seg st-mode" role="radiogroup" aria-label="${t('mode')}">${(['explore', 'identify'] as const).map((m) => `<button type="button" role="radio" aria-checked="${mode === m}" data-mode="${m}">${t(m)}</button>`).join('')}</span>
       </div>
-      ${patientBanner(o, lang)}
+      ${mode === 'explore' ? patientBanner(o, lang) : ''}`;
+  const testTabs = () => `<div class="st-test-groups">${(Object.keys(NEURO_GROUP_LABEL) as Array<keyof typeof NEURO_GROUP_LABEL>).map((g) => `<div class="st-test-group"><div class="muted small">${esc(tr(NEURO_GROUP_LABEL[g], lang))}</div><div class="st-tests" role="tablist" aria-label="${esc(tr(NEURO_GROUP_LABEL[g], lang))}">${NEURO_TESTS.filter((x) => x.group === g).map((x) => `<button type="button" role="tab" class="tog" aria-selected="${x.id === test}" data-test="${x.id}">${esc(tr(x.label, lang))}</button>`).join('')}</div></div>`).join('')}</div>`;
+
+  const render = () => {
+    if (mode === 'identify') { renderIdentify(); return; }
+    const cut = new Set(model.lesions.nodes);
+    host.innerHTML = `${head()}
       <div class="st-grid">
         <aside class="panel st-settings" aria-labelledby="st-set-h">
           <h2 id="st-set-h">${t('settings')}</h2>
           <p class="layer-note">${t('settingsNote')}</p>
           <label class="st-preset">${t('startFrom')}
-            <select data-preset><option value="">${t('choose')}</option>${NEURO_PRESET_GROUPS.map((g) => `<optgroup label="${esc(tr(g.group, lang))}">${g.ids.map((id) => NEURO_PRESETS.find((p) => p.id === id)!).map((p) => `<option value="${p.id}">${esc(tr(p.label, lang))}</option>`).join('')}</optgroup>`).join('')}</select>
+            <select data-preset><option value="">${t('choose')}</option>${NEURO_PRESET_GROUPS.map((g) => `<optgroup label="${esc(tr(g.group, lang))}">${g.ids.map((x) => NEURO_PRESETS.find((p) => p.id === x)!).map((p) => `<option value="${p.id}">${esc(tr(p.label, lang))}</option>`).join('')}</optgroup>`).join('')}</select>
           </label>
           <button type="button" class="ghost small" data-healthy>${t('healthy')}</button>
+          <label class="st-predict"><input type="checkbox" data-predict ${predict ? 'checked' : ''}><span><b>${t('predict')}</b><br><span class="muted small">${t('predictNote')}</span></span></label>
           <label class="st-var st-check"><input type="checkbox" data-complete ${model.lesions.complete ? 'checked' : ''}><span>${t('complete')}</span></label>
           <p class="muted small">${t('completeNote')}</p>
           ${NEURO_STRUCTURES.map((g) => `<fieldset class="st-lesions"><legend>${esc(tr(g.group, lang))}</legend>${g.nodes.map((n) =>
@@ -104,7 +133,8 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
         <div class="st-main">
           <section class="panel st-signal" aria-labelledby="st-see-h">
             <div class="st-row"><div><h2 id="st-see-h">${t('see')}</h2><div class="muted small">${t('seeNote')}</div></div></div>
-            <div class="st-test-groups">${(Object.keys(NEURO_GROUP_LABEL) as Array<keyof typeof NEURO_GROUP_LABEL>).map((g) => `<div class="st-test-group"><div class="muted small">${esc(tr(NEURO_GROUP_LABEL[g], lang))}</div><div class="st-tests" role="tablist" aria-label="${esc(tr(NEURO_GROUP_LABEL[g], lang))}">${NEURO_TESTS.filter((x) => x.group === g).map((x) => `<button type="button" role="tab" class="tog" aria-selected="${x.id === test}" data-test="${x.id}">${esc(tr(x.label, lang))}</button>`).join('')}</div></div>`).join('')}</div>
+            <div data-predict-box></div>
+            ${testTabs()}
             <div class="st-listen" data-test-controls>${testControls()}</div>
             <div class="neurohost" data-visual></div>
             <ul class="st-findings plain small" data-findings aria-live="polite"></ul>
@@ -119,7 +149,113 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
       </div>`;
     wire();
     refresh();
+    renderPredict();
     start();
+  };
+
+  /* ---- predict -------------------------------------------------------------------------------------------------------- */
+  const renderPredict = () => {
+    const box = host.querySelector<HTMLElement>('[data-predict-box]');
+    if (!box) return;
+    if (pending) {
+      box.innerHTML = `<div class="st-predict-q" role="group" aria-label="${t('predictQ')}">
+        <div class="eyebrow">${t('predict')} · ${esc(presetLabel(pending.id))}</div>
+        <p><b>${t('predictQ')}</b></p>
+        ${groupedChips(pending.picked, 'data-pick')}
+        <div class="st-row-buttons"><button type="button" class="primary" data-go>${t('showIt')}</button><button type="button" class="ghost" data-cancel>${t('cancel')}</button></div></div>`;
+      box.querySelectorAll<HTMLButtonElement>('[data-pick]').forEach((b) => b.onclick = () => {
+        const x = b.dataset.pick!; pending!.picked.has(x) ? pending!.picked.delete(x) : pending!.picked.add(x);
+        b.setAttribute('aria-pressed', String(pending!.picked.has(x)));
+      });
+      box.querySelector<HTMLButtonElement>('[data-cancel]')!.onclick = () => { pending = null; host.querySelector<HTMLSelectElement>('[data-preset]')!.value = ''; renderPredict(); };
+      box.querySelector<HTMLButtonElement>('[data-go]')!.onclick = () => {
+        const pid = pending!.id, picked = [...pending!.picked], before = neuroSignsOf(model).present;
+        pending = null;
+        applyPreset(pid);
+        const after = neuroSignsOf(model).present;
+        feedback = { brought: [...after].filter((x) => !before.has(x)), took: [...before].filter((x) => !after.has(x)), picked };
+        renderPredict();
+      };
+    } else if (feedback) {
+      const f = feedback, got = new Set(f.brought);
+      const right = f.picked.filter((x) => got.has(x)), missed = f.brought.filter((x) => !f.picked.includes(x)), wrong = f.picked.filter((x) => !got.has(x));
+      const list = (xs: string[]) => (xs.length ? xs.map((x) => esc(signLabel(x))).join(', ') : t('nothing'));
+      box.innerHTML = `<div class="st-predict-a" role="status">
+        <p><b>${t('brought')}:</b> ${list(f.brought)}.</p>
+        ${!missed.length && !wrong.length ? `<p class="ok">${t('allRight')}</p>` : `${missed.length ? `<p><b>${t('youMissed')}:</b> ${list(missed)}</p>` : ''}${wrong.length ? `<p><b>${t('notCome')}:</b> ${list(wrong)}</p>` : ''}`}
+        ${right.length ? `<p class="muted small">✓ ${list(right)}</p>` : ''}</div>`;
+    } else box.innerHTML = '';
+  };
+  const applyPreset = (pid: string) => {
+    const p = NEURO_PRESETS.find((x) => x.id === pid)!;
+    test = p.look;
+    change(applyNeuroPreset(model, pid));
+    const sel = host.querySelector<HTMLSelectElement>('[data-preset]');
+    if (sel) sel.value = pid;
+  };
+
+  /* ---- identify ------------------------------------------------------------------------------------------------------- */
+  const nextUnknown = () => {
+    if (!id.pool.length) id.pool = [...IDENTIFY_POOL].sort(() => Math.random() - 0.5);
+    id.hidden = id.pool.pop()!;
+    id.n++; id.named = new Set(); id.mech = ''; id.checked = false;
+    test = 'gait'; t0 = performance.now();
+    model = applyNeuroPreset(model, id.hidden === 'healthy' ? '' : id.hidden);
+  };
+  const renderIdentify = () => {
+    host.innerHTML = `${head()}
+      <div class="st-grid">
+        <aside class="panel st-settings" aria-labelledby="st-name-h">
+          <h2 id="st-name-h">${t('nameSigns')}</h2>
+          <p class="layer-note">${t('nameSignsNote')}</p>
+          ${groupedChips(id.named, 'data-name', id.checked)}
+          <label class="st-preset">${t('nameMech')}
+            <select data-mech ${id.checked ? 'disabled' : ''}><option value="">${t('chooseMech')}</option><option value="healthy" ${id.mech === 'healthy' ? 'selected' : ''}>${t('healthyPatient')}</option>
+            ${NEURO_PRESET_GROUPS.map((g) => `<optgroup label="${esc(tr(g.group, lang))}">${g.ids.map((x) => `<option value="${x}" ${id.mech === x ? 'selected' : ''}>${esc(presetLabel(x))}</option>`).join('')}</optgroup>`).join('')}</select>
+          </label>
+          ${id.checked ? `<button type="button" class="primary" data-next>${t('next')}</button>` : `<button type="button" class="primary" data-check ${id.mech ? '' : 'disabled'}>${t('check')}</button>`}
+          ${id.done ? `<p class="muted small">${id.right} / ${id.done} ${t('score')}</p>` : ''}
+        </aside>
+        <div class="st-main">
+          <section class="panel st-signal" aria-labelledby="st-unk-h">
+            <div class="st-row"><div><h2 id="st-unk-h">${t('unknown')} ${id.n}</h2><div class="muted small">${t('unknownNote')}</div></div></div>
+            ${testTabs()}
+            <div class="st-listen" data-test-controls>${testControls()}</div>
+            <div class="neurohost" data-visual></div>
+            <ul class="st-findings plain small" data-findings aria-live="polite"></ul>
+          </section>
+          ${id.checked ? resultHtml() : ''}
+        </div>
+      </div>`;
+    wire();
+    refresh();
+    start();
+    host.querySelectorAll<HTMLButtonElement>('[data-name]').forEach((b) => b.onclick = () => {
+      const x = b.dataset.name!; id.named.has(x) ? id.named.delete(x) : id.named.add(x);
+      b.setAttribute('aria-pressed', String(id.named.has(x)));
+    });
+    host.querySelector<HTMLSelectElement>('[data-mech]')!.onchange = (e) => { id.mech = (e.target as HTMLSelectElement).value; const c = host.querySelector<HTMLButtonElement>('[data-check]'); if (c) c.disabled = !id.mech; };
+    host.querySelector<HTMLButtonElement>('[data-check]')?.addEventListener('click', () => {
+      id.checked = true; id.done++;
+      const tp = neuroSignsOf(model).present;
+      if (id.mech === id.hidden && [...id.named].every((x) => tp.has(x)) && [...tp].every((x) => id.named.has(x))) id.right++;
+      renderIdentify();
+    });
+    host.querySelector<HTMLButtonElement>('[data-next]')?.addEventListener('click', () => { nextUnknown(); renderIdentify(); });
+    host.querySelector<HTMLButtonElement>('[data-why]')?.addEventListener('click', () => { mode = 'explore'; render(); });
+  };
+  const resultHtml = () => {
+    const truth = neuroSignsOf(model);
+    const hits = [...id.named].filter((x) => truth.present.has(x)), misses = [...truth.present].filter((x) => !id.named.has(x)), over = [...id.named].filter((x) => !truth.present.has(x));
+    const col = (title: string, xs: string[], cls: string) => `<div class="st-res ${cls}"><h3>${title}</h3>${xs.length ? `<ul>${xs.map((x) => `<li>${esc(signLabel(x))}</li>`).join('')}</ul>` : `<p class="muted small">—</p>`}</div>`;
+    const right = id.mech === id.hidden;
+    const where = [...truth.present].map((x) => { const w = truth.where.get(x) ?? []; return `<li><b>${esc(signLabel(x))}</b>: ${esc(w.map((m) => tr(NEURO_TEST_LABEL[m], lang)).join('; ') || tr(NEURO_TEST_LABEL.sensation, lang))}</li>`; }).join('');
+    return `<section class="panel st-result" aria-labelledby="st-res-h">
+      <h2 id="st-res-h" class="${right ? 'ok' : 'abn'}">${right ? t('mechRight') : t('mechWrong')}: ${esc(presetLabel(id.hidden))}</h2>
+      <div class="st-res-grid">${col(t('hits'), hits, 'hit')}${col(t('misses'), misses, 'miss')}${col(t('over'), over, 'over')}</div>
+      ${where ? `<div><h3 class="small">${t('foundWhere')}</h3><ul class="small">${where}</ul></div>` : ''}
+      <button type="button" class="ghost" data-why>${t('seeWhy')}</button>
+    </section>`;
   };
 
   const css = (n: string) => getComputedStyle(host).getPropertyValue(n).trim() || '#888';
@@ -133,6 +269,12 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
   const refresh = () => {
     const box = host.querySelector<HTMLElement>('[data-findings]');
     if (!box) return;
+    if (mode === 'identify') {
+      /* nothing is written for the learner but what the patient says */
+      box.innerHTML = test === 'speech' ? `<li><b>${t('patientSays')}:</b></li>${findingLines().map((x) => `<li>${x.replace(/<b class="abn"[^>]*>●<\/b> /, '')}</li>`).join('')}` : '';
+      renderVisual();
+      return;
+    }
     box.innerHTML = findingLines().map((x) => `<li>${x}</li>`).join('');
     const r = neuroSignsOf(model);
     host.querySelector<HTMLElement>('[data-signs]')!.innerHTML = `<span class="muted small">${t('signsNow')}:</span> ${r.present.size
@@ -144,6 +286,9 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     host.querySelector<HTMLElement>('[data-body]')!.innerHTML = ex.body.map((p) => `<p>${esc(tr(p, lang))}</p>`).join('')
       + (basis.length ? `<p class="muted small"><b>${t('basis')}:</b> ${esc(basis.join('; '))}</p>` : '');
     host.querySelector<HTMLElement>('[data-ladder]')!.innerHTML = neuroLadderSvg(test, model.lesions.nodes, lang, colors(), model.lesions.extent ?? {});
+    renderVisual();
+  };
+  const renderVisual = () => {
     current = motion();
     const vis = host.querySelector<HTMLElement>('[data-visual]')!;
     faceView?.stop(); faceView = null;
@@ -180,17 +325,28 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
   const change = (next: PatientModel) => { model = next; side = abnormalSide(); t0 = performance.now(); render(); };
   const wire = () => {
     host.querySelector<HTMLButtonElement>('[data-leave]')!.onclick = () => { stop(); o.onLeave(); };
-    const sel = host.querySelector<HTMLSelectElement>('[data-preset]')!;
-    sel.onchange = () => {
+    host.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.onclick = () => {
+      const m = b.dataset.mode as typeof mode;
+      if (m === mode) return;
+      mode = m; pending = null; feedback = null;
+      if (mode === 'identify') { if (!id.n || id.checked) nextUnknown(); }
+      else model = applyNeuroPreset(model, id.hidden === 'healthy' ? '' : id.hidden);   // Explore opens on the patient just identified
+      render();
+    });
+    const sel = host.querySelector<HTMLSelectElement>('[data-preset]');
+    if (sel) sel.onchange = () => {
       const pid = sel.value;
       if (!pid) return;
-      const p = NEURO_PRESETS.find((x) => x.id === pid)!;
-      test = p.look;
-      change(applyNeuroPreset(model, pid));
-      host.querySelector<HTMLSelectElement>('[data-preset]')!.value = pid;
+      if (predict) { pending = { id: pid, picked: new Set() }; feedback = null; renderPredict(); return; }
+      feedback = null;
+      applyPreset(pid);
     };
-    host.querySelector<HTMLButtonElement>('[data-healthy]')!.onclick = () => change(applyNeuroPreset(model, ''));
-    host.querySelector<HTMLInputElement>('[data-complete]')!.onchange = (e) => { const next = structuredClone(model); next.lesions.complete = (e.target as HTMLInputElement).checked; change(next); };
+    const pr = host.querySelector<HTMLInputElement>('[data-predict]');
+    if (pr) pr.onchange = () => { predict = pr.checked; };
+    const hb = host.querySelector<HTMLButtonElement>('[data-healthy]');
+    if (hb) hb.onclick = () => { pending = null; feedback = null; change(applyNeuroPreset(model, '')); };
+    const cb = host.querySelector<HTMLInputElement>('[data-complete]');
+    if (cb) cb.onchange = (e) => { const next = structuredClone(model); next.lesions.complete = (e.target as HTMLInputElement).checked; change(next); };
     host.querySelectorAll<HTMLInputElement>('[data-node]').forEach((el) => el.onchange = () => {
       const next = structuredClone(model), id = el.dataset.node!;
       next.lesions.nodes = el.checked ? [...new Set([...next.lesions.nodes, id])] : next.lesions.nodes.filter((x) => x !== id);

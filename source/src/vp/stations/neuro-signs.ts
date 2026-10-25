@@ -54,3 +54,23 @@ export function neuroSignsOf(model: PatientModel): { present: Set<string>; where
   }
   return { present: new Set(where.keys()), where, sides };
 }
+
+/** The station's signs by the test that looks for them first (the most specific: a sign the general tests also see goes
+    to the one that shows it best), in the station's order: how Predict and Identify offer them. */
+export function neuroSignGroups(): Array<{ test: NeuroTest; signs: string[] }> {
+  const PRIORITY: NeuroTest[] = ['drift', 'romberg', 'gait', 'finger-nose', 'heel-shin', 'rapid-alternating', 'arm-reflexes', 'leg-reflexes', 'sensation', 'cranial', 'speech', 'tone', 'power'];
+  const all = neuroSigns(), home = new Map<string, NeuroTest>();
+  for (const id of PRIORITY) {
+    const t = NEURO_TESTS.find((x) => x.id === id)!;
+    const looked = new Set(t.manoeuvres.flatMap((m) => signsTestLooksFor(KNOWLEDGE, CATALOG, m)));
+    for (const x of all) if (looked.has(x) && !home.has(x)) home.set(x, id);
+  }
+  /* signs only the whole examination finds (a sensory level) go with sensation */
+  for (const x of all) if (!home.has(x)) home.set(x, 'sensation');
+  return NEURO_TESTS.map((t) => ({ test: t.id, signs: all.filter((x) => home.get(x) === t.id) })).filter((g) => g.signs.length);
+}
+
+/** What the examination shows, with the side of each sign: two patients with the same signature look the same. */
+export function neuroSignature(r: ReturnType<typeof neuroSignsOf>): string {
+  return [...r.present].sort().map((x) => `${x}:${[...(r.sides.get(x) ?? [])].sort().join('')}`).join(' ');
+}
