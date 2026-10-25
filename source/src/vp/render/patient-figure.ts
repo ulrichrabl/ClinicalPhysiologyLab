@@ -40,7 +40,7 @@ import { LEN, bodyShape, footOutline, limb3, limbOutline, skeleton, stationAt, t
 import { ear, face, hairBehind, hairFront, hairOver, headFrame, headOutline, oxygenSvg, type Palette, type Support } from './figure-head.ts';
 import { BED_TOP, FLOOR, bra, cloth, dressDefs, gown, sleeveSvg, trolley } from './figure-dress.ts';
 import { Projector, frontness, onTube, VIEW_RIGHT, type FigureView } from './figure-view.ts';
-import { pointingHand, radialHand, restingHand } from './figure-hand.ts';
+import { pointingHand, radialHand, restingHand, restingTemplate } from './figure-hand.ts';
 import { braFront, breastFront, chestFront, earsFront, faceFront, gownLinesFront, hairBehindFront, hairFront3, headEgg, oxygenFront, trunkFront, type FrontCtx } from './figure-front.ts';
 
 export { VIEW_RIGHT, VIEW_LEFT, VIEW_FRONT, VIEW_BACK, type FigureView } from './figure-view.ts';
@@ -451,19 +451,29 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
         /* seen edge-on the fingers' clefts and the nail are hidden */
         lines: broad < 0.7 ? [] : h.lines.map((l) => l.map((q) => pr.P(q, z.wr))), nail: h.nail && broad >= 0.7 ? { p: pr.P(h.nail, z.wr), len: h.nailLen ?? 1 } : null };
     }
-    /* only a hand hanging at the side of an upright body shows its thumb edge to the front */
-    const hanging = Math.sin(rad(k.handA[i])) < -0.75 && Math.abs(p.torso - 90) < 30;
-    if (!backView && hanging && pt < 0.5 && p.outstretch?.[i] === undefined) {
-      /* From the front a hand hanging at the side (palm toward the thigh) is seen from its thumb edge (figure-hand.ts):
-         laid along the hand in profile and across the body toward the palm, which faces the midline. */
+    /* From the front and back a hand is drawn from its templates too (figure-hand.ts), laid along the hand in profile and
+       across the body: a hand hanging at the side of an upright body (palm toward the thigh) shows its thumb edge to the
+       front and its little-finger edge to the back; a hand lying palm down (on the thighs, on the bed) shows its back,
+       the thumb toward the midline. Held out or pointing, it keeps the tube below. */
+    if (pt < 0.5 && p.outstretch?.[i] === undefined) {
+      const hanging = Math.sin(rad(k.handA[i])) < -0.75 && Math.abs(p.torso - 90) < 30;
       const cut = LEN.fore - 2.5, wst = stationAt(sh.fore, cut), half = wst.w ?? 2.4;
       const foreCut = [...sh.fore.filter((t) => t.s < cut), wst];
-      const med = -sg(i), hd = radialHand(lerp(curl, 88, clamp(p.fist?.[i] ?? 0, 0, 1)));
-      /* the hand takes the forearm's depth as drawn at the wrist and its own (in cm) from the middle of the palm on */
-      const deep = (x: number) => lerp(half / 1.7, 1, clamp(x / 7, 0, 1));
+      const med = -sg(i), cu = lerp(curl, 88, clamp(p.fist?.[i] ?? 0, 0, 1));
+      /* the hand takes the forearm's width as drawn at the wrist and its own (in cm) from the middle of the palm on */
+      const own = hanging ? 1.7 : 2.75, deep = (x: number) => lerp(half / own, 1, clamp(x / 7, 0, 1));
       const W = ([x, y]: [number, number]) => pr.P(add(k.wrist[i], k.handA[i], x * u), z.wr + med * (Math.abs(y) === 1 ? Math.sign(y) * half : y * deep(x)));
-      return { upper: limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh + ((z.el - z.sh) * ARM0) / LEN.upper, z.el), fore: limb3(pr, k.elbow[i], k.foreA[i], foreCut, k.flip, z.el, z.wr),
-        hand: [hd.outline.map(W)], fingers: [] as Pt[][], thumb: [hd.thumb.map(W)], lines: hd.lines.map((l) => l.map(W)), nail: null };
+      const upperFore = { upper: limb3(pr, k.shoulder, k.upperA[i], armSt, k.flip, z.sh + ((z.el - z.sh) * ARM0) / LEN.upper, z.el), fore: limb3(pr, k.elbow[i], k.foreA[i], foreCut, k.flip, z.el, z.wr), fingers: [] as Pt[][] };
+      if (hanging) {
+        const hd = radialHand(cu);
+        /* from the back the thumb is on the far side, hidden */
+        return backView ? { ...upperFore, hand: [hd.outline.map(W)], thumb: [] as Pt[][], lines: [hd.lines[1].map(W)], nail: null }
+          : { ...upperFore, hand: [hd.outline.map(W)], thumb: [hd.thumb.map(W)], lines: hd.lines.map((l) => l.map(W)), nail: null };
+      }
+      const t = restingTemplate(cu);
+      /* palm down, seen from the front of the bed or from above: the back of the hand with its knuckles and clefts */
+      return { ...upperFore, hand: [t.outline.map(W)], thumb: [] as Pt[][], lines: backView ? [] : t.lines.map((l) => l.map(W)),
+        nail: backView ? null : { p: W(t.nail), len: t.nailLen } };
     }
     const index = pt > 0.05 ? limb3(pr, knuckle(i), k.handA[i] + (1 - pt) * curl * k.flip, sh.fingers.map((t) => ({ ...t, a: t.a * 0.75, p: t.p * 0.75, w: 0.8 })), k.flip, z.wr, z.wr) : [];
     return {
