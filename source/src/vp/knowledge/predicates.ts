@@ -320,8 +320,9 @@ export const NAMED: Record<string, NamedPredicateDef> = {
     what: 'Finger–nose or heel–shin accurate with the eyes open and dysmetric with them closed.',
     uses: () => ['arm.finger-nose', 'leg.heel-shin'],
     observes: () => [{ obs: 'arm.finger-nose', ctx: { eyesClosed: true } }, { obs: 'leg.heel-shin', ctx: { eyesClosed: true } }],
+    /* on the same limb: a dysmetric left arm beside an accurate right one is not this sign */
     holds: (h) => ['arm.finger-nose', 'leg.heel-shin'].some((o) =>
-      h.rows(o, { eyesClosed: false }).some((r) => r.value.dysmetria === 'none') && h.rows(o, { eyesClosed: true }).some((r) => r.value.dysmetria !== 'none')),
+      h.rows(o, { eyesClosed: false }).some((r) => r.value.dysmetria === 'none' && h.rows(o, { eyesClosed: true }).some((q) => q.side === r.side && q.value.dysmetria !== 'none'))),
   },
   facialWeakness: {
     what: 'Lower facial weakness on one side, with (`forehead: true`) or without the forehead; or on both sides (`both: true`).',

@@ -99,7 +99,9 @@ function derive(view: RuntimeView): LimbState {
      limbs whose part of the strip it involves. */
   const cortical = (S: Side) => {
     const lesionSide = other(S);
-    const subcortical = [...nodes].some((n) => n.startsWith(`${lesionSide}_`) && /_(ic|peduncle|pons_cst|med_pyr|cst_)/.test(n));
+    /* Above the pyramidal decussation the tract serving side S runs on the other side; below it, in the cord, on the same
+       side. Either way the whole tract is cut, not a part of the strip. */
+    const subcortical = [...nodes].some((n) => (n.startsWith(`${lesionSide}_`) && /_(ic|peduncle|pons_cst|med_pyr)/.test(n)) || n.startsWith(`${S}_cst_`));
     if (subcortical) return { face: 1, arm: 1, leg: 1 };
     return {
       face: nodes.has(`${lesionSide}_mcx_face`) ? 1 : 0.3,

@@ -453,6 +453,9 @@ console.log('\nNeurological examination (from the nervous-system graph)');
     const [c, w] = les(['R_cst_L2', 'R_cst_L3', 'R_cst_L4', 'R_cst_L5', 'R_cst_S1', 'R_dc_asc', 'R_stt_asc']);
     ok('Brown-Séquard: weakness and vibration loss on the side of the lesion, pinprick lost on the other',
       o(c, w, 'leg.power.R').hipFlexion < 5 && o(c, w, 'leg.vibration.R').vibration === 'absent' && o(c, w, 'leg.pinprick.L').L4 === 'absent' && o(c, w, 'leg.pinprick.R').L4 === 'normal');
+    /* below the decussation the tract serving the right leg runs on the right: the whole tract is cut, so the reflexes are brisk */
+    ok('Brown-Séquard: brisk knee jerk and extensor plantar on the side of the lesion', o(c, w, 'leg.reflexes.R').knee >= 3 && o(c, w, 'leg.reflexes.R').plantar === 'extensor' && o(c, w, 'leg.reflexes.L').knee === 2,
+      JSON.stringify(o(c, w, 'leg.reflexes.R')));
   }
   {
     const [c, w] = les(['L_cn5_sens', 'L_lat_bs', 'L_icp', 'L_cn9_nuc', 'L_cn10_nuc', 'L_stt_asc']);

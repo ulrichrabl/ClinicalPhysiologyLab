@@ -99,7 +99,18 @@ export const PULSE_STATION: StationDef = {
   presets: [],
 };
 
-export const STATIONS: StationDef[] = [ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION];
+/* The neurological station (ADR-017 decision 10): the limb examination and the ladder of the nervous system a lesion sits
+   on. Its starting points are lesions (stations/neuro-presets.ts), so `presets` is empty here. */
+export const NEURO_STATION: StationDef = {
+  id: 'neuro', test: 'arm.drift', alsoTests: ['arm.finger-nose', 'leg.reflexes'],
+  title: L('Neurological station', 'Neurologie-Station'),
+  summary: L('Pronator drift, finger–nose and the knee jerk, done by the patient on the edge of the bed, beside the ladder of the nervous system: cortex, capsule, brainstem, cord, root, nerve, muscle and the cerebellum. Place a lesion on one rung; watch what the limbs do and why.',
+    'Armvorhalteversuch, Finger-Nase-Versuch und Patellarsehnenreflex, vom Patienten auf der Bettkante ausgeführt, neben der Leiter des Nervensystems: Rinde, Kapsel, Hirnstamm, Rückenmark, Wurzel, Nerv, Muskel und das Kleinhirn. Setzen Sie eine Läsion auf eine Stufe; sehen Sie, was die Glieder tun und warum.'),
+  drivers: {},
+  presets: [],
+};
+
+export const STATIONS: StationDef[] = [ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION, NEURO_STATION];
 
 export interface SettingGroup { id: string; label: LocalizedText; vars: VariableDef[]; why?: LocalizedText }
 

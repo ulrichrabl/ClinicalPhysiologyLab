@@ -76,6 +76,7 @@ const UI: Record<string, Record<Lang, string>> = {
   stationEyesYours: { en: 'Your patient’s eyes', de: 'Die Augen Ihres Patienten' },
   stationPulseYours: { en: 'Your patient’s pulse and neck veins', de: 'Puls und Halsvenen Ihres Patienten' },
   stationPulseText: { en: 'The pulse under the finger and the jugular vein in the neck, beside the pressures that make them: the aorta’s wave and the right atrium’s a, x, v and y, beat by beat.', de: 'Der Puls unter dem Finger und die Jugularvene am Hals, neben den Drücken, die sie erzeugen: die Welle der Aorta und a, x, v und y des rechten Vorhofs, Schlag für Schlag.' },
+  stationNeuroText: { en: 'The limb examination and the ladder of the nervous system: pronator drift, finger–nose and the knee jerk, done on the bedside figure, with the lesion placed on its rung, from cortex to muscle.', de: 'Die Untersuchung der Gliedmaßen und die Leiter des Nervensystems: Armvorhalteversuch, Finger-Nase-Versuch und Patellarsehnenreflex an der Patientenfigur, mit der Läsion auf ihrer Stufe, von der Rinde bis zum Muskel.' },
   stationEyesText: { en: 'The eye examination and the pathways it reads, side by side: pupils, movements, the cover test, nystagmus, the head impulse and the fields, with the reflex arc, the muscles and nerves, the labyrinths or the visual pathway.', de: 'Die Augenuntersuchung und die Bahnen, die sie prüft, nebeneinander: Pupillen, Motorik, Abdecktest, Nystagmus, Kopfimpuls und Gesichtsfeld, mit Reflexbogen, Muskeln und Nerven, Labyrinthen oder Sehbahn.' },
   stationShows: { en: 'shows', de: 'zeigt' }, stationNormal: { en: 'nothing abnormal', de: 'nichts Auffälliges' },
   openInStation: { en: 'Open in the station', de: 'In der Station öffnen' },
@@ -172,10 +173,11 @@ import { FREE_CASE } from './free-case.ts';
 import { installReport } from './report.ts';
 import { installRecorder, trailTail } from './session-record.ts';
 import { mountEcgStation, type StationHandle } from './station-ecg.ts';
-import { ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION } from '../stations/station.ts';
-type StationId = 'ecg' | 'auscultation' | 'eyes' | 'pulse' | 'arrest';
+import { ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION, NEURO_STATION } from '../stations/station.ts';
+type StationId = 'ecg' | 'auscultation' | 'eyes' | 'pulse' | 'neuro' | 'arrest';
 import { mountAuscultationStation } from './station-auscultation.ts';
 import { mountEyeStation } from './station-eyes.ts';
+import { mountNeuroStation } from './station-neuro.ts';
 import { mountPulseStation } from './station-pulse.ts';
 import { mountArrestPractice } from './practice-arrest.ts';
 import { motionSide, mountNeuroMotion, type NeuroMotion } from './neuro-motion-view.ts';
@@ -350,6 +352,12 @@ export function mount(root: HTMLElement) {
       <p class="bed-triage">${t('stationEyesText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
     ec.querySelector('button')!.onclick = () => openStation('eyes');
     wl.appendChild(ec);
+    const nc = document.createElement('article');
+    nc.className = 'bedcard free';
+    nc.innerHTML = `<span class="tag">${t('stationTag')}</span><h2>${esc(tr(NEURO_STATION.title, lang))}</h2>
+      <p class="bed-triage">${t('stationNeuroText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
+    nc.querySelector('button')!.onclick = () => openStation('neuro');
+    wl.appendChild(nc);
     const pc = document.createElement('article');
     pc.className = 'bedcard free';
     pc.innerHTML = `<span class="tag">${t('stationTag')}</span><h2>${esc(tr(PULSE_STATION.title, lang))}</h2>
@@ -373,7 +381,7 @@ export function mount(root: HTMLElement) {
     if (from === 'ward') stopLive(); else live?.stop();
     show('station');
     stationNow = which;
-    const mount = which === 'ecg' ? mountEcgStation : which === 'eyes' ? mountEyeStation : which === 'pulse' ? mountPulseStation : which === 'arrest' ? mountArrestPractice : mountAuscultationStation;
+    const mount = which === 'ecg' ? mountEcgStation : which === 'eyes' ? mountEyeStation : which === 'neuro' ? mountNeuroStation : which === 'pulse' ? mountPulseStation : which === 'arrest' ? mountArrestPractice : mountAuscultationStation;
     station = mount($('#station'), {
       lang,
       ...(withPatient ? { patient: { model: structuredClone(live!.model), name: { en: base.patient.name, de: base.patient.name } } } : {}),

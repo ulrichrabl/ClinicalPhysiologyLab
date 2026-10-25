@@ -16,7 +16,7 @@ import { fingerNose, kneeJerk, pronatorDrift, type DriftFinding, type FingerNose
 
 export type NeuroMotion =
   | { kind: 'drift'; finding: DriftFinding }
-  | { kind: 'finger-nose'; side: 'L' | 'R'; finding: FingerNoseFinding }
+  | { kind: 'finger-nose'; side: 'L' | 'R'; finding: FingerNoseFinding; eyesClosed?: boolean }
   | { kind: 'knee-jerk'; side: 'L' | 'R'; grade: ReflexGrade };
 
 /** The side the test is watched from: the side examined, or for drift the side that drifts (the right if neither or both). */
@@ -28,6 +28,7 @@ export function neuroFrame(m: NeuroMotion, look: FigureLook, t: number): string 
   const fr: MotionFrame = m.kind === 'drift' ? pronatorDrift(base, look, t, m.finding)
     : m.kind === 'finger-nose' ? fingerNose(base, look, t, m.finding, i)
       : kneeJerk(base, look, t, m.grade, i);
+  if (m.kind === 'finger-nose' && m.eyesClosed) fr.pose.eyes = 1;
   const props = side === 'L' ? `<g transform="matrix(-1 0 0 1 360 0)">${fr.props}</g>` : fr.props;
   /* the ward's bedside figure is on the same page with gradients of the same names: these get their own */
   return (figureSvg(fr.pose, look, viewAt(side === 'L' ? 180 : 0)) + props).replace(/id="([^"]+)"/g, 'id="nm-$1"').replace(/url\(#([^)]+)\)/g, 'url(#nm-$1)').replace(/href="#([^"]+)"/g, 'href="#nm-$1"');
