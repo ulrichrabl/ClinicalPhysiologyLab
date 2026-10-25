@@ -405,6 +405,9 @@ export interface CourseEvent {
   note?: LocalizedText;
 }
 
+/** What a lesion of the nervous system is (models/neuro-limb.ts reads it). */
+export type LesionProcess = 'infarct' | 'haemorrhage' | 'compression' | 'section' | 'degeneration' | 'demyelination' | 'inflammation';
+
 export interface CaseDef {
   schema: 'vp.case/1';
   id: string;
@@ -430,6 +433,9 @@ export interface CaseDef {
       muscle?: 'normal' | 'wasted';
     };
     speaks?: Locale[];            // languages the patient can be interviewed in
+    /** This patient's own anatomy where it differs from the usual: a muscle's share from each root (myotomes vary between
+        people: Phillips 1991, London 2022, Hashimoto 2023). */
+    anatomy?: { myotome?: Record<string, Record<string, number>> };
     /** Someone who came with the patient and can give a collateral history. */
     companion?: { name: string; relation: LocalizedText };
   };
@@ -447,7 +453,9 @@ export interface CaseDef {
     chemistry?: Record<string, number>;
     /** `extent`: the share of these structures' fibres the lesion takes (0–1, default 1): an MCA infarct that grazes the leg's fibres. */
     /** `days`: the time since the lesion began (default 1): wasting and reinnervation follow it. */
-    lesions?: Array<{ nodes: string[]; complete?: boolean; extent?: number; days?: number; label?: string }>;
+    /** `process`: what the lesion is. Only degenerating motor neurons (motor neurone disease) fasciculate; a compressed
+        root or nerve is weak partly by conduction block, which recovers without wasting. */
+    lesions?: Array<{ nodes: string[]; complete?: boolean; extent?: number; days?: number; process?: LesionProcess; label?: string }>;
     /** The state the patient lived in before this illness (chronic disease, usual treatment), reached as a steady state first. */
     chronic?: { days?: number; physiology?: Record<string, number>; respiratory?: Record<string, number>; body?: Record<string, number> };
   };

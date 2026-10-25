@@ -1,5 +1,7 @@
 import type { Pt } from './figure-geom.ts';
 
+export type Cm = [number, number];
+
 /* ===========================================================================
    The hand seen from its side (the back of the hand facing the viewer), for
    pointing (finger–nose), and at rest (the hand hanging or lying on the
@@ -78,7 +80,13 @@ export function pointingHand(h: HandFrame): { outline: Pt[]; lines: Pt[][] } {
 /** The hand at rest, from its back: the fingers together, bent by `curl` degrees (16 at rest, about 70 gripping), so
     they look shorter; the thumb along the radial edge; the knuckles and the clefts between the fingers drawn. */
 export function restingHand(h: HandFrame, curl: number): { outline: Pt[]; lines: Pt[][]; nail: Pt; nailLen: number } {
-  const w = toWorld(h);
+  const w = toWorld(h), t = restingTemplate(curl);
+  return { outline: t.outline.map(w), lines: t.lines.map((l) => l.map(w)), nail: w(t.nail), nailLen: t.nailLen };
+}
+
+/** The resting hand from its back, in the hand's own centimetres (x along it, y across it toward the thumb; the rows at
+    |y| = 1 are the wrist). */
+export function restingTemplate(curl: number): { outline: Cm[]; lines: Cm[][]; nail: Cm; nailLen: number } {
   const c = Math.max(0, Math.min(1, curl / 90));
   /* the fingers' apparent length past the knuckles: the middle finger 9.5 cm straight; folded, the proximal phalanx
      still shows about 3 cm end-on */
@@ -103,7 +111,7 @@ export function restingHand(h: HandFrame, curl: number): { outline: Pt[]; lines:
     [[K - 2.4, 2.75], [K - 0.6 + 2.2 * (1 - c), 2.85]],                       // the thumb's edge over the index
   ];
   /* the nail of the middle finger, on its back near the tip: where cyanosis and pallor show first (shortened as the finger bends) */
-  return { outline: out.map(w), lines: lines.map((l) => l.map(w)), nail: w([K + L * 0.98 - 1.1, -0.2]), nailLen: 1.1 * Math.max(0.3, Math.cos((Math.PI / 2) * c)) };
+  return { outline: out, lines, nail: [K + L * 0.98 - 1.1, -0.2], nailLen: 1.1 * Math.max(0.3, Math.cos((Math.PI / 2) * c)) };
 }
 
 /* ===========================================================================
@@ -117,7 +125,6 @@ export function restingHand(h: HandFrame, curl: number): { outline: Pt[]; lines:
    that is on the page).
 =========================================================================== */
 
-export type Cm = [number, number];
 /** In the hand's own centimetres: the caller lays x along the hand and y across the body toward the palm (the rows at
     |y| = 1 are the wrist, to take the forearm's own half-width). */
 export function radialHand(curl: number): { outline: Cm[]; thumb: Cm[]; lines: Cm[][] } {

@@ -249,6 +249,7 @@ export function validateCase(c: CaseDef, cat: Catalog, reg: Registry): Issue[] {
   }
   for (const [i, les] of (c.pathology.lesions ?? []).entries()) {
     for (const n of les.nodes) if (!(n in NODES)) out.push({ level: 'error', path: `pathology.lesions[${i}]`, message: `unknown nervous-system node ${n}` });
+    if (les.process !== undefined && !['infarct', 'haemorrhage', 'compression', 'section', 'degeneration', 'demyelination', 'inflammation'].includes(les.process)) out.push({ level: 'error', path: `pathology.lesions[${i}].process`, message: `unknown process ${les.process}` });
     if (les.days !== undefined && !(les.days >= 0)) out.push({ level: 'error', path: `pathology.lesions[${i}].days`, message: `days ${les.days} is not a time since onset` });
     if (les.extent !== undefined && !(les.extent > 0 && les.extent <= 1)) out.push({ level: 'error', path: `pathology.lesions[${i}].extent`, message: `extent ${les.extent} is not a share between 0 and 1` });
   }

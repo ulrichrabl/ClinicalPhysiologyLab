@@ -1,3 +1,4 @@
+import type { LesionProcess } from '../model/types.ts';
 import type { LocalizedText } from '../model/i18n.ts';
 import { BODY_DEFAULTS, type PatientModel } from '../physiology/state.ts';
 import type { NeuroTest } from './neuro-signs.ts';
@@ -27,8 +28,10 @@ export interface NeuroPreset {
   complete: boolean;
   /** the share of a structure's fibres the lesion takes, where less than all */
   extent?: Record<string, number>;
-  /** days since onset (default 1): wasting and the survivors' sprouting follow it */
+  /** days since onset (default 1): wasting, the survivors' sprouting and the release of tone and reflexes follow it */
   days?: number;
+  /** what the lesion is, where it matters: degeneration (motor neurone disease) fasciculates; compression blocks */
+  process?: LesionProcess;
   /** the textbook signs of this lesion (checked by the station tests) */
   signs: string[];
   /** where to look first */
@@ -39,14 +42,16 @@ export const NEURO_PRESETS: NeuroPreset[] = [
   /* upper motor neuron */
   { id: 'mca-l', label: L('Left middle cerebral artery stroke (face and arm)', 'Mediainfarkt links (Gesicht und Arm)'),
     lesions: ['L_mcx_face', 'L_mcx_arm', 'L_broca', 'L_mcx_leg'], extent: { L_mcx_leg: 0.3 }, complete: false, days: 1, signs: ['pronator-drift', 'extensor-plantar'], look: 'drift' },
-  { id: 'capsule-l', label: L('Left internal capsule (lacunar stroke)', 'Capsula interna links (lakunärer Infarkt)'),
-    lesions: ['L_ic'], complete: false, days: 1, signs: ['pronator-drift', 'hyperreflexia', 'extensor-plantar'], look: 'leg-reflexes' },
-  { id: 'cord-r', label: L('Right half of the cervical cord (Brown-Séquard)', 'Rechte Hälfte des Halsmarks (Brown-Séquard)'),
-    lesions: ['R_cst_C5', 'R_dc_asc', 'R_stt_asc'], complete: false, days: 1, signs: ['pronator-drift', 'hyperreflexia', 'extensor-plantar', 'limb-ataxia-eyes-closed'], look: 'drift' },
-  { id: 'cord-t10-r', label: L('Right half of the thoracic cord at T10', 'Rechte Hälfte des Brustmarks in Höhe Th10'),
-    lesions: ['R_cst_T10', 'R_dc_T10', 'R_stt_T10'], complete: false, days: 1, signs: ['hyperreflexia', 'extensor-plantar', 'sensory-level', 'distal-vibration-loss'], look: 'sensation' },
+  { id: 'capsule-l', label: L('Left internal capsule, dense hemiplegia, one month', 'Capsula interna links, schwere Hemiparese, ein Monat'),
+    lesions: ['L_ic'], complete: true, days: 30, signs: ['pronator-drift', 'hyperreflexia', 'extensor-plantar'], look: 'leg-reflexes' },
+  { id: 'cord-r', label: L('Right half of the cervical cord (Brown-Séquard), one week', 'Rechte Hälfte des Halsmarks (Brown-Séquard), eine Woche'),
+    lesions: ['R_cst_C5', 'R_dc_asc', 'R_stt_asc'], complete: false, days: 7, signs: ['pronator-drift', 'hyperreflexia', 'extensor-plantar', 'limb-ataxia-eyes-closed'], look: 'drift' },
+  { id: 'cord-t10-r', label: L('Right half of the thoracic cord at T10, one week', 'Rechte Hälfte des Brustmarks in Höhe Th10, eine Woche'),
+    lesions: ['R_cst_T10', 'R_dc_T10', 'R_stt_T10'], complete: false, days: 7, signs: ['hyperreflexia', 'extensor-plantar', 'sensory-level', 'distal-vibration-loss'], look: 'sensation' },
+  { id: 'cord-complete-t10', label: L('Complete transection of the cord at T10, day 1 (spinal shock)', 'Komplette Querschnittsläsion in Höhe Th10, Tag 1 (spinaler Schock)'),
+    lesions: ['L_cst_T10', 'R_cst_T10', 'L_dc_T10', 'R_dc_T10', 'L_stt_T10', 'R_stt_T10'], complete: true, days: 1, signs: ['sensory-level', 'absent-ankle-reflex'], look: 'leg-reflexes' },
   { id: 'mnd', label: L('Motor neurone disease (upper and lower)', 'Motoneuronerkrankung (erstes und zweites Motoneuron)'),
-    lesions: ['L_ahn_C8', 'R_ahn_C8', 'L_ahn_T1', 'R_ahn_T1', 'L_cst_L2', 'R_cst_L2', 'L_cst_L3', 'R_cst_L3', 'L_cst_L4', 'R_cst_L4', 'L_cst_L5', 'R_cst_L5', 'L_cst_S1', 'R_cst_S1'], complete: false, days: 365, extent: { L_ahn_C8: 0.8, R_ahn_C8: 0.8, L_ahn_T1: 0.8, R_ahn_T1: 0.8 },
+    lesions: ['L_ahn_C8', 'R_ahn_C8', 'L_ahn_T1', 'R_ahn_T1', 'L_cst_L2', 'R_cst_L2', 'L_cst_L3', 'R_cst_L3', 'L_cst_L4', 'R_cst_L4', 'L_cst_L5', 'R_cst_L5', 'L_cst_S1', 'R_cst_S1'], complete: false, days: 365, process: 'degeneration', extent: { L_ahn_C8: 0.8, R_ahn_C8: 0.8, L_ahn_T1: 0.8, R_ahn_T1: 0.8 },
     signs: ['fasciculation', 'muscle-wasting', 'hyperreflexia', 'extensor-plantar'], look: 'tone' },
   /* brainstem and cranial nerves */
   { id: 'wallenberg-l', label: L('Left lateral medulla (Wallenberg)', 'Laterale Medulla links (Wallenberg)'),
@@ -59,6 +64,9 @@ export const NEURO_PRESETS: NeuroPreset[] = [
   { id: 'horner-l', label: L('Left sympathetic chain (Horner’s syndrome)', 'Grenzstrang links (Horner-Syndrom)'), lesions: ['L_scg'], complete: true, days: 30, signs: ['ptosis', 'anisocoria', 'dilation-lag'], look: 'eyes' },
   { id: 'cn11-r', label: L('Right accessory nerve (after a lymph node biopsy in the neck)', 'N. accessorius rechts (nach Lymphknotenbiopsie am Hals)'), lesions: ['R_cn11'], complete: true, days: 60,
     signs: ['weak-shrug'], look: 'cranial' },
+  { id: 'mnd-bulbar', label: L('Motor neurone disease, bulbar onset (one year)', 'Motoneuronerkrankung, bulbärer Beginn (ein Jahr)'),
+    lesions: ['L_cn12_nuc', 'R_cn12_nuc', 'L_cn10_nuc', 'R_cn10_nuc'], complete: false, days: 365, process: 'degeneration', extent: { L_cn12_nuc: 0.7, R_cn12_nuc: 0.7, L_cn10_nuc: 0.7, R_cn10_nuc: 0.7 },
+    signs: ['tongue-wasting', 'tongue-fasciculation', 'dysarthria'], look: 'cranial' },
   { id: 'bell-l', label: L('Left facial nerve (Bell’s palsy)', 'N. facialis links (Bell-Parese)'),
     lesions: ['L_cn7'], complete: true, days: 3, signs: ['lmn-facial-weakness'], look: 'cranial' },
   /* roots, plexus and nerves */
@@ -88,8 +96,8 @@ export const NEURO_PRESETS: NeuroPreset[] = [
 ];
 
 export const NEURO_PRESET_GROUPS: Array<{ group: LocalizedText; ids: string[] }> = [
-  { group: L('Upper motor neuron', 'Erstes Motoneuron'), ids: ['mca-l', 'capsule-l', 'cord-r', 'cord-t10-r', 'mnd'] },
-  { group: L('Brainstem and cranial nerves', 'Hirnstamm und Hirnnerven'), ids: ['wallenberg-l', 'medial-medulla-l', 'cn3-l', 'cn6-l', 'horner-l', 'bell-l', 'cn11-r'] },
+  { group: L('Upper motor neuron', 'Erstes Motoneuron'), ids: ['mca-l', 'capsule-l', 'cord-r', 'cord-t10-r', 'cord-complete-t10', 'mnd'] },
+  { group: L('Brainstem and cranial nerves', 'Hirnstamm und Hirnnerven'), ids: ['wallenberg-l', 'medial-medulla-l', 'cn3-l', 'cn6-l', 'horner-l', 'bell-l', 'cn11-r', 'mnd-bulbar'] },
   { group: L('Roots, plexus and nerves', 'Wurzeln, Plexus und Nerven'), ids: ['c6-root-r', 'l4-root-r', 'l5-root-r', 's1-root-r', 'cauda-equina', 'erb-r', 'femoral-r', 'peroneal-r', 'ulnar-r'] },
   { group: L('Junction and muscle', 'Endplatte und Muskel'), ids: ['myasthenia', 'myopathy'] },
   { group: L('Basal ganglia and polyneuropathy', 'Basalganglien und Polyneuropathie'), ids: ['parkinson-l', 'parkinson-both', 'polyneuropathy'] },
@@ -100,7 +108,7 @@ export const NEURO_PRESET_GROUPS: Array<{ group: LocalizedText; ids: string[] }>
 export function applyNeuroPreset(m: PatientModel, id: string): PatientModel {
   const p = NEURO_PRESETS.find((x) => x.id === id);
   const next = structuredClone(m);
-  next.lesions = { nodes: p ? [...p.lesions] : [], complete: p ? p.complete : true, ...(p?.extent ? { extent: { ...p.extent } } : {}), ...(p?.days !== undefined ? { days: p.days } : {}) };
+  next.lesions = { nodes: p ? [...p.lesions] : [], complete: p ? p.complete : true, ...(p?.extent ? { extent: { ...p.extent } } : {}), ...(p?.days !== undefined ? { days: p.days } : {}), ...(p?.process ? { process: Object.fromEntries(p.lesions.map((n) => [n, p.process!])) } : {}) };
   next.vestibular = { side: 'none', severity: 0.8, daysSinceOnset: 1 };
   next.body = { ...BODY_DEFAULTS };
   return next;

@@ -1,4 +1,4 @@
-import type { CaseDef } from '../model/types.ts';
+import type { CaseDef, LesionProcess } from '../model/types.ts';
 import { CHEMISTRY_DEFAULTS } from '../../models/chemistry/public-state.ts';
 import { ELECTRICAL_DEFAULTS, ELECTRICAL_PRESETS, type ElectricalParams } from './heart/electrical.ts';
 import { RESPIRATORY_DEFAULTS, type RespiratoryParams } from './lung/respiratory.ts';
@@ -41,7 +41,7 @@ export interface PatientModel {
   vestibular: { side: 'none' | 'L' | 'R'; severity: number; daysSinceOnset: number };
   /** Lesioned nodes of the nervous-system graph. */
   /** extent: the share of a structure's fibres the lesion takes, where less than all (default 1) */
-  lesions: { nodes: string[]; complete: boolean; extent?: Record<string, number>; days?: number };
+  lesions: { nodes: string[]; complete: boolean; extent?: Record<string, number>; days?: number; process?: Record<string, LesionProcess> };
   /** Body water, salt, potassium, acid–base, kidney, fuels: intake, losses, drugs, hormones, and how long the illness has acted. */
   body: BodyParams;
   /** Values clamped by the learner (an experiment) or, for what no model yet produces, by the case. */
@@ -89,6 +89,7 @@ export function modelFromCase(c: CaseDef): PatientModel {
   const lesions = c.pathology.lesions ?? [];
   m.lesions = { nodes: [...new Set(lesions.flatMap((l) => l.nodes))], complete: lesions.every((l) => l.complete !== false) };
   for (const l of lesions) if (l.extent !== undefined) for (const n of l.nodes) (m.lesions.extent ??= {})[n] = l.extent;
+  for (const l of lesions) if (l.process) for (const n of l.nodes) (m.lesions.process ??= {})[n] = l.process;
   const ds = lesions.map((l) => l.days).filter((d): d is number => d !== undefined);
   if (ds.length) m.lesions.days = Math.max(...ds);
   m.chemistry = { ...(c.pathology.chemistry ?? {}) };
@@ -118,11 +119,12 @@ export function pathologyOf(m: PatientModel): CaseDef['pathology'] {
   if (m.chronic) p.chronic = { days: m.chronic.days, physiology: m.chronic.circulation, respiratory: m.chronic.respiratory as Record<string, number>, body: m.chronic.body as Record<string, number> };
   if (m.vestibular.side !== 'none') p.conditions = [{ id: 'vestibular-hypofunction', params: { side: m.vestibular.side, severity: m.vestibular.severity, daysSinceOnset: m.vestibular.daysSinceOnset } }];
   if (m.lesions.nodes.length) {
-    /* structures with a partial extent go in a lesion of their own */
-    const ex = m.lesions.extent ?? {}, whole = m.lesions.nodes.filter((n) => ex[n] === undefined);
+    /* structures with a partial extent, or a process of their own, go in a lesion of their own */
+    const ex = m.lesions.extent ?? {}, pr = m.lesions.process ?? {};
     const d = m.lesions.days !== undefined ? { days: m.lesions.days } : {};
-    p.lesions = [...(whole.length ? [{ nodes: whole, complete: m.lesions.complete, ...d }] : []),
-      ...[...new Set(m.lesions.nodes.filter((n) => ex[n] !== undefined).map((n) => ex[n]))].map((e) => ({ nodes: m.lesions.nodes.filter((n) => ex[n] === e), complete: m.lesions.complete, extent: e, ...d }))];
+    const groups = new Map<string, string[]>();
+    for (const n of m.lesions.nodes) { const key = `${ex[n] ?? ''}|${pr[n] ?? ''}`; groups.set(key, [...(groups.get(key) ?? []), n]); }
+    p.lesions = [...groups.values()].map((nodes) => ({ nodes, complete: m.lesions.complete, ...(ex[nodes[0]] !== undefined ? { extent: ex[nodes[0]] } : {}), ...(pr[nodes[0]] ? { process: pr[nodes[0]] } : {}), ...d }));
   }
   if (Object.keys(m.chemistry).length) p.chemistry = { ...m.chemistry };
   return p;
