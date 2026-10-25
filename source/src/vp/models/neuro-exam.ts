@@ -369,6 +369,10 @@ export const NEURO_RESOLVERS: Record<string, Resolver> = {
     const s = neuroExamState(view);
     const st = limbState(view);
     const sensoryAtaxia = st.proprioception.L.leg !== 'normal' && st.proprioception.R.leg !== 'normal';
+    /* both legs too weak to bear weight (knee extension MRC 2 or less): no standing, no walking, no pull test */
+    const cannotStand = (['L', 'R'] as Side[]).every((S) => (st.power[S].kneeExtension ?? 5) <= 2);
+    if (cannotStand && (ref.property === 'posture.romberg' || ref.property === 'gait.pattern' || ref.property === 'posture.pull-test'))
+      return { value: ref.property === 'posture.romberg' ? { stance: 'unable' } : ref.property === 'gait.pattern' ? { pattern: 'unable' } : { response: 'unable' }, basis: `knee extension ${st.power.L.kneeExtension}/5 and ${st.power.R.kneeExtension}/5: cannot bear weight` };
     if (ref.property === 'posture.romberg') {
       if (sensoryAtaxia) return { value: ctx.eyesClosed ? { stance: 'falls' } : { stance: 'steady' }, basis: 'joint position sense lost in both legs' };
       if (st.gaitBalance) return { value: { stance: 'sways' }, basis: 'cerebellar vermis' };

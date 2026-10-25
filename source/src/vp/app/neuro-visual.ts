@@ -17,6 +17,8 @@ const grade = (g: unknown): ReflexGrade => Math.max(0, Math.min(4, typeof g === 
 /** The figure doing the test for this patient, or null when the test is shown by a chart or in words. */
 export function neuroMotionFor(test: NeuroTest, read: NeuroReadFn, side: Side, eyesClosed = false): NeuroMotion | null {
   const S = side as 'L' | 'R';
+  /* a patient who cannot stand is not drawn standing or walking */
+  if ((test === 'romberg' || test === 'pull' || test === 'gait') && read('posture.romberg', { eyesClosed: false })?.stance === 'unable') return null;
   switch (test) {
     case 'drift': return { kind: 'drift', finding: { drift: [!!read('arm.drift.R', { eyesClosed: true })?.drift, !!read('arm.drift.L', { eyesClosed: true })?.drift] } };
     case 'finger-nose': return { kind: 'finger-nose', side: S, finding: read(`arm.finger-nose.${S}`, { eyesClosed }) ?? {}, eyesClosed };

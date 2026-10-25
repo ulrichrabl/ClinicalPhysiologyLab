@@ -635,10 +635,11 @@ export function mount(root: HTMLElement) {
     if (m.id === 'test.rapid-alternating' && raSide) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'rapid-alternating', side: raSide, finding: fv(`arm.rapid-alternating.${raSide}`) as any } }); return; }
     if (m.id === 'test.romberg') {
       const rf = (closed: boolean) => findings.find((f) => f.property === 'posture.romberg' && !!f.context?.eyesClosed === closed)?.value as any;
-      if (rf(false) || rf(true)) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'romberg', open: rf(false) ?? { stance: 'steady' }, closed: rf(true) ?? { stance: 'steady' } } }); return; }
+      /* a patient who cannot stand is not drawn standing: the finding says so in words */
+      if ((rf(false) || rf(true)) && rf(false)?.stance !== 'unable') { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'romberg', open: rf(false) ?? { stance: 'steady' }, closed: rf(true) ?? { stance: 'steady' } } }); return; }
     }
-    if (m.id === 'test.pull' && fv('posture.pull-test')) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'pull', finding: fv('posture.pull-test') as any } }); return; }
-    if (m.id === 'test.gait' && fv('gait.pattern')) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'gait', finding: fv('gait.pattern') as any } }); return; }
+    if (m.id === 'test.pull' && fv('posture.pull-test') && (fv('posture.pull-test') as any).response !== 'unable') { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'pull', finding: fv('posture.pull-test') as any } }); return; }
+    if (m.id === 'test.gait' && fv('gait.pattern') && !(s && (observeIn(s, 'posture.romberg', { eyesClosed: false })?.value as any)?.stance === 'unable')) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'gait', finding: fv('gait.pattern') as any } }); return; }
     const faceL = findings.find((f) => f.property === 'face.movement.L'), faceR = findings.find((f) => f.property === 'face.movement.R');
     if (faceL && faceR) { setVisual({ kind: 'face', L: faceL.value as FaceFinding, R: faceR.value as FaceFinding }); return; }
     /* the mouth: the jaw, the palate and the tongue, on the same face (its movement as the model has it) */

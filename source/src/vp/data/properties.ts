@@ -366,7 +366,7 @@ export const PROPERTIES: PropertyDef[] = [
   },
   {
     id: 'mouth.palate', structure: 'mouth', label: { en: 'Palate, gag and voice', de: 'Gaumensegel, Würgreflex und Stimme' },
-    value: rec({ uvulaDeviatesTo: c('deviation'), gagLeft: bool, gagRight: bool, voice: c('voice') }),
+    value: rec({ uvulaDeviatesTo: c('deviation'), weakBoth: bool, gagLeft: bool, gagRight: bool, voice: c('voice') }, ['weakBoth']),
     normal: { value: { uvulaDeviatesTo: 'none', gagLeft: true, gagRight: true, voice: 'normal' } },
     source: 'model', resolver: 'neuro.cranial', formatter: 'mouth.palate',
   },

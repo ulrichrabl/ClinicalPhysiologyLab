@@ -347,7 +347,8 @@ export const FORMATTERS: Record<string, Formatter> = {
     ? (de(l) ? 'Mundöffnung gerade, Kaumuskulatur kräftig.' : 'Jaw opens in the midline; masseters strong.')
     : (de(l) ? `Unterkiefer weicht bei Mundöffnung ${lab(cat, 'deviation', v.deviatesTo, l)} ab.` : `Jaw deviates ${lab(cat, 'deviation', v.deviatesTo, l)} on opening.`)),
   'mouth.palate': (v, _c, l, cat) => {
-    const uv = v.uvulaDeviatesTo === 'none'
+    const uv = v.weakBoth ? (de(l) ? 'Gaumensegel hebt sich beidseits kaum, Uvula mittig' : 'palate lifts little on either side, uvula central')
+      : v.uvulaDeviatesTo === 'none'
       ? (de(l) ? 'Gaumensegel hebt sich symmetrisch, Uvula mittig' : 'palate elevates symmetrically, uvula central')
       : (de(l) ? `Uvula wird ${lab(cat, 'deviation', v.uvulaDeviatesTo, l)} gezogen` : `uvula pulled ${lab(cat, 'deviation', v.uvulaDeviatesTo, l)}`);
     const gag = v.gagLeft && v.gagRight ? (de(l) ? 'Würgreflex beidseits auslösbar' : 'gag present on both sides')

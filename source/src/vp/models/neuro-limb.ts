@@ -93,7 +93,9 @@ export interface LimbState {
   jawTo: 'none' | Side;
   uvulaTo: 'none' | Side;
   gag: Record<Side, boolean>;
-  voice: 'normal' | 'hoarse';
+  voice: 'normal' | 'hoarse' | 'nasal';
+  /** the palate weak on both sides: it lifts little, the uvula central, the voice nasal (bulbar palsy) */
+  palateWeakBoth: boolean;
   shrug: Record<Side, number>;
   tongue: { to: 'none' | Side; wasting: boolean; fasciculation: boolean };
   speech: { fluency: string; comprehension: string; repetition: string; naming: string; articulation: string };
@@ -389,7 +391,7 @@ function derive(view: RuntimeView): LimbState {
 
   return {
     power, fatigable, tone, wasting, fasciculation, reflex, plantar, drift, pinprick, territories, vibration, proprioception, saddle,
-    face, faceSensation, jawTo, uvulaTo, gag, voice, shrug, tongue, speech, bulbarFatigue, ocularFatigue,
+    face, faceSensation, jawTo, uvulaTo, gag, voice: palateWeak.length === 2 ? 'nasal' : voice, palateWeakBoth: palateWeak.length === 2, shrug, tongue, speech, bulbarFatigue, ocularFatigue,
     gaitBalance: has('gait_balance'), parkinson, polyneuropathy: poly, basis,
   };
 }
@@ -443,7 +445,7 @@ export const NEURO_LIMB_RESOLVERS: Record<string, Resolver> = {
     switch (ref.property) {
       case 'face.movement': return { value: { ...st.face[ref.side!] } };
       case 'jaw.opening': return { value: { deviatesTo: st.jawTo } };
-      case 'mouth.palate': return { value: { uvulaDeviatesTo: st.uvulaTo, gagLeft: st.gag.L, gagRight: st.gag.R, voice: st.voice } };
+      case 'mouth.palate': return { value: { uvulaDeviatesTo: st.uvulaTo, ...(st.palateWeakBoth ? { weakBoth: true } : {}), gagLeft: st.gag.L, gagRight: st.gag.R, voice: st.voice } };
       case 'shoulder.shrug': return { value: { power: st.shrug[ref.side!] } };
       case 'mouth.tongue': return { value: { deviatesTo: st.tongue.to, wasting: st.tongue.wasting, fasciculation: st.tongue.fasciculation } };
       default: return { value: undefined };
