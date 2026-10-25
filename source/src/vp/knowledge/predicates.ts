@@ -341,11 +341,15 @@ export const NAMED: Record<string, NamedPredicateDef> = {
       || restingPower(h, 'leg.power').some(({ value: v }) => v.hipFlexion < 5 && Math.min(v.hipFlexion, v.ankleDorsiflexion) < Math.min(v.kneeExtension, v.anklePlantarflexion)),
   },
   symmetricalWeakness: {
-    what: 'Weakness on both sides, proximal (shoulders and hips) or distal (feet).',
+    what: 'Weakness on both sides, proximal (shoulders and hips weaker than the feet) or distal (the feet weaker than the hips): a gradient, so a limb paralysed throughout is neither.',
     uses: () => ['arm.power', 'leg.power'],
     holds: (h, a) => {
       const both = (obs: string, keys: string[]) => { const s = bySide(restingPower(h, obs)); return SIDES.every((S) => keys.some((k) => (s[S]?.[k] ?? 5) < 5)); };
-      return a.distribution === 'proximal' ? both('arm.power', ['shoulderAbduction']) && both('leg.power', ['hipFlexion']) : both('leg.power', ['ankleDorsiflexion', 'anklePlantarflexion']);
+      const legs = bySide(restingPower(h, 'leg.power'));
+      const min = (S: Side, keys: string[]) => Math.min(...keys.map((k) => legs[S]?.[k] ?? 5));
+      const gradient = (weak: string[], strong: string[]) => SIDES.every((S) => min(S, weak) < min(S, strong));
+      return a.distribution === 'proximal' ? both('arm.power', ['shoulderAbduction']) && both('leg.power', ['hipFlexion']) && gradient(['hipFlexion'], ['ankleDorsiflexion', 'anklePlantarflexion'])
+        : both('leg.power', ['ankleDorsiflexion', 'anklePlantarflexion']) && gradient(['ankleDorsiflexion', 'anklePlantarflexion'], ['hipFlexion', 'kneeExtension']);
     },
   },
   allReflexesAbsent: {
