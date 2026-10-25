@@ -47,6 +47,10 @@ export interface FaceState {
   foreheadLines: Record<Side, number>;           // 0..1
   mouth: Record<Side, { lift: number; droop: number; pull: number }>;
   mouthOpen: number;                             // 0..1 (teeth showing)
+  /** The mouth examination (optional): the jaw opened wide ("say ah"), its shift to one side (px, + toward the patient's
+      left as drawn), the soft palate's lift on each side (0..1), the uvula's shift (px), the tongue put out (0..1), its
+      deviation (px), a wasted half and fasciculations. */
+  oral?: { wide: number; jawShift: number; palate: Record<Side, number>; uvulaShift: number; tongueOut: number; tongueShift: number; wasted: Side | null; fasciculation: boolean; t: number };
   folds: Record<Side, number>;                   // nasolabial fold depth 0..1
   light: Side | 'none';
   dim: boolean;
@@ -493,6 +497,7 @@ export class FaceCanvas {
       for (let x = -40; x <= 40; x += 13) { g.beginPath(); g.moveTo(x, stomUp); g.lineTo(x, stomUp + 10); g.stroke(); }
       g.restore();
     }
+    if (st.oral && (st.oral.wide > 0.02 || st.oral.tongueOut > 0.02)) { this.drawOral(st.oral, cR, cL); return; }
     const lg = g.createLinearGradient(0, midTop, 0, bottom);
     lg.addColorStop(0, shade(lip, -0.12)); lg.addColorStop(0.5, lip); lg.addColorStop(1, shade(lip, 0.08));
     g.fillStyle = lg; g.fill(upperLip); g.fill(lowerLip);
@@ -503,6 +508,63 @@ export class FaceCanvas {
     const chin = g.createRadialGradient(0, 258, 2, 0, 258, 40);
     chin.addColorStop(0, rgba(skinShade, 0.25)); chin.addColorStop(1, rgba(skinShade, 0));
     g.fillStyle = chin; g.beginPath(); g.ellipse(0, 262, 44, 16, 0, 0, Math.PI * 2); g.fill();
+  }
+
+  /* ---- the mouth examined: "say ah", the tongue out, the jaw opened -------------------------- */
+  private drawOral(o: NonNullable<FaceState['oral']>, cR: { x: number; y: number }, cL: { x: number; y: number }) {
+    const g = this.g, { skinShade } = this.ap;
+    const lip = this.ap.sex === 'F' && this.ap.age < 60 ? '#b5655e' : '#a8716a';
+    const w = o.wide, top = 200 - w * 8, low = 222 + w * 62, js = o.jawShift * w;
+    /* the opening: the upper lip stays, the lower lip and jaw come down (and across, if the jaw deviates) */
+    const mouth = new Path2D();
+    mouth.moveTo(cR.x + js * 0.3, 214);
+    mouth.bezierCurveTo(cR.x * 0.7, top, cL.x * 0.7, top, cL.x + js * 0.3, 214);
+    mouth.bezierCurveTo(cL.x * 0.9 + js, low, cR.x * 0.9 + js, low, cR.x + js * 0.3, 214);
+    g.fillStyle = '#3d1514'; g.fill(mouth);
+    g.save(); g.clip(mouth);
+    /* upper teeth, the roof and the soft palate's two arches with the uvula between them */
+    g.fillStyle = '#f3efe6'; g.fillRect(-70, top - 4, 140, 12);
+    if (w > 0.3) {
+      const pal = '#c97a74';
+      g.fillStyle = '#7a2b28'; g.beginPath(); g.ellipse(js * 0.5, top + 46 * w, 30, 26 * w, 0, 0, Math.PI * 2); g.fill();   // the throat
+      for (const S of ['R', 'L'] as Side[]) {
+        const sx = S === 'R' ? -1 : 1, lift = o.palate[S];
+        g.strokeStyle = pal; g.lineWidth = 7;
+        g.beginPath(); g.moveTo(sx * 46, top + 60 * w); g.quadraticCurveTo(sx * 34, top + (30 - 12 * lift) * w, o.uvulaShift * 0.6, top + (18 - 8 * lift) * w); g.stroke();
+      }
+      const ux = o.uvulaShift, uy = top + (18 - 8 * Math.min(o.palate.L, o.palate.R)) * w;
+      g.fillStyle = pal; g.beginPath(); g.moveTo(ux - 5, uy); g.quadraticCurveTo(ux + o.uvulaShift * 0.2, uy + 22 * w, ux, uy + 26 * w); g.quadraticCurveTo(ux + o.uvulaShift * 0.2 + 6, uy + 18 * w, ux + 5, uy); g.fill();
+    }
+    /* the tongue on the floor of the mouth */
+    g.fillStyle = '#c86b6b'; g.beginPath(); g.ellipse(js * 0.8, low - 10, 50, 18, 0, Math.PI, 0); g.fill();
+    g.fillStyle = '#f3efe6'; g.fillRect(-60 + js, low - 6, 120, 8);
+    g.restore();
+    /* lips round the opening */
+    g.strokeStyle = lip; g.lineWidth = 9;
+    g.beginPath(); g.moveTo(cR.x + js * 0.3, 214); g.bezierCurveTo(cR.x * 0.7, top - 3, cL.x * 0.7, top - 3, cL.x + js * 0.3, 214); g.stroke();
+    g.beginPath(); g.moveTo(cL.x + js * 0.3, 214); g.bezierCurveTo(cL.x * 0.9 + js, low + 4, cR.x * 0.9 + js, low + 4, cR.x + js * 0.3, 214); g.stroke();
+    /* the tongue put out: toward its weak side; a wasted half narrow and furrowed, fasciculations as small flickers */
+    if (o.tongueOut > 0.02) {
+      const L = 20 + 58 * o.tongueOut, tx = o.tongueShift * o.tongueOut, base = 214 + w * 20;
+      const wR = o.wasted === 'R' ? 13 : 20, wL = o.wasted === 'L' ? 13 : 20;
+      const tip = { x: tx * 1.4, y: base + L };
+      const tongue = new Path2D();
+      tongue.moveTo(-wR - 4, base); tongue.bezierCurveTo(-wR - 2 + tx * 0.4, base + L * 0.6, tip.x - 16, tip.y, tip.x, tip.y);
+      tongue.bezierCurveTo(tip.x + 16, tip.y, wL + 2 + tx * 0.4, base + L * 0.6, wL + 4, base);
+      g.fillStyle = '#d27778'; g.fill(tongue);
+      g.strokeStyle = 'rgba(120,40,40,0.5)'; g.lineWidth = 1.6; g.stroke(tongue);
+      g.strokeStyle = 'rgba(120,40,40,0.35)'; g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(0, base + 4); g.quadraticCurveTo(tx * 0.6, base + L * 0.6, tip.x, tip.y - 8); g.stroke();   // the median furrow
+      if (o.wasted) {
+        const sx = o.wasted === 'R' ? -1 : 1;
+        for (let k = 0; k < 4; k++) { const y = base + 10 + k * L * 0.18; g.beginPath(); g.moveTo(sx * 4 + tx * (y - base) / L, y); g.quadraticCurveTo(sx * 10 + tx * (y - base) / L, y + 4, sx * 14 + tx * (y - base) / L, y + 1); g.stroke(); }
+      }
+      if (o.fasciculation) {
+        g.fillStyle = 'rgba(150,50,55,0.6)';
+        for (let k = 0; k < 7; k++) { const ph = Math.sin(o.t * 23 + k * 2.7); if (ph < 0.6) continue; const x = Math.sin(k * 3.1) * 12 + tx * 0.6, y = base + 12 + ((k * 37) % 40); g.beginPath(); g.arc(x, y, 1.6, 0, Math.PI * 2); g.fill(); }
+      }
+    }
+    void skinShade;
   }
 
   /* ---- examiner's instruments ----------------------------------------------------------------- */

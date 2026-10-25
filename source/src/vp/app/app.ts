@@ -21,7 +21,7 @@ import { suggest, type Suggestion } from '../engine/suggest.ts';
 import { SHORT_LABELS } from '../data/exam-structure.ts';
 import { sceneFindings, type SceneControls } from '../render/eye-scene.ts';
 import { EyeView } from '../render/eye-view.ts';
-import { FaceView, type FaceFinding } from '../render/face-view.ts';
+import { FaceView, type FaceFinding, type OralFinding } from '../render/face-view.ts';
 import { appearanceOf } from '../render/face-canvas.ts';
 import { figureSvg, figureLookFor, lerpPose, POSES, VIEW_ANGLE, viewAt, type FigureFindings, type FigureLook, type Pose } from '../render/patient-figure.ts';
 import { drawEcgPaper, drawSweep, PAPER_MM } from '../render/ecg-paper.ts';
@@ -208,7 +208,7 @@ type Visual =
   | { kind: 'auscultate'; site: string; bell: boolean; value: any; sound: 'heart' | 'lung' }
   | { kind: 'chest'; site: string; mode: ChestMode; value: any }
   | { kind: 'pulse'; finding: Finding }
-  | { kind: 'face'; L: FaceFinding; R: FaceFinding }
+  | { kind: 'face'; L: FaceFinding; R: FaceFinding; oral?: OralFinding; only?: string[] }
   | { kind: 'ecg'; recorded?: number }
   | { kind: 'neuro'; motion: NeuroMotion; manoeuvre: ManoeuvreDef }
   | null;
@@ -638,6 +638,16 @@ export function mount(root: HTMLElement) {
     if (m.id === 'test.gait' && fv('gait.pattern')) { setVisual({ kind: 'neuro', manoeuvre: m, motion: { kind: 'gait', finding: fv('gait.pattern') as any } }); return; }
     const faceL = findings.find((f) => f.property === 'face.movement.L'), faceR = findings.find((f) => f.property === 'face.movement.R');
     if (faceL && faceR) { setVisual({ kind: 'face', L: faceL.value as FaceFinding, R: faceR.value as FaceFinding }); return; }
+    /* the mouth: the jaw, the palate and the tongue, on the same face (its movement as the model has it) */
+    if (['test.jaw', 'test.palate', 'test.tongue'].includes(m.id) && s) {
+      const ob = (ref: string) => observeIn(s!, ref, {})?.value as any;
+      const tg = ob('mouth.tongue') ?? {};
+      setVisual({ kind: 'face', L: ob('face.movement.L') ?? { forehead: 'normal', eyeClosure: 'normal', mouth: 'normal' }, R: ob('face.movement.R') ?? { forehead: 'normal', eyeClosure: 'normal', mouth: 'normal' },
+        oral: { jawTo: ob('jaw.opening')?.deviatesTo ?? 'none', uvulaTo: ob('mouth.palate')?.uvulaDeviatesTo ?? 'none', tongueTo: tg.deviatesTo ?? 'none', tongueWasting: !!tg.wasting, tongueFasciculation: !!tg.fasciculation },
+        /* only the part examined, after a look at the face at rest */
+        only: ['rest', m.id === 'test.jaw' ? 'jaw' : m.id === 'test.palate' ? 'ahh' : 'tongue'] });
+      return;
+    }
     const chest = findings.find((f) => LUNG_PROPS.includes(f.property) && /^chest\.(upper-zone|mid-zone|axilla|upper-back|lung-base)\./.test(f.context?.site ?? ''));
     if (chest) {
       const mode: ChestMode = chest.property === 'chest.percussion' ? 'percuss' : chest.property === 'chest.resonance' ? 'voice' : 'listen';
@@ -673,7 +683,7 @@ export function mount(root: HTMLElement) {
     if (v.kind === 'face') {
       host.innerHTML = '<div class="facehost"></div>';
       faceView = new FaceView(host.querySelector('.facehost')!, appearanceOf(c.patient, seedOf(base.id)));
-      faceView.show({ L: v.L, R: v.R }, lang);
+      faceView.show({ L: v.L, R: v.R }, lang, v.oral, v.only);
       return;
     }
     if (v.kind === 'neuro') {

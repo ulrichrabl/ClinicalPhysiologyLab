@@ -12,6 +12,8 @@ import { neuroLadderSvg } from '../render/neuro-mechanism.ts';
 import { figureLookFor } from '../render/patient-figure.ts';
 import { FREE_CASE } from './free-case.ts';
 import { neuroFrame, neuroViewBox, type NeuroMotion } from './neuro-motion-view.ts';
+import { FaceView } from '../render/face-view.ts';
+import { appearanceOf } from '../render/face-canvas.ts';
 import { KNOWLEDGE, labelOf } from '../knowledge/index.ts';
 import type { Lang } from './diagrams.ts';
 import { patientBanner, type StationHandle, type StationOptions } from './station-ecg.ts';
@@ -144,11 +146,22 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     host.querySelector<HTMLElement>('[data-ladder]')!.innerHTML = neuroLadderSvg(test, model.lesions.nodes, lang, colors(), model.lesions.extent ?? {});
     current = motion();
     const vis = host.querySelector<HTMLElement>('[data-visual]')!;
+    faceView?.stop(); faceView = null;
+    if (test === 'cranial') {
+      /* the face and the mouth, close up: the same face view the ward uses, moved by the findings */
+      vis.hidden = false; vis.innerHTML = '<div class="facehost"></div>';
+      faceView = new FaceView(vis.querySelector('.facehost')!, appearanceOf(FREE_CASE.patient as any, 7));
+      const fm = (S: Side) => val(`face.movement.${S}`) as any, tg = val('mouth.tongue') as any;
+      faceView.show({ L: fm('L'), R: fm('R') }, lang, { jawTo: (val('jaw.opening') as any)?.deviatesTo ?? 'none', uvulaTo: (val('mouth.palate') as any)?.uvulaDeviatesTo ?? 'none', tongueTo: tg?.deviatesTo ?? 'none', tongueWasting: !!tg?.wasting, tongueFasciculation: !!tg?.fasciculation });
+      current = null;
+      return;
+    }
     const chart = current ? null : neuroChartFor(test, val, lang, colors());
     vis.innerHTML = current ? `<svg class="neuro-motion" viewBox="${neuroViewBox(current)}" role="img" aria-label="${t('figure')}"></svg>` : chart ?? '';
     vis.hidden = !current && !chart;
   };
   let current: NeuroMotion | null = null;
+  let faceView: FaceView | null = null;
   const STILL: Partial<Record<NeuroMotion['kind'], number>> = { drift: 12, 'finger-nose': 1.0, 'knee-jerk': 0.75, 'heel-shin': 2, 'rapid-alternating': 0.3, romberg: 10, gait: 0.8, tone: 1.5, 'arm-reflexes': 0.7, 'leg-reflexes': 0.75 };
   const start = () => {
     cancelAnimationFrame(raf);
@@ -196,7 +209,7 @@ export function mountNeuroStation(host: HTMLElement, o: StationOptions): Station
     on('data-eyes', (v) => { eyesClosed = v === 'closed'; });
   };
 
-  const stop = () => { stopped = true; cancelAnimationFrame(raf); };
+  const stop = () => { stopped = true; cancelAnimationFrame(raf); faceView?.stop(); };
   side = abnormalSide();
   render();
   return { stop, setLang(l: Lang) { lang = l; render(); } };
