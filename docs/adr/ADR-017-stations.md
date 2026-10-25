@@ -142,7 +142,7 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
   The old body-frame QRS angle (46°) would have been 23° below the median. Nothing was tuned.
 - **What moved:** under the one definition the presets read: LVH 59°, RVH 102°, LBBB 4°, RBBB 89°, WPW 77°, VT −104°, complete heart block's escape −63°.
 
-### 10. The neurological examination station (owner, 2026-10-25: proposed, to be built in steps)
+### 10. The neurological examination station (owner, 2026-10-25: built in steps 8a–8c; see the handover)
 
 **Owner:** after the arrest work, more functionality for the model: more stations, more animation and immersion. "Neurological examination station + animation seem natural candidates?"
 

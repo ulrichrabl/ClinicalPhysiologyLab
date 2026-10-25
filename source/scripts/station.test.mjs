@@ -338,6 +338,18 @@ console.log('\nThe neurological station');
     ok(`${p.id}: brings ${p.signs.join(', ')}`, p.signs.every((x) => r.present.has(x)), J([...r.present]));
   }
   ok('every starting point is in a group, once, and looks first at a test the station has', J(S.NEURO_PRESET_GROUPS.flatMap((g) => g.ids).sort()) === J(S.NEURO_PRESETS.map((p) => p.id).sort()) && S.NEURO_PRESETS.every((p) => S.NEURO_TEST_BY_ID[p.look]));
+  {
+    const groups = S.neuroSignGroups(), all = groups.flatMap((g) => g.signs);
+    const seen = new Set(S.NEURO_PRESETS.flatMap((p) => [...signs[p.id].present]));
+    ok('Identify: the sign chips list each sign once, under a test the station has', all.length === new Set(all).size && groups.every((g) => S.NEURO_TEST_BY_ID[g.test]), J(all));
+    ok('…and every sign a starting point can bring is among them', [...seen].every((x) => all.includes(x)), J([...seen].filter((x) => !all.includes(x))));
+    const sig = new Map();
+    for (const p of S.NEURO_PRESETS) { const k = S.neuroSignature(signs[p.id]); sig.set(k, [...(sig.get(k) ?? []), p.id]); }
+    const twins = [...sig.values()].filter((v) => v.length > 1);
+    ok('…no two starting points look the same at the bedside, and none looks healthy', !twins.length && !sig.has(S.neuroSignature(S.neuroSignsOf(H))), J(twins));
+    ok('parkinsonism: rigidity, rest tremor and a shuffling gait on the right for a left substantia nigra', ['rest-tremor', 'shuffling-gait'].every((x) => signs['parkinson-l'].present.has(x)) && J([...(signs['parkinson-l'].sides.get('rest-tremor') ?? [])]) === '["R"]', J([...signs['parkinson-l'].present]));
+    ok('polyneuropathy: stocking loss and lost ankle jerks on both sides', signs.polyneuropathy.present.has('stocking-sensory-loss') && J([...(signs.polyneuropathy.sides.get('absent-ankle-reflex') ?? signs.polyneuropathy.sides.get('reduced-ankle-reflex') ?? [])].sort()) === '["L","R"]', J([...signs.polyneuropathy.present]));
+  }
   const umn = ['mca-l', 'capsule-l', 'cord-r'], lmn = ['l4-root-r', 'femoral-r', 's1-root-r', 'peroneal-r', 'ulnar-r', 'c6-root-r', 'cerebellum-l', 'dorsal-columns', 'myopathy'];
   ok('the upper motor neuron lesions drift; the roots, nerves, muscle and the cerebellum do not', umn.every((id) => signs[id].present.has('pronator-drift')) && lmn.every((id) => !signs[id].present.has('pronator-drift')));
   ok('…a left hemisphere drifts the right arm; a right cord lesion, below the decussation, the right arm too', J([...signs['mca-l'].sides.get('pronator-drift')]) === '["R"]' && J([...signs['cord-r'].sides.get('pronator-drift')]) === '["R"]');

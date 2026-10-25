@@ -104,8 +104,8 @@ export const PULSE_STATION: StationDef = {
 export const NEURO_STATION: StationDef = {
   id: 'neuro', test: 'arm.drift', alsoTests: ['arm.finger-nose', 'leg.reflexes'],
   title: L('Neurological station', 'Neurologie-Station'),
-  summary: L('Pronator drift, finger–nose and the knee jerk, done by the patient on the edge of the bed, beside the ladder of the nervous system: cortex, capsule, brainstem, cord, root, nerve, muscle and the cerebellum. Place a lesion on one rung; watch what the limbs do and why.',
-    'Armvorhalteversuch, Finger-Nase-Versuch und Patellarsehnenreflex, vom Patienten auf der Bettkante ausgeführt, neben der Leiter des Nervensystems: Rinde, Kapsel, Hirnstamm, Rückenmark, Wurzel, Nerv, Muskel und das Kleinhirn. Setzen Sie eine Läsion auf eine Stufe; sehen Sie, was die Glieder tun und warum.'),
+  summary: L('The whole neurological examination on the bedside figure: tone, power, drift, reflexes and plantars, coordination, Romberg, gait, sensation, cranial nerves and speech, beside the ladder of the nervous system from cortex to muscle. Place a lesion on one rung and watch what changes and why; predict it first, or identify a hidden one.',
+    'Die ganze neurologische Untersuchung an der Patientenfigur: Tonus, Kraft, Vorhalteversuch, Reflexe und Fußsohlenreflex, Koordination, Romberg, Gang, Sensibilität, Hirnnerven und Sprache, neben der Leiter des Nervensystems von der Rinde bis zum Muskel. Setzen Sie eine Läsion auf eine Stufe und sehen Sie, was sich ändert und warum; sagen Sie es erst vorher, oder erkennen Sie eine verdeckte.'),
   drivers: {},
   presets: [],
 };
