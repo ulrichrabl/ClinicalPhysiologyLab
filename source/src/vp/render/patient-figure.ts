@@ -34,6 +34,7 @@
    for touch, and none is highlighted: the examiner chooses where to look.
 --------------------------------------------------------------------------- */
 
+import { breathMotion } from './figure-breath.ts';
 import { appearanceOf } from './face-canvas.ts';
 import { add, clamp, closedPath, darken, dir, f, lerp, lighten, openPath, smooth, tint, type Pt } from './figure-geom.ts';
 import { LEN, bodyShape, footOutline, limb3, limbOutline, skeleton, stationAt, trunk3, trunkOutline, trunkPt, trunkA, type Shape, type Skeleton } from './figure-body.ts';
@@ -50,6 +51,8 @@ export interface FigureOptions {
   scene?: boolean;                 // floor, trolley and pillow (default true)
   head?: boolean;                  // the head (default true)
   chestFrame?: boolean;            // place the drawing in chest centimetres: 4th intercostal space at (0, 0)
+  /** The breath now: litres above end-expiration. The chest and belly move with it (figure-breath.ts). */
+  breath?: number;
   /** Receives the outline of every touch region and a few landmarks, in the drawing's final coordinates. */
   collect?: (kind: string, side: 'R' | 'L' | '', pts: Pt[]) => void;
 }
@@ -140,7 +143,7 @@ export interface FigureBody {
   pallor: 'none' | 'mild' | 'marked';               // eyes.conjunctiva
   sweating: boolean;
   distress: 'none' | 'mild' | 'moderate' | 'severe';
-  breathing: { hyperinflated: boolean; accessory: boolean; pursedLips: boolean };  // breathing.pattern: barrel chest, neck muscles working
+  breathing: { hyperinflated: boolean; accessory: boolean; pursedLips: boolean; paradoxical?: boolean };  // breathing.pattern: barrel chest, neck muscles working, the belly moving in on inspiration
 }
 
 /** Everything the figure draws besides the pose. Built by figureLookFor from the case's patient, the encounter state and
@@ -313,7 +316,7 @@ function place(p0: Pose, sh: Shape): Skeleton {
 /** The patient in this pose, seen from the right side of the bed (the default), the left, the front, or the back. */
 export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIGHT, opts: FigureOptions = {}): string {
   const upright = Math.max(0, Math.sin((p.torso * Math.PI) / 180));
-  const sh = bodyShape(look, upright);
+  const sh = bodyShape(look, upright, opts.breath != null ? breathMotion(opts.breath, upright, !!look.body.breathing.paradoxical) : undefined);
   const k = place(p, sh);
   const u = k.u, pal = palette(look), b = look.body;
   const scene = opts.scene !== false, withHead = opts.head !== false;

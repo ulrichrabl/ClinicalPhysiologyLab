@@ -124,5 +124,23 @@ ok('figureLookFor carries the body: BMI from height and weight, fat and muscle, 
   for (const [what, a, b] of pairs) ok(`the figure shows ${what}`, !same(a, b));
 }
 
+console.log('\nBreathing (figure-breath.ts): the walls move with the breath the lungs take');
+{
+  const outB = join(tmpdir(), `breath-contract-${Date.now()}.mjs`);
+  await esbuild.build({ entryPoints: [join(here, '../../src/vp/render/figure-breath.ts')], bundle: true, outfile: outB, format: 'esm', platform: 'node', logLevel: 'error' });
+  const br = await import(pathToFileURL(outB).href);
+  unlinkSync(outB);
+  const pt = { name: 'B', age: 50, sex: 'M', heightCm: 176, weightKg: 76, appearance: { skinTone: 2, hair: 'short, brown', build: 'average' } };
+  const look = fig.figureLookFor(pt, { exposure: ['chest', 'abdomen'] }, 7);
+  ok('no breath, or a breath of nothing, draws the figure as before', fig.figureSvg(fig.POSES.supine, look) === fig.figureSvg(fig.POSES.supine, look, undefined, { breath: 0 }));
+  ok('a breath changes the drawing (the chest and belly move)', fig.figureSvg(fig.POSES.supine, look) !== fig.figureSvg(fig.POSES.supine, look, undefined, { breath: 0.45 }));
+  const up = br.breathMotion(0.45, 1, false), lying = br.breathMotion(0.45, 0, false), par = br.breathMotion(0.45, 0, true);
+  ok('inspiration moves the chest and the belly outward', up.chest > 0 && up.belly > 0 && lying.chest > 0 && lying.belly > 0);
+  ok('upright the rib cage takes more of the breath than lying; lying the abdomen more (Sharp 1975)', up.chest > lying.chest && lying.belly > lying.chest && up.chest > up.belly);
+  ok('a paradoxical (weak) diaphragm: the belly moves in as the chest moves out', par.chest > 0 && par.belly < 0);
+  const t0 = performance.now(); for (let i = 0; i < 30; i++) fig.figureSvg(fig.POSES.sitting, look, fig.viewAt(90), { breath: 0.3 * Math.sin(i) });
+  ok('fast enough to breathe every other frame (under 8 ms a figure)', (performance.now() - t0) / 30 < 8, `${((performance.now() - t0) / 30).toFixed(1)} ms`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

@@ -460,7 +460,7 @@ export function mount(root: HTMLElement) {
     renderEncounter();
     renderLayer();
     live.start();
-    liveOff = live.on(() => { if (++tick % 15 === 0) { labTick?.(); } });
+    liveOff = live.on(() => { if (++tick % 15 === 0) { labTick?.(); } if (tick % 2 === 0) breatheFigure(); });
     $('#cmd').focus();
   };
   const stopLive = () => { liveOff?.(); liveOff = null; live?.stop(); chapterHandle?.stop(); chapterHandle = null; labTick = null; };
@@ -1108,7 +1108,7 @@ export function mount(root: HTMLElement) {
     return {
       oedema: v('legs.oedema')?.extent, ascites: v('abdomen.ascites')?.ascites, colour: g?.colour, sweating: g?.sweating, distress: g?.distress,
       icterus: v('eyes.sclera')?.icterus, pallor: v('eyes.conjunctiva')?.pallor,
-      breathing: b ? { hyperinflated: !!b.hyperinflated, accessory: !!b.accessory, pursedLips: !!b.pursedLips } : undefined,
+      breathing: b ? { hyperinflated: !!b.hyperinflated, accessory: !!b.accessory, pursedLips: !!b.pursedLips, paradoxical: !!b.paradoxical } : undefined,
     };
   };
   /* Where the examiner stands: the right side of the bed, its foot, or the left side. Changing it walks round the bed
@@ -1116,11 +1116,27 @@ export function mount(root: HTMLElement) {
   let figView: keyof typeof VIEW_ANGLE = 'right';
   let posePrev: Pose = POSES['reclined-45'], poseTarget: Pose = POSES['reclined-45'], poseT0 = 0, poseRaf = 0, poseKey = '';
   let viewPrev = 0, viewTarget = 0;
+  /* the figure as last drawn, and whether a change of position or view is still moving it: between changes it breathes */
+  let figLook: FigureLook | null = null, figMoving = false;
   const ease = (x: number) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
+  /* The breath now, litres above end-expiration, from the running lungs: the chest and belly move with it. Still when the
+     learner prefers reduced motion, or with no lungs running. */
+  const breathNow = (): number | undefined => {
+    const r = live?.snap?.resp as { V: number; EELV: number; FRC: number } | undefined;
+    if (!r || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+    return r.V - (r.EELV - r.FRC);
+  };
+  const breatheFigure = () => {
+    if (!s || !figLook || figMoving || $('#encounter').hidden) return;
+    const b = breathNow();
+    if (b === undefined) return;
+    ($('#fig') as unknown as SVGGElement).innerHTML = figureSvg(poseTarget, figLook, viewAt(viewTarget), { breath: b });
+  };
   const renderFigure = (force = false) => {
     if (!s) return;
     const c = s.caseDef, st = s.state;
     const lk: FigureLook = figureLookFor(c.patient, st, seedOf(base.id), figureFindings());
+    figLook = lk;
     const exposed = lk.exposed;
     const target = POSES[st.position] ?? POSES.supine;
     const key = `${base.id}|${c.patient.sex}|${st.position}|${figView}|${[...exposed].sort().join(',')}|${lk.oxygen ?? ''}|${JSON.stringify(lk.body)}`;
@@ -1133,10 +1149,11 @@ export function mount(root: HTMLElement) {
       poseTarget = target; viewTarget = VIEW_ANGLE[figView]; poseT0 = performance.now(); poseKey = key;
       cancelAnimationFrame(poseRaf);
       const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      figMoving = true;
       const step = (now: number) => {
         const e = ease(reduce ? 1 : Math.min(1, (now - poseT0) / 700));
-        g.innerHTML = figureSvg(lerpPose(posePrev, poseTarget, e), lk, viewAt(viewPrev + (viewTarget - viewPrev) * e));
-        if (e < 1) poseRaf = requestAnimationFrame(step);
+        g.innerHTML = figureSvg(lerpPose(posePrev, poseTarget, e), lk, viewAt(viewPrev + (viewTarget - viewPrev) * e), { breath: breathNow() });
+        if (e < 1) poseRaf = requestAnimationFrame(step); else figMoving = false;
       };
       g.innerHTML = figureSvg(posePrev, lk, viewAt(viewPrev));
       poseRaf = requestAnimationFrame(step);

@@ -139,7 +139,7 @@ export function mountRespStation(host: HTMLElement, o: StationOptions): StationH
   };
   const figureFindings = (): FigureFindings => {
     const g = finding('general.appearance').value ?? {}, b = finding('breathing.pattern').value ?? {};
-    return { colour: g.colour, sweating: g.sweating, distress: g.distress, breathing: { hyperinflated: !!b.hyperinflated, accessory: !!b.accessory, pursedLips: !!b.pursedLips } };
+    return { colour: g.colour, sweating: g.sweating, distress: g.distress, breathing: { hyperinflated: !!b.hyperinflated, accessory: !!b.accessory, pursedLips: !!b.pursedLips, paradoxical: !!b.paradoxical } };
   };
 
   /* ---- layout ----------------------------------------------------------------------------------------- */
@@ -229,6 +229,7 @@ export function mountRespStation(host: HTMLElement, o: StationOptions): StationH
       const g = finding('general.appearance').value ?? {}, b = finding('breathing.pattern'), ox = finding('vitals.spo2').value ?? {}, rr = finding('vitals.rr').value;
       const says = b.value?.speech === 'sentences' ? (g.distress && g.distress !== 'none' ? SAYS.sentences : SAYS.fine) : SAYS[b.value?.speech ?? 'sentences'];
       const lk = figureLookFor(FREE_CASE.patient, { exposure: ['chest'] } as any, 7, figureFindings());
+      lookFig = lk;
       box.innerHTML = `<div class="st-look"><figure class="st-look-fig"><svg class="st-look-svg" viewBox="0 0 360 380" xmlns="http://www.w3.org/2000/svg" role="img"><g data-fig>${figureSvg(POSES.sitting, lk, VIEW_FRONT, { scene: false })}</g></svg></figure>
         <div><div class="st-ox"><div class="muted small">${t('oximeter')}</div><div class="st-ox-n">${Math.round(ox.spo2 ?? 0)} %</div><div class="muted small">FiO₂ ${Math.round((ox.fio2 ?? 0.21) * 100)} %</div></div>
         <p><b>${t('counted')}:</b> ${Math.round(Number(rr ?? 0))}/min</p>
@@ -329,6 +330,13 @@ export function mountRespStation(host: HTMLElement, o: StationOptions): StationH
     }
     const vq = host.querySelector<HTMLCanvasElement>('.st-vq');
     if (vq && test === 'look') { const w = vq.clientWidth, h = 170; drawVQ(sizeCanvas(vq, h).g, w, h, resp().lobes, colors(), { vent: t('vent'), perf: t('perf'), shunt: t('shunt'), lobe: lobeLabels() }); }
+  };
+  /* the patient on the Look panel breathes with the running lungs (the walls' motion magnified: figure-breath.ts) */
+  let lookFig: ReturnType<typeof figureLookFor> | null = null;
+  const breatheLook = () => {
+    const g = host.querySelector<SVGGElement>('[data-fig]'), r = resp();
+    if (!g || !lookFig || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    g.innerHTML = figureSvg(POSES.sitting, lookFig, VIEW_FRONT, { scene: false, breath: r.V - (r.EELV - r.FRC) });
   };
   const drawHands = () => {
     const fig = host.querySelector<HTMLElement>('[data-hands]');
@@ -537,6 +545,7 @@ export function mountRespStation(host: HTMLElement, o: StationOptions): StationH
     raf = requestAnimationFrame(frame);
     if (!ready || settling) return;
     if (test === 'expansion') drawHands();
+    if (test === 'look') breatheLook();
     if (mode === 'explore') {
       drawMechanism();
       if (tick++ % 20 === 0) { renderText(); renderLungs(); }
