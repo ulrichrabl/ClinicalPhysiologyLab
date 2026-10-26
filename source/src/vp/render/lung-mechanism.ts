@@ -178,7 +178,8 @@ export function lungsSvg(d: LungDrawing, c: LungColors, labels: { fluid: string;
       const base = (view === 'back' ? 16 : 12) * stretch, apex = -13.6, h = fluidHeight(E, d.fluidReaches);
       const yTop = base - h * (base - apex);
       g.push(`<path d="M ${f(s * 1)} ${f(yTop + 1.2)} C ${f(s * 7)} ${f(yTop + 1)} ${f(s * 12)} ${f(yTop)} ${f(s * 17)} ${f(yTop - 1.4)} L ${f(s * 17)} 20 L ${f(s * 1)} 20 Z" fill="rgba(79,127,174,0.62)"/>`);
-      g.push(`<text x="${f(s * 9)}" y="${f(Math.min(base - 0.6, yTop + 3))}" font-size="1.1" text-anchor="middle" fill="#fff">${labels.fluid.replace('{mL}', String(Math.round(E / 50) * 50))}</text>`);
+      /* the label at the side, clear of the bronchi */
+      g.push(`<text x="${f(s * 9.2)}" y="${f(Math.min(base - 1.5, yTop + 4.5))}" font-size="1.1" text-anchor="middle" fill="#fff">${labels.fluid.replace('{mL}', String(Math.round(E / 50) * 50))}</text>`);
     }
     if (ptx > 0.02) g.push(`<text x="${f(s * 13)}" y="-11" font-size="1.1" text-anchor="middle" fill="#fff">${labels.air}${tens ? ' ↗' : ''}</text>`);
     out.push(`<g clip-path="url(#${clip})">${g.join('')}</g><path d="${lungPath(s, view)}" fill="none" stroke="${c.line}" stroke-width="0.15" stroke-dasharray="0.6 0.5"/>`);
