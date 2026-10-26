@@ -10,6 +10,7 @@ import { RESP_PRESETS, RESP_PRESET_GROUPS, applyRespPreset } from '../stations/r
 import { respSignsOf, respSignGroups, respObserve } from '../stations/resp-signs.ts';
 import { RESP_TESTS, RESP_SITES, RESP_TEST_BY_ID, type RespTestId, type SiteKey } from '../stations/resp-tests.ts';
 import { explainResp, type RespContext } from '../stations/resp-texts.ts';
+import { respContext } from '../stations/resp-context.ts';
 import { lungsSvg, drawBreath, drawVQ, FILL } from '../render/lung-mechanism.ts';
 import { tracheaSvg, expansionSvg } from '../render/chest-palpation.ts';
 import { AUSCULTATION_SITES, type ThoraxLook } from '../render/thorax.ts';
@@ -18,7 +19,6 @@ import { appearanceOf } from '../render/face-canvas.ts';
 import { mountChest, type ChestMode } from './focus-chest.ts';
 import { BreathRecorder, tissueVolume, type LobeId, type RespSnapshot } from '../physiology/lung/respiratory.ts';
 import { mediastinalShift, SITE_LOBES, FLUID_REACHES, underSite } from '../models/resp-exam.ts';
-import { EXAM } from '../evidence/exam.ts';
 import { FREE_CASE } from './free-case.ts';
 import { KNOWLEDGE, labelOf } from '../knowledge/index.ts';
 import { fmtValue } from './math.ts';
@@ -341,29 +341,7 @@ export function mountRespStation(host: HTMLElement, o: StationOptions): StationH
     const now = Math.max(0, r.V - lo);
     fig.innerHTML = expansionSvg(thoraxLook(), k * now * share('L'), k * now * share('R'), { left: t('left'), right: t('right') });
   };
-  const ctxNow = (): RespContext => {
-    const r = resp(), p = r.params;
-    let s: RespContext['site'];
-    if (SITE_MODE[test]) {
-      const { key, side } = siteParts(site), u = underSite(r, key, side);
-      const snd = finding('lung.sounds', { site }).value, per = finding('chest.percussion', { site }).value, res = finding('chest.resonance', { site }).value;
-      const E = side === 'L' ? p.effusionL : p.effusionR;
-      s = { key, side, label: RESP_SITES.find((x) => x.key === key)!.label, note: per.note, breath: snd.breath, added: snd.added, resonance: res.resonance,
-        under: { aerated: u.aerated, solid: u.solid, flooded: u.flooded, obstructed: u.obstructed, compressed: u.compressed, ptx: u.ptx }, fluid: E, fluidHere: E >= FLUID_REACHES[key] };
-    }
-    const share = (side: 'L' | 'R') => r.lobes.filter((l) => l.side === side).reduce((a, l) => a + l.ventShare, 0);
-    const tr2 = finding('trachea.position').value ?? {};
-    return {
-      test, site: s,
-      r: { RR: r.RR, VT: r.VT, VE: r.VE, SaO2: r.SaO2, PaO2: r.PaO2, PaCO2: r.PaCO2, AaGradient: r.AaGradient, shunt: r.shunt, VDVT: r.VDVT, iPEEP: r.iPEEP, tauE: r.tauE, Te: r.Te, Ti: r.Ti,
-        effort: r.effort, demand: r.demand, capacity: r.capacity, deoxyHb: r.deoxyHb, interstitial: r.interstitial, FiO2: p.FiO2, FEV1pct: (r.FEV1 / r.pred.FEV1) * 100, PEFpct: (r.PEF / r.pred.PEF) * 100 },
-      p: { bronchoconstriction: p.bronchoconstriction, emphysema: p.emphysema, fibrosis: p.fibrosis, muscleStrength: p.muscleStrength, effusionL: p.effusionL, effusionR: p.effusionR, ptxL: p.ptxL, ptxR: p.ptxR,
-        tensionL: p.tensionL, tensionR: p.tensionR, capillaryLeak: p.capillaryLeak, emb: p.embRUL + p.embRML + p.embRLL + p.embLUL + p.embLLL },
-      trachea: { position: tr2.position ?? 'central', shift: mediastinalShift(r, p as any) },
-      expansion: { L: { share: share('L'), finding: finding('chest.expansion.L').value?.expansion ?? 'normal' }, R: { share: share('R'), finding: finding('chest.expansion.R').value?.expansion ?? 'normal' } },
-      pattern: finding('breathing.pattern').value ?? {}, cyanosisAt: EXAM.cyanosis,
-    };
-  };
+  const ctxNow = (): RespContext => respContext(live.model, live.snap, live.chemistry, test, site);
   const renderText = () => {
     const box = host.querySelector<HTMLElement>('[data-text]');
     if (!box) return;

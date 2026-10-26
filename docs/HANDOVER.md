@@ -90,6 +90,7 @@ Notes:
 | ADR-016 step 4: expert references and the debrief in signs (#47); the observe-only level, with misses and over-calls scored (#48) | "Tests, signs and the knowledge graph" below |
 | ADR-017 step 1: the ECG station, Explore. One test and its mechanism on one clock: strip (two chosen leads) and conduction ladder, a cursor through the beat, the heart and the cardiac vector in both planes at the cursor, explanations in EN/DE; settings derived from what the 12-lead measures. The electrical model logs its activations for it | "Stations (ADR-017)" below |
 | The eye station, Explore: the whole eye examination with the pathway each test reads; skew deviation told from a nerve palsy by comitance | "Stations (ADR-017)" below |
+| The respiratory station: the chest examination beside the lungs, pleura and airways beneath it and the breath on one clock; Explore, Predict and Identify | "Stations (ADR-017)" below; gaps 56–58 |
 | ADR-018 step 1: interventions acting on the running model, scenarios (a case in a scene with a state machine), one clock in 0.1 s ticks, one seeded generator, exact replay from seed and inputs | "Interventions and scenarios (ADR-018)" below |
 | Neurology ward cases: cauda equina from a central disc, Guillain–Barré after diarrhoea, generalised myasthenia, early Parkinson's disease, subacute combined degeneration from B₁₂ deficiency. Every reference sign is the model's; new investigations (CSF, nerve conduction, AChR antibodies, bladder scan, MMA, whole-spine and brain MRI, CT thorax); a spastic paraparetic gait; `parkinsonism` and `subacute-combined-degeneration` syndromes; fatigue tests now record their baseline | `source/src/vp/cases/`, gaps 54–55 in `docs/evidence-grounding-status.md` |
 
@@ -319,6 +320,12 @@ A station pairs one test with the mechanism that writes it, on one clock. Read `
     - **Presets:** complete transection at T10 (spinal shock), bulbar motor neurone disease; the capsule (dense hemiplegia, a month) and the hemicords (a week) state their stage.
     - **Hands in every view** (`radialHand`, `restingTemplate`): from the back a hanging hand shows its little-finger edge; palm down on the thighs or the bed, its back.
   - **Still conventions (known gaps 50–53):** sprouting's and atrophy's time constants, the spasticity threshold, the block share, the median patient's postural instability.
+- **The respiratory station (ADR-017 decision 11):** a Station card opens `app/station-resp.ts`.
+  - **Tests:** look (the figure sitting up, oximeter, counted rate, what the patient says), trachea, expansion, and percussion, breath sounds and vocal resonance at ten sites through the encounter's chest view (`focus-chest.ts`), with a chart of all sites in Explore. Registry: `stations/resp-tests.ts`.
+  - **Mechanism:** `render/lung-mechanism.ts` (the lobes, pleura, mediastinum and airways in chest centimetres; the breath on one clock from `BreathRecorder`; ventilation and blood flow by lobe). Explanations: `stations/resp-texts.ts`, chosen by `stations/resp-context.ts`.
+  - **Starting points:** `stations/resp-presets.ts` (14), each checked to bring its signs; no two look alike. Signs: `stations/resp-signs.ts`.
+  - **Model change:** the trachea moves with tension, not a simple pneumothorax (`LUNG.trachealShiftTension`).
+  - **Known gaps:** 56–58.
 - **Next:** open for the owner. The heart–lung chain (gaps 16, 12, 13, 15) is parked; with it would come pulsus paradoxus and Kussmaul's sign at this station.
 
 ## Interventions and scenarios (ADR-018)

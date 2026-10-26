@@ -63,3 +63,7 @@ export { respSigns, respSignsOf, respSignGroups, respObserve } from '../src/vp/s
 export { RESP_TESTS, RESP_SITES, siteManoeuvre } from '../src/vp/stations/resp-tests.ts';
 export { RESP_STATION } from '../src/vp/stations/station.ts';
 export { explainResp } from '../src/vp/stations/resp-texts.ts';
+export { respContext } from '../src/vp/stations/resp-context.ts';
+export { lungsSvg, drawBreath } from '../src/vp/render/lung-mechanism.ts';
+export { BreathRecorder, tissueVolume } from '../src/vp/physiology/lung/respiratory.ts';
+export { mediastinalShift, SITE_LOBES, FLUID_REACHES } from '../src/vp/models/resp-exam.ts';

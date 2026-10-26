@@ -15,11 +15,14 @@ import { RESP_TESTS, type RespTestId } from './resp-tests.ts';
    one of its sites; each is listed with the tests and the sides that show it.
 --------------------------------------------------------------------------- */
 
+/** General inspection also finds signs of other systems; the chest station leaves out those the lungs cannot cause. */
+const NOT_THE_CHEST = new Set(['jaundice']);
+
 /** The signs the station's tests can find, in the tables' order. */
 export const respSigns = (): string[] => {
   const s = new Set<string>();
   for (const t of RESP_TESTS) for (const m of t.manoeuvres) for (const x of signsTestLooksFor(KNOWLEDGE, CATALOG, m)) s.add(x);
-  return Object.keys(KNOWLEDGE.signs).filter((id) => s.has(id) && !KNOWLEDGE.signs[id].normalVariant);
+  return Object.keys(KNOWLEDGE.signs).filter((id) => s.has(id) && !KNOWLEDGE.signs[id].normalVariant && !NOT_THE_CHEST.has(id));
 };
 
 /** The case and the view the examination reads, for a patient with this model and this running circulation and lungs. */

@@ -483,6 +483,58 @@ console.log('\nThe pulse and neck-vein station');
   ok('every pulse explanation exists in English and German, with its numbers filled in', txt.length > 40 && txt.every((x) => x.en && x.de && x.en !== x.de && !/\$\{|undefined|NaN/.test(x.en + x.de)), `${txt.length} texts`);
 }
 
+console.log('\nThe respiratory station');
+{
+  const H = S.healthyModel();
+  const run = async (m) => { const lp = new S.LivePatient(m); await lp.settle(45); for (let i = 0; i < 30; i++) lp.advance(0.1); return lp; };
+  const healthy = await run(H);
+  const hs = S.respSignsOf(healthy.model, healthy.snap, healthy.chemistry);
+  ok('a healthy adult: a normal chest', hs.present.size === 0, J([...hs.present]));
+  const got = {};
+  for (const p of S.RESP_PRESETS) {
+    const lp = await run(S.applyRespPreset(H, H.circulation, p.id));
+    got[p.id] = { lp, r: S.respSignsOf(lp.model, lp.snap, lp.chemistry) };
+    ok(`${p.id}: brings ${p.signs.join(', ')}`, p.signs.every((x) => got[p.id].r.present.has(x)), J([...got[p.id].r.present]));
+  }
+  /* what the bedside shows: the signs with their sides */
+  const sig = (r) => [...r.present].map((x) => `${x}:${[...(r.sides.get(x) ?? [])].sort().join('')}`).sort().join(' ');
+  const sigs = Object.fromEntries([['healthy', sig(hs)], ...S.RESP_PRESETS.map((p) => [p.id, sig(got[p.id].r)])]);
+  const same = Object.keys(sigs).flatMap((a, i) => Object.keys(sigs).slice(i + 1).filter((b) => sigs[a] === sigs[b]).map((b) => `${a} = ${b}`));
+  ok('no two starting points (or health) look the same at the bedside, sides counted', !same.length, same.join('; '));
+  ok('one-sided disease is found on its own side: pneumonia, effusion and collapse on the right, the pneumothorax on the left',
+    [...got['pneumonia-rll'].r.sides.get('bronchial-breathing')].join('') === 'R' && [...got['effusion-r'].r.sides.get('stony-dull-percussion')].join('') === 'R'
+    && [...got['collapse-rul'].r.sides.get('dull-percussion')].join('') === 'R' && [...got['ptx-l'].r.sides.get('hyper-resonant-percussion')].join('') === 'L');
+  ok('the simple pneumothorax leaves the trachea central, the tension pneumothorax pushes it away',
+    !got['ptx-l'].r.present.has('tracheal-deviation') && got['tension-r'].r.present.has('tracheal-deviation'));
+  const offered = S.respSignGroups().flatMap((g) => g.signs);
+  ok('Predict and Identify offer every chest sign once, beside the test that finds it', J([...offered].sort()) === J([...S.respSigns()].sort()) && new Set(offered).size === offered.length);
+  const groups = S.stationSettings(S.RESP_STATION).map((g) => g.id);
+  ok('the station’s settings are what the chest examination measures (mechanics, gas exchange, control), with the left ventricle as a driver',
+    ['mechanics/airways', 'mechanics/pleura', 'gas-exchange/cons', 'gas-exchange/coll', 'driver/haemodynamics.Emax'].every((g) => groups.includes(g)), J(groups));
+  ok('teaching cards of the chest examination link to the station', ['auscultate.lung-base', 'percuss.lung-base', 'resonance.lung-base', 'palpate.trachea', 'palpate.chest-expansion', 'inspect.breathing'].every((m) => S.KNOWLEDGE.tests[m]?.animation === 'station:resp'));
+  /* every explanation, for every starting point, test and site, in both languages with its numbers */
+  const txt = [];
+  for (const lp of [healthy, ...Object.values(got).map((g) => g.lp)])
+    for (const t of S.RESP_TESTS) for (const site of t.perSite ? ['chest.lung-base.R', 'chest.upper-zone.L', 'chest.axilla.R'] : [undefined])
+      for (const sec of S.explainResp(S.respContext(lp.model, lp.snap, lp.chemistry, t.id, site))) txt.push(sec.title, ...sec.body);
+  ok('every respiratory explanation exists in English and German, with its numbers filled in', txt.length > 200 && txt.every((x) => x.en && x.de && x.en !== x.de && !/\$\{|undefined|NaN|Infinity/.test(x.en + x.de)), `${txt.length} texts`);
+  /* the mechanism: drawn for every starting point, from the model's state */
+  const draw = (lp, view) => { const r = lp.snap.resp, p = r.params; return S.lungsSvg({ view, lobes: r.lobes, effusion: { L: p.effusionL, R: p.effusionR }, ptx: { L: p.ptxL, R: p.ptxR }, tension: { L: p.tensionL, R: p.tensionR },
+    shift: S.mediastinalShift(r, p), bronchoconstriction: p.bronchoconstriction, emphysema: p.emphysema, fibrosis: p.fibrosis, interstitial: r.interstitial, tlcRatio: S.tissueVolume(p, r.interstitial), volume: r.V, fluidReaches: S.FLUID_REACHES },
+    { fg: '#000', muted: '#666', accent: '#0a0', line: '#999', surface: '#fff' }, { fluid: '{mL}', air: 'air', lobe: { RUL: 'RUL', RML: 'RML', RLL: 'RLL', LUL: 'LUL', LLL: 'LLL' } }); };
+  ok('the lungs beneath are drawn for every starting point, front and back, without a missing number', [healthy, ...Object.values(got).map((g) => g.lp)].every((lp) => ['front', 'back'].every((v) => !/NaN|undefined|Infinity/.test(draw(lp, v)))));
+  ok('…a consolidated lobe is drawn in the colour of exudate, a fluid level only on the effusion’s side',
+    draw(got['pneumonia-rll'].lp, 'front').includes('lm-solid-front)') && (draw(got['effusion-r'].lp, 'back').match(/rgba\(79,127,174,0\.62\)/g) ?? []).length === 1);
+  /* the breath recorder only watches */
+  const a = new S.LivePatient(H), b = new S.LivePatient(H);
+  b.run.resp.recorder = new S.BreathRecorder(20, 0.02);
+  for (let i = 0; i < 40; i++) { a.advance(0.1); b.advance(0.1); }
+  const sa = a.snap.resp, sb = b.snap.resp;
+  ok('the breath recorder changes nothing in the lungs (the same breath with and without it)', sa.V === sb.V && sa.flow === sb.flow && sa.PaO2 === sb.PaO2, `${sa.V} ${sb.V}`);
+  const rs = b.run.resp.recorder.samples, steps = rs.slice(1).map((x, i) => x.t - rs[i].t);
+  ok('…it keeps the breath every 20 ms: volume, flow and the pressures, inspiration marked', rs.length > 150 && steps.every((d) => d > 0.015 && d < 0.035) && rs.some((x) => x.insp) && rs.some((x) => !x.insp), `${rs.length} samples`);
+}
+
 console.log('\nThe axis (ADR-017, 9b): read from the recorded leads, on Einthoven\'s circle');
 {
   ok('the ranges: −30° to +90° normal, to −90° left, to 180° right, the rest extreme (AHA/ACCF/HRS 2009)',
