@@ -33,8 +33,9 @@ import { CARDIO_RESOLVERS } from './cardio-exam.ts';
    patient's effusion reaches the base first and the upper back last.
 =========================================================================== */
 
-type SiteKey = 'upper-zone' | 'mid-zone' | 'axilla' | 'upper-back' | 'lung-base';
-const SITE_LOBES: Record<SiteKey, Record<Side, Array<[LobeId, number]>>> = {
+export type SiteKey = 'upper-zone' | 'mid-zone' | 'axilla' | 'upper-back' | 'lung-base';
+/** The lobes under each site, with the share each contributes to what is heard or felt there. */
+export const SITE_LOBES: Record<SiteKey, Record<Side, Array<[LobeId, number]>>> = {
   'upper-zone': { R: [['RUL', 1]], L: [['LUL', 1]] },
   'mid-zone': { R: [['RML', 0.8], ['RUL', 0.2]], L: [['LUL', 1]] },
   axilla: { R: [['RML', 0.4], ['RLL', 0.6]], L: [['LUL', 0.4], ['LLL', 0.6]] },
@@ -42,7 +43,7 @@ const SITE_LOBES: Record<SiteKey, Record<Side, Array<[LobeId, number]>>> = {
   'lung-base': { R: [['RLL', 1]], L: [['LLL', 1]] },
 };
 /** How much pleural fluid (mL, sitting) before it lies between the lung and this site. */
-const FLUID_REACHES: Record<SiteKey, number> = { 'lung-base': 250, axilla: 700, 'mid-zone': 1500, 'upper-back': 2200, 'upper-zone': 2800 };
+export const FLUID_REACHES: Record<SiteKey, number> = { 'lung-base': 250, axilla: 700, 'mid-zone': 1500, 'upper-back': 2200, 'upper-zone': 2800 };
 
 export function siteOf(ctx: ExamContext): { key: SiteKey; side: Side } | null {
   const m = /^chest\.(upper-zone|mid-zone|axilla|upper-back|lung-base)\.(L|R)$/.exec(ctx.site ?? '');
@@ -110,6 +111,15 @@ export function chestAt(r: RespSnapshot, key: SiteKey, side: Side, effusion: num
   return { note, breath, added: [...new Set(added)], resonance };
 }
 
+/** How far the mediastinum (and the trachea on it) is moved toward the left (negative: toward the right): pushed away by
+    fluid or by air under tension (a simple pneumothorax is at atmospheric pressure and moves nothing), pulled toward a
+    collapsed (especially upper) lobe. Beyond ±0.5 the trachea is felt displaced. */
+export function mediastinalShift(r: RespSnapshot, p: Partial<Record<string, number>>): number {
+  const collapse = (s: Side) => r.lobes.filter((l) => l.side === s).reduce((a, l) => a + (l.id.endsWith('UL') ? 1.6 : 1) * Math.max(0, l.collapsed - l.compressed - l.ptx) * 0.25, 0);
+  return ((p.effusionR ?? 0) - (p.effusionL ?? 0)) / 3000 + 0.5 * ((p.tensionR ?? 0) - (p.tensionL ?? 0)) / LUNG.trachealShiftTension
+    + (collapse('L') - collapse('R')) * 2.2;
+}
+
 const respParams = (view: RuntimeView): Partial<Record<string, number>> => (rs(view)?.params ?? {}) as unknown as Record<string, number>;
 
 const atSite = (view: RuntimeView, ctx: ExamContext): { f: ChestFindings; basis: string } | undefined => {
@@ -170,12 +180,7 @@ export const RESP_RESOLVERS: Record<string, Resolver> = {
   },
   'resp.trachea': (view): Resolved | undefined => {
     const r = rs(view); if (!r) return undefined;
-    const p = respParams(view);
-    const collapse = (s: Side) => r.lobes.filter((l) => l.side === s).reduce((a, l) => a + (l.id.endsWith('UL') ? 1.6 : 1) * Math.max(0, l.collapsed - l.compressed - l.ptx) * 0.25, 0);
-    // pushed away by fluid or by air under tension (a simple pneumothorax is at atmospheric pressure and moves nothing),
-    // pulled toward a collapsed (especially upper) lobe
-    const towardL = ((p.effusionR ?? 0) - (p.effusionL ?? 0)) / 3000 + 0.5 * ((p.tensionR ?? 0) - (p.tensionL ?? 0)) / LUNG.trachealShiftTension
-      + (collapse('L') - collapse('R')) * 2.2;
+    const towardL = mediastinalShift(r, respParams(view));
     const position = towardL > 0.5 ? 'L' : towardL < -0.5 ? 'R' : 'central';
     return { value: { position }, basis: `net mediastinal shift index ${towardL.toFixed(2)} (positive toward the left)` };
   },
