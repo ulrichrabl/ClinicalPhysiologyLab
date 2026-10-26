@@ -995,6 +995,20 @@ console.log('\nThe lungs and the circulation, coupled');
     && !at(viewOf(Sil), 'lung.sounds', 'chest.upper-zone.R').added.includes('wheeze') && at(viewOf(Sil), 'lung.sounds', 'chest.upper-zone.R').breath === 'reduced');
   ok('…peak flow falls with the airways', REGISTRY.resolvers['resp.peakflow'](viewOf(As), { property: 'peak-flow' }, {}).value.pefPct < 70);
 
+  // Gap 56, grounded: peak flow follows FEV1 (Aggarwal 2006), gas exchange of a severe attack (Roca 1988, Ballester 1989),
+  // hypercapnia only once FEV1 is very low (Nowak 1983), accessory muscles from FEV1 about 40 % (Arnold 2007, not fitted).
+  const asth = (b) => settled((m) => { m.respiratory.bronchoconstriction = b; }).s.resp;
+  const pct = (r) => ({ fev: (r.FEV1 / r.pred.FEV1) * 100, pef: (r.PEF / r.pred.PEF) * 100 });
+  const A35 = asth(0.35), A45 = asth(0.45), A6 = asth(0.6), A7 = asth(0.7), A8 = asth(0.8);
+  ok('asthma: peak flow % follows FEV1 % within ~10 points across severities (Aggarwal 2006: mean difference −0.7)',
+    [A35, A45, A6, A7, A8].every((r) => Math.abs(pct(r).pef - pct(r).fev) < 10), [A35, A45, A6, A8].map((r) => `${pct(r).fev.toFixed(0)}/${pct(r).pef.toFixed(0)}`).join(' '));
+  const mm = (kPa) => kPa * 7.50062;
+  ok('…a severe attack (FEV1 about 30 %) is hypoxaemic with a wide A–a gradient and a normal PaCO2 (Roca 1988: PaO2 50, AaPO2 54, PaCO2 37 mmHg)',
+    mm(A7.PaO2) > 40 && mm(A7.PaO2) < 60 && mm(A7.AaGradient) > 40 && mm(A7.PaCO2) < 45, `FEV1 ${pct(A7).fev.toFixed(0)} %, PaO2 ${mm(A7.PaO2).toFixed(0)}, AaD ${mm(A7.AaGradient).toFixed(0)}, PaCO2 ${mm(A7.PaCO2).toFixed(0)} mmHg`);
+  ok('…CO2 rises only once FEV1 falls below about 1 L (Nowak 1983)', mm(A45.PaCO2) < 42 && mm(A8.PaCO2) > 45 && A8.FEV1 < 1.1, `FEV1 ${A8.FEV1.toFixed(2)} L, PaCO2 ${mm(A45.PaCO2).toFixed(0)} → ${mm(A8.PaCO2).toFixed(0)} mmHg`);
+  ok('…the work of breathing calls on the accessory muscles in severe but not in moderate attacks (Arnold 2007, a check not a fit)',
+    A35.effort < 0.5 && A7.effort >= 0.5, `effort ${A35.effort.toFixed(2)} → ${A7.effort.toFixed(2)}`);
+
   // Oxygen is an intervention: the encounter records the device, the model breathes the fraction.
   const s0 = startEncounter(CATALOG, REGISTRY, base, buildView(base, { circulation: P.s }));
   const r = performM(s0, 'give.oxygen.venturi-35');

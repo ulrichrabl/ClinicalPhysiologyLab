@@ -75,8 +75,8 @@ function look(c: RespContext): RespText[] {
     'Fassthorax: Die verlorene elastische Rückstellkraft lässt die Lunge bei größerem Volumen ruhen, die Rippen horizontal, das Zwerchfell tief und flach, wo es mechanisch im Nachteil ist.'));
   if (p.paradoxical) out.push(L(`The abdomen moves in as the chest moves out: a diaphragm too weak (${pc(c.p.muscleStrength)} % of normal strength) to descend is sucked up into the chest by the falling pleural pressure. A sign of respiratory muscle failure that comes before the CO₂ rises much.`,
     `Der Bauch geht nach innen, wenn der Thorax sich hebt: Ein Zwerchfell, zu schwach (${pc(c.p.muscleStrength)} % der normalen Kraft), um tiefer zu treten, wird vom fallenden Pleuradruck in den Thorax gesogen. Ein Zeichen des Versagens der Atemmuskulatur, das kommt, bevor das CO₂ stark steigt.`));
-  if (c.p.bronchoconstriction >= 0.2) out.push(L(`Peak flow ${r0(r.PEFpct)} % and FEV₁ ${r0(r.FEV1pct)} % of predicted: the narrowed airways limit how fast air can leave. The model's breathing response to a given peak flow is not yet grounded in human data (known gap 56).`,
-    `Spitzenfluss ${r0(r.PEFpct)} % und FEV₁ ${r0(r.FEV1pct)} % des Sollwerts: Die engen Atemwege begrenzen, wie schnell Luft entweichen kann. Wie das Modell bei einem bestimmten Spitzenfluss atmet, ist noch nicht an Daten von Menschen geprüft (bekannte Lücke 56).`));
+  if (c.p.bronchoconstriction >= 0.2) out.push(L(`Peak flow ${r0(r.PEFpct)} % and FEV₁ ${r0(r.FEV1pct)} % of predicted: the narrowed airways limit how fast air can leave. As in people with acute asthma, peak flow and FEV₁ fall together; oxygen falls first (uneven ventilation), and CO₂ rises only once FEV₁ is very low, a late sign of exhaustion.`,
+    `Spitzenfluss ${r0(r.PEFpct)} % und FEV₁ ${r0(r.FEV1pct)} % des Sollwerts: Die engen Atemwege begrenzen, wie schnell Luft entweichen kann. Wie bei Menschen im Asthmaanfall fallen Spitzenfluss und FEV₁ gemeinsam; zuerst fällt der Sauerstoff (ungleiche Belüftung), CO₂ steigt erst bei sehr niedrigem FEV₁, ein spätes Zeichen der Erschöpfung.`));
 
   const ox: LocalizedText[] = [];
   const aa = r.AaGradient, sat = pc(r.SaO2);

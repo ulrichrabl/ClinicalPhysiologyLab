@@ -37,8 +37,9 @@ export const RESP_PRESETS: RespPreset[] = [
   { id: 'effusion-r', label: L('Pleural effusion, right, large', 'Pleuraerguss rechts, groß'), respiratory: { effusionR: 2000 }, signs: ['stony-dull-percussion', 'reduced-breath-sounds', 'reduced-vocal-resonance', 'tracheal-deviation', 'bronchial-breathing'] },
   { id: 'ptx-l', label: L('Pneumothorax, left', 'Pneumothorax links'), respiratory: { ptxL: 0.6 }, signs: ['hyper-resonant-percussion', 'reduced-breath-sounds', 'reduced-chest-expansion'] },
   { id: 'tension-r', label: L('Tension pneumothorax, right', 'Spannungspneumothorax rechts'), respiratory: { ptxR: 0.95, tensionR: 12 }, signs: ['tracheal-deviation', 'hyper-resonant-percussion', 'reduced-breath-sounds', 'hypoxaemia', 'tachypnoea'] },
-  { id: 'asthma', label: L('Acute asthma', 'Akutes Asthma'), respiratory: { bronchoconstriction: 0.5 }, signs: ['wheeze', 'tachypnoea'] },
-  { id: 'asthma-lt', label: L('Life-threatening asthma', 'Lebensbedrohliches Asthma'), respiratory: { bronchoconstriction: 0.85 }, signs: ['reduced-breath-sounds', 'speech-limited', 'accessory-muscle-use', 'hypoxaemia'] },
+  /* named by the BTS bands their peak flow falls in (since gap 56's grounding, peak flow follows FEV1 as in people) */
+  { id: 'asthma', label: L('Acute severe asthma', 'Schwerer Asthmaanfall'), respiratory: { bronchoconstriction: 0.45 }, signs: ['wheeze', 'tachypnoea'] },
+  { id: 'asthma-lt', label: L('Life-threatening asthma', 'Lebensbedrohliches Asthma'), respiratory: { bronchoconstriction: 0.75 }, signs: ['reduced-breath-sounds', 'speech-limited', 'accessory-muscle-use', 'hypoxaemia'] },
   { id: 'copd', label: L('COPD, emphysema', 'COPD, Emphysem'), respiratory: { emphysema: 0.6, bronchoconstriction: 0.25 }, signs: ['hyper-resonant-percussion', 'wheeze', 'pursed-lip-breathing', 'barrel-chest', 'accessory-muscle-use'] },
   { id: 'oedema', label: L('Pulmonary oedema (failing left ventricle)', 'Lungenödem (versagender linker Ventrikel)'), circulation: { Emax: 0.5, edpV0: 110, edpV30: 200 }, signs: ['fine-crackles', 'tachypnoea'] },
   { id: 'pe', label: L('Pulmonary embolism, both lower lobes', 'Lungenembolie, beide Unterlappen'), respiratory: { embRLL: 1, embLLL: 1, embRML: 0.8 }, signs: ['tachypnoea', 'hypoxaemia'] },
