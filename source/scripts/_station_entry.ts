@@ -57,3 +57,13 @@ export { EXAM_SYSTEMS as EXAM_STRUCTURE } from '../src/vp/data/exam-structure.ts
 export { explainNeuro, rungOf } from '../src/vp/stations/neuro-texts.ts';
 export { pronatorDrift, fingerNose, kneeJerk, romberg, gait, heelShin, rapidAlternating } from '../src/vp/render/neuro-motion.ts';
 export { figureLookFor, figureJoints, POSES } from '../src/vp/render/patient-figure.ts';
+/* the respiratory station */
+export { RESP_PRESETS, RESP_PRESET_GROUPS, applyRespPreset } from '../src/vp/stations/resp-presets.ts';
+export { respSigns, respSignsOf, respSignGroups, respObserve } from '../src/vp/stations/resp-signs.ts';
+export { RESP_TESTS, RESP_SITES, siteManoeuvre } from '../src/vp/stations/resp-tests.ts';
+export { RESP_STATION } from '../src/vp/stations/station.ts';
+export { explainResp } from '../src/vp/stations/resp-texts.ts';
+export { respContext } from '../src/vp/stations/resp-context.ts';
+export { lungsSvg, drawBreath } from '../src/vp/render/lung-mechanism.ts';
+export { BreathRecorder, tissueVolume } from '../src/vp/physiology/lung/respiratory.ts';
+export { mediastinalShift, SITE_LOBES, FLUID_REACHES } from '../src/vp/models/resp-exam.ts';

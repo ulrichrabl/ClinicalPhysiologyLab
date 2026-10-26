@@ -110,7 +110,21 @@ export const NEURO_STATION: StationDef = {
   presets: [],
 };
 
-export const STATIONS: StationDef[] = [ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION, NEURO_STATION];
+/* The respiratory station: the whole chest examination (look, the trachea, expansion, percussion, breath sounds and vocal
+   resonance at ten sites, the oximeter), beside the lungs, pleura and airways under the chest wall and the breath on one
+   clock. Its settings are the models the chest examination measures; the heart behind the lungs is a driver. */
+export const RESP_STATION: StationDef = {
+  id: 'resp', test: 'lung.sounds', alsoTests: ['chest.percussion', 'chest.resonance', 'chest.expansion', 'trachea.position', 'breathing.pattern', 'vitals.rr', 'vitals.spo2'],
+  title: L('Respiratory station', 'Atmungs-Station'),
+  summary: L('The chest examination and what lies beneath it: look, feel the trachea and the expansion, percuss, listen and test vocal resonance at ten sites, beside the lobes, the pleura and the airways under the chest wall, and the breath itself on one clock. Fill a lobe, pour fluid into the pleura, narrow the airways; predict what the hands and ears will find, or identify a hidden chest.',
+    'Die Thoraxuntersuchung und was darunter liegt: inspizieren, Trachea und Exkursion tasten, perkutieren, auskultieren und die Bronchophonie an zehn Stellen prüfen, neben den Lappen, der Pleura und den Atemwegen unter der Brustwand und dem Atemzug selbst auf einer Uhr. Füllen Sie einen Lappen, gießen Sie Flüssigkeit in die Pleura, verengen Sie die Atemwege; sagen Sie vorher, was Hände und Ohren finden, oder erkennen Sie einen verdeckten Thorax.'),
+  drivers: {
+    'haemodynamics.Emax': L('A failing left ventricle raises the pressure in the lung capillaries: water leaves them for the interstitium and then the alveoli (crackles).', 'Ein versagender linker Ventrikel erhöht den Druck in den Lungenkapillaren: Wasser tritt ins Interstitium und dann in die Alveolen über (Rasselgeräusche).'),
+  },
+  presets: [],
+};
+
+export const STATIONS: StationDef[] = [ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION, NEURO_STATION, RESP_STATION];
 
 export interface SettingGroup { id: string; label: LocalizedText; vars: VariableDef[]; why?: LocalizedText }
 

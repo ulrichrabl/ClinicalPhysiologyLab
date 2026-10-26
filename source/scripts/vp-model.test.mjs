@@ -955,6 +955,9 @@ console.log('\nThe lungs and the circulation, coupled');
   const xv = viewOf(X);
   ok('left pneumothorax: hyper-resonant, absent breath sounds on the left; the X-ray shows it', at(xv, 'chest.percussion', 'chest.upper-zone.L').note === 'hyper-resonant'
     && ['absent', 'reduced'].includes(at(xv, 'lung.sounds', 'chest.upper-zone.L').breath) && REGISTRY.resolvers['resp.cxr'](xv, { property: 'cxr' }, {}).value.findings.includes('pneumothorax-L'));
+  const XT = settled((m) => Object.assign(m.respiratory, { ptxL: 0.95, tensionL: 12 }));
+  ok('a simple pneumothorax leaves the trachea central; air under tension pushes it away',
+    at(xv, 'trachea.position').position === 'central' && at(viewOf(XT), 'trachea.position').position === 'R', `${at(xv, 'trachea.position').position}, ${at(viewOf(XT), 'trachea.position').position}`);
   const C = settled((m) => { m.respiratory.collRUL = 0.95; });
   ok('right upper lobe collapse pulls the trachea to the right', at(viewOf(C), 'trachea.position').position === 'R');
 

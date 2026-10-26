@@ -190,6 +190,31 @@ export interface RespSnapshot {
   params: RespiratoryParams;
 }
 
+/** One instant of breathing, as a station draws it: seconds on the lungs' clock, litres above the relaxed FRC, L/s
+    (+ in), cmH2O. */
+export interface BreathSample { t: number; V: number; flow: number; Pmus: number; Palv: number; Ppl: number; insp: boolean }
+
+/** Keeps the last `seconds` of breathing, one sample every `every` seconds. It only watches: nothing in the lungs reads it. */
+export class BreathRecorder {
+  samples: BreathSample[] = [];
+  private next = -Infinity;
+  constructor(public seconds = 20, public every = 0.02) {}
+  push(s: BreathSample): void {
+    const last = this.samples.at(-1);
+    if (last && s.t < last.t) { this.samples = []; this.next = -Infinity; }   // the clock went back: a new patient
+    if (s.t < this.next) return;
+    this.next = s.t + this.every;
+    this.samples.push(s);
+    while (this.samples.length && this.samples[0].t < s.t - this.seconds) this.samples.shift();
+  }
+  clear(): void { this.samples = []; this.next = -Infinity; }
+}
+
+/** How big the lungs are from their tissue alone, × predicted: emphysema enlarges them, fibrosis and interstitial water
+    shrink them (gas lost to fluid, exudate or collapse is counted separately). */
+export const tissueVolume = (p: Pick<RespiratoryParams, 'emphysema' | 'fibrosis'>, interstitial: number) =>
+  1 + 0.35 * clamp(p.emphysema, 0, 1) - 0.4 * clamp(p.fibrosis, 0, 1) - 0.15 * interstitial;
+
 /* ---- the running model ---------------------------------------------------------- */
 interface Unit { lobe: number; VA: number; Q: number; kind: 'vq' | 'shunt' | 'base' | 'dead'; PO2: number; PCO2: number; diffU: number; key?: string }
 
@@ -220,6 +245,8 @@ export class Respiratory {
   private gaspStart = NaN;
   /** Breaths given at the airway (bag, airway device, later the ventilator), or none. */
   ventilator: Ventilator | null = null;
+  /** Records the breath for a station to draw (or null: nothing is recorded). */
+  recorder: BreathRecorder | null = null;
   /** CO2 held in the tissues and venous blood, as its tension (kPa): the mixed venous PCO2 the lungs receive. */
   PtCO2 = 6.1;
   private Paw = 0;
@@ -276,7 +303,7 @@ export class Respiratory {
     const Re = Raw0 * (1 + 12 * b ** 1.5) * (1 + 3 * e) * (1 + 0.6 * this.interstitial);
     // Static volumes. Weak inspiratory and expiratory muscles cannot reach TLC or get down to RV: the vital capacity shrinks.
     const mus = clamp(p.muscleStrength, 0.02, 1.3);
-    const TLCs = pr.TLC * (1 + 0.35 * e - 0.4 * f - 0.15 * this.interstitial) * (0.35 + 0.65 * gas);
+    const TLCs = pr.TLC * tissueVolume(this.p, this.interstitial) * (0.35 + 0.65 * gas);
     const RVs = Math.min(0.85 * TLCs, pr.RV * (1 + 1.6 * e + 1.1 * b) * (0.6 + 0.4 * gas));
     const VCmus = Math.min(1, mus) ** 0.6;
     const RV = RVs + (TLCs - RVs) * (1 - VCmus) * 0.3;
@@ -720,7 +747,14 @@ export class Respiratory {
         this.VEdrive += (target - this.VEdrive) * (1 - Math.exp(-span / LUNG.driveTau));
       }
       this.breathe(h);
+      if (this.recorder) this.record();
     }
+  }
+  /** The instant just breathed, with the pressures the snapshot reports (computed the same way). */
+  private record(): void {
+    const m = this.sol.m;
+    const Palv = this.special() ? this.Paw - this.Rnow * this.flow : -(this.phase === 'insp' ? m.Ri : m.Re) * this.flow;
+    this.recorder!.push({ t: this.t, V: this.V, flow: this.flow, Pmus: this.Pmus, Palv, Ppl: Palv + LUNG.restingPleural - this.V / m.CL, insp: this.phase === 'insp' });
   }
   private fe: ReturnType<Respiratory['forcedExpiration']> | null = null;
 

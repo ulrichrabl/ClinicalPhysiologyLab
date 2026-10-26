@@ -60,11 +60,14 @@ export const AUSCULTATION_SITES: Record<string, { x: number; y: number; view: 'f
 /** The ten places one examines the lungs. */
 export const LUNG_SITE_IDS = ['chest.upper-zone', 'chest.mid-zone', 'chest.axilla', 'chest.upper-back', 'chest.lung-base'].flatMap((s) => [`${s}.R`, `${s}.L`]);
 
+/** One lung's outline on the chest wall, `s` 1 for the lung on the viewer's right. From behind the lungs reach lower. */
+export const lungPath = (s: 1 | -1, view: 'front' | 'back') => `M ${f(s * 2.2)} -13.6 C ${f(s * 6)} -14.6 ${f(s * 11)} -12 ${f(s * 13.6)} -6 C ${f(s * 15)} 0 ${f(s * 14.6)} 8 ${f(s * 13.4)} ${view === 'back' ? 16 : 12}
+    C ${f(s * 9)} ${view === 'back' ? 17 : 11} ${f(s * 5)} ${view === 'back' ? 15 : 9} ${f(s * 1.6)} ${view === 'back' ? 14 : 4} Z`;
+
 /** The lobes' surface projection, fissures included, for teaching where each lobe can be heard. Front or back. */
 export function lobesUnderChest(view: 'front' | 'back', color = 'rgba(79,111,179,0.55)'): string {
   const out: string[] = [];
-  const lung = (s: 1 | -1) => `M ${f(s * 2.2)} -13.6 C ${f(s * 6)} -14.6 ${f(s * 11)} -12 ${f(s * 13.6)} -6 C ${f(s * 15)} 0 ${f(s * 14.6)} 8 ${f(s * 13.4)} ${view === 'back' ? 16 : 12}
-    C ${f(s * 9)} ${view === 'back' ? 17 : 11} ${f(s * 5)} ${view === 'back' ? 15 : 9} ${f(s * 1.6)} ${view === 'back' ? 14 : 4} Z`;
+  const lung = (s: 1 | -1) => lungPath(s, view);
   out.push(`<path d="${lung(1)} ${lung(-1)}" fill="rgba(79,111,179,0.08)" stroke="${color}" stroke-width="0.3"/>`);
   if (view === 'front') {
     // oblique fissures run from T3 behind to the 6th costochondral junction in front; the horizontal fissure along the 4th rib (right)
