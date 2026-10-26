@@ -172,8 +172,10 @@ export const RESP_RESOLVERS: Record<string, Resolver> = {
     const r = rs(view); if (!r) return undefined;
     const p = respParams(view);
     const collapse = (s: Side) => r.lobes.filter((l) => l.side === s).reduce((a, l) => a + (l.id.endsWith('UL') ? 1.6 : 1) * Math.max(0, l.collapsed - l.compressed - l.ptx) * 0.25, 0);
-    // pushed away by fluid or air under tension, pulled toward a collapsed (especially upper) lobe
-    const towardL = ((p.effusionR ?? 0) - (p.effusionL ?? 0)) / 3000 + ((p.ptxR ?? 0) - (p.ptxL ?? 0)) * 0.9 + (collapse('L') - collapse('R')) * 2.2;
+    // pushed away by fluid or by air under tension (a simple pneumothorax is at atmospheric pressure and moves nothing),
+    // pulled toward a collapsed (especially upper) lobe
+    const towardL = ((p.effusionR ?? 0) - (p.effusionL ?? 0)) / 3000 + 0.5 * ((p.tensionR ?? 0) - (p.tensionL ?? 0)) / LUNG.trachealShiftTension
+      + (collapse('L') - collapse('R')) * 2.2;
     const position = towardL > 0.5 ? 'L' : towardL < -0.5 ? 'R' : 'central';
     return { value: { position }, basis: `net mediastinal shift index ${towardL.toFixed(2)} (positive toward the left)` };
   },
