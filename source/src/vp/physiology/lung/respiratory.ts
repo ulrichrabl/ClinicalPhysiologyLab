@@ -311,8 +311,9 @@ export class Respiratory {
     const FRC = Math.min(TLC - 0.3, pr.FRC * (1 + 0.5 * e + 0.4 * b - 0.35 * f) * (0.35 + 0.65 * gas));
     // Forced expiration: maximal flow falls with airway narrowing and lost recoil and becomes concave (scooped).
     const a = pr.PEF / Math.max(1, pr.FVC);
-    const kFlow = (a / (1 + 6 * b ** 1.3 + 2 * e)) * (1 + 0.6 * f) * Math.sqrt(Math.min(1, mus));
-    const nFlow = 1.25 + 1.2 * (b + e);
+    const kFlow = (a / (1 + LUNG.forcedFlowFall * b ** LUNG.forcedFlowPower + 2 * e)) * (1 + 0.6 * f) * Math.sqrt(Math.min(1, mus));
+    /* the scoop of narrowed airways (fitted to asthma's PEF–FEV1 relation) and of lost recoil (emphysema, unchanged) */
+    const nFlow = 1.25 + LUNG.forcedFlowScoop * b + 1.2 * e;
     const DL = clamp(p.diffusion, 0, 2) * (1 - 0.85 * f) * (1 - 0.6 * e) * (1 - 0.5 * this.interstitial) * Math.max(0.05, gas) ** 0.7;
     return { st, gas, CL, Crs, Ri, Re, TLC, RV, FRC, kFlow, nFlow, DL };
   }
@@ -433,8 +434,11 @@ export class Respiratory {
     const dys = clamp(p.COHb + p.metHb, 0, 0.95);
     const Hb = inp.Hb;
     const embBurden = LOBES.reduce((a, id) => a + LOBE_PERF[id] * clamp((p as any)[`emb${id}`] ?? 0, 0, 1), 0);
-    // V/Q spread: narrowed airways, destroyed and scarred lung, interstitial water, and the flow an embolus diverts onto lung not ventilated for it
-    const sigma = LUNG.vqSpread + 0.8 * p.bronchoconstriction + 0.35 * p.emphysema + 0.6 * p.fibrosis + 0.7 * this.interstitial + 2.6 * embBurden + clamp(p.vqMismatch, 0, 2);
+    // V/Q spread: narrowed airways, destroyed and scarred lung, interstitial water, and the flow an embolus diverts onto lung not ventilated for it;
+    // in a severe asthma attack, airways closed by mucus add low-VA/Q units beyond a knee (Wagner 1996, Roca 1988)
+    const b = clamp(p.bronchoconstriction, 0, 1), tA = clamp((b - LUNG.vqAttackFrom) / (LUNG.vqAttackTo - LUNG.vqAttackFrom), 0, 1);
+    const attack = LUNG.vqAttackMax * tA * tA * (3 - 2 * tA);
+    const sigma = LUNG.vqSpread + 0.8 * p.bronchoconstriction + attack + 0.35 * p.emphysema + 0.6 * p.fibrosis + 0.7 * this.interstitial + 2.6 * embBurden + clamp(p.vqMismatch, 0, 2);
     // Diffusion: the fraction of the alveolar–capillary O2 gap left at the end of the capillary; shorter transit at high flow
     const uDiff = Math.exp((-LUNG.diffusionReserve * Math.max(0.01, m.DL)) / (Q / 5.2));
 

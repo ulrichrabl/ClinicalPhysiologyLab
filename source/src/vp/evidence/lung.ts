@@ -38,6 +38,19 @@ export const LUNG = defineConstants('lung', {
     derivation: 'The textbook value at FRC, about −5 cmH2O at mid-lung height. The circulation takes the swing of pleural pressure about its mean as the respiratory pump on the heart and lung vessels (ADR-017 step 3b).' },
   lungCompliance: { value: 0.2, unit: 'L/cmH2O', status: 'measured', refs: ['nunn2005'], means: 'Compliance of normal lungs (scaled to predicted TLC).', derivation: 'The normal static lung compliance of an adult, about 200 mL/cmH2O.' },
   chestWallCompliance: { value: 0.2, unit: 'L/cmH2O', status: 'measured', refs: ['nunn2005'], means: 'Compliance of the normal chest wall.', derivation: 'About 200 mL/cmH2O, so the respiratory system together is about 100.' },
+  /* Maximal expiratory flow V̇max(x) = k·FVC·xⁿ (x the fraction of the vital capacity still to be exhaled): narrowed
+     airways lower k (the peak) and raise n (scoop the curve, so FEV1 falls with the peak). The three constants were
+     fitted together, holding the model's FEV1 at each degree of bronchoconstriction as it was, so that peak flow follows
+     FEV1 as in people: in 6,167 patients with airflow obstruction PEF and FEV1 (% predicted) agreed on average (mean
+     difference 0.7 %, wide limits; Aggarwal 2006), and in 129 asthma admissions they correlated with ρ 0.77 (Arnold
+     2007). Before, the model's peak flow fell far ahead of FEV1 (23 % against 40 %), which made an attack look
+     "life-threatening" by peak flow while the patient looked moderate (known gap 56). Fit (healthy = 100 %): FEV1/PEF
+     84/88, 57/56, 38/34, 25/21, 17/13; residual within 4 points. Not reached: FEV1/FVC in the most severe obstruction is
+     about 43 % against Roca 1988's 34 % (10 patients, acute severe asthma on admission). */
+  forcedFlowFall: { value: 4, unit: '', status: 'derived', refs: ['aggarwal2006', 'arnold2007'], means: 'How far narrowed airways lower the maximal expiratory flow: k = k₀ / (1 + c·b^p).',
+    derivation: 'Fitted with the power and the scoop (grid search) so that PEF % predicted follows FEV1 % predicted (Aggarwal 2006: parity on average; Arnold 2007: ρ 0.77), holding FEV1 at each bronchoconstriction as before.' },
+  forcedFlowPower: { value: 1.7, unit: '', status: 'derived', refs: ['aggarwal2006'], means: 'The power of bronchoconstriction in that fall.', derivation: 'Fitted with the fall and the scoop, as above.' },
+  forcedFlowScoop: { value: 4, unit: '', status: 'derived', refs: ['aggarwal2006'], means: 'How much narrowed airways scoop the flow–volume curve: n = 1.25 + s·b (+ 1.2·e for emphysema, not refitted).', derivation: 'Fitted with the fall and the power, as above.' },
   airwayResistance: { value: 2.0, unit: 'cmH2O·s/L', status: 'measured', refs: ['nunn2005'], means: 'Normal airway resistance.', derivation: 'The normal adult value, 1–2 cmH2O·s/L at quiet breathing; the upper end, as resistance by mouthpiece includes the larynx.' },
   /* --- control of breathing --------------------------------------------------- */
   restingVentilation: { value: 6.4, unit: 'L/min at VCO2 200 mL/min', status: 'derived', refs: ['tobin1983'], means: 'Minute ventilation of the reference subject at rest.',
@@ -77,6 +90,20 @@ export const LUNG = defineConstants('lung', {
   baseShunt: { value: 0.02, unit: 'fraction of output', status: 'assumed', refs: ['nunn2005'], means: 'Blood that bypasses the alveoli in health (bronchial and Thebesian veins).', derivation: 'The normal physiological shunt of 2–3 %.' },
   vqSpread: { value: 0.22, unit: 'ln-SD of ventilation across equal-perfusion units', status: 'derived', refs: ['sorbini1968', 'wagner1974'], means: 'Spread of ventilation–perfusion ratios within a lobe in health.',
     derivation: 'Set so that the reference man of 45 has a PaO2 of about 90 mmHg (Sorbini: 109 − 0.43 × age) and an A–a gradient of about 11 mmHg. Wagner’s inert-gas log SDs (perfusion 0.43 young, 0.76 at 39–60) describe a different construction and give too wide a gradient here (0.6 → A–a 22 mmHg); they are not used directly.' },
+  /* Acute asthma's mismatch: in an attack, airways closed by mucus and oedema of the wall leave units ventilated far
+     less than they are perfused (low VA/Q, without shunt), and the inequality comes with a knee: little change until
+     FEV1 is about 40 % predicted, then, with little more obstruction, PaO2 falls to about 50 mmHg (Wagner 1996).
+     Measured: FEV1 41 %, log SD Q 1.18, 10.5 % of blood flow to low VA/Q units, no shunt (Ballester 1989); FEV1/FVC
+     34 %, PaO2 50.5, PaCO2 37.1, AaPO2 53.7 mmHg, shunt 1 % (Roca 1988). Added to the linear spread of bronchoconstriction
+     as a smooth step between the two degrees below (b; FEV1 57 % and 25 % predicted in the model) up to the maximum
+     (ln-SD units of this model's construction, not MIGET's), fitted to those outcomes: at FEV1 38 % A–a about 42 mmHg,
+     PaO2 about 62; at FEV1 25 % A–a about 54, PaO2 about 50, PaCO2 about 40. */
+  vqAttackFrom: { value: 0.3, unit: 'bronchoconstriction (0–1)', status: 'derived', refs: ['wagner1996'], means: 'Bronchoconstriction at which an attack’s low-VA/Q units begin to appear (FEV1 about 57 % predicted).',
+    derivation: 'Wagner 1996: gas exchange essentially unchanged until FEV1 about 40 %; the step starts above it so that it is well under way there (Ballester 1989, FEV1 41 %: log SD Q already 1.18).' },
+  vqAttackTo: { value: 0.68, unit: 'bronchoconstriction (0–1)', status: 'derived', refs: ['roca1988'], means: 'Bronchoconstriction at which the attack’s VA/Q inequality is complete (FEV1 about 25 % predicted).',
+    derivation: 'Roca 1988: acute severe asthma on admission (FEV1/FVC 34 %, taken as FEV1 about a quarter of predicted).' },
+  vqAttackMax: { value: 1.15, unit: 'ln-SD (this model)', status: 'derived', refs: ['roca1988', 'ballester1989'], means: 'The extra spread of VA/Q ratios in a severe attack.',
+    derivation: 'Fitted so that at the step’s end the model gives Roca 1988’s AaPO2 (53.7 mmHg) and PaO2 (50.5 mmHg) with a normal PaCO2 and no shunt.' },
   diffusionReserve: { value: 4, unit: '', status: 'assumed', means: 'Diffusion capacity relative to what transit time needs (end-capillary PO2 gap e^(−k·DL/(Q/Q₀))).',
     derivation: 'At rest equilibrium is reached in about a third of the capillary transit time, so a normal lung has about a threefold reserve; 4 is an assumption.' },
   hpvCentre: { value: 7, unit: 'kPa', status: 'ungrounded', means: 'Alveolar PO2 at which hypoxic pulmonary vasoconstriction is half maximal.' },

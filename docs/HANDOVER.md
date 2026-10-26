@@ -326,7 +326,7 @@ A station pairs one test with the mechanism that writes it, on one clock. Read `
   - **Mechanism:** `render/lung-mechanism.ts` (the lobes, pleura, mediastinum and airways in chest centimetres; the breath on one clock from `BreathRecorder`; ventilation and blood flow by lobe). Explanations: `stations/resp-texts.ts`, chosen by `stations/resp-context.ts`.
   - **Starting points:** `stations/resp-presets.ts` (14), each checked to bring its signs; no two look alike. Signs: `stations/resp-signs.ts`.
   - **Model change:** the trachea moves with tension, not a simple pneumothorax (`LUNG.trachealShiftTension`).
-  - **Known gaps:** 56–58.
+  - **Known gaps:** 56 (acute asthma, grounded since; two residuals), 57–58.
 - **Next:** open for the owner. The heart–lung chain (gaps 16, 12, 13, 15) is parked; with it would come pulsus paradoxus and Kussmaul's sign at this station.
 
 ## Interventions and scenarios (ADR-018)
