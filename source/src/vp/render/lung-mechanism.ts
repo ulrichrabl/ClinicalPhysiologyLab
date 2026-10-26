@@ -293,7 +293,7 @@ export function drawBreath(g: CanvasRenderingContext2D, w: number, h: number, sa
   /* time axis and cursor */
   g.fillStyle = c.muted; g.textAlign = 'center';
   for (let t = Math.ceil(from); t <= to; t += 1) g.fillText(`${Math.round(t - to)} s`, X(t), h - 6);
-  g.fillStyle = 'rgba(79,127,174,0.5)'; g.textAlign = 'left'; g.fillText(labels.insp, left + 4, h - 6);
+  g.fillStyle = 'rgba(79,127,174,0.8)'; g.textAlign = 'right'; g.fillText(`▮ ${labels.insp}`, w - right, top + 9);
   if (opts.cursor != null && opts.cursor >= from && opts.cursor <= to) {
     g.strokeStyle = c.accent; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(opts.cursor), top); g.lineTo(X(opts.cursor), h - 18); g.stroke();
   }

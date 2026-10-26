@@ -75,6 +75,8 @@ const UI: Record<string, Record<Lang, string>> = {
   stationEcgYours: { en: 'Your patient’s ECG', de: 'Das EKG Ihres Patienten' },
   stationAuscYours: { en: 'Your patient’s heart sounds', de: 'Die Herztöne Ihres Patienten' },
   stationEyesYours: { en: 'Your patient’s eyes', de: 'Die Augen Ihres Patienten' },
+  stationRespYours: { en: 'Your patient’s chest', de: 'Der Thorax Ihres Patienten' },
+  stationRespText: { en: 'The chest examination and what lies beneath it: look, the trachea, expansion, percussion, breath sounds and vocal resonance at ten sites, beside the lobes, the pleura and the airways, and the breath itself. Predict, or identify a hidden chest.', de: 'Die Thoraxuntersuchung und was darunter liegt: Inspektion, Trachea, Exkursion, Perkussion, Atemgeräusch und Bronchophonie an zehn Stellen, neben den Lappen, der Pleura und den Atemwegen, und dem Atemzug selbst. Vorhersagen, oder einen verdeckten Thorax erkennen.' },
   stationPulseYours: { en: 'Your patient’s pulse and neck veins', de: 'Puls und Halsvenen Ihres Patienten' },
   stationPulseText: { en: 'The pulse under the finger and the jugular vein in the neck, beside the pressures that make them: the aorta’s wave and the right atrium’s a, x, v and y, beat by beat.', de: 'Der Puls unter dem Finger und die Jugularvene am Hals, neben den Drücken, die sie erzeugen: die Welle der Aorta und a, x, v und y des rechten Vorhofs, Schlag für Schlag.' },
   stationNeuroText: { en: 'The limb examination and the ladder of the nervous system: tone, power, reflexes, coordination, gait, sensation and cranial nerves on the bedside figure, with the lesion placed on its rung, from cortex to muscle. Predict, or identify a hidden lesion.', de: 'Die Untersuchung der Gliedmaßen und die Leiter des Nervensystems: Tonus, Kraft, Reflexe, Koordination, Gang, Sensibilität und Hirnnerven an der Patientenfigur, mit der Läsion auf ihrer Stufe, von der Rinde bis zum Muskel. Vorhersagen, oder eine verdeckte Läsion erkennen.' },
@@ -174,12 +176,14 @@ import { FREE_CASE } from './free-case.ts';
 import { installReport } from './report.ts';
 import { installRecorder, trailTail } from './session-record.ts';
 import { mountEcgStation, type StationHandle } from './station-ecg.ts';
-import { ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION, NEURO_STATION } from '../stations/station.ts';
-type StationId = 'ecg' | 'auscultation' | 'eyes' | 'pulse' | 'neuro' | 'arrest';
+import { ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION, NEURO_STATION, RESP_STATION } from '../stations/station.ts';
+type StationId = 'ecg' | 'auscultation' | 'eyes' | 'pulse' | 'neuro' | 'resp' | 'arrest';
 import { mountAuscultationStation } from './station-auscultation.ts';
 import { mountEyeStation } from './station-eyes.ts';
 import { mountNeuroStation } from './station-neuro.ts';
 import { mountPulseStation } from './station-pulse.ts';
+import { mountRespStation } from './station-resp.ts';
+import { respSignsOf } from '../stations/resp-signs.ts';
 import { mountArrestPractice } from './practice-arrest.ts';
 import { motionSide, mountNeuroMotion, type NeuroMotion } from './neuro-motion-view.ts';
 import { neuroMotionFor } from './neuro-visual.ts';
@@ -367,6 +371,12 @@ export function mount(root: HTMLElement) {
       <p class="bed-triage">${t('stationPulseText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
     pc.querySelector('button')!.onclick = () => openStation('pulse');
     wl.appendChild(pc);
+    const rc = document.createElement('article');
+    rc.className = 'bedcard free';
+    rc.innerHTML = `<span class="tag">${t('stationTag')}</span><h2>${esc(tr(RESP_STATION.title, lang))}</h2>
+      <p class="bed-triage">${t('stationRespText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
+    rc.querySelector('button')!.onclick = () => openStation('resp');
+    wl.appendChild(rc);
     const ar = document.createElement('article');
     ar.className = 'bedcard free';
     ar.innerHTML = `<span class="tag">${t('practiceTag')}</span><h2>${t('practiceArrestTitle')}</h2>
@@ -384,7 +394,7 @@ export function mount(root: HTMLElement) {
     if (from === 'ward') stopLive(); else live?.stop();
     show('station');
     stationNow = which;
-    const mount = which === 'ecg' ? mountEcgStation : which === 'eyes' ? mountEyeStation : which === 'neuro' ? mountNeuroStation : which === 'pulse' ? mountPulseStation : which === 'arrest' ? mountArrestPractice : mountAuscultationStation;
+    const mount = which === 'ecg' ? mountEcgStation : which === 'eyes' ? mountEyeStation : which === 'neuro' ? mountNeuroStation : which === 'pulse' ? mountPulseStation : which === 'resp' ? mountRespStation : which === 'arrest' ? mountArrestPractice : mountAuscultationStation;
     station = mount($('#station'), {
       lang,
       ...(withPatient ? { patient: { model: structuredClone(live!.model), name: { en: base.patient.name, de: base.patient.name } } } : {}),
@@ -1419,10 +1429,11 @@ export function mount(root: HTMLElement) {
     const sl = (x: string) => esc(labelOf(KNOWLEDGE, `sign:${x}`, lang));
     const row = (which: StationId, title: string, present: Set<string>) => `<li><b>${esc(title)}</b> ${t('stationShows')}: ${present.size ? [...present].map(sl).join(', ') : `<span class="muted">${t('stationNormal')}</span>`}
       <button type="button" class="ghost small" data-open-station="${which}" data-on-patient="1">${t('openInStation')}</button></li>`;
-    let ecg = new Set<string>(), ausc = new Set<string>(), eyes = new Set<string>(), pulse = new Set<string>();
+    let ecg = new Set<string>(), ausc = new Set<string>(), eyes = new Set<string>(), pulse = new Set<string>(), chest = new Set<string>();
     try { ecg = ecgSignsOf(live.model, live.snap, live.chemistry).present; ausc = auscSignsOf(live.model, live.snap, live.chemistry).present; pulse = pulseSignsOf(live.model, live.snap, live.chemistry).present; } catch { /* a model without a circulation */ }
     try { eyes = eyeSignsOf(live.model, live.snap, live.chemistry).present; } catch { /* nothing to read */ }
-    return `<section><h2>${t('inStation')}</h2><p class="muted">${t('inStationNote')}</p><ul class="plain db-stations">${row('ecg', t('stationEcgYours'), ecg)}${row('auscultation', t('stationAuscYours'), ausc)}${row('pulse', t('stationPulseYours'), pulse)}${row('eyes', t('stationEyesYours'), eyes)}</ul></section>`;
+    try { chest = respSignsOf(live.model, live.snap, live.chemistry).present; } catch { /* no lungs to read */ }
+    return `<section><h2>${t('inStation')}</h2><p class="muted">${t('inStationNote')}</p><ul class="plain db-stations">${row('ecg', t('stationEcgYours'), ecg)}${row('auscultation', t('stationAuscYours'), ausc)}${row('pulse', t('stationPulseYours'), pulse)}${row('resp', t('stationRespYours'), chest)}${row('eyes', t('stationEyesYours'), eyes)}</ul></section>`;
   };
   const renderDebrief = () => {
     if (!s || !debrief) return;

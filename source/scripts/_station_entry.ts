@@ -61,3 +61,5 @@ export { figureLookFor, figureJoints, POSES } from '../src/vp/render/patient-fig
 export { RESP_PRESETS, RESP_PRESET_GROUPS, applyRespPreset } from '../src/vp/stations/resp-presets.ts';
 export { respSigns, respSignsOf, respSignGroups, respObserve } from '../src/vp/stations/resp-signs.ts';
 export { RESP_TESTS, RESP_SITES, siteManoeuvre } from '../src/vp/stations/resp-tests.ts';
+export { RESP_STATION } from '../src/vp/stations/station.ts';
+export { explainResp } from '../src/vp/stations/resp-texts.ts';
