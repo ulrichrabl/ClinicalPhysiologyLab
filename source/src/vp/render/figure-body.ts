@@ -60,7 +60,8 @@ export interface Shape {
 /** A smooth bump: 1 at c, falling to 0 at c ± w. */
 const bump = (s: number, c: number, w: number) => { const x = clamp(1 - Math.abs(s - c) / w, 0, 1); return x * x * (3 - 2 * x); };
 
-export function bodyShape(look: FigureLook, upright: number): Shape {
+/** `breath`: how far the front of the chest and of the belly are moved by the breath now (cm, figure-breath.ts). */
+export function bodyShape(look: FigureLook, upright: number, breath?: { chest: number; belly: number }): Shape {
   const b = look.body;
   const u = (1.62 * clamp(b.heightCm, 140, 200)) / 176;
   const female = look.sex === 'F';
@@ -126,6 +127,15 @@ export function bodyShape(look: FigureLook, upright: number): Shape {
     /* barrel chest: deeper front to back; kyphosis rounds the upper back */
     if (barrel) { a += 2.8 * bump(s, 40, 12); p += 2.4 * bump(s, 40, 12); }
     p += kyphosis * 0.12 * bump(s, 46, 9);
+    /* breathing: the rib cage swings forward and out (the lower ribs' bucket handle), the belly out with the diaphragm,
+       or in when a weak diaphragm is sucked up */
+    if (breath) {
+      /* the whole front of the rib cage comes forward together, from the costal margin to the upper sternum, a little
+         more at the lower sternum (where the ribs are longest), not a bulge at one level */
+      const cage = smooth(24, 33, s) * (1 - smooth(47, 54, s));
+      a += breath.chest * cage * (0.75 + 0.25 * bump(s, 36, 10)) + breath.belly * bump(s, 13, 12) * (1 - cage);
+      w += 0.3 * breath.chest * bump(s, 33, 9);
+    }
     /* the ribcage and pelvis are bone: they never get thinner than this */
     a = Math.max(a, s > 28 ? 9.6 : s > 22 ? 7 : s < -6 ? 5 : 4.5);
     p = Math.max(p, s > 30 ? 8.6 : s < 6 ? 6.6 : 5.6);

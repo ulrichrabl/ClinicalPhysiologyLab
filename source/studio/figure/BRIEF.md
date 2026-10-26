@@ -81,6 +81,10 @@ From the side the hand is drawn whole from a template in its own centimetres (`r
 
 Shape is driven by the patient (`look.body`) and the model's findings. Below a BMI of about 18.5, bones show; above about 30, soft tissue. Central fat gives an apple shape and peripheral fat a pear. Wasted muscle gives thin limbs even with a big belly (cirrhosis). The model's findings drawn on the body are oedema, ascites, colour, sweating, hyperinflation and accessory muscles.
 
+### Breathing
+
+The figure breathes with the running lungs (`figureSvg(…, { breath })`, the litres above end-expiration; `figure-breath.ts`). The front of the rib cage comes forward as a whole, from the costal margin to the upper sternum, and the belly rises with the diaphragm; upright the rib cage takes more of the breath, lying the abdomen (Sharp 1975; the shares are assumed). With a paradoxical (weak) diaphragm the belly moves in as the chest moves out. A quiet breath moves the wall a few millimetres, so the motion is magnified (`GAIN`, assumed): it shows the rate, the rhythm, the relative depth and which wall moves which way, not centimetres. The ward redraws the figure with the breath every other frame between changes of position; the station's Look panel does the same. Still under `prefers-reduced-motion`.
+
 ### Bed and pillow
 
 The backrest pivots on a fixed hinge. The pillow belongs to the head section, so it moves with the backrest and never flies off when the patient sits up (#29, #30).
@@ -113,7 +117,7 @@ These rules are checked by `contract.test.mjs` (part of `npm test`) and by `shoo
    - Gradient, filter and clip `id`s are `fig-§-…`; `§` is replaced by a hash of the figure, so several figures can share a page.
    - Respect `prefers-reduced-motion`.
 6. **Fit:** the panel is about 316 px wide on desktop and full width on phones, light and dark. Check `out/app-desktop*.png` and `out/app-phone-dark.png`.
-7. **Body response:** the drawing responds to sex, age, BMI, fat distribution, muscle, long hair, baldness only where described, oedema, ascites, jaundice, pallor, cyanosis, sweating, hyperinflation and oxygen. This is checked in pairs.
+7. **Body response:** the drawing responds to sex, age, BMI, fat distribution, muscle, long hair, baldness only where described, oedema, ascites, jaundice, pallor, cyanosis, sweating, hyperinflation and oxygen. This is checked in pairs. The breath moves the chest and belly (outward on inspiration, the belly inward when paradoxical), and no breath draws the figure exactly as before.
 
 ## The loop
 
