@@ -85,10 +85,10 @@ const circuit: Draw = (g, w, h, c) => {
     return r;
   };
   const atrY = lungY + 38 + (bodyY - lungY - 38) * 0.3, venY = lungY + 38 + (bodyY - lungY - 38) * 0.72;
-  ch(colR, atrY, s.Vra, s.Pra, 'RA', C.ven, C.venSoft, 70);
-  ch(colR, venY, s.Vrv, s.Prv, 'RV', C.ven, C.venSoft, 120);
+  const rRA = ch(colR, atrY, s.Vra, s.Pra, 'RA', C.ven, C.venSoft, 70);
+  const rRV = ch(colR, venY, s.Vrv, s.Prv, 'RV', C.ven, C.venSoft, 120);
   ch(colL, atrY, s.Vla, s.Pla, 'LA', C.art, C.artSoft, 70);
-  ch(colL, venY, s.V, s.Pv, 'LV', C.art, C.artSoft, 120);
+  const rLV = ch(colL, venY, s.V, s.Pv, 'LV', C.art, C.artSoft, 120);
   // valves
   const valve = (x: number, y: number, open: boolean, label: string, horizontal = true) => {
     g.strokeStyle = css('--fg'); g.lineWidth = 3;
@@ -97,7 +97,7 @@ const circuit: Draw = (g, w, h, c) => {
     if (horizontal) { g.moveTo(x - 12, y); g.lineTo(x - gap, y); g.moveTo(x + gap, y); g.lineTo(x + 12, y); }
     else { g.moveTo(x, y - 12); g.lineTo(x, y - gap); g.moveTo(x, y + gap); g.lineTo(x, y + 12); }
     g.stroke();
-    text(g, label, x + (horizontal ? 16 : 6), y + (horizontal ? 4 : -14), { size: 9, color: css('--muted'), mono: true });
+    text(g, label, x + (horizontal ? 16 : 0), y + (horizontal ? 4 : -17), { size: 9, color: css('--muted'), mono: true, align: horizontal ? 'left' : 'center' });
   };
   const midA = (atrY + venY) / 2;
   valve(colR, midA, !!s.tricuspidOpen, 'T');
@@ -105,16 +105,20 @@ const circuit: Draw = (g, w, h, c) => {
   // great vessels and flows
   const pulmY = lungY + 38, aoY = bodyY;
   g.lineWidth = 3;
-  g.strokeStyle = C.ven; g.beginPath(); g.moveTo(colR - 30, venY); g.lineTo(colR - 52, venY); g.lineTo(colR - 52, pulmY + 2); g.lineTo(cx - 60, pulmY + 2); g.stroke();   // RV → PA
-  valve(colR - 52, venY - 30, !!s.pulmonicOpen, 'P', false);
+  // the semilunar valves sit where each artery leaves its ventricle, across the flow like the AV valves
+  const eRV = rRV * 1.05, eLV = rLV * 1.05, pa = colR - Math.max(52, eRV + 24), ao = colL + Math.max(52, eLV + 24);
+  g.strokeStyle = C.ven; g.beginPath(); g.moveTo(colR - eRV, venY); g.lineTo(pa, venY); g.lineTo(pa, pulmY + 2); g.lineTo(cx - 60, pulmY + 2); g.stroke();   // RV → PA
+  valve(colR - eRV - 9, venY, !!s.pulmonicOpen, 'P', false);
   g.strokeStyle = C.art; g.beginPath(); g.moveTo(cx + 60, pulmY + 2); g.lineTo(colL, pulmY + 2); g.lineTo(colL, atrY - 30); g.stroke();   // PV → LA
-  g.strokeStyle = C.art; g.beginPath(); g.moveTo(colL + 30, venY); g.lineTo(colL + 52, venY); g.lineTo(colL + 52, aoY - 2); g.lineTo(cx + 60, aoY - 2); g.stroke();   // LV → aorta
-  valve(colL + 52, venY + 30, !!s.aorticOpen, 'A', false);
-  g.strokeStyle = C.ven; g.beginPath(); g.moveTo(cx - 60, aoY - 2); g.lineTo(colR, aoY - 2); g.lineTo(colR, venY + 30); g.stroke();   // veins → RA (behind RV)
+  g.strokeStyle = C.art; g.beginPath(); g.moveTo(colL + eLV, venY); g.lineTo(ao, venY); g.lineTo(ao, aoY - 2); g.lineTo(cx + 60, aoY - 2); g.stroke();   // LV → aorta
+  valve(colL + eLV + 9, venY, !!s.aorticOpen, 'A', false);
+  // the venae cavae run up beside the right ventricle into the right atrium, not into the ventricle
+  const cava = colR + Math.max(rRA, rRV) * 1.05 + 12;   // clear of both chambers, however dilated
+  g.strokeStyle = C.ven; g.beginPath(); g.moveTo(cx - 60, aoY - 2); g.lineTo(cava, aoY - 2); g.lineTo(cava, atrY); g.lineTo(colR + rRA * 1.05, atrY); g.stroke();   // veins → RA
   // particles: one loop of blood, moving at the local flow
   const path: Array<[number, number, number]> = [   // x, y, flow key index
-    [colR, aoY - 2, 0], [colR, atrY, 1], [colR, venY, 2], [colR - 52, venY, 2], [colR - 52, pulmY + 2, 3], [cx - 60, pulmY + 2, 3],
-    [cx + 60, pulmY + 2, 4], [colL, pulmY + 2, 4], [colL, atrY, 5], [colL, venY, 6], [colL + 52, venY, 6], [colL + 52, aoY - 2, 7], [cx + 60, aoY - 2, 7], [cx - 60, aoY - 2, 0],
+    [cava, aoY - 2, 0], [cava, atrY, 0], [colR, atrY, 1], [colR, venY, 2], [pa, venY, 2], [pa, pulmY + 2, 3], [cx - 60, pulmY + 2, 3],
+    [cx + 60, pulmY + 2, 4], [colL, pulmY + 2, 4], [colL, atrY, 5], [colL, venY, 6], [ao, venY, 6], [ao, aoY - 2, 7], [cx + 60, aoY - 2, 7], [cx - 60, aoY - 2, 0],
   ];
   const flows = [s.Qven, s.Qtri, s.Qpulv, s.Qpulv, s.Qpv, s.Qfill, s.Qeject, s.Qout].map((q: number) => Math.max(0, q || 0));
   const segLen: number[] = []; let total = 0;
@@ -129,7 +133,7 @@ const circuit: Draw = (g, w, h, c) => {
     st.p[k] = (st.p[k] + q * dt * 0.35) % total;
     const a = path[i], b = path[(i + 1) % path.length], f = d / Math.max(1e-6, segLen[i]);
     const x = a[0] + (b[0] - a[0]) * f, y = a[1] + (b[1] - a[1]) * f;
-    const arterial = i >= 6 && i <= 12;
+    const arterial = i >= 7 && i <= 13;
     g.fillStyle = arterial ? C.art : C.ven;
     g.beginPath(); g.arc(x, y, 3, 0, Math.PI * 2); g.fill();
   }
