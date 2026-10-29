@@ -56,7 +56,7 @@ export const CT = defineConstants('seizure', {
   relayRecovery: { value: 180, unit: 's', status: 'assumed', refs: ['pottkamper2021', 'stuiver2026'],
     means: 'Time constant with which the relay’s hyperpolarisation wears off after the seizure: the postictal suppression and its recovery.',
     derivation: 'Postictal suppression after ECT lasted 0.6–6.3 min in Pottkämper 2021 (3 patients); Stuiver 2026 found the thalamus returning over the first postictal hour. Three minutes, a placement inside that range.' },
-  firingToMoment: { value: 0.00358, unit: 'nAm/mm² per 1/s', status: 'derived', refs: ['pottkamper2021', 'murakami2015'],
+  firingToMoment: { value: 0.00457, unit: 'nAm/mm² per 1/s', status: 'derived', refs: ['pottkamper2021', 'murakami2015'],
     means: 'Current dipole moment per area of a region’s cortex for each 1/s its excitatory firing rises above rest (surface negative).',
     derivation: 'Fitted once (scripts/fit-seizure.mjs) so that the largest 2 s of a generalised seizure at Fz against the linked ears reach 275 µV peak to peak, the middle of Pottkämper 2021’s 150–400 µV frontocentrally in ECT seizures. Checked against Murakami & Okada 2015: at the seizure’s firing swing the moment density should stay within the human cortex’s 0.16–0.77 nAm/mm² (proposed maximum 1–2).' },
   seizingThreshold: { value: 2, unit: '1/s', status: 'assumed', means: 'Excess cortical firing (averaged over half a second) above which a region counts as seizing: its path advances; below it, the path relaxes.',
