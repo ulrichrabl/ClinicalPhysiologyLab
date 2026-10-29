@@ -116,6 +116,31 @@ The owner wants an EEG station, with the weight on what makes EEG reading hard: 
 
 Each relation in the model is grounded in published human data, as for the other stations; where the evidence is thin or disputed, the station says so.
 
+**Reference pictures (owner, 2026-10-29), for layout and validation only, not to be copied into the app:**
+
+- **A photograph of the front panel**, from the owner in the chat. Left to right:
+  - the large red display (impedance in ohms) with the yellow IMPEDANCE TEST button below it;
+  - the ECT and EEG/ECG/EMG sockets;
+  - the FlexDial (ADJUST/SET) with its indicator light;
+  - the PERCENT ENERGY display and its dial, with two small lights beside it (meaning to be taken from the manual);
+  - the guarded yellow TREAT button;
+  - START/STOP with the "Safety monitor activated" light;
+  - the power switch;
+  - the strip printer on the right.
+- **Two printed strips** in Neuropsychiatric Disease and Treatment (Dove Press, article 160093): https://www.dovepress.com/article/fulltext_file/160093/aW1n/NDT-160093-F01.jpg and …/NDT-160093-F02.jpg. Identify and cite the paper in the ECT work.
+  - **The strip:** four traces, EEG1 and EEG2 at 200 µV/cm and EMG and ECG at 1000 µV/cm; a seconds scale with a black block every 6 s; the heart rate printed about every 3 s.
+  - **The report:**
+    - "Thymatron system IV S/N", then % Energy set, Charge delivered (mC), Current (A), Stimulus duration (s), Frequency (Hz), Pulse width (ms), Static impedance, Dynamic impedance (Ω);
+    - EEG endpoint or "EEG endpoint is not detected", EMG endpoint or "EMG activity is not detected";
+    - Base and Peak heart rate (b/m), Average seizure energy index (µV²), Postictal suppression index (% or N/A), Maximum sustained power (µV²), Time to peak power, Maximum sustained coherence (%), Time to peak coherence;
+    - "Program selected: Low 0.5 charge rate".
+  - **The stimulus arithmetic checks out on both:**
+    - 0.91 A × 0.5 ms × 2 × 70 Hz × 8.0 s = 510 mC, printed 507.4;
+    - 0.91 A × 0.25 ms × 2 × 30 Hz × 5.6 s = 76.4 mC, printed 76.5.
+    Static impedance 1430–1760 Ω, dynamic 210 Ω.
+  - **Figure 1, an inadequate seizure:** bilateral, 100 %, no motor seizure, heart rate not rising, neither endpoint detected, suppression index N/A.
+  - **Figure 2, adequate:** right unilateral ultrabrief, 15 %, after a third stimulation. The clinician's arrows put the EMG end at 26 s and the EEG end at 31 s; the device's estimates were 8 s and 37 s. Suppression index 23.5 %, coherence 91 %.
+
 **The Thymatron IV manual:** attached by the owner (2026-10-29, "System IV Instruction Manual Rev 21"); ask for it again in a new chat if it is not in the repository's reach. The device's settings (percent energy and charge, current, pulse width, frequency, duration) come from it, not from memory. The station draws its own panel with the device's functions; it does not copy the device's face or brand. **But (owner, 2026-10-29) it must be similar enough that the training carries over to the real device:** the same controls in the same places (the dial, the buttons, the display, the strip printer), the same displays and print-out, the same sequence of steps (impedance test, baseline, treat, the seizure monitoring and end of seizure), drawn from photographs of the real device and the manual's descriptions, without the brand name or logo.
 
 ## Open lists
