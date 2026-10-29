@@ -1,7 +1,8 @@
 import { EEG } from '../evidence/eeg.ts';
 import { CT } from '../evidence/seizure.ts';
 import { ForwardModel, standardHead, patchPoints, leadField, sphericalDir, toMap, ALL_ELECTRODES, E1020 } from '../measurements/eeg-forward.ts';
-import { REGIONS, type RegionDef } from '../physiology/brain/corticothalamic.ts';
+import { REGIONS, type RegionDef, type Brain } from '../physiology/brain/corticothalamic.ts';
+import type { SeizurePhase } from './eeg-seizure-texts.ts';
 
 /* ---------------------------------------------------------------------------
    From the corticothalamic regions to the scalp (EEG station, part 2a).
@@ -56,3 +57,12 @@ export const frontocentral = (scalp: Record<string, Float32Array>) => {
 };
 
 export { E1020 };
+
+/** Which phase the running brain is in, for the explanations: by the seizure's progression while it runs, then by the
+    relay's brake. `seized`: whether a seizure has started since the stimulus. */
+export function phaseOf(brain: Brain, seized: boolean): SeizurePhase {
+  if (brain.regions.some((r) => r.excess > CT.seizingThreshold)) { const p = Math.max(...brain.regions.map((r) => r.progress)); return p < 0.4 ? 'onset' : p < 0.85 ? 'slowing' : 'ending'; }
+  if (!seized) return 'rest';
+  const brake = Math.max(...brain.regions.map((r) => r.relayInhibition));
+  return brake > 1.5 ? 'postictal' : brake > 0.3 ? 'recovering' : 'rest';
+}

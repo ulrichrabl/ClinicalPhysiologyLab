@@ -6,11 +6,12 @@
   "main": "index.js",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/physiology.test.mjs && node scripts/circulation.test.mjs && node scripts/runtime-slice.test.mjs && node scripts/phase4-observations.test.mjs && node scripts/phase5-chemistry.test.mjs && node scripts/phase6-scenarios.test.mjs && node scripts/stabilization.test.mjs && node scripts/hardening.test.mjs && node scripts/vp-model.test.mjs && node scripts/station.test.mjs && node scripts/eeg.test.mjs && node scripts/seizure.test.mjs && node scripts/sensory-chart.test.mjs && node scripts/scenario.test.mjs && node scripts/arrest.test.mjs && node scripts/debrief.test.mjs && node studio/figure/contract.test.mjs",
+    "test": "node scripts/physiology.test.mjs && node scripts/circulation.test.mjs && node scripts/runtime-slice.test.mjs && node scripts/phase4-observations.test.mjs && node scripts/phase5-chemistry.test.mjs && node scripts/phase6-scenarios.test.mjs && node scripts/stabilization.test.mjs && node scripts/hardening.test.mjs && node scripts/vp-model.test.mjs && node scripts/station.test.mjs && node scripts/eeg.test.mjs && node scripts/seizure.test.mjs && node scripts/ect.test.mjs && node scripts/sensory-chart.test.mjs && node scripts/scenario.test.mjs && node scripts/arrest.test.mjs && node scripts/debrief.test.mjs && node studio/figure/contract.test.mjs",
     "test:vp": "node scripts/vp-model.test.mjs",
     "test:station": "node scripts/station.test.mjs",
     "test:eeg": "node scripts/eeg.test.mjs",
     "test:seizure": "node scripts/seizure.test.mjs",
+    "test:ect": "node scripts/ect.test.mjs",
     "test:scenario": "node scripts/scenario.test.mjs",
     "test:arrest": "node scripts/arrest.test.mjs",
     "test:debrief": "node scripts/debrief.test.mjs",

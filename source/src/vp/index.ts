@@ -39,6 +39,7 @@ import './evidence/endocrine.ts';
 import './evidence/renal.ts';
 import './evidence/eeg.ts';
 import './evidence/seizure.ts';
+import './evidence/ect.ts';
 import './physiology/brain/corticothalamic.ts';
 export { Body, BODY_DEFAULTS, type BodyParams, type BodySnapshot } from './physiology/body/body.ts';
 export { Respiratory, RESPIRATORY_DEFAULTS, LOBES, satO2, pulseOximeter, predicted, type RespiratoryParams, type RespSnapshot } from './physiology/lung/respiratory.ts';

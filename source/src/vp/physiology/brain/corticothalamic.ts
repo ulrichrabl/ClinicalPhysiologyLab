@@ -75,6 +75,8 @@ export class Region {
   kick = 0;
   /** input to the relay from other regions' cortex (mV), set by the brain each step */
   coupling = 0;
+  /** extra depolarising input to the cortex (mV) */
+  cortexKick = 0;
   private k = [new Float64Array(8), new Float64Array(8), new Float64Array(8), new Float64Array(8)];
   private tmp = new Float64Array(8);
 
@@ -95,7 +97,7 @@ export class Region {
   private deriv(x: Float64Array, eD: number, sD: number, noise: number, out: Float64Array) {
     const p = this.p, ab = p.alpha * p.beta, apb = p.alpha + p.beta, c = this.drive;
     const Qe = this.S(x[2]), phis = this.S(x[4]), phir = this.S(x[6]);
-    const inE = p.nuEE * x[0] + this.inhibition * Qe + p.nuES * sD;
+    const inE = p.nuEE * x[0] + this.inhibition * Qe + p.nuES * sD + this.cortexKick;
     const inS = p.nuSE * c * eD + p.nuSR * phir + p.inputSN + noise + this.kick + this.coupling - this.relayInhibition;
     const inR = p.nuRE * c * eD + p.nuRS * phis;
     out[0] = x[1]; out[1] = p.gammaE * p.gammaE * (Qe - x[0]) - 2 * p.gammaE * x[1];
@@ -150,13 +152,15 @@ export interface RegionDef {
 export const REGIONS: RegionDef[] = (['L', 'R'] as const).flatMap((h) => {
   const s = h === 'L' ? -1 : 1;
   return [
-    { id: `${h}-frontal`, hemisphere: h, theta: s * 72, phi: s * -58 },
+    { id: `${h}-frontal`, hemisphere: h, theta: s * 72, phi: s * 58 },
     { id: `${h}-central`, hemisphere: h, theta: s * 46, phi: 0 },
-    { id: `${h}-temporal`, hemisphere: h, theta: s * 98, phi: s * -6 },
-    { id: `${h}-parietal`, hemisphere: h, theta: s * 62, phi: s * 54 },
-    { id: `${h}-occipital`, hemisphere: h, theta: s * 90, phi: s * 74 },
+    { id: `${h}-temporal`, hemisphere: h, theta: s * 98, phi: s * 6 },
+    { id: `${h}-parietal`, hemisphere: h, theta: s * 62, phi: s * -54 },
+    { id: `${h}-occipital`, hemisphere: h, theta: s * 90, phi: s * -74 },
   ];
 });
+
+interface PulseTrain { rate: number; count: number; area: Float64Array; release: number; recovery: number; start: number; given: number; u: Float64Array }
 
 export interface BrainOptions { seed?: number; dt?: number; regions?: RegionDef[] }
 
@@ -169,6 +173,7 @@ export class Brain {
   /** coupling weights: excess cortical firing of region j onto the cortex of region i (mV per 1/s) */
   readonly w: Float64Array;
   private stim: Array<{ until: number; mV: number; regions: Set<number> }> = [];
+  private train: PulseTrain | null = null;
 
   constructor(o: BrainOptions = {}) {
     this.dt = o.dt ?? 2e-4;
@@ -194,14 +199,37 @@ export class Brain {
     this.stim.push({ until: this.t + seconds, mV, regions: new Set(regions ?? this.regions.map((_, i) => i)) });
   }
 
+  /** A train of brief pulses into the relays (the ECT stimulus, physiology/brain/ect-stimulus.ts), as a rate: while the
+      train runs, each region's relay gets its pulse's area times the pulse rate times the share of the synaptic resource
+      each pulse releases (Tsodyks–Markram depression in its rate form: du/dt = (1 − u)/recovery − release·u·rate). The
+      pulses enter as a rate, not as volleys, because a region here is one point: driven by volleys it rings at its
+      alpha resonance, and a train of 20 pulses a second (10 Hz on the device) would start a seizure at a third of the drive a 40 per second
+      train needs, which no human series shows. Replaces any train running. */
+  pulses(o: { rate: number; count: number; area: ArrayLike<number>; release: number; recovery: number }) {
+    this.train = { ...o, area: Float64Array.from(o.area), start: this.t, given: 0, u: new Float64Array(this.regions.length).fill(1) };
+  }
+  /** Stop the train early (the treatment button released): returns the pulses given. */
+  stopPulses() { const g = this.train?.given ?? 0; this.train = null; return g; }
+  /** pulses of the last train given so far (null if none was started) */
+  get pulsesGiven() { return this.train ? this.train.given : null; }
+  /** whether a train is still delivering */
+  get delivering() { return !!this.train && this.train.given < this.train.count; }
+
   step() {
     const n = this.regions.length;
+    const tr = this.train;
+    const on = !!tr && tr.given < tr.count;
+    if (tr) {
+      if (on) tr.given = Math.min(tr.count, Math.floor((this.t + this.dt - tr.start) * tr.rate + 1e-9));
+      for (let i = 0; i < n; i++) tr.u[i] += this.dt * ((1 - tr.u[i]) / tr.recovery - (on ? tr.release * tr.u[i] * tr.rate : 0));
+    }
     for (let i = 0; i < n; i++) {
       let c = 0;
       for (let j = 0; j < n; j++) { const wij = this.w[i * n + j]; if (wij) c += wij * Math.max(0, this.regions[j].excess - CT.seizingThreshold); }
       this.regions[i].coupling = c;
       let k = 0; for (const s of this.stim) if (this.t < s.until && s.regions.has(i)) k += s.mV;
       this.regions[i].kick = k;
+      this.regions[i].cortexKick = on && tr ? tr.area[i] * tr.rate * tr.release * tr.u[i] : 0;
     }
     for (const r of this.regions) r.step(this.rng.gauss());
     this.t += this.dt;
