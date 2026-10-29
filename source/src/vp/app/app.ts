@@ -77,6 +77,7 @@ const UI: Record<string, Record<Lang, string>> = {
   stationEyesYours: { en: 'Your patient’s eyes', de: 'Die Augen Ihres Patienten' },
   stationRespYours: { en: 'Your patient’s chest', de: 'Der Thorax Ihres Patienten' },
   stationRespText: { en: 'The chest examination and what lies beneath it: look, the trachea, expansion, percussion, breath sounds and vocal resonance at ten sites, beside the lobes, the pleura and the airways, and the breath itself. Predict, or identify a hidden chest.', de: 'Die Thoraxuntersuchung und was darunter liegt: Inspektion, Trachea, Exkursion, Perkussion, Atemgeräusch und Bronchophonie an zehn Stellen, neben den Lappen, der Pleura und den Atemwegen, und dem Atemzug selbst. Vorhersagen, oder einen verdeckten Thorax erkennen.' },
+  stationEegText: { en: 'How the scalp sees a source in the brain: a patch of cortex, its field through brain, fluid, skull and scalp, the montages, and where the maximum and the phase reversal come from.', de: 'Wie die Kopfhaut eine Quelle im Gehirn sieht: ein Rindenareal, sein Feld durch Gehirn, Liquor, Schädel und Kopfhaut, die Montagen, und woher Maximum und Phasenumkehr kommen.' },
   stationPulseYours: { en: 'Your patient’s pulse and neck veins', de: 'Puls und Halsvenen Ihres Patienten' },
   stationPulseText: { en: 'The pulse under the finger and the jugular vein in the neck, beside the pressures that make them: the aorta’s wave and the right atrium’s a, x, v and y, beat by beat.', de: 'Der Puls unter dem Finger und die Jugularvene am Hals, neben den Drücken, die sie erzeugen: die Welle der Aorta und a, x, v und y des rechten Vorhofs, Schlag für Schlag.' },
   stationNeuroText: { en: 'The limb examination and the ladder of the nervous system: tone, power, reflexes, coordination, gait, sensation and cranial nerves on the bedside figure, with the lesion placed on its rung, from cortex to muscle. Predict, or identify a hidden lesion.', de: 'Die Untersuchung der Gliedmaßen und die Leiter des Nervensystems: Tonus, Kraft, Reflexe, Koordination, Gang, Sensibilität und Hirnnerven an der Patientenfigur, mit der Läsion auf ihrer Stufe, von der Rinde bis zum Muskel. Vorhersagen, oder eine verdeckte Läsion erkennen.' },
@@ -176,8 +177,9 @@ import { FREE_CASE } from './free-case.ts';
 import { installReport } from './report.ts';
 import { installRecorder, trailTail } from './session-record.ts';
 import { mountEcgStation, type StationHandle } from './station-ecg.ts';
-import { ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION, NEURO_STATION, RESP_STATION } from '../stations/station.ts';
-type StationId = 'ecg' | 'auscultation' | 'eyes' | 'pulse' | 'neuro' | 'resp' | 'arrest';
+import { ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION, NEURO_STATION, RESP_STATION, EEG_STATION } from '../stations/station.ts';
+import { mountEegStation } from './station-eeg.ts';
+type StationId = 'ecg' | 'auscultation' | 'eyes' | 'pulse' | 'neuro' | 'resp' | 'eeg' | 'arrest';
 import { mountAuscultationStation } from './station-auscultation.ts';
 import { mountEyeStation } from './station-eyes.ts';
 import { mountNeuroStation } from './station-neuro.ts';
@@ -377,6 +379,12 @@ export function mount(root: HTMLElement) {
       <p class="bed-triage">${t('stationRespText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
     rc.querySelector('button')!.onclick = () => openStation('resp');
     wl.appendChild(rc);
+    const gc = document.createElement('article');
+    gc.className = 'bedcard free';
+    gc.innerHTML = `<span class="tag">${t('stationTag')}</span><h2>${esc(tr(EEG_STATION.title, lang))}</h2>
+      <p class="bed-triage">${t('stationEegText')}</p><button type="button" class="primary">${t('openStation')}</button>`;
+    gc.querySelector('button')!.onclick = () => openStation('eeg');
+    wl.appendChild(gc);
     const ar = document.createElement('article');
     ar.className = 'bedcard free';
     ar.innerHTML = `<span class="tag">${t('practiceTag')}</span><h2>${t('practiceArrestTitle')}</h2>
@@ -394,7 +402,7 @@ export function mount(root: HTMLElement) {
     if (from === 'ward') stopLive(); else live?.stop();
     show('station');
     stationNow = which;
-    const mount = which === 'ecg' ? mountEcgStation : which === 'eyes' ? mountEyeStation : which === 'neuro' ? mountNeuroStation : which === 'pulse' ? mountPulseStation : which === 'resp' ? mountRespStation : which === 'arrest' ? mountArrestPractice : mountAuscultationStation;
+    const mount = which === 'ecg' ? mountEcgStation : which === 'eyes' ? mountEyeStation : which === 'neuro' ? mountNeuroStation : which === 'pulse' ? mountPulseStation : which === 'resp' ? mountRespStation : which === 'eeg' ? mountEegStation : which === 'arrest' ? mountArrestPractice : mountAuscultationStation;
     station = mount($('#station'), {
       lang,
       ...(withPatient ? { patient: { model: structuredClone(live!.model), name: { en: base.patient.name, de: base.patient.name } } } : {}),

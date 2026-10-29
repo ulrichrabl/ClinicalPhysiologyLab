@@ -1457,7 +1457,7 @@ console.log('\nEvidence: every constant has a status, every grounded one a refer
   const src = [...walk('src/vp'), ...walk('src/domains/cardio/sim')].filter((f) => !f.includes('/evidence/')).map((f) => readFileSync(f, 'utf8')).join('\n');
   const issues = constantIssues();
   ok('the constant registry has no errors (measured and derived constants cite references; derived and assumed ones show their working)', issues.length === 0, issues.join('; '));
-  const alias = { thyroid: 'THY', adrenal: 'ADR', calcium: 'CA', water: 'WAT', kidney: 'KID', circulation: 'CIRC', baroreflex: 'BARO', inflammation: 'INF', lung: 'LUNG', ecg: 'ECG', exam: 'EXAM', cpr: 'CPR', arrest: 'ARREST', drugs: 'DRUGS' };
+  const alias = { thyroid: 'THY', adrenal: 'ADR', calcium: 'CA', water: 'WAT', kidney: 'KID', circulation: 'CIRC', baroreflex: 'BARO', inflammation: 'INF', lung: 'LUNG', ecg: 'ECG', exam: 'EXAM', cpr: 'CPR', arrest: 'ARREST', drugs: 'DRUGS', eeg: 'EEG' };
   const unused = Object.values(CONSTANTS).filter((c) => alias[c.group] && !new RegExp(`\\b${alias[c.group]}\\.${c.id.split('.')[1]}\\b`).test(src)).map((c) => c.id);
   ok('every registered constant is used by the model (no stale entries)', unused.length === 0, unused.join(', '));
   const refsUsed = new Set(Object.values(CONSTANTS).flatMap((c) => c.refs ?? []));
