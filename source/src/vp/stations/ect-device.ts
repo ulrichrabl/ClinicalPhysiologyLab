@@ -73,7 +73,7 @@ export interface DeviceSettings {
 }
 
 export const DEFAULT_SETTINGS: DeviceSettings = {
-  program: 'LOW_05', percentIndex: PERCENT_STEPS.indexOf(25), user: { frequency: 30, pulseWidth: 0.5 }, gain: [200, 200], indexes: true, eegFreq: 'OFF', paper: 25, maxPercent: 100,
+  program: 'LOW_05', percentIndex: PERCENT_STEPS.indexOf(30), user: { frequency: 30, pulseWidth: 0.5 }, gain: [200, 200], indexes: true, eegFreq: 'OFF', paper: 25, maxPercent: 100,
 };
 
 export type DeviceEvent =

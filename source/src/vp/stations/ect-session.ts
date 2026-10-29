@@ -49,7 +49,14 @@ export interface Recording {
   n: number;
 }
 
-export interface StimulusRecord { at: number; end: number; given: Stimulus; early: boolean; dynamicOhm: number; staticOhm: number | null; energy: number }
+/** What the printer put on paper, in order: the self-test line, the settings, traces, reports. */
+export type PaperEntry =
+  | { kind: 'selftest'; at: number }
+  | { kind: 'settings'; at: number }
+  | { kind: 'trace'; from: number; to: number | null; afterStimulus: number | null }
+  | { kind: 'report'; at: number; stimulus: number };
+
+export interface StimulusRecord { at: number; end: number; percent: number; program: DeviceSettings['program']; given: Stimulus; early: boolean; dynamicOhm: number; staticOhm: number | null; energy: number }
 
 export class EctSession {
   readonly device: EctDevice;
@@ -64,6 +71,7 @@ export class EctSession {
   stimuli: StimulusRecord[] = [];
   printing: Array<{ from: number; to: number | null }> = [];
   reports: number[] = [];
+  paper: PaperEntry[] = [];
   /** cables: stimulus cable to the pads, monitoring cable to the EEG, EMG and ECG electrodes */
   stimulusCable = true; monitoringCable = true;
   private startedAt = 0;
@@ -142,11 +150,23 @@ export class EctSession {
         const pw = s?.pulseWidth ?? 0.5, f = s?.frequency ?? 30;
         const g: Stimulus = { frequency: f, pulseWidth: pw, pulses: given, charge: chargeOf({ frequency: f, pulseWidth: pw, pulses: given }), duration: given / (2 * f) };
         this.device.setDelivered(g);
-        this.stimuli.push({ at: this.startedAt, end: this.t, given: g, early: e.early, dynamicOhm: this.dynamicOhm, staticOhm: this.device.lastStatic, energy: (g.charge / 1000) * ECT.current * this.dynamicOhm });
+        this.stimuli.push({ at: this.startedAt, end: this.t, percent: this.device.percent, program: this.device.settings.program, given: g, early: e.early, dynamicOhm: this.dynamicOhm, staticOhm: this.device.lastStatic, energy: (g.charge / 1000) * ECT.current * this.dynamicOhm });
         break;
       }
-      case 'printer': if (e.running) this.printing.push({ from: this.t, to: null }); else { const p = this.printing[this.printing.length - 1]; if (p && p.to == null) p.to = this.t; } break;
-      case 'report': this.reports.push(this.t); break;
+      case 'printer': {
+        if (e.running) {
+          this.printing.push({ from: this.t, to: null });
+          const st = this.stimuli[this.stimuli.length - 1];
+          this.paper.push({ kind: 'trace', from: this.t, to: null, afterStimulus: st && this.device.stimulusEnd != null ? st.end : null });
+        } else {
+          const p = this.printing[this.printing.length - 1]; if (p && p.to == null) p.to = this.t;
+          const q = [...this.paper].reverse().find((x) => x.kind === 'trace') as Extract<PaperEntry, { kind: 'trace' }> | undefined; if (q && q.to == null) q.to = this.t;
+        }
+        break;
+      }
+      case 'report': this.reports.push(this.t); this.paper.push({ kind: 'report', at: this.t, stimulus: this.stimuli.length - 1 }); break;
+      case 'selftest-printed': this.paper.push({ kind: 'selftest', at: this.t }); break;
+      case 'settings-printed': this.paper.push({ kind: 'settings', at: this.t }); break;
       default: break;
     }
   }

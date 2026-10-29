@@ -135,7 +135,16 @@ export const EEG_STATION: StationDef = {
   presets: [],
 };
 
-export const STATIONS: StationDef[] = [ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION, NEURO_STATION, RESP_STATION, EEG_STATION];
+export const ECT_STATION: StationDef = {
+  id: 'ect', test: 'eeg',
+  title: L('ECT station', 'EKT-Station'),
+  summary: L('Electroconvulsive therapy at the device. A front panel laid out as the real one, operated as its manual describes: test the impedance, collect the baseline, set the dose, treat, watch the seizure on the strip and read the report. Behind it, the stimulus’s current through the head and the seizure it starts in the thalamocortical loop.',
+    'Elektrokonvulsionstherapie am Gerät. Eine Frontplatte wie die echte, bedient, wie ihr Handbuch es beschreibt: die Impedanz prüfen, die Grundlinie ableiten, die Dosis einstellen, behandeln, den Anfall auf dem Streifen verfolgen und den Bericht lesen. Dahinter der Strom des Reizes durch den Kopf und der Anfall, den er in der thalamokortikalen Schleife auslöst.'),
+  drivers: {},
+  presets: [],
+};
+
+export const STATIONS: StationDef[] = [ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION, NEURO_STATION, RESP_STATION, EEG_STATION, ECT_STATION];
 
 export interface SettingGroup { id: string; label: LocalizedText; vars: VariableDef[]; why?: LocalizedText }
 

@@ -9,7 +9,7 @@
    2. (--emg) The motor cortex's firing above which the cuffed foot's muscles fire (ect.emgThreshold), so that the
    device's EMG endpoint over its EEG endpoint is 0.755, the ratio of the means Gazdag 2004 measured in the same
    seizures under etomidate (EMG 46.3 ± 23.8 s, EEG 61.3 ± 22.4 s): the reference adult, bitemporal, the 0.5 ms
-   program at half the age (30 %), median of six seeds.
+   program at half the age (30 %), the mean over six seeds (the EMG endpoint jumps from one clonic burst to the next, so a median is fragile).
    Run from source/: node scripts/fit-ect.mjs [--emg]. Prints the values to write into src/vp/evidence/ect.ts. */
 import * as esbuild from '../node_modules/esbuild/lib/main.js';
 import { join } from 'node:path';
@@ -38,11 +38,13 @@ if (process.argv.includes('--emg')) {
       const e = M.emgEndpoint(emg, M.FS, Math.round(st.end * M.FS), b[0], b[1], n);
       return (e ?? 0) / r.eegEndpoint;
     });
-    return median(q);
+    return q.reduce((a, b) => a + b, 0) / q.length;
   };
-  let lo = 0, hi = 120;
-  for (let k = 0; k < 14; k++) { const m = (lo + hi) / 2; if (ratio(m) > TARGET_RATIO) lo = m; else hi = m; }
-  console.log(`emgThreshold = ${((lo + hi) / 2).toFixed(2)} (ratio ${ratio((lo + hi) / 2).toFixed(3)})`);
+  /* the ratio is not monotonic in the threshold (bursts drop out unevenly): scan, and take the first threshold, coming
+     from below, at which the mean ratio falls to the target */
+  let found = null;
+  for (let th = 0; th <= 150; th += 1) { const q = ratio(th); if (process.argv.includes('--verbose')) console.log(`  ${th}: ${q.toFixed(3)}`); if (q <= TARGET_RATIO) { found = th; break; } }
+  console.log(found == null ? 'not reached' : `emgThreshold = ${found} (ratio ${ratio(found).toFixed(3)})`);
   process.exit(0);
 }
 const TARGET = 95.4, SEEDS = [3, 7, 11, 19, 23, 31];

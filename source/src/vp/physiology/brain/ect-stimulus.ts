@@ -153,3 +153,34 @@ export function pulseTrain(s: StimulusSettings, doses: RegionDose[]) {
 export function charge(s: StimulusSettings, I = ECT.current) { return I * s.pulseWidth * s.pulses; }
 export function energy(s: StimulusSettings, dynamicOhm: number, I = ECT.current) { return (charge(s, I) / 1000) * I * dynamicOhm; }
 export function duration(s: StimulusSettings) { return s.pulses / (2 * s.frequency); }
+
+export interface FieldSection {
+  /** the plane: through the head's centre and both pads; `up` the vertex's direction in it, `right` across */
+  up: Vec3; right: Vec3;
+  /** grid of field magnitudes (V/cm) over the head's square, row-major from the top; NaN outside the brain */
+  n: number; grid: Float32Array; radius: number;
+  /** the pads' centres in the plane's coordinates (units of the head radius, +y up) */
+  pads: Array<[number, number]>;
+}
+
+/** The field's magnitude in the plane through both pads (for drawing). */
+export function fieldSection(f: StimulusField, n = 48): FieldSection {
+  const a = sphericalDir(...f.placement.a), b = sphericalDir(...f.placement.b);
+  let nrm = vec.unit(vec.cross(a, b));
+  if (!Number.isFinite(nrm[0])) nrm = [0, 1, 0];
+  const z: Vec3 = [0, 0, 1];
+  let up = vec.sub(z, vec.scale(nrm, vec.dot(z, nrm)));
+  up = vec.norm(up) < 1e-6 ? vec.unit(vec.add(a, b)) : vec.unit(up);
+  /* right is the patient's right when the plane is seen from behind or above: keep +x toward the patient's right */
+  let right = vec.cross(up, nrm);
+  if (right[0] < 0 || (Math.abs(right[0]) < 1e-6 && right[1] < 0)) { right = vec.scale(right, -1); }
+  const R = f.model.R, rb = f.model.head.radii[0];
+  const grid = new Float32Array(n * n);
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const x = ((j + 0.5) / n) * 2 - 1, y = 1 - ((i + 0.5) / n) * 2;
+    const p = vec.add(vec.scale(right, x * R), vec.scale(up, y * R));
+    grid[i * n + j] = vec.norm(p) < rb - 0.5 ? f.magnitude(p) / 100 : NaN;
+  }
+  const pads = [a, b].map((d) => [vec.dot(d, right), vec.dot(d, up)] as [number, number]);
+  return { up, right, n, grid, radius: R, pads };
+}

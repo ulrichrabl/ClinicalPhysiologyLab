@@ -3,7 +3,7 @@ import type { Lang } from './diagrams.ts';
 import { Brain, REGIONS } from '../physiology/brain/corticothalamic.ts';
 import { crossingsHz } from '../physiology/brain/trial.ts';
 import { CT } from '../evidence/seizure.ts';
-import { regionFields, REGION_AREA } from '../stations/eeg-seizure.ts';
+import { regionFields, REGION_AREA, phaseOf } from '../stations/eeg-seizure.ts';
 import { PHASE_LABEL, PHASE_TEXT, SEIZURE_BACKGROUND, type SeizurePhase } from '../stations/eeg-seizure-texts.ts';
 import { MONTAGES, MONTAGE_BY_ID, channelLabel } from '../measurements/eeg-montage.ts';
 import { filter } from '../measurements/eeg-record.ts';
@@ -107,12 +107,7 @@ export function mountSeizureView(host: HTMLElement, opts: { lang: Lang; colors: 
     }
   };
 
-  const phase = (): SeizurePhase => {
-    if (seizing()) { const p = Math.max(...brain.regions.map((r) => r.progress)); return p < 0.4 ? 'onset' : p < 0.85 ? 'slowing' : 'ending'; }
-    if (onsetAt == null) return 'rest';
-    const brake = Math.max(...brain.regions.map((r) => r.relayInhibition));
-    return brake > 1.5 ? 'postictal' : brake > 0.3 ? 'recovering' : 'rest';
-  };
+  const phase = (): SeizurePhase => phaseOf(brain, onsetAt != null);
 
   const render = () => {
     host.innerHTML = `<p class="muted">${t('intro')}</p>
