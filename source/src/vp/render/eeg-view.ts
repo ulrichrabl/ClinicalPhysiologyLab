@@ -265,7 +265,8 @@ export function drawChain(g: CanvasRenderingContext2D, w: number, h: number, c: 
   const n = c.electrodes.length, left = 54, right = 16;
   const xAt = (i: number) => left + ((w - left - right) * (i + 0.5)) / n;
   const topH = h * 0.5, mid = 14 + topH / 2;
-  const scaleY = (topH / 2 - 10) / (c.max || 1);
+  /* the scale holds the reference too: an active ear can carry more than any scalp electrode */
+  const scaleY = (topH / 2 - 10) / Math.max(c.max || 1, c.ref ? Math.abs(c.ref.v) : 0, ...c.v.map(Math.abs));
   /* potential along the chain, negative up as on the page */
   g.strokeStyle = c.colors.line; g.lineWidth = 1; g.beginPath(); g.moveTo(left - 6, mid); g.lineTo(w - right, mid); g.stroke();
   g.font = '500 10px system-ui'; g.fillStyle = c.colors.muted; g.textAlign = 'left'; g.textBaseline = 'top';
