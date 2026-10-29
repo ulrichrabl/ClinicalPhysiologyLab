@@ -129,8 +129,8 @@ export const RESP_STATION: StationDef = {
 export const EEG_STATION: StationDef = {
   id: 'eeg', test: 'eeg',
   title: L('EEG station', 'EEG-Station'),
-  summary: L('How the scalp sees a source: a patch of cortex discharges, and its field passes through brain, fluid, skull and scalp to the electrodes. Move it, tilt it, shrink it, change the montage; see where the maximum and the phase reversal come from.',
-    'Wie die Kopfhaut eine Quelle sieht: Ein Areal der Rinde entlädt sich, und sein Feld geht durch Gehirn, Liquor, Schädel und Kopfhaut zu den Elektroden. Verschieben, neigen, verkleinern Sie es, wechseln Sie die Montage; sehen Sie, woher Maximum und Phasenumkehr kommen.'),
+  summary: L('How the scalp sees a source, and a seizure. A patch of cortex discharges and its field passes through brain, fluid, skull and scalp to the electrodes: see where the maximum and the phase reversal come from. Then the thalamocortical loop: give a stimulus and watch a generalised seizure start, slow, end and leave the EEG suppressed.',
+    'Wie die Kopfhaut eine Quelle sieht, und einen Anfall. Ein Areal der Rinde entlädt sich, und sein Feld geht durch Gehirn, Liquor, Schädel und Kopfhaut zu den Elektroden: Sehen Sie, woher Maximum und Phasenumkehr kommen. Dann die thalamokortikale Schleife: Geben Sie einen Reiz und sehen Sie einen generalisierten Anfall beginnen, sich verlangsamen, enden und das EEG supprimiert zurücklassen.'),
   drivers: {},
   presets: [],
 };

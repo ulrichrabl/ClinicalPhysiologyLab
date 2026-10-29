@@ -9,6 +9,7 @@ import { explainEeg, EEG_BACKGROUND } from '../stations/eeg-texts.ts';
 import { MONTAGES, MONTAGE_BY_ID, channelLabel, potentialOf, type Montage } from '../measurements/eeg-montage.ts';
 import { channelTrace, dischargeAt, type Page } from '../measurements/eeg-record.ts';
 import { SKULL_RATIOS, E1020, electrodeDir, electrodeLabel, toMap, vec, type Vec3 } from '../measurements/eeg-forward.ts';
+import { mountSeizureView, type SeizureView } from './station-eeg-seizure.ts';
 import { drawPage, pageHeight, drawHeadMap, mapTransform, drawSection, drawChain, inPlane, type Colors, type PageGeometry } from '../render/eeg-view.ts';
 
 /* ---------------------------------------------------------------------------
@@ -32,6 +33,7 @@ import { drawPage, pageHeight, drawHeadMap, mapTransform, drawSection, drawChain
 const L = (en: string, de: string): LocalizedText => ({ en, de });
 const T: Record<string, LocalizedText> = {
   eyebrow: L('Station', 'Station'), back: L('Ward', 'Übersicht'),
+  view: L('View', 'Ansicht'), viewSource: L('A source', 'Eine Quelle'), viewSeizure: L('A seizure', 'Ein Anfall'),
   source: L('The source', 'Die Quelle'), sourceNote: L('A patch of cortex discharging. Tap the head map to move it.', 'Ein Areal der Rinde, das sich entlädt. Tippen Sie auf die Kopfkarte, um es zu verschieben.'),
   startFrom: L('Start from', 'Ausgangspunkt'), choose: L('Choose a source…', 'Quelle wählen…'),
   area: L('Area', 'Fläche'), depth: L('Depth below the brain’s surface', 'Tiefe unter der Hirnoberfläche'),
@@ -85,6 +87,8 @@ export function mountEegStation(host: HTMLElement, o: StationOptions): StationHa
   let chainIdx = 0;
   let geom: PageGeometry | null = null;
   let raf = 0, playing = false, stopped = false, playFrom = 0;
+  let view: 'source' | 'seizure' = 'source';
+  let seizureView: SeizureView | null = null;
   const MAP_N = 60, SECTION_N = 64;
 
   const css = (n: string) => getComputedStyle(host).getPropertyValue(n).trim() || '#888';
@@ -127,12 +131,27 @@ export function mountEegStation(host: HTMLElement, o: StationOptions): StationHa
       <input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${value}">${note ? `<span class="muted small">${esc(note)}</span>` : ''}</label>`;
   const dirName = (deg: number) => { const names = t('dirs').split(','); return names[Math.round((((deg % 360) + 360) % 360) / 90) % 4]; };
 
-  const render = () => {
-    const m = montage();
-    host.innerHTML = `<div class="st-head">
+  const headHtml = () => `<div class="st-head">
         <button type="button" class="ghost" data-leave>← ${o.backLabel ? tr(o.backLabel, lang) : t('back')}</button>
         <div class="st-title"><div class="eyebrow">${t('eyebrow')}</div><h1>${esc(tr(EEG_STATION.title, lang))}</h1><p class="lede">${esc(tr(EEG_STATION.summary, lang))}</p></div>
-      </div>
+        <span class="seg st-mode" role="radiogroup" aria-label="${t('view')}">${(['source', 'seizure'] as const).map((v) => `<button type="button" role="radio" aria-checked="${view === v}" data-view="${v}">${t(v === 'source' ? 'viewSource' : 'viewSeizure')}</button>`).join('')}</span>
+      </div>`;
+  const wireHead = () => {
+    host.querySelector<HTMLButtonElement>('[data-leave]')!.onclick = () => { stop(); o.onLeave(); };
+    host.querySelectorAll<HTMLButtonElement>('[data-view]').forEach((b) => b.onclick = () => {
+      const v = b.dataset.view as typeof view; if (v === view) return;
+      view = v; seizureView?.stop(); seizureView = null; setPlaying(false); render();
+    });
+  };
+  const render = () => {
+    if (view === 'seizure') {
+      host.innerHTML = `${headHtml()}<div data-seizure></div>`;
+      wireHead();
+      seizureView = mountSeizureView(host.querySelector<HTMLElement>('[data-seizure]')!, { lang, colors, sizeCanvas });
+      return;
+    }
+    const m = montage();
+    host.innerHTML = `${headHtml()}
       <div class="st-grid">
         <aside class="panel st-settings" aria-labelledby="eeg-src-h">
           <h2 id="eeg-src-h">${t('source')}</h2>
@@ -194,7 +213,7 @@ export function mountEegStation(host: HTMLElement, o: StationOptions): StationHa
 
   /* ---- wiring --------------------------------------------------------------------------------------- */
   const wire = () => {
-    host.querySelector<HTMLButtonElement>('[data-leave]')!.onclick = () => { stop(); o.onLeave(); };
+    wireHead();
     host.querySelector<HTMLSelectElement>('[data-preset]')!.onchange = (e) => {
       const id = (e.target as HTMLSelectElement).value; const p = presetById(id); if (!p) return;
       presetId = id; scene = structuredClone(p.scene); recompute(false); render();
@@ -358,9 +377,9 @@ export function mountEegStation(host: HTMLElement, o: StationOptions): StationHa
       .map((x) => `<div class="st-text"><h3>${esc(tr(x.title, lang))}</h3><p>${esc(x.body(lang))}</p></div>`).join('');
   };
 
-  const onResize = () => { if (!stopped) { drawPageNow(); drawMechanism(); } };
+  const onResize = () => { if (!stopped && view === 'source') { drawPageNow(); drawMechanism(); } };
   window.addEventListener('resize', onResize);
-  const stop = () => { stopped = true; cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); };
+  const stop = () => { stopped = true; cancelAnimationFrame(raf); seizureView?.stop(); window.removeEventListener('resize', onResize); };
 
   recompute(false);
   render();
