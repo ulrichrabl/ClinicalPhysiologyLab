@@ -196,6 +196,12 @@ export class HeartElectrical {
   Ca = 2.4;
   /** Rate the sinus node (or the AV node in AF) is driven at, from the autonomic model. */
   rateSource: () => number = () => 72;
+  /** A direct vagal discharge's effect on the pacemakers (acetylcholine), beyond the baroreflex's range: 0 at rest; the
+      sinus node and the AV junction slow by this fraction of their rate, and stop at 1. Set by the host (the ECT stimulus). */
+  vagalStim = 0;
+  private vagalPhase: number | null = null;
+  /** time the junction's escape has been held back by a vagal discharge since the last ventricular beat (ms) */
+  private junctionLag = 0;
 
   timeMs = 0;
   private rng = new Rng(10392042);
@@ -292,6 +298,7 @@ export class HeartElectrical {
   /* ---- time ---------------------------------------------------------------------------- */
   step(ms: number): void {
     const end = this.timeMs + ms;
+    if (this.vagalStim > 0) this.junctionLag += ms * Math.min(1, this.vagalStim);
     this.schedule(end);
     while (this.pending.length && this.pending[0].t <= end) {
       const b = this.pending.shift()!;
@@ -349,25 +356,20 @@ export class HeartElectrical {
         if (p.ventricular === 'none' && p.avBlock !== 'complete' && this.flutterCount % ratio === 0) this.queue(this.nextAtrialMs + 120, 'conducted', null);
         this.nextAtrialMs += ECG.flutterCycle;
       }
+    } else if (this.vagalStim > 0 || this.vagalPhase != null) {
+      /* A direct vagal discharge (the ECT stimulus): acetylcholine slows the sinus node within the cycle it falls in, not
+         at the next beat, so the node is followed as a phase running at its slowed rate; at full effect it stops. */
+      const cycle = 60000 / this.rate(), k = Math.max(0, 1 - this.vagalStim);
+      if (this.vagalPhase == null) this.vagalPhase = Math.max(0, Math.min(1, 1 - (this.nextAtrialMs - this.timeMs) / cycle));
+      let t = this.timeMs;
+      const speed = k / cycle;
+      while (speed > 0 && t + (1 - this.vagalPhase) / speed <= end) { t += (1 - this.vagalPhase) / speed; this.vagalPhase = 0; this.sinusBeat(t); }
+      this.vagalPhase += speed * (end - t);
+      if (this.vagalStim <= 0) { this.nextAtrialMs = end + (1 - this.vagalPhase) * cycle; this.vagalPhase = null; } else this.nextAtrialMs = end + 1;
     } else {
       while (this.nextAtrialMs <= end) {
         const t = this.nextAtrialMs;
-        const atria = this.atrialBeat(t);
-        const pr = this.prInterval();
-        if (p.ventricular === 'none') {
-          let conduct = p.avBlock !== 'complete' && !this.hyperKBlock();
-          let prNow = pr;
-          if (p.avBlock === 'wenckebach') {
-            /* Each beat finds the node less recovered: the PR lengthens by smaller steps until one fails. */
-            if (this.wenckebach >= 3) { conduct = false; this.wenckebach = 0; } else { prNow = pr + ECG.wenckebachIncrement * (1 - Math.pow(ECG.wenckebachDecay, this.wenckebach)); this.wenckebach++; }
-          } else if (p.avBlock === 'mobitz2') {
-            this.mobitz = (this.mobitz + 1) % 3;
-            if (this.mobitz === 0) conduct = false;
-          }
-          if (!conduct) atria.notConducted = p.avBlock === 'complete' || this.hyperKBlock() ? 'complete-block' : 'dropped';
-          else if (this.queue(t + prNow, 'conducted', prNow)) atria.conductedAt = t + prNow;
-          else atria.notConducted = 'refractory';
-        } else atria.notConducted = 'dissociated';
+        this.sinusBeat(t);
         /* Respiratory sinus arrhythmia: a few per cent, at the breathing rate. */
         const rsa = 1 + ECG.rsaDepth * Math.sin((2 * Math.PI * t) / 4200);
         this.nextAtrialMs += 60000 / this.rate() / rsa;
@@ -381,12 +383,35 @@ export class HeartElectrical {
       const block = p.avBlock === 'complete' || this.hyperKBlock();
       /* in hyperkalaemia the escape focus itself slows as the potassium rises */
       const slow = this.hyperKBlock() ? 1 + ECG.hyperKEscapeSlowing * (this.kEffective() - ECG.hyperKBlock) : 1;
-      const escapeAt = Math.max(lastQueued, this.lastVentricularMs) + (block ? ECG.ventricularEscape * slow : ECG.junctionalEscape);
+      /* the junction is vagally innervated too: a vagal discharge holds its escape back by the time it slows it */
+      const escapeAt = Math.max(lastQueued, this.lastVentricularMs) + (block ? ECG.ventricularEscape * slow : ECG.junctionalEscape + this.junctionLag);
       if (escapeAt <= end + 1) {
         const conductedSoon = this.pending.some((b) => b.t <= escapeAt + 1);
         if (!conductedSoon) this.queue(escapeAt, 'escape', null);
       }
     }
+  }
+
+
+  /** A sinus beat at t: the atria activate, and the beat conducts (or not) to the ventricles. */
+  private sinusBeat(t: number): void {
+    const p = this.p;
+    const atria = this.atrialBeat(t);
+    const pr = this.prInterval();
+    if (p.ventricular === 'none') {
+      let conduct = p.avBlock !== 'complete' && !this.hyperKBlock();
+      let prNow = pr;
+      if (p.avBlock === 'wenckebach') {
+        /* Each beat finds the node less recovered: the PR lengthens by smaller steps until one fails. */
+        if (this.wenckebach >= 3) { conduct = false; this.wenckebach = 0; } else { prNow = pr + ECG.wenckebachIncrement * (1 - Math.pow(ECG.wenckebachDecay, this.wenckebach)); this.wenckebach++; }
+      } else if (p.avBlock === 'mobitz2') {
+        this.mobitz = (this.mobitz + 1) % 3;
+        if (this.mobitz === 0) conduct = false;
+      }
+      if (!conduct) atria.notConducted = p.avBlock === 'complete' || this.hyperKBlock() ? 'complete-block' : 'dropped';
+      else if (this.queue(t + prNow, 'conducted', prNow)) atria.conductedAt = t + prNow;
+      else atria.notConducted = 'refractory';
+    } else atria.notConducted = 'dissociated';
   }
 
   private queue(t: number, kind: 'conducted' | 'escape' | 'vt', pr: number | null): boolean {
@@ -432,6 +457,7 @@ export class HeartElectrical {
     const p = this.p, K = this.K;
     const rrMs = this.lastVentricularMs > 0 ? t - this.lastVentricularMs : 60000 / this.rate();
     this.lastVentricularMs = t;
+    this.junctionLag = 0;
     this.rr.push(rrMs); if (this.rr.length > 8) this.rr.shift();
 
     /* Hyperkalaemia slows conduction in the ventricles too: the QRS widens. */

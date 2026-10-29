@@ -148,6 +148,66 @@ console.log('\nThe seizure as the device reads it');
   ok('…and the report says so', lines.includes('Baseline not available'), J(lines));
 }
 
+console.log('\nThe heart (part 2)');
+{
+  /* the stimulus's vagal discharge on the lab's body: heart rate during a 5 s discharge over the rate before (as fitted) */
+  const ratio = (v, D = 5, offsets = 8) => {
+    let sum = 0;
+    for (let k = 0; k < offsets; k++) {
+      const p = new S.LivePatient(S.healthyModel()); p.settleNow(20); p.advance(5 + (k * 0.9) / offsets);
+      const h = p.run.heart, t0 = h.timeMs;
+      const before = h.activations.filter((a) => a.kind === 'ventricles' && a.t > t0 - 5000 && a.t <= t0).length / 5;
+      p.run.external.vagalStim = v; p.advance(D); p.run.external.vagalStim = 0;
+      sum += h.activations.filter((a) => a.kind === 'ventricles' && a.t > t0 && a.t <= t0 + D * 1000).length / D / before;
+    }
+    return sum / offsets;
+  };
+  const got = { BF: ratio(S.ECT.vagalBifrontal), BT: ratio(S.ECT.vagalBitemporal), RUL: ratio(S.ECT.vagalUnilateral), UB: ratio(S.ECT.vagalUnilateralUltrabrief) };
+  const want = { BF: 78 / 85, BT: 46 / 85, RUL: 26 / 86, UB: 43 / 86 };
+  ok('fitted: the heart rate during the stimulus, as a share of the rate before, by placement and pulse width (Stewart 2010; ± 0.04)', Object.keys(want).every((k) => Math.abs(got[k] - want[k]) <= 0.04), J(Object.fromEntries(Object.keys(got).map((k) => [k, `${f2(got[k])} vs ${f2(want[k])}`]))));
+  ok('ultrabrief pulses slow the heart less than brief ones, for every placement', S.vagalDrive('BT', 0.25) < S.vagalDrive('BT', 0.5) && S.vagalDrive('RUL', 0.25) < S.vagalDrive('RUL', 1.0));
+
+  const treat = (placement, program, percent, drugs = [], after = 60, seed = 7) => {
+    const s = new S.EctSession({ placement, prepared: true, skin: 0, seed });
+    for (const [d, mg] of drugs) s.give(d, mg);
+    const r = S.scriptedTreatment(s, { program, percent, after });
+    return { s, r };
+  };
+  /* Nagler's sessions: etomidate, atropine 0.25 mg; right unilateral and bifrontal */
+  const rul = treat('RUL', 'LOW_UB', 60, [['atropine', 0.25]]), bf = treat('BF', 'LOW_05', 80, [['atropine', 0.25]]);
+  const rp = rul.r.longestPause, bp = bf.r.longestPause;
+  gap('right unilateral (atropine 0.25 mg): a pause during the stimulus within Nagler 2011’s 5.64 ± 2.88 s', rp >= 5.64 - 2.88 && rp <= 5.64 + 2.88, `${f2(rp)} s: atropine cuts the discharge in proportion to its block, where a massive discharge may surmount a competitive block; Stewart’s premedication, on which the discharge is fitted, is not given`);
+  ok('bifrontal: no asystole, the longest interval within Nagler 2011’s 0.47–1.71 s', bp >= 0.47 && bp <= 1.71, `${f2(bp)} s`);
+  const noAtro = treat('RUL', 'LOW_UB', 60, [], 30).r.longestPause, atro = treat('RUL', 'LOW_UB', 60, [['atropine', 1.0]], 30).r.longestPause;
+  ok('atropine shortens the stimulus’s pause (Tominaga 2026: bradyarrhythmia RR 0.35; Mokriski 1992)', atro < noAtro, `${f2(noAtro)} s without, ${f2(atro)} s with 1 mg`);
+
+  const ref = treat('BT', 'LOW_05', 30, [['atropine', 0.25]], 120);
+  const q = ref.r.peakHr / ref.r.baseHr;
+  ok('fitted: the seizure’s peak heart rate 1.5 times the rate before (Nagler 2013: 90 to 135 /min; ± 0.05)', Math.abs(q - 1.5) <= 0.05, `${ref.r.baseHr.toFixed(0)} to ${ref.r.peakHr.toFixed(0)} /min`);
+  const st = ref.r.stimulus, peakAt = (() => { let b = 0, at = 0; for (let x = st.end; x < st.end + 60; x += 0.5) { const h = ref.s.heartRateAt(x); if (h > b) { b = h; at = x - st.end; } } return at; })();
+  gap('the peak comes about 20 s after the stimulus (Nagler 2013: 20.2 ± 8.8 s, RUL)', peakAt >= 20.2 - 8.8 && peakAt <= 20.2 + 8.8, `${f1(peakAt)} s: the model’s seizure fires hardest in its first seconds`);
+  const end = st.end + ref.r.eegEndpoint, hrEnd = ref.s.heartRateAt(end - 15), hrAfter = ref.s.heartRateAt(end + 15);
+  ok('the heart rate falls as the seizure ends (Nagler 2013: a marked decline in 71 %)', hrAfter < hrEnd - 5, `${hrEnd.toFixed(0)} before the end, ${hrAfter.toFixed(0)} after`);
+  gap('…to below the rate before the stimulus (Nagler 2013: in 78 %, by 30 ± 20 /min within 20 s)', hrAfter < ref.r.baseHr, `${hrAfter.toFixed(0)} against ${ref.r.baseHr.toFixed(0)} before`);
+  const P = ref.s.pressure, sysBefore = P.filter((x) => x.t > st.at - 5 && x.t < st.at), sysAfter = P.filter((x) => x.t > st.end && x.t < st.end + 60);
+  const rise = Math.max(...sysAfter.map((x) => x.sys)) - sysBefore.reduce((a, x) => a + x.sys, 0) / sysBefore.length;
+  ok('the systolic pressure rises with the seizure, within what is measured without propofol (Rampton 1989: 27 mmHg with methohexital; Castelli 1995: 55 mmHg; 15–65)', rise >= 15 && rise <= 65, `${rise.toFixed(0)} mmHg`);
+
+  const kg = ref.s.body.model.patient.weightKg;
+  const esmo = (mg) => {
+    const s = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 });
+    const d = s.device; d.power(true); s.advance(6); d.impedanceButton(true); s.advance(1.5); d.impedanceButton(false);
+    if (mg) s.give('esmolol', mg); s.advance(120);
+    d.treatButton(true); while (d.treat !== 'done') s.advance(0.05); d.treatButton(false); s.advance(60); d.startStop(); s.advance(0.1);
+    return s.lastReport();
+  };
+  const c = esmo(0), e100 = esmo(100), e13 = esmo(1.3 * kg), e44 = esmo(4.4 * kg);
+  const drop = 1 - e100.peakHr / c.peakHr;
+  gap('esmolol 100 mg 2 min before: the maximum heart rate 23 ± 3 % lower (Kovac 1991; widened to 15–31 %)', drop >= 0.15 && drop <= 0.31, `${(100 * drop).toFixed(0)} % (${c.peakHr.toFixed(0)} to ${e100.peakHr.toFixed(0)} /min)`);
+  const inc = (r) => r.peakHr - r.baseHr, half = inc(e13) / inc(c), gone = inc(e44) / inc(c);
+  gap('esmolol 1.3 mg/kg about halves the rise, 4.4 mg/kg nearly abolishes it (Castelli 1995; 0.3–0.7, under 0.3)', half >= 0.3 && half <= 0.7 && gone < 0.3, `rise ${inc(c).toFixed(0)} /min; ${f2(half)} and ${f2(gone)} of it`);
+}
+
 console.log('\nTexts');
 {
   const n = (x, k = 0) => x.toFixed(k);

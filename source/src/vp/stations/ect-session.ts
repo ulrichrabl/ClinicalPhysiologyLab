@@ -7,6 +7,11 @@ import { regionFields } from './eeg-seizure.ts';
 import { EctDevice, type Stimulus, type DeviceSettings, DEFAULT_SETTINGS } from './ect-device.ts';
 import { PERCENT_STEPS } from './ect-programs.ts';
 import { seizureReport, type SeizureReport } from './ect-indices.ts';
+import { LivePatient } from '../live/live-patient.ts';
+import { healthyModel, type PatientModel } from '../physiology/state.ts';
+import { leadVectors, standardPlacement } from '../measurements/ecg.ts';
+import { BARO } from '../evidence/circulation.ts';
+import type { DrugId } from '../physiology/drugs/drugs.ts';
 
 /* ===========================================================================
    A treatment session at the ECT device (ECT station, part 1): the device,
@@ -24,12 +29,19 @@ import { seizureReport, type SeizureReport } from './ect-indices.ts';
    - The EMG is the cuffed right foot's: the motor seizure there follows the
      left central region's cortical firing (ECT.emgThreshold, ECT.emgPerFiring;
      placements).
-   - The ECG runs at a constant rate: the vagal and sympathetic responses
-     to the stimulus and the seizure are the next part (ECT 2).
+   - The body is the lab's own (live/live-patient.ts): its heart, circulation
+     and lungs run beside the brain, and channel 4 is its ECG, lead II. The
+     stimulus discharges the vagus onto the heart's pacemakers while the
+     current flows (ECT.vagal…, by placement and pulse width, from Stewart
+     2010); the seizure drives the sympathetic outflow (ECT.seizureSympathetic).
+     Atropine, glycopyrrolate, esmolol and labetalol act through the body's
+     drugs (physiology/drugs/drugs.ts).
 =========================================================================== */
 
 export interface EctPatient {
   placement: PlacementId;
+  /** the body (a healthy adult if absent) */
+  model?: PatientModel;
   /** skin cleaned and pads pressed on */
   prepared: boolean;
   /** the patient's skin: how far from the mean (SD) the static impedance lies */
@@ -77,6 +89,16 @@ export class EctSession {
   private startedAt = 0;
   private emgNoise: () => number;
   private fields = regionFields();
+  /** the body: heart, circulation, lungs */
+  readonly body: LivePatient;
+  /** the body's ECG (lead II, µV) for the next block of samples, and the R waves seen (session time, s) */
+  private ecgBlock = new Float32Array(0); private ecgAt = 0;
+  readonly rWaves: number[] = [];
+  /** arterial pressure every 0.1 s (session time, systolic, diastolic, mean; mmHg) */
+  readonly pressure: Array<{ t: number; sys: number; dia: number; mean: number }> = [];
+  private lastActivation = -Infinity;
+  private vagal = 0; private adrenergic = 0;
+  private lead2 = leadVectors(standardPlacement()).II;
   private lcentral = REGIONS.findIndex((r) => r.id === 'L-central');
 
   constructor(patient: EctPatient = DEFAULT_PATIENT, settings: DeviceSettings = DEFAULT_SETTINGS) {
@@ -84,6 +106,8 @@ export class EctSession {
     this.device = new EctDevice(settings);
     this.brain = new Brain({ seed: patient.seed });
     this.brain.settle(6);
+    this.body = new LivePatient(patient.model ?? healthyModel());
+    this.body.settleNow(15);
     const cap = FS * 60 * 12;
     this.rec = { eeg1: new Float32Array(cap), eeg2: new Float32Array(cap), emg: new Float32Array(cap), ecg: new Float32Array(cap), motor: new Float32Array(cap), n: 0 };
     this.emgNoise = noiseSource(patient.seed);
@@ -131,7 +155,8 @@ export class EctSession {
     /* the motor seizure: the motor cortex above the spinal threshold drives the cuffed foot's muscles */
     this.rec.motor[i] = a[this.lcentral];
     this.rec.emg[i] = mon ? emgSample(a[this.lcentral], this.emgNoise) : 0;
-    this.rec.ecg[i] = mon ? 1000 * ecgAt(this.t, ECT.restingHeartRate) : 0;
+    if (i % BODY_BLOCK === 0) this.stepBody();
+    this.rec.ecg[i] = mon ? (this.ecgBlock[i - this.ecgAt] ?? 0) : 0;
   }
 
   private onEvent(e: ReturnType<EctDevice['drain']>[number]) {
@@ -172,18 +197,89 @@ export class EctSession {
   }
 
   /** The end-of-treatment report for the last stimulus, from what was recorded up to now (null before a stimulus). */
-  lastReport(): (SeizureReport & { stimulus: StimulusRecord; baselineAvailable: boolean }) | null {
+  lastReport(): (SeizureReport & { stimulus: StimulusRecord; baselineAvailable: boolean; baseHr: number; peakHr: number; longestPause: number }) | null {
     const st = this.stimuli[this.stimuli.length - 1];
     if (!st) return null;
     /* the baseline counts only if READY came before the stimulus */
     const ok = this.baselineFrom != null && this.readyAt != null && this.readyAt <= st.at;
     const base: [number, number] | null = ok ? [Math.round(this.baselineFrom! * FS), Math.round(this.readyAt! * FS)] : null;
     const r = seizureReport({ eeg1: this.rec.eeg1, eeg2: this.rec.eeg2, emg: this.rec.emg, fs: FS, end: Math.round(st.end * FS), upTo: this.rec.n, baseline: base });
-    return { ...r, stimulus: st, baselineAvailable: ok };
+    /* the heart, as the device takes it (US 5,871,517): the baseline over the 5 s before the stimulus, the peak after it */
+    let hb = 0, nb = 0; for (let x = st.at - 5; x < st.at; x += 0.5) { const h = this.heartRateAt(x); if (h > 0) { hb += h; nb++; } }
+    let peak = 0; for (let x = st.end; x <= this.t; x += 0.5) peak = Math.max(peak, this.heartRateAt(x));
+    return { ...r, stimulus: st, baselineAvailable: ok, baseHr: nb ? hb / nb : 0, peakHr: peak, longestPause: this.longestPause(st.at, Math.min(this.t, st.end + 30)) };
+  }
+
+  /** Give a premedication now (mg), into a vein. */
+  give(drug: DrugId, mg: number) { this.body.run.drugs.give(drug, mg); }
+
+  /* The body runs in blocks of BODY_BLOCK samples (0.1 s), ahead of the recording by one block: the vagal and sympathetic
+     drive for the block are set from the stimulus and the seizure now, the body advances, and its ECG fills the block. */
+  private stepBody() {
+    const dt = BODY_BLOCK / FS;
+    const delivering = this.device.treat === 'delivering' && this.stimulusCable;
+    const target = delivering ? vagalDrive(this.patient.placement, this.device.active?.pulseWidth ?? 0.5) : 0;
+    /* the discharge acts while the current flows and fades with the vagal efferent time constant */
+    this.vagal = delivering ? target : this.vagal * Math.exp(-dt / BARO.tauP);
+    this.adrenergic += (ECT.seizureSympathetic * ictalIntensity(this.brain) - this.adrenergic) * (1 - Math.exp(-dt / BARO.tauS));
+    const ext = this.body.run.external;
+    ext.vagalStim = this.vagal; ext.adrenergic = this.adrenergic;
+    const heart = this.body.run.heart, before = this.body.samples;
+    this.body.advance(dt);
+    /* the new ECG samples (500 Hz) onto the recording's 200 Hz */
+    const made = this.body.samples - before;
+    const v = this.body.vcg((made + 1) / 500), n = v.X.length, L = this.lead2;
+    const ii = new Float32Array(n);
+    for (let k = 0; k < n; k++) ii[k] = 1000 * (L[0] * v.X[k] + L[1] * v.Y[k] + L[2] * v.Z[k]);
+    const out = new Float32Array(BODY_BLOCK);
+    for (let k = 0; k < BODY_BLOCK; k++) { const x = (n - 1) * (k + 1) / BODY_BLOCK; const a = Math.floor(x), f = x - a; out[k] = ii[a] * (1 - f) + (ii[Math.min(n - 1, a + 1)] ?? ii[a]) * f; }
+    this.ecgBlock = out; this.ecgAt = this.rec.n - 1;
+    const m = (this.body.run.sim as unknown as { metrics?: { Psys: number; Pdia: number; Pmean: number } }).metrics;
+    if (m) this.pressure.push({ t: this.t + dt, sys: m.Psys, dia: m.Pdia, mean: m.Pmean });
+    /* R waves: ventricular activations, from the heart's clock to the session's */
+    const offset = this.t - heart.timeMs / 1000 + dt;
+    for (const a of heart.activations) if (a.kind === 'ventricles' && a.t > this.lastActivation) { this.lastActivation = a.t; this.rWaves.push(a.t / 1000 + offset); }
+  }
+
+  /** Heart rate (/min) at session time t, as the device counts it: from the R–R intervals of the last 3 s (the last interval
+      if fewer), 0 after a pause of over 3 s. */
+  heartRateAt(t: number): number {
+    const r = this.rWaves;
+    let j = r.length - 1; while (j >= 0 && r[j] > t) j--;
+    if (j < 1 || t - r[j] > 3) return 0;
+    let k = j; while (k > 0 && r[j] - r[k - 1] <= 3) k--;
+    if (k === j) k = j - 1;
+    return (60 * (j - k)) / (r[j] - r[k]);
+  }
+
+  /** the longest R–R interval between two times (s) */
+  longestPause(from: number, to: number): number {
+    const r = this.rWaves.filter((x) => x >= from - 3 && x <= to);
+    let m = 0; for (let i = 1; i < r.length; i++) if (r[i] >= from) m = Math.max(m, r[i] - r[i - 1]);
+    return m;
   }
 
   /** whether any region is seizing now (for the explanations, not shown by the device) */
   get seizing() { return this.brain.regions.some((r) => r.excess > CT.seizingThreshold); }
+}
+
+/** How intensely the brain is seizing, for its sympathetic outflow: the regions' excess cortical firing above the seizing
+    threshold, averaged over the regions (1/s). It is highest in the first seconds of a seizure and falls as it slows. */
+export function ictalIntensity(brain: Brain): number {
+  let s = 0; for (const r of brain.regions) s += Math.max(0, r.excess - CT.seizingThreshold);
+  return s / brain.regions.length;
+}
+
+/** Samples per body step (0.1 s at 200 Hz). */
+export const BODY_BLOCK = 20;
+
+/** The direct vagal discharge while the current flows (HeartElectrical.vagalStim), by placement and pulse width: fitted
+    to Stewart 2010's heart rates during the stimulus (ECT.vagal…). Ultrabrief pulses (under 0.5 ms) take the
+    unilateral ultrabrief value's share for every placement; left anterior right temporal is taken as bitemporal. */
+export function vagalDrive(p: PlacementId, widthMs: number): number {
+  const brief = p === 'BF' ? ECT.vagalBifrontal : p === 'RUL' ? ECT.vagalUnilateral : ECT.vagalBitemporal;
+  if (widthMs >= 0.5) return brief;
+  return brief * (ECT.vagalUnilateralUltrabrief / ECT.vagalUnilateral);
 }
 
 /** A uniform noise source in [−1, 1), seeded. */
@@ -195,12 +291,6 @@ export function emgSample(motorFiring: number, noise: () => number, threshold = 
   return Math.max(0, motorFiring - threshold) * gain * noise() + 3 * noise();
 }
 
-/* A plain ECG for channel 4 (lead II-like, mV), a sum of Gaussians for P, QRS and T at a fixed rate. */
-export function ecgAt(t: number, rate: number) {
-  const rr = 60 / rate, ph = (t % rr) / rr;
-  const g = (c: number, w: number, a: number) => a * Math.exp(-(((ph - c) / w) ** 2));
-  return g(0.1, 0.025, 0.12) + g(0.235, 0.008, -0.12) + g(0.25, 0.01, 1.1) + g(0.265, 0.008, -0.25) + g(0.5, 0.05, 0.3);
-}
 
 /** A treatment as the manual's sequence gives it, without a learner: power on, the impedance test, the baseline until
     READY, the stimulus with the button held to the end, then `after` seconds of recording and the report. For the fits,

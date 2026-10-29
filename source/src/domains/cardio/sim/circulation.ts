@@ -146,11 +146,17 @@ export class Circulation {
 
   /* With the reflex loop opened, autonomic tone is held at its resting level (σ = ½), as the vascular
      effectors are: the sinus node runs at the resting rate, not at its denervated intrinsic rate. */
-  openLoopHR() { return this.HR * (1 + 0.5 * this.gS - 0.5 * this.gP); }
+  openLoopHR() { return this.HR * (1 + 0.5 * this.gS * (1 - (this.betaBlock || 0)) - 0.5 * this.gP * (1 - (this.vagalBlock || 0))); }
+
+  /** Drugs at the sinus node, set by the host: the fraction of muscarinic (vagal) receptors blocked (atropine,
+      glycopyrrolate) and of β1-adrenergic receptors blocked (esmolol, labetalol); 0 without them. */
+  vagalBlock = 0;
+  betaBlock = 0;
 
   modulatedHR() {
     // Hyperpnoea itself withdraws vagal tone from the sinus node (the lung-inflation reflex, central respiratory–cardiac coupling).
-    const hr = this.HR * (1 + this.gS * this.sigmaS - this.gP * this.sigmaP + BARO.chemoHr * (this.chemoDrive || 0));
+    const b = 1 - (this.betaBlock || 0);
+    const hr = this.HR * (1 + this.gS * b * this.sigmaS - this.gP * (1 - (this.vagalBlock || 0)) * this.sigmaP + BARO.chemoHr * b * (this.chemoDrive || 0));
     return Math.max(BARO.hrMin, Math.min(BARO.hrMax, hr));
   }
 
@@ -175,7 +181,7 @@ export class Circulation {
   }
 
   effectiveEmax() {
-    return this.baroEnabled ? this.Emax * (1 + this.gE * this.reflexDrive() * 2) : this.Emax;
+    return this.baroEnabled ? this.Emax * (1 + this.gE * (1 - (this.betaBlock || 0)) * this.reflexDrive() * 2) : this.Emax;
   }
 
   /* Chamber pressure from a time-varying elastance with an exponential passive

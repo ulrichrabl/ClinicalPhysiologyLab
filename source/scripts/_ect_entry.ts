@@ -11,3 +11,6 @@ export { ECT } from '../src/vp/evidence/ect.ts';
 export { CONSTANTS, constantIssues } from '../src/vp/evidence/constants.ts';
 export { REFERENCES } from '../src/vp/evidence/references.ts';
 export { ECT_STATION } from '../src/vp/stations/station.ts';
+export { LivePatient } from '../src/vp/live/live-patient.ts';
+export { healthyModel } from '../src/vp/physiology/state.ts';
+export { DRUGS } from '../src/vp/evidence/drugs.ts';

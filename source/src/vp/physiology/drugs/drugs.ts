@@ -21,24 +21,29 @@ import { DRUGS } from '../../evidence/drugs.ts';
    Calcium and potassium spread through the extracellular fluid; potassium chloride then moves on into the cells.
    Bupivacaine (a local anaesthetic gone into a vein) depresses both ventricles; lipid emulsion shortens its half-life.
 
+   For ECT (part 2), the premedications at the heart: atropine and glycopyrrolate block its muscarinic receptors (the
+   sinus node's vagal slowing and the direct vagal discharge of the stimulus), esmolol and labetalol its β1 receptors (the
+   sympathetic rise in rate and contractility). Not modelled: atropine's paradoxical slowing at very low doses, labetalol's
+   α-blockade (a seventh of its β effect intravenously).
+
    Not modelled: adrenaline's β effects (rate, contractility, β2
    vasodilation at low levels), its venoconstriction, its effect on the
    fibrillating myocardium's oxygen use; amiodarone's hypotension and
    bradycardia; alteplase's bleeding, and any lysis of a coronary clot. With no drug given every multiplier is exactly 1.
 =========================================================================== */
 
-export type DrugId = 'adrenaline' | 'amiodarone' | 'alteplase' | 'calcium' | 'insulin' | 'potassium' | 'bupivacaine' | 'lipid';
-export const DRUG_IDS: DrugId[] = ['adrenaline', 'amiodarone', 'alteplase', 'calcium', 'insulin', 'potassium', 'bupivacaine', 'lipid'];
+export type DrugId = 'adrenaline' | 'amiodarone' | 'alteplase' | 'calcium' | 'insulin' | 'potassium' | 'bupivacaine' | 'lipid' | 'atropine' | 'glycopyrrolate' | 'esmolol' | 'labetalol';
+export const DRUG_IDS: DrugId[] = ['adrenaline', 'amiodarone', 'alteplase', 'calcium', 'insulin', 'potassium', 'bupivacaine', 'lipid', 'atropine', 'glycopyrrolate', 'esmolol', 'labetalol'];
 
 export class Drugs {
   /** mg given and not yet carried to the central circulation. */
-  readonly vein: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0, bupivacaine: 0, lipid: 0 };
+  readonly vein: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0, bupivacaine: 0, lipid: 0, atropine: 0, glycopyrrolate: 0, esmolol: 0, labetalol: 0 };
   /** mg in the central circulation (calcium and potassium in mmol, insulin in units, lipid emulsion in mL). Potassium here
       is what is still in the extracellular fluid. Bupivacaine is held as its free (unbound) plasma concentration, mg/L,
       the measure its toxicity was measured by (Knudsen 1997); a poisoning gives it as such. */
-  readonly central: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0, bupivacaine: 0, lipid: 0 };
+  readonly central: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0, bupivacaine: 0, lipid: 0, atropine: 0, glycopyrrolate: 0, esmolol: 0, labetalol: 0 };
   /** mg given, in all. */
-  readonly given: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0, bupivacaine: 0, lipid: 0 };
+  readonly given: Record<DrugId, number> = { adrenaline: 0, amiodarone: 0, alteplase: 0, calcium: 0, insulin: 0, potassium: 0, bupivacaine: 0, lipid: 0, atropine: 0, glycopyrrolate: 0, esmolol: 0, labetalol: 0 };
   /** Potassium (mmol) that has reached the circulation, in all. */
   potassiumArrived = 0;
   /** Seconds since insulin (with its glucose) reached the circulation; NaN before. */
@@ -76,6 +81,10 @@ export class Drugs {
       const half = this.central.lipid + this.vein.lipid >= DRUGS.lipidBolus * 0.5 ? DRUGS.bupivacaineLipidHalfLife : DRUGS.bupivacaineHalfLife;
       this.central.bupivacaine *= Math.exp(-Math.LN2 / half * seconds);
     }
+    /* the ECT premedications: the anticholinergics stay for the length of a session; esmolol is cleared in minutes, by red-cell
+       esterases; labetalol over hours */
+    for (const [d, half] of [['atropine', DRUGS.atropineHalfLife], ['glycopyrrolate', DRUGS.glycopyrrolateHalfLife], ['esmolol', DRUGS.esmololHalfLife], ['labetalol', DRUGS.labetalolHalfLife]] as const)
+      if (this.central[d] > 0) this.central[d] *= Math.exp((-Math.LN2 / half) * seconds);
     const a = this.lytic();
     if (a > 0) this.lysed = 1 - (1 - this.lysed) * Math.exp(-DRUGS.lysisRate * a * seconds);
   }
@@ -101,6 +110,21 @@ export class Drugs {
 
   /** Plasma adrenaline, ng/mL (mg/L × 1000). */
   adrenaline(): number { return this.central.adrenaline / DRUGS.adrenalineVolume * 1000; }
+
+  /** Fraction of the heart's muscarinic receptors blocked, 0 without a drug: atropine and glycopyrrolate (in its
+      equipotent atropine dose) as one exponential approach to full block (DRUGS.atropineBlockDose). */
+  vagalBlock(): number {
+    const eq = this.central.atropine + DRUGS.glycopyrrolatePotency * this.central.glycopyrrolate;
+    return eq > 0 ? 1 - Math.exp(-eq / DRUGS.atropineBlockDose) : 0;
+  }
+  /** Fraction of the heart's β1-adrenergic receptors blocked, 0 without a drug: esmolol and labetalol (in its equipotent
+      esmolol dose), mg/kg, on a hyperbola (DRUGS.esmololHalfBlock). */
+  betaBlock(): number {
+    const eq = (this.central.esmolol + DRUGS.labetalolPotency * this.central.labetalol) / this.weightKg;
+    return eq > 0 ? eq / (eq + DRUGS.esmololHalfBlock) : 0;
+  }
+  /** Body weight (kg), for doses that act per kilogram; set by the host. */
+  weightKg = 70;
 
   /** Systemic arteriolar resistance, × what it would be without adrenaline. */
   resistanceMult(): number { return 1 + DRUGS.adrenalineResistanceGain * Math.min(this.adrenaline(), DRUGS.adrenalineMeasuredRange); }

@@ -72,4 +72,21 @@ export const DRUGS = defineConstants('drugs', {
   lysisRate: { value: 1.83e-5, unit: '1/s', status: 'derived', refs: ['dallavolta1992'],
     means: 'Rate at which the pulmonary embolic obstruction left falls while alteplase acts (the obstruction falls as e^(−k·t)).',
     derivation: 'PAIMS 2 (Dalla-Volta 1992): in 20 people with angiographically proven pulmonary embolism, alteplase (10 mg bolus, 90 mg over 2 h) lowered the angiographic Miller index from 28.3 ± 2.9 to 24.8 ± 5.2 at 2 h; with heparin alone it did not change (25.3 to 25.2). ln(28.3 / 24.8) / 7200 s = 1.83 × 10⁻⁵ /s: the obstruction left falls by about 12 % in two hours, 2 % in twenty minutes. Taking the Miller index as proportional to the obstructed fraction of the pulmonary bed, and its fall as exponential, are assumptions. The same trial’s mean pulmonary artery pressure, 30.2 mmHg at a Miller index of 28.3 of 34 (83 %), is a validation (scripts/arrest.test.mjs).' },
+
+  /* ECT premedications (ECT station part 2) */
+  atropineBlockDose: { value: 0.4, unit: 'mg', status: 'assumed', refs: ['gal1981', 'horvath1995', 'poller1997'],
+    means: 'Atropine dose that blocks 63 % of the heart’s muscarinic receptors (block = 1 − e^(−dose/this)), in an adult.',
+    derivation: 'Atropine 20 µg/kg (1.4 mg at 70 kg) raised the heart rate by 60 ± 5 % (Gal & Suratt 1981), as complete cholinergic block does (+57 %, Horváth 1995): near-complete block at 1.4 mg, which this constant puts at 97 %. Below about 0.12 mg atropine slows the heart (Poller 1997), which this curve leaves out. No graded human dose–response for the block itself was found: a placement.' },
+  glycopyrrolatePotency: { value: 2.4, unit: 'mg atropine per mg', status: 'derived', refs: ['alimelkkila1991'],
+    means: 'Glycopyrrolate’s potency at the heart relative to atropine.', derivation: 'Ali-Melkkilä 1991: atropine 720 µg and glycopyrrolate 300 µg gave equal vagal blockade: 2.4.' },
+  atropineHalfLife: { value: 10800, unit: 's', status: 'assumed', refs: ['gal1981'], means: 'Half-life of atropine’s cardiac effect.',
+    derivation: 'The airway effect of 20 µg/kg was back to control between 3 and 4 h (Gal & Suratt 1981); no cardiac time course was found. Three hours: in an ECT session the block is constant.' },
+  glycopyrrolateHalfLife: { value: 14400, unit: 's', status: 'assumed', refs: ['gal1981'], means: 'Half-life of glycopyrrolate’s cardiac effect.',
+    derivation: 'Its bronchial effect outlasted atropine’s, over 4 h (Gal & Suratt 1981). Four hours, a placement.' },
+  esmololHalfLife: { value: 552, unit: 's', status: 'measured', refs: ['angaran1986'], means: 'Elimination half-life of esmolol.', derivation: 'Angaran 1986: 9.2 min (red-cell esterases). Its 2 min distribution phase is folded into the 30 s arrival.' },
+  esmololHalfBlock: { value: 1.04, unit: 'mg/kg in the body', status: 'derived', refs: ['parikh2017'], means: 'Esmolol in the body (mg/kg) that blocks half the heart’s β1 receptors.',
+    derivation: 'Fitted once (scripts/fit-ect-heart.mjs esmolol) to Parikh 2017: esmolol 1 mg/kg lowered the peak heart rate after ECT to 0.881 of the control’s (157.5 ± 27.3 to 138.7 ± 30.1 /min, glycopyrrolate 0.2 mg in both arms): the reference session, glycopyrrolate 0.2 mg, esmolol 2 min before the stimulus; model 119 to 105 /min. Where the rise is vagal withdrawal (here blocked) and the chemoreflex term, β-blockade acts only on its sympathetic part.' },
+  labetalolPotency: { value: 10, unit: 'mg esmolol per mg', status: 'derived', refs: ['castelli1995'], means: 'Labetalol’s β-blocking potency relative to esmolol, intravenously.',
+    derivation: 'Castelli 1995: esmolol 1.3 mg/kg and labetalol 0.13 mg/kg each halved the peak heart-rate and systolic rise after ECT; 4.4 and 0.44 mg/kg nearly abolished them: ten to one.' },
+  labetalolHalfLife: { value: 19800, unit: 's', status: 'measured', refs: ['labetalolLabel'], means: 'Elimination half-life of labetalol.', derivation: 'Prescribing information: about 5.5 h.' },
 });
