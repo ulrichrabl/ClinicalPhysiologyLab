@@ -115,7 +115,7 @@ The owner wants an EEG station, with the weight on what makes EEG reading hard: 
 
 Each relation in the model is grounded in published human data, as for the other stations; where the evidence is thin or disputed, the station says so.
 
-**The Thymatron IV manual:** attached by the owner (2026-10-29, "System IV Instruction Manual Rev 21"); ask for it again in a new chat if it is not in the repository's reach. The device's settings (percent energy and charge, current, pulse width, frequency, duration) come from it, not from memory. The station draws its own panel with the device's functions; it does not copy the device's face or brand.
+**The Thymatron IV manual:** attached by the owner (2026-10-29, "System IV Instruction Manual Rev 21"); ask for it again in a new chat if it is not in the repository's reach. The device's settings (percent energy and charge, current, pulse width, frequency, duration) come from it, not from memory. The station draws its own panel with the device's functions; it does not copy the device's face or brand. **But (owner, 2026-10-29) it must be similar enough that the training carries over to the real device:** the same controls in the same places (the dial, the buttons, the display, the strip printer), the same displays and print-out, the same sequence of steps (impedance test, baseline, treat, the seizure monitoring and end of seizure), drawn from photographs of the real device and the manual's descriptions, without the brand name or logo.
 
 ## Open lists
 
