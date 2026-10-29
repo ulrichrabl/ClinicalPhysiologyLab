@@ -216,6 +216,16 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
 - **The screen** (`app/station-ect.ts`, `render/ect-strip.ts`, `render/ect-head.ts`): "The treatment": the panel in the photograph's order with held buttons and turnable dials, the strip printed as the device prints it (4 traces, ictal line, seconds and 6 s blocks, heart rate every 3 s, self test and report on the paper), the report, the next step and the seizure's phase explained; "Show the steps" plays the manual's sequence. "The stimulus": the field in the plane of the pads, the share of each region a pulse excites, the strength–duration curve, and the dose's arithmetic. EN/DE, drafts.
 - **Also fixed:** part 2a's regions had front and back swapped (frontal regions lay over the parietal cortex); corrected, the amplitude scale refitted (`seizure.firingToMoment` 0.00358 → 0.00457), and a test now checks each region lies under its own electrodes.
 
+### 15. The ECT station, part 2a: the heart (2026-10-29)
+
+Part 2 was split (the owner was told): **2a the heart**, **2b the anaesthetic** (agents and doses, succinylcholine and the cuff, ventilation, oxygen).
+
+- **The body:** the session runs the lab's `LivePatient` beside the brain (0.1 s blocks); channel 4 is its lead II, the heart rate printed every 3 s and the report's base and peak (5 s before the stimulus, the peak after, US 5,871,517) come from its R waves.
+- **The stimulus's vagal discharge:** a new input to the heart, `vagalStim`: the sinus node is followed as a phase that slows within its cycle and stops at full effect; the junction's escape is held back by as much. Its size by placement and pulse width is fitted to Stewart 2010's heart rates during the stimulus (four values); the field at deep structures was examined first and does not explain the placements' order in this head (above threshold everywhere), so the measured effect is used and the mechanism named as unknown (gap 68). It acts while the current flows and fades with the vagal time constant.
+- **The seizure's sympathetic surge:** the brain's excess firing (averaged over regions) drives the circulation's chemoreflex-adrenergic input through the sympathetic time constant; fitted to Nagler 2013 (peak 1.5 times the rate before). It peaks in the seizure's first seconds and falls as it slows; the peak time is within Nagler's 20 ± 9 s.
+- **Premedications:** atropine and glycopyrrolate (block of the sinus node's vagal gain and of the discharge; glycopyrrolate 2.4 times as potent, Ali-Melkkilä 1991; the dose–block curve a placement from Gal 1981 and Horváth 1995), esmolol (9.2 min half-life; its potency fitted to Parikh 2017) and labetalol (ten times esmolol's β potency, Castelli 1995).
+- **Checked** (`npm run test:ect`): bifrontal without asystole (Nagler 2011); atropine shortens the pause; the rate falls as the seizure ends; the systolic rise 15–65 mmHg; ultrabrief slows less. Known gaps 68–71: the RUL pause under atropine; no postictal dip; β-blockers weaker than Kovac and Castelli; full atropine block +43 % against +57–60 %.
+
 ## Steps
 
 1. **The ECG station, Explore** (this PR): the activation log in the electrical model, with tests; the station screen with settings, strip, ladder, cursor, conduction heart and explanations in EN and DE; a Stations card on the Ward.
@@ -233,7 +243,7 @@ The auscultation station would show a Wiggers diagram (pressures and valve event
 
 9. **The respiratory station** (done; decision 11): Explore, Predict and Identify in one step.
 
-10. **The EEG station** (decisions 12–13): 1a the forward model, montages, spikes and Explore; 2a the corticothalamic loop and generalised seizures; then ECT (decision 14: part 1 done; 2 anaesthesia and the body, 3 the course, 4 the background); then 1b background and slowing, 1c artefacts and benign variants, 1d EEG signs, Predict and Identify; 2b focal seizures, spread and periodic discharges.
+10. **The EEG station** (decisions 12–13): 1a the forward model, montages, spikes and Explore; 2a the corticothalamic loop and generalised seizures; then ECT (decision 14: part 1 done; decision 15: 2a the heart done; 2b the anaesthetic, 3 the course, 4 the background); then 1b background and slowing, 1c artefacts and benign variants, 1d EEG signs, Predict and Identify; 2b focal seizures, spread and periodic discharges.
 
 8. **The neurological examination station** (proposed, decision 10): 8a Explore with the first animations (pronator drift, finger–nose, reflexes); 8b heel–shin, rapid alternating movements, Romberg and gait; 8c Predict and Identify (the level of the lesion). The animations serve the ward cases too.
 

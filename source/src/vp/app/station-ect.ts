@@ -6,7 +6,7 @@ import { ECT } from '../evidence/ect.ts';
 import { EctSession, FS, type EctPatient, type PaperEntry } from '../stations/ect-session.ts';
 import { PROGRAM_NAMES, PROGRAM_REPORT, DEFAULT_SETTINGS, stimulusFor, type ProgramChoice } from '../stations/ect-device.ts';
 import { CHARGE_MC, PERCENT_STEPS } from '../stations/ect-programs.ts';
-import { nextStep, explainStimulus, ECT_BACKGROUND, reportLines } from '../stations/ect-texts.ts';
+import { nextStep, explainStimulus, ECT_BACKGROUND, reportLines, heartNow } from '../stations/ect-texts.ts';
 import { PHASE_LABEL, PHASE_TEXT } from '../stations/eeg-seizure-texts.ts';
 import { phaseOf } from '../stations/eeg-seizure.ts';
 import { PLACEMENTS, thresholdField, fieldSection, energy, type PlacementId, type FieldSection, type RegionDose } from '../physiology/brain/ect-stimulus.ts';
@@ -36,7 +36,11 @@ const T: Record<string, LocalizedText> = {
   eyebrow: L('Station', 'Station'), back: L('Ward', 'Übersicht'),
   view: L('View', 'Ansicht'), viewTreat: L('The treatment', 'Die Behandlung'), viewStim: L('The stimulus', 'Der Reiz'),
   patient: L('The patient', 'Der Patient'),
-  patientNote: L('A reference adult of 59 years (the mean age at which the threshold was measured with this device), anaesthetised and relaxed, the right foot cuffed. Age, sex, the anaesthetic and the heart come in the next parts.', 'Ein Referenzerwachsener von 59 Jahren (das mittlere Alter, bei dem die Schwelle mit diesem Gerät gemessen wurde), in Narkose und relaxiert, der rechte Fuß gestaut. Alter, Geschlecht, Narkose und Herz folgen in den nächsten Teilen.'),
+  patientNote: L('A reference adult of 59 years (the mean age at which the threshold was measured with this device), anaesthetised and relaxed, the right foot cuffed. Behind the ECG runs the lab’s own heart and circulation. Age, sex and the choice of anaesthetic come in the next parts.', 'Ein Referenzerwachsener von 59 Jahren (das mittlere Alter, bei dem die Schwelle mit diesem Gerät gemessen wurde), in Narkose und relaxiert, der rechte Fuß gestaut. Hinter dem EKG laufen das Herz und der Kreislauf des Labors. Alter, Geschlecht und die Wahl der Narkose folgen in den nächsten Teilen.'),
+  premed: L('Premedication', 'Prämedikation'), premedNote: L('Given into a vein now; it takes about half a minute to arrive.', 'Jetzt intravenös gegeben; sie braucht etwa eine halbe Minute, um anzukommen.'),
+  given: L('Given', 'Gegeben'), none: L('none yet', 'noch keine'),
+  vitals: L('The patient now', 'Der Patient jetzt'), hrL: L('Heart rate', 'Herzfrequenz'), bpL: L('Blood pressure', 'Blutdruck'),
+  heart: L('The heart', 'Das Herz'),
   placement: L('Electrode placement', 'Elektrodenposition'),
   prepared: L('Skin cleaned and pads pressed on', 'Haut gereinigt und Elektroden angedrückt'),
   skin: L('Skin impedance', 'Hautimpedanz'), skinLow: L('low', 'niedrig'), skinTypical: L('typical', 'typisch'), skinHigh: L('high', 'hoch'),
@@ -76,6 +80,13 @@ const T: Record<string, LocalizedText> = {
 };
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 const SKINS = [{ k: 'skinLow', z: -1.2 }, { k: 'skinTypical', z: 0 }, { k: 'skinHigh', z: 1.5 }];
+/* The premedications the station offers, at the doses used in the ECT studies the model is checked against. */
+const PREMEDS: Array<{ drug: 'atropine' | 'glycopyrrolate' | 'esmolol' | 'labetalol'; mg: number; perKg?: boolean; label: LocalizedText }> = [
+  { drug: 'atropine', mg: 0.5, label: L('Atropine 0.5 mg', 'Atropin 0,5 mg') },
+  { drug: 'glycopyrrolate', mg: 0.2, label: L('Glycopyrrolate 0.2 mg', 'Glycopyrronium 0,2 mg') },
+  { drug: 'esmolol', mg: 1, perKg: true, label: L('Esmolol 1 mg/kg', 'Esmolol 1 mg/kg') },
+  { drug: 'labetalol', mg: 0.1, perKg: true, label: L('Labetalol 0.1 mg/kg', 'Labetalol 0,1 mg/kg') },
+];
 const PROGRAM_ORDER: ProgramChoice[] = ['DGX', 'LOWEST', 'LOW_UB', 'LOW_05', 'INTERMIT', 'USER'];
 
 export function mountEctStation(host: HTMLElement, o: StationOptions): StationHandle {
@@ -89,6 +100,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
   let follow = true, scrollX = 0, drag: { x: number; s: number } | null = null;
   let demo: Generator<number, void, unknown> | null = null as Generator<number, void, unknown> | null, demoWait = 0;
   let seized = false;
+  let givenList: Array<{ label: LocalizedText; at: number }> = [];
   /* the stimulus view */
   let stimPlacement: PlacementId = 'BT', stimWidth = 0.5;
   let section: FieldSection | null = null, sectionKey = '', sectionJob = 0;
@@ -107,7 +119,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     if (!keepSeed) patient.seed = (patient.seed * 7 + 3) % 997;
     const settings = structuredClone(session.device.settings);
     session = new EctSession(patient, settings);
-    seized = false; coverUp = false; follow = true; scrollX = 0;
+    seized = false; coverUp = false; follow = true; scrollX = 0; givenList = [];
     render();
   };
 
@@ -200,7 +212,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const r = session.lastReport()!;
     return reportLines({ percent: st.percent, charge: st.given.charge, current: ECT.current, duration: st.given.duration, frequency: st.given.frequency, pulseWidth: st.given.pulseWidth,
       staticOhm: st.staticOhm, dynamicOhm: st.dynamicOhm, early: st.early, baselineAvailable: r.baselineAvailable, eegEndpoint: r.eegEndpoint, emgEndpoint: r.emgEndpoint,
-      baseHr: ECT.restingHeartRate, peakHr: ECT.restingHeartRate, asei: r.asei, psi: r.psi, msp: r.msp, ttp: r.timeToPeakPower, coh: r.coherence, ttc: r.timeToPeakCoherence,
+      baseHr: r.baseHr, peakHr: r.peakHr, asei: r.asei, psi: r.psi, msp: r.msp, ttp: r.timeToPeakPower, coh: r.coherence, ttc: r.timeToPeakCoherence,
       program: PROGRAM_REPORT[st.program], indexes: session.device.settings.indexes }, lang, num);
   };
   /* the report's text is fixed when it is printed */
@@ -221,7 +233,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     if (follow) scrollX = maxScroll;
     scrollX = Math.max(0, Math.min(maxScroll, scrollX));
     const base = session.baselineFrom != null && session.readyAt != null ? baselineRate() : null;
-    drawStrip(g, w, 300, session, lay, scrollX, { gains: session.device.settings.gain, emgGain: 1000, ecgGain: 1000, baselineRate: base }, { paper: css('--surface'), ink: css('--fg'), faint: css('--muted') }, () => ECT.restingHeartRate);
+    drawStrip(g, w, 300, session, lay, scrollX, { gains: session.device.settings.gain, emgGain: 1000, ecgGain: 1000, baselineRate: base }, { paper: css('--surface'), ink: css('--fg'), faint: css('--muted') }, (tt) => session.heartRateAt(tt));
     const sl = host.querySelector<HTMLInputElement>('[data-scroll]');
     if (sl) { sl.max = String(Math.round(maxScroll)); sl.value = String(Math.round(scrollX)); }
   };
@@ -257,8 +269,21 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const step = nextStep({ on: d.on, booting: d.booting, baseline: d.baseline, testedOhm: d.testing && d.t > 0 ? (d.left.match(/^\d+$/) ? Number(d.left) : null) : d.lastStatic, staticHigh: ECT.staticHigh, staticLow: ECT.staticLow,
       treat: d.treat, early: !!st?.early, printing: d.printing, stimulusEnd: d.stimulusEnd, reported, seconds: d.stimulusEnd != null ? d.t - d.stimulusEnd : 0 }, num);
     const ph = st ? phaseOf(session.brain, seized) : 'rest';
+    const r = session.lastReport();
+    const drugs = session.body.run.drugs;
+    const hn = heartNow({ delivering: d.treat === 'delivering', seizing: session.seizing, afterStimulus: d.stimulusEnd != null ? d.t - d.stimulusEnd : null, seized, hr: session.heartRateAt(session.t), base: r?.baseHr ?? 0,
+      vagalBlock: drugs.vagalBlock(), betaBlock: drugs.betaBlock(), placement: patient.placement }, num);
     const html = `<div class="st-text"><h3>${t('next')}</h3><p>${esc(tr(step, lang))}</p></div>` +
+      (hn ? `<div class="st-text"><h3>${t('heart')}</h3><p>${esc(tr(hn, lang))}</p></div>` : '') +
       (st && ph !== 'rest' ? `<div class="st-text"><h3>${esc(tr(PHASE_LABEL[ph], lang))}</h3><p>${esc(tr(PHASE_TEXT[ph], lang))}</p></div>` : '');
+    const vit = host.querySelector<HTMLElement>('[data-vitals]');
+    if (vit) {
+      const m = (session.body.run.sim as any).metrics ?? {};
+      const v = `<span>${t('hrL')}: ${num(session.heartRateAt(session.t))} /min</span><span>${t('bpL')}: ${Number.isFinite(m.Psys) ? `${num(m.Psys)}/${num(m.Pdia)}` : '—'} mmHg</span>`;
+      if (vit.dataset.html !== v) { vit.innerHTML = v; vit.dataset.html = v; }
+    }
+    const gv = host.querySelector<HTMLElement>('[data-given]');
+    if (gv) { const g = givenList.length ? givenList.map((x) => `${esc(tr(x.label, lang))} (${num(x.at)} s)`).join(', ') : t('none'); const gh = `${t('given')}: ${g}`; if (gv.dataset.html !== gh) { gv.innerHTML = gh; gv.dataset.html = gh; } }
     if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
   };
 
@@ -285,7 +310,11 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     d.impedanceButton(true); yield 1.6; d.impedanceButton(false); yield 0.5;
     while (d.baseline !== 'ready') yield 0.5;
     yield 1;
-    d.turnPercent(0); yield 1.2;
+    /* the manual's first dose: the age in percent for unilateral, half of it for the bilateral placements (59 years) */
+    const want = patient.placement === 'RUL' ? 60 : 30;
+    while (d.percent !== want) { d.turnPercent(d.percent < want ? 1 : -1); yield 0.15; }
+    if (patient.placement === 'RUL') d.settings.program = 'LOW_UB';
+    yield 1.2;
     coverUp = true; render(); yield 0.8;
     d.treatButton(true);
     while (d.treat !== 'done') yield 0.1;
@@ -320,11 +349,16 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
           <button type="button" class="primary" data-demo>${demo ? t('demoStop') : t('demo')}</button>
           <button type="button" class="ghost" data-restart>${t('restart')}</button>
           <button type="button" class="ghost" data-another>${t('another')}</button>
+          <h3>${t('premed')}</h3>
+          <p class="muted small">${t('premedNote')}</p>
+          <span class="st-bar">${PREMEDS.map((p, i) => `<button type="button" class="chip st-chip" data-give="${i}">${esc(tr(p.label, lang))}</button>`).join('')}</span>
+          <p class="muted small" data-given></p>
         </aside>
         <div class="st-main">
           <section class="panel st-signal" aria-labelledby="ect-dev-h">
             <div class="st-row"><div><h2 id="ect-dev-h">${t('device')}</h2><div class="muted small">${t('deviceNote')}</div></div></div>
             ${panelHtml()}
+            <p class="st-measures" data-vitals></p>
           </section>
           <section class="panel st-signal" aria-labelledby="ect-strip-h">
             <div class="st-row"><div><h2 id="ect-strip-h">${t('strip')}</h2><div class="muted small">${t('stripNote')}</div></div>
@@ -357,6 +391,11 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     host.querySelector<HTMLSelectElement>('[data-speed]')!.onchange = (e) => { speed = Number((e.target as HTMLSelectElement).value); };
     host.querySelector('[data-restart]')!.addEventListener('click', () => { demo = null; newSession(); });
     host.querySelector('[data-another]')!.addEventListener('click', () => { demo = null; newSession(false); });
+    host.querySelectorAll<HTMLButtonElement>('[data-give]').forEach((b) => b.addEventListener('click', () => {
+      const p = PREMEDS[Number(b.dataset.give)];
+      session.give(p.drug, p.perKg ? p.mg * session.body.model.patient.weightKg : p.mg);
+      givenList.push({ label: p.label, at: session.t });
+    }));
     host.querySelector('[data-demo]')!.addEventListener('click', () => { if (demo) { demo = null; d().treatButton(false); d().impedanceButton(false); } else { demo = demoSteps(); demoWait = 0; } renderDemoButton(); });
     host.querySelector<HTMLInputElement>('[data-follow]')!.onchange = (e) => { follow = (e.target as HTMLInputElement).checked; };
     const sl = host.querySelector<HTMLInputElement>('[data-scroll]')!;

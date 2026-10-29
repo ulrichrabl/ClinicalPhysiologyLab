@@ -70,6 +70,10 @@ export interface CirculationRun {
   setVentilator: (v: Ventilator | null) => void;
   /** The myocardium's state in an arrest (ADR-018 step 3): 1 while perfused. */
   arrest: MyocardialState;
+  /** Drive from outside the body's own reflexes, set by a host (the ECT station): `adrenergic` adds central sympathetic
+      and catecholamine drive (in the units of the chemoreflex drive it joins); `vagalStim` is a direct vagal discharge on the
+      pacemakers (HeartElectrical.vagalStim). Both 0 otherwise. */
+  external: { adrenergic: number; vagalStim: number };
   /** The coronary perfusion pressure the myocardium is getting now (mmHg, smoothed; between compressions in CPR). */
   coronaryPerfusion: () => number;
   /** Drugs given (ADR-018 step 4). */
@@ -109,6 +113,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
   const arrest = new MyocardialState();
   /* Drugs given (ADR-018 step 4), acting on the arterioles and on the recurrence of VF. */
   const drugs = new Drugs();
+  drugs.weightKg = model.patient.weightKg;
   const arrested = () => heart.p.ventricular === 'vf' || heart.p.ventricular === 'asystole' || heart.standstill();
   /* The lungs see the emboli that are left: alteplase (drugs.lysed) dissolves the same fraction in every lobe. */
   let lysedSeen = 0;
@@ -118,6 +123,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     return { ...p, embRUL: p.embRUL * k, embRML: p.embRML * k, embRLL: p.embRLL * k, embLUL: p.embLUL * k, embLLL: p.embLLL * k };
   };
   const BRAIN_TAU_S = 3;
+  const external = { adrenergic: 0, vagalStim: 0 };
   const couple = () => {
     /* The lungs and the body see the circulation over a circulation time, not beat by beat: the mixed venous blood
        reaching the lungs is pooled from many beats, and the beats differ through each breath (the respiratory pump).
@@ -174,7 +180,9 @@ export function createCirculation(m: PatientModel): CirculationRun {
       sim.rvIschaemia = (sim.rvIschaemia ?? 0) + (target - (sim.rvIschaemia ?? 0)) * (1 - Math.exp(-COUPLE_S / CIRC.rvIschaemiaTau));
     }
     sim.EmaxRv = model.circulation.EmaxRv * (1 - (sim.rvIschaemia ?? 0)) * arrest.contractility() * drugs.cardiacDepression();
-    sim.chemoDrive = Math.min(1.5, resp.chemoDrive() + milieu.adrenergic());
+    sim.chemoDrive = Math.min(1.5, resp.chemoDrive() + milieu.adrenergic() + external.adrenergic);
+    sim.vagalBlock = drugs.vagalBlock(); sim.betaBlock = drugs.betaBlock();
+    heart.vagalStim = external.vagalStim * (1 - drugs.vagalBlock());
     const r = resp.snapshot();
     /* The breath's pleural pressure acts on the heart and lung vessels (cmH2O to mmHg), as it swings about its own mean.
        The circulation's constants were grounded on mean pressures and flows measured in breathing people, so they
@@ -295,7 +303,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
   const coronaryPerfusion = () => coronaryP;
 
   apply(m);
-  return { sim, heart, resp, body: milieu, apply, advance, equilibrate, settle, settleFast, course, courseSteps, setCompressor, setVentilator, arrest, coronaryPerfusion, drugs };
+  return { sim, heart, resp, body: milieu, apply, advance, equilibrate, settle, settleFast, course, courseSteps, setCompressor, setVentilator, arrest, coronaryPerfusion, drugs, external };
 }
 
 export interface SettledPatient {
