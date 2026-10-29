@@ -1,0 +1,10 @@
+export * from '../src/vp/measurements/eeg-forward.ts';
+export * from '../src/vp/measurements/eeg-montage.ts';
+export * from '../src/vp/measurements/eeg-record.ts';
+export * from '../src/vp/stations/eeg-presets.ts';
+export * from '../src/vp/stations/eeg-scene.ts';
+export * from '../src/vp/stations/eeg-texts.ts';
+export { EEG } from '../src/vp/evidence/eeg.ts';
+export { CONSTANTS, constantIssues } from '../src/vp/evidence/constants.ts';
+export { REFERENCES } from '../src/vp/evidence/references.ts';
+export { EEG_STATION } from '../src/vp/stations/station.ts';

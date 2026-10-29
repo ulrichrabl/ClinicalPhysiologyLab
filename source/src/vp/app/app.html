@@ -472,6 +472,13 @@ canvas.st-strip:focus-visible { outline: 3px solid var(--accent); outline-offset
 .st-proj { background: var(--sunk); border-radius: 8px; padding: 8px 10px; font-size: .92rem; }
 .st-key { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .85rem; color: var(--muted); }
 .st-head .st-title { flex: 1 1 320px; }
+.st-leads label { max-width: 100%; }
+.st-leads label select { max-width: 100%; }
+.eeg-mech { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.eeg-mech figure, .eeg-chain { margin: 0; display: grid; gap: 4px; min-width: 0; }
+.eeg-chain { margin-top: 12px; }
+.eeg-chain figcaption { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.st-measures span.abn { background: var(--abn-soft); color: var(--abn); }
 .st-mode { align-self: center; }
 .st-mode button { min-height: 40px; padding: 6px 16px; }
 .st-predict { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start; background: var(--accent-soft); border-radius: 10px; padding: 10px; cursor: pointer; }

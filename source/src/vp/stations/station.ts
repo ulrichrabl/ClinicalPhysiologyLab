@@ -124,7 +124,18 @@ export const RESP_STATION: StationDef = {
   presets: [],
 };
 
-export const STATIONS: StationDef[] = [ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION, NEURO_STATION, RESP_STATION];
+/* The EEG station (part 1): how the scalp sees a cortical source. Its model is the head as a volume conductor
+   (measurements/eeg-forward.ts), not one of the physiology models, so it offers its own settings and no derived ones. */
+export const EEG_STATION: StationDef = {
+  id: 'eeg', test: 'eeg',
+  title: L('EEG station', 'EEG-Station'),
+  summary: L('How the scalp sees a source: a patch of cortex discharges, and its field passes through brain, fluid, skull and scalp to the electrodes. Move it, tilt it, shrink it, change the montage; see where the maximum and the phase reversal come from.',
+    'Wie die Kopfhaut eine Quelle sieht: Ein Areal der Rinde entlädt sich, und sein Feld geht durch Gehirn, Liquor, Schädel und Kopfhaut zu den Elektroden. Verschieben, neigen, verkleinern Sie es, wechseln Sie die Montage; sehen Sie, woher Maximum und Phasenumkehr kommen.'),
+  drivers: {},
+  presets: [],
+};
+
+export const STATIONS: StationDef[] = [ECG_STATION, AUSCULTATION_STATION, EYE_STATION, PULSE_STATION, NEURO_STATION, RESP_STATION, EEG_STATION];
 
 export interface SettingGroup { id: string; label: LocalizedText; vars: VariableDef[]; why?: LocalizedText }
 
