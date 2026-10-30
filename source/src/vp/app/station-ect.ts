@@ -13,6 +13,7 @@ import { PLACEMENTS, thresholdField, fieldSection, energy, type PlacementId, typ
 import { fieldFor, dosesFor } from '../physiology/brain/ect-trial.ts';
 import { layoutStrip, drawStrip, type PaperItem } from '../render/ect-strip.ts';
 import { drawFieldSection, drawRegionMap } from '../render/ect-head.ts';
+import { ectFigure, ectLook, sceneSvg, headCloseUp, topViewSvg, placementOf, PLACEMENT_SITES, SCENE_VIEWBOX, type EctFigure, type EctDress, type SiteId } from '../render/ect-scene.ts';
 import { Procedure, STEPS, STEP, ECT_ORDERS, ECT_ROLES, ROLE_NAME, MODE_NAME, orderLines, type EctMode, type EctRole, type StepId, type Who } from '../stations/ect-procedure.ts';
 
 /* ---------------------------------------------------------------------------
@@ -37,7 +38,7 @@ const T: Record<string, LocalizedText> = {
   eyebrow: L('Station', 'Station'), back: L('Ward', 'Übersicht'),
   view: L('View', 'Ansicht'), viewTreat: L('The treatment', 'Die Behandlung'), viewStim: L('The stimulus', 'Der Reiz'),
   patient: L('The patient', 'Der Patient'),
-  patientNote: L('A reference adult of 59 years (the mean age at which the threshold was measured with this device), anaesthetised and relaxed, the right foot cuffed. Behind the ECG runs the lab’s own heart and circulation. Age, sex and the choice of anaesthetic come in the next parts.', 'Ein Referenzerwachsener von 59 Jahren (das mittlere Alter, bei dem die Schwelle mit diesem Gerät gemessen wurde), in Narkose und relaxiert, der rechte Fuß gestaut. Hinter dem EKG laufen das Herz und der Kreislauf des Labors. Alter, Geschlecht und die Wahl der Narkose folgen in den nächsten Teilen.'),
+  patientNote: L('A reference adult of 59 years (the mean age at which the threshold was measured with this device), anaesthetised and relaxed, the right arm cuffed. Behind the ECG runs the lab’s own heart and circulation. Age, sex and the choice of anaesthetic come in the next parts.', 'Ein Referenzerwachsener von 59 Jahren (das mittlere Alter, bei dem die Schwelle mit diesem Gerät gemessen wurde), in Narkose und relaxiert, der rechte Arm gestaut. Hinter dem EKG laufen das Herz und der Kreislauf des Labors. Alter, Geschlecht und die Wahl der Narkose folgen in den nächsten Teilen.'),
   premed: L('Premedication', 'Prämedikation'), premedNote: L('Given into a vein now; it takes about half a minute to arrive.', 'Jetzt intravenös gegeben; sie braucht etwa eine halbe Minute, um anzukommen.'),
   given: L('Given', 'Gegeben'), none: L('none yet', 'noch keine'),
   vitals: L('The patient now', 'Der Patient jetzt'), hrL: L('Heart rate', 'Herzfrequenz'), bpL: L('Blood pressure', 'Blutdruck'),
@@ -58,7 +59,7 @@ const T: Record<string, LocalizedText> = {
   plug: L('plugged in', 'eingesteckt'), unplug: L('not plugged in', 'nicht eingesteckt'),
   turnDown: L('turn left', 'nach links drehen'), turnUp: L('turn right', 'nach rechts drehen'), pressDial: L('press', 'drücken'),
   strip: L('The strip', 'Der Streifen'),
-  stripNote: L('EEG 1 and 2 (above each eyebrow to the mastoid) at the set gain, the EMG of the cuffed foot and the ECG at 1000 µV/cm; a mark every second, a block every 6 s, the heart rate every 3 s, the ictal line along the top. Drag or use the slider to read back.', 'EEG 1 und 2 (über jeder Augenbraue zum Mastoid) mit der eingestellten Verstärkung, das EMG des gestauten Fußes und das EKG mit 1000 µV/cm; jede Sekunde eine Marke, alle 6 s ein Block, alle 3 s die Herzfrequenz, oben die Iktallinie. Ziehen oder den Regler benutzen, um zurückzulesen.'),
+  stripNote: L('EEG 1 and 2 (above each eyebrow to the mastoid) at the set gain, the EMG of the cuffed arm and the ECG at 1000 µV/cm; a mark every second, a block every 6 s, the heart rate every 3 s, the ictal line along the top. Drag or use the slider to read back.', 'EEG 1 und 2 (über jeder Augenbraue zum Mastoid) mit der eingestellten Verstärkung, das EMG des gestauten Arms und das EKG mit 1000 µV/cm; jede Sekunde eine Marke, alle 6 s ein Block, alle 3 s die Herzfrequenz, oben die Iktallinie. Ziehen oder den Regler benutzen, um zurückzulesen.'),
   follow: L('Follow the printer', 'Dem Drucker folgen'),
   report: L('The report', 'Der Bericht'), noReport: L('Printed when START/STOP is pressed after a treatment.', 'Gedruckt, wenn nach einer Behandlung START/STOP gedrückt wird.'),
   now: L('What happens now', 'Was jetzt geschieht'), next: L('Next', 'Als Nächstes'),
@@ -100,6 +101,13 @@ const T: Record<string, LocalizedText> = {
   variation: L('The patient’s variation', 'Variation des Patienten'), moreDrugs: L('More drugs, to explore', 'Weitere Medikamente, zum Ausprobieren'),
   whyBtn: L('Behind the stimulus', 'Hinter dem Reiz'), backBtn: L('Back to the treatment', 'Zurück zur Behandlung'),
   atDevice: L('At the device', 'Am Gerät'),
+  scene: L('The patient on the trolley', 'Der Patient auf der Trage'), headRight: L('The head from the right', 'Der Kopf von rechts'), headAbove: L('From above: choose two pad sites', 'Von oben: zwei Elektrodenstellen wählen'), headAboveDone: L('From above: the pads', 'Von oben: die Elektroden'),
+  padHint: L('Click two sites on the head seen from above. The pair decides the placement; check it against the order.', 'Klicken Sie zwei Stellen am Kopf von oben an. Das Paar bestimmt die Position; prüfen Sie es gegen die Anordnung.'),
+  padBad: L('Those two sites are not a standard placement; click a site again to take that pad off.', 'Diese beiden Stellen ergeben keine Standardposition; klicken Sie eine Stelle erneut an, um die Elektrode abzunehmen.'),
+  padsSet: L('Pads on: {p}.', 'Elektroden angelegt: {p}.'),
+  site_Ltemp: L('left temporal', 'links temporal'), site_Rtemp: L('right temporal', 'rechts temporal'), site_Lfront: L('left frontal', 'links frontal'), site_Rfront: L('right frontal', 'rechts frontal'), site_vertexR: L('just right of the vertex', 'knapp rechts des Scheitels'), site_LantL: L('left anterior', 'links anterior'),
+  cuffL: L('The cuff', 'Die Manschette'), cuffOnBtn: L('Put the cuff on', 'Manschette anlegen'), squeezeBtn: L('Squeeze the bulb', 'Ballon drücken'), deflateBtn: L('Let it down', 'Ablassen'), cuffUpBtn: L('The cuff is up', 'Manschette ist aufgepumpt'),
+  cuffNow: L('Cuff {c} mmHg · systolic {s} mmHg', 'Manschette {c} mmHg · systolisch {s} mmHg'),
 };
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 const SKINS = [{ k: 'skinLow', z: -1.2 }, { k: 'skinTypical', z: 0 }, { k: 'skinHigh', z: 1.5 }];
@@ -124,7 +132,9 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
   patient.placement = order().placement;
   let session = new EctSession(patient, DEFAULT_SETTINGS);
   let proc = new Procedure(session, order(), mode, roles());
-  let padsChoice: PlacementId = 'BT';
+  /* the drawing: the patient's look and figure (rebuilt only when the arm jerks), and the sites the learner has chosen */
+  const look = ectLook(7);
+  let fig: EctFigure = ectFigure(look), figJerk = 0, padSites: SiteId[] = [], padMsg = '', sceneAt = -1;
   let stopped = false, raf = 0, last = 0, hurry = false;
   const HURRY = 4;
   let follow = true, scrollX = 0, drag: { x: number; s: number } | null = null;
@@ -149,6 +159,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     patient.placement = order().placement;
     session = new EctSession(patient, DEFAULT_SETTINGS);
     proc = new Procedure(session, order(), mode, roles());
+    padSites = []; padMsg = ''; sceneAt = -1;
     seized = false; hurry = false; follow = true; scrollX = 0; givenList = []; printedReports.clear(); baseCache = null;
     render();
   };
@@ -411,16 +422,50 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
   /* ---- the procedure: the room, the steps, the coach, the debrief ------------------------------------------------ */
   const roleTag = (r: EctRole) => `<span class="ect-role ect-role-${r}">${esc(tr(ROLE_NAME[r], lang))}</span>`;
   const roomHtml = () => {
-    if (mode === 'watch') return `<p class="muted">${t('roomWatch')}</p>`;
+    const pic = `<figure class="ect-scene"><svg viewBox="${SCENE_VIEWBOX}" data-scene role="img" aria-label="${t('scene')}"></svg></figure>
+      <div class="ect-close">
+        <figure><figcaption class="muted small">${t('headRight')}</figcaption><svg data-head role="img" aria-label="${t('headRight')}"></svg></figure>
+        <figure><figcaption class="muted small" data-topcap>${t('headAbove')}</figcaption><svg viewBox="0 0 240 240" data-top class="ect-top"></svg><p class="muted small" data-padmsg></p></figure>
+      </div>`;
+    if (mode === 'watch') return `${pic}<p class="muted">${t('roomWatch')}</p>`;
     const mine = STEPS.filter((x) => x.kind === 'room' && proc.mine(x.id));
-    const btn = (id: StepId) => id === 'pads'
-      ? `<div class="ect-act ect-pads"><label>${t('padsAt')} <select data-padsel>${(Object.keys(PLACEMENTS) as PlacementId[]).map((k) => `<option value="${k}" ${k === padsChoice ? 'selected' : ''}>${esc(tr(PLACEMENTS[k].name, lang))}</option>`).join('')}</select></label><button type="button" class="ghost" data-act="pads">${t('padsOn')}</button></div>`
+    const btn = (id: StepId) => id === 'pads' ? ''
+      : id === 'cuff' ? `<div class="ect-cuffctl"><b>${t('cuffL')}</b> <button type="button" class="ghost small" data-cuff="on">${t('cuffOnBtn')}</button><button type="button" class="ghost small" data-cuff="squeeze">${t('squeezeBtn')}</button><button type="button" class="ghost small" data-cuff="down">${t('deflateBtn')}</button><button type="button" class="ghost small ect-act" data-act="cuff">${t('cuffUpBtn')}</button> <span class="muted small" data-cuffnow></span></div>`
       : `<button type="button" class="ghost ect-act" data-act="${id}">${esc(tr(STEP[id].title, lang))}</button>`;
     const real = mine.filter((x) => x.modelled), narr = mine.filter((x) => !x.modelled && x.id !== 'check');
     const check = mine.find((x) => x.id === 'check');
-    return `<div class="ect-acts">${check ? btn('check') : ''}${real.map((x) => btn(x.id)).join('')}</div>
+    return `${pic}<div class="ect-acts">${check ? btn('check') : ''}${real.map((x) => btn(x.id)).join('')}</div>
       ${narr.length ? `<h3>${t('anaesthesia')}</h3><p class="muted small">${t('notModelled')}</p><div class="ect-acts">${narr.map((x) => btn(x.id)).join('')}</div>` : ''}
       ${mine.length ? '' : `<p class="muted">${t('nothingYours')}</p>`}`;
+  };
+  /* the patient, drawn: what the team has put on him, the cuffed arm jerking in the motor seizure */
+  const dressNow = (): EctDress => {
+    const r = proc.room, up = !r.recovered;
+    const pads: SiteId[] = r.pads ? [...PLACEMENT_SITES[r.pads]] : padSites;
+    return { pads, cleaned: r.skin, leads: r.leads, cuff: { on: r.cuffOn, mmHg: r.cuffMmHg }, mask: r.oxygen && up, bagging: r.ventilating, biteBlock: r.biteBlock && up };
+  };
+  const drawPatient = () => {
+    const sc = host.querySelector<SVGSVGElement>('[data-scene]');
+    if (!sc) return;
+    /* at most ten pictures a second: the bag and the arm move, nothing else does between steps */
+    const now = performance.now();
+    const moving = proc.room.ventilating || session.seizing;
+    if (moving && now - sceneAt < 100) return;
+    const d = dressNow();
+    const motor = session.rec.n ? session.rec.motor[session.rec.n - 1] : 0;
+    const jerk = motor > ECT.emgThreshold ? Math.round(Math.min(14, (motor - ECT.emgThreshold) / 4) * (Math.sin(session.t * 2 * Math.PI * 3) > 0 ? 1 : 0)) : 0;
+    if (jerk !== figJerk) { fig = ectFigure(look, jerk); figJerk = jerk; }
+    const key = JSON.stringify([d, jerk, moving ? Math.round(session.t * 10) : 0]);
+    if (sc.dataset.key === key) return;
+    sc.dataset.key = key; sceneAt = now;
+    sc.innerHTML = sceneSvg(fig, d, session.t);
+    const hd = host.querySelector<SVGSVGElement>('[data-head]');
+    if (hd) { const c = headCloseUp(fig, d, session.t); hd.setAttribute('viewBox', c.viewBox); hd.innerHTML = c.svg; }
+    const tp = host.querySelector<SVGSVGElement>('[data-top]');
+    if (tp) tp.innerHTML = topViewSvg(d.pads, { nose: t('nose'), left: t('left'), right: t('right') }, Object.fromEntries((['Ltemp', 'Rtemp', 'Lfront', 'Rfront', 'vertexR', 'LantL'] as SiteId[]).map((id) => [id, t(`site_${id}`)])));
+    const cap = host.querySelector<HTMLElement>('[data-topcap]'); if (cap) cap.textContent = proc.mine('pads') && !proc.isDone('pads') ? t('headAbove') : t('headAboveDone');
+    const pm = host.querySelector<HTMLElement>('[data-padmsg]'); if (pm) pm.textContent = padMsg || (proc.mine('pads') && !proc.isDone('pads') ? t('padHint') : '');
+    const cn = host.querySelector<HTMLElement>('[data-cuffnow]'); if (cn) cn.textContent = t('cuffNow').replace('{c}', num(proc.room.cuffMmHg)).replace('{s}', num(proc.systolic));
   };
   const sec = (x: number) => `${num(x)} s`;
   const whoName = (w: Who) => (w === 'you' ? t('you') : tr(ROLE_NAME[w], lang));
@@ -437,7 +482,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     }).join(''));
     /* the room's buttons: done ones ticked */
     host.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => { const d = proc.isDone(b.dataset.act as StepId); b.classList.toggle('on', d); b.setAttribute('aria-pressed', String(d)); b.disabled = d; });
-    const ps = host.querySelector<HTMLSelectElement>('[data-padsel]'); if (ps) ps.disabled = proc.isDone('pads');
+    drawPatient();
     /* the vitals */
     const m = (session.body.run.sim as any).metrics ?? {};
     set('[data-vitals]', `<span>${t('hrL')}: ${num(session.heartRateAt(session.t))} /min</span><span>${t('bpL')}: ${Number.isFinite(m.Psys) ? `${num(m.Psys)}/${num(m.Pdia)}` : '—'} mmHg</span>`);
@@ -479,8 +524,23 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     host.querySelector<HTMLSelectElement>('[data-order]')!.onchange = (e) => { orderIdx = Number((e.target as HTMLSelectElement).value); newSession(); };
     host.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.addEventListener('click', () => { mode = b.dataset.mode as EctMode; newSession(); }));
     host.querySelector<HTMLSelectElement>('[data-role]')!.onchange = (e) => { roleSel = (e.target as HTMLSelectElement).value as EctRole | 'all'; newSession(); };
-    host.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => b.addEventListener('click', () => { const id = b.dataset.act as StepId; proc.act(id, 'you', id === 'pads' ? { placement: padsChoice } : {}); drawProcedure(); }));
-    const ps = host.querySelector<HTMLSelectElement>('[data-padsel]'); if (ps) ps.onchange = () => { padsChoice = ps.value as PlacementId; proc.choosePads(padsChoice); };
+    host.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => b.addEventListener('click', () => { proc.act(b.dataset.act as StepId, 'you'); drawProcedure(); }));
+    host.querySelectorAll<HTMLButtonElement>('[data-cuff]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.cuff; if (k === 'on') proc.cuffOn(); else if (k === 'squeeze') proc.squeeze(); else proc.deflate(); drawProcedure(); }));
+    /* the pad sites, seen from above: the learner's hands if the pads are theirs */
+    const top = host.querySelector<SVGSVGElement>('[data-top]');
+    const pick = (id: SiteId) => {
+      if (!proc.mine('pads') || proc.isDone('pads')) return;
+      padSites = padSites.includes(id) ? padSites.filter((x) => x !== id) : [...padSites, id].slice(-2);
+      padMsg = '';
+      if (padSites.length === 2) {
+        const pl = placementOf(padSites);
+        if (pl) { proc.act('pads', 'you', { placement: pl }); padMsg = t('padsSet').replace('{p}', tr(PLACEMENTS[pl].name, lang)); }
+        else padMsg = t('padBad');
+      }
+      sceneAt = -1; drawProcedure();
+    };
+    top?.addEventListener('click', (e) => { const g = (e.target as Element).closest('[data-site]'); if (g) pick(g.getAttribute('data-site') as SiteId); });
+    top?.addEventListener('keydown', (e) => { const g = (e.target as Element).closest('[data-site]'); if (g && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pick(g.getAttribute('data-site') as SiteId); } });
     host.querySelector<HTMLButtonElement>('[data-hurry]')!.addEventListener('click', () => { hurry = !hurry && proc.canHurry; drawProcedure(); });
   };
 

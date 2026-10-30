@@ -520,6 +520,15 @@ canvas.st-strip:focus-visible { outline: 3px solid var(--accent); outline-offset
 @media (max-width: 1000px) { .ect-room-grid, .ect-task { grid-template-columns: minmax(0, 1fr); } }
 .ect-mid { display: grid; gap: 12px; min-width: 0; }
 .ect-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.ect-scene { margin: 0; border-radius: 8px; background: #e3ebe9; overflow: hidden; }
+.ect-scene svg { display: block; width: 100%; height: auto; }
+.ect-close { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.ect-close figure { margin: 0; display: grid; gap: 4px; align-content: start; }
+.ect-close svg { width: 100%; aspect-ratio: 1; border-radius: 8px; background: #e3ebe9; }
+.ect-top { color: var(--fg); background: var(--sunk, #eef2f1) !important; }
+.ect-site { cursor: pointer; } .ect-site:focus { outline: none; } .ect-site:focus-visible circle:first-child { stroke-width: 2.4; }
+.ect-cuffctl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; width: 100%; }
+@media (prefers-color-scheme: dark) { .ect-scene, .ect-close svg[data-head] { background: #2b3533; } }
 .ect-steps, .ect-room, .ect-coach { padding: 14px; display: grid; gap: 8px; align-content: start; }
 .ect-steps h2, .ect-room h2, .ect-coach h2 { margin: 0; }
 .ect-steps ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }

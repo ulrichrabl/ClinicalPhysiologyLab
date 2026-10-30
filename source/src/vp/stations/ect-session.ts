@@ -26,7 +26,7 @@ import type { DrugId } from '../physiology/drugs/drugs.ts';
    - The two EEG channels are the device's fronto-mastoid derivations:
      above the eyebrow to the mastoid on each side (Fp1–TP9, Fp2–TP10), from
      the regions' activity through part 1's head (stations/eeg-seizure.ts).
-   - The EMG is the cuffed right foot's: the motor seizure there follows the
+   - The EMG is the cuffed right arm's: the motor seizure there follows the
      left central region's cortical firing (ECT.emgThreshold, ECT.emgPerFiring;
      placements).
    - The body is the lab's own (live/live-patient.ts): its heart, circulation
@@ -158,7 +158,7 @@ export class EctSession {
     const mon = this.monitoringCable;
     this.rec.eeg1[i] = mon ? fp1 - tp9 : 0;
     this.rec.eeg2[i] = mon ? fp2 - tp10 : 0;
-    /* the motor seizure: the motor cortex above the spinal threshold drives the cuffed foot's muscles */
+    /* the motor seizure: the motor cortex above the spinal threshold drives the cuffed arm's muscles */
     this.rec.motor[i] = a[this.lcentral];
     this.rec.emg[i] = mon ? emgSample(a[this.lcentral], this.emgNoise) : 0;
     if (i % BODY_BLOCK === 0) this.stepBody();
