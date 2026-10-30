@@ -208,6 +208,80 @@ console.log('\nThe heart (part 2)');
   gap('esmolol 1.3 mg/kg about halves the rise, 4.4 mg/kg nearly abolishes it (Castelli 1995; 0.3–0.7, under 0.3)', half >= 0.3 && half <= 0.7 && gone < 0.3, `rise ${inc(c).toFixed(0)} /min; ${f2(half)} and ${f2(gone)} of it`);
 }
 
+console.log('\nThe treatment as a procedure (roles, order, the team)');
+{
+  /* run a procedure: the learner's own room steps through `learner(p)`, called each tick; the team does the rest */
+  const run = (order, mode, roles, learner = () => {}, opts = {}) => {
+    const s = new S.EctSession({ placement: order.placement, prepared: true, skin: opts.skin ?? 0, seed: 7 });
+    const p = new S.Procedure(s, order, mode, roles);
+    for (let k = 0; k < 600 / 0.05 && !p.finished; k++) {
+      s.advance(0.05); p.tick(0.05); learner(p, s);
+      if (p.waitingForNext) p.next();
+    }
+    return { s, p };
+  };
+  const inOrder = (p) => S.STEPS.every((st) => !p.done.has(st.id) || st.after.every((a) => p.done.has(a) && p.done.get(a).at <= p.done.get(st.id).at));
+  for (const order of S.ECT_ORDERS) {
+    const { s, p } = run(order, 'watch', []);
+    const r = s.lastReport();
+    ok(`watch (${order.id}): the team does every step, each after the steps it follows, without a mistake, and the report has its EEG endpoint`,
+      p.finished && p.done.size === S.STEPS.length && inOrder(p) && !p.errors.length && r?.eegEndpoint != null && s.patient.placement === order.placement, J({ done: p.done.size, errors: p.errors.map((e) => e.code), eeg: r?.eegEndpoint }));
+  }
+  {
+    /* the learner is the anaesthetist and does the anaesthetic steps as soon as each is open and its wait is over */
+    const order = S.ECT_ORDERS[0];
+    const { p } = run(order, 'practise', ['anaesthetist'], (q) => { const c = q.current(); if (c && q.waitFor(c) <= 0) q.act(c); });
+    const mine = S.STEPS.filter((x) => x.role === 'anaesthetist').every((x) => p.done.get(x.id)?.by === 'you');
+    const theirs = S.STEPS.filter((x) => x.role !== 'anaesthetist').every((x) => p.done.get(x.id)?.by === x.role);
+    ok('practise as the anaesthetist: your steps are yours, the psychiatrist works the device and the nurse the room, in order, without a mistake', p.finished && mine && theirs && inOrder(p) && !p.errors.length, J({ errors: p.errors.map((e) => e.code), log: p.log.map((l) => `${l.who}:${l.step}`) }));
+  }
+  {
+    /* the learner does everything but stimulates as soon as the device is ready: before the anaesthetic */
+    const order = S.ECT_ORDERS[1];
+    const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });
+    const p = new S.Procedure(s, order, 'exam', [...S.ECT_ROLES]);
+    for (const id of ['check', 'skin', 'leads']) p.act(id);
+    p.act('pads', 'you', { placement: order.placement });
+    const d = s.device; d.power(true); for (let k = 0; k < 140; k++) { s.advance(0.05); p.tick(0.05); }
+    d.impedanceButton(true); for (let k = 0; k < 32; k++) { s.advance(0.05); p.tick(0.05); } d.impedanceButton(false);
+    for (let k = 0; k < 200; k++) { s.advance(0.05); p.tick(0.05); }
+    d.settings.program = order.program; while (d.percent !== order.percent) d.turnPercent(d.percent < order.percent ? 1 : -1);
+    p.room.coverUp = true; d.treatButton(true); while (d.treat !== 'done') { s.advance(0.05); p.tick(0.05); } d.treatButton(false);
+    const codes = p.errors.map((e) => e.code);
+    ok('a stimulus before the anaesthetic is noticed: an awake patient, no bite block, not ventilated; the impedance, dose and pads were right', codes.includes('awake-stimulus') && codes.includes('no-bite-block') && !codes.includes('no-impedance') && !codes.includes('wrong-dose') && !codes.includes('wrong-pads') && !codes.includes('no-leads'), J(codes));
+    const q = new S.Procedure(new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }), order, 'exam', [...S.ECT_ROLES]);
+    q.act('relaxant');
+    ok('the relaxant before the induction agent and before the cuff is noticed (an awake, paralysed patient; no cuffed foot)', q.errors.some((e) => e.code === 'awake-paralysis') && q.errors.some((e) => e.code === 'no-cuff'), J(q.errors.map((e) => e.code)));
+    const w = new S.Procedure(new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }), order, 'exam', [...S.ECT_ROLES]);
+    w.act('check'); w.act('skin'); w.act('pads', 'you', { placement: 'BF' });
+    ok('pads at another placement than the order are noticed, and the current then goes where they are', w.errors.some((e) => e.code === 'wrong-pads') && w.session.patient.placement === 'BF', J(w.errors.map((e) => e.code)));
+  }
+  {
+    /* the skin not cleaned: the team's impedance test reads 3000 and the procedure does not go on (the manual: unprepared skin is the usual cause) */
+    const order = S.ECT_ORDERS[1];
+    const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });
+    const p = new S.Procedure(s, order, 'practise', [...S.ECT_ROLES]);
+    p.act('check'); p.act('pads', 'you', { placement: order.placement }); p.act('leads');   // the pads put on uncleaned skin
+    const d = s.device; d.power(true); for (let k = 0; k < 140; k++) { s.advance(0.05); p.tick(0.05); }
+    d.impedanceButton(true); for (let k = 0; k < 32; k++) { s.advance(0.05); p.tick(0.05); } d.impedanceButton(false);
+    for (let k = 0; k < 200; k++) { s.advance(0.05); p.tick(0.05); }
+    ok('pads on uncleaned skin: the impedance reads 3000 Ω and the impedance step stays open (the manual: unprepared skin is the usual cause)', !p.isDone('impedance') && d.lastStatic === 3000, J({ z: d.lastStatic }));
+    ok('before the pads are on the head, the device reads an open circuit', (() => { const t = new S.Procedure(new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }), order, 'practise', ['psychiatrist']); return t.session.staticOhm === Infinity && !t.session.circuit; })());
+  }
+  {
+    /* time may run faster only while the learner waits */
+    const order = S.ECT_ORDERS[0];
+    const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });
+    const p = new S.Procedure(s, order, 'practise', ['anaesthetist']);
+    const a = p.canHurry;                                   // the anaesthetist's first step (glycopyrrolate) waits for the psychiatrist's check: they wait
+    for (let k = 0; k < 120 && !p.open('premed'); k++) { s.advance(0.05); p.tick(0.05); }
+    const b = p.canHurry;                                   // the premedication is theirs now
+    ok('faster time is allowed while the learner waits for the team, not when a step of theirs is open', a === true && b === false, J({ a, b }));
+  }
+  const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
+  ok('every step, order, role and mode text exists in English and German', texts.every((x) => x.en && x.de && x.en !== x.de || ['Coach'].includes(x.en)), J(texts.filter((x) => !(x.en && x.de && x.en !== x.de)).map((x) => x.en)));
+}
+
 console.log('\nTexts');
 {
   const n = (x, k = 0) => x.toFixed(k);

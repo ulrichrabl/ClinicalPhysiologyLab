@@ -13,6 +13,7 @@ import { PLACEMENTS, thresholdField, fieldSection, energy, type PlacementId, typ
 import { fieldFor, dosesFor } from '../physiology/brain/ect-trial.ts';
 import { layoutStrip, drawStrip, type PaperItem } from '../render/ect-strip.ts';
 import { drawFieldSection, drawRegionMap } from '../render/ect-head.ts';
+import { Procedure, STEPS, STEP, ECT_ORDERS, ECT_ROLES, ROLE_NAME, MODE_NAME, orderLines, type EctMode, type EctRole, type StepId, type Who } from '../stations/ect-procedure.ts';
 
 /* ---------------------------------------------------------------------------
    The ECT station, part 1: the device, the stimulus and the seizure it starts.
@@ -77,6 +78,28 @@ const T: Record<string, LocalizedText> = {
   sd: L('Strength and duration', 'Stärke und Dauer'),
   sdNote: L('The field that excites an axon falls as the pulse lengthens, toward a floor: past about 0.3 ms a longer pulse spends charge without exciting much more.', 'Das Feld, das ein Axon erregt, sinkt mit länger werdendem Puls auf einen Boden zu: Über etwa 0,3 ms hinaus verbraucht ein längerer Puls Ladung, ohne viel mehr zu erregen.'),
   seizingNow: L('The model: seizing', 'Das Modell: Anfall'),
+  /* the procedure */
+  task: L('Your task', 'Ihre Aufgabe'), order: L('The order', 'Die Anordnung'), mode: L('Mode', 'Modus'), role: L('Your role', 'Ihre Rolle'), allRoles: L('All roles', 'Alle Rollen'),
+  modeNote: L('Practise: a coach says what your next step is and why. Watch: the team does everything, one step per “Next”. Exam: no coach; a debrief at the end.', 'Üben: Ein Coach sagt Ihnen den nächsten Schritt und warum. Zusehen: Das Team macht alles, ein Schritt pro „Weiter“. Prüfung: kein Coach; am Ende eine Nachbesprechung.'),
+  roleNote: L('The other roles are played by the team, so you see what each person does.', 'Die anderen Rollen übernimmt das Team, damit Sie sehen, was jede Person tut.'),
+  steps: L('The steps', 'Die Schritte'), stepsExam: L('Done so far', 'Bisher erledigt'), you: L('you', 'Sie'), team: L('team', 'Team'),
+  room: L('At the patient', 'Am Patienten'), roomNote: L('Your hands: the steps of your role. The others’ steps are done by the team.', 'Ihre Hände: die Schritte Ihrer Rolle. Die Schritte der anderen erledigt das Team.'),
+  roomWatch: L('In this mode the team does every step; press “Next” in the coach.', 'In diesem Modus erledigt das Team jeden Schritt; drücken Sie „Weiter“ beim Coach.'),
+  notModelled: L('Not in the model yet (part 2b): the patient is treated as asleep and relaxed throughout; these steps set the order only.', 'Noch nicht im Modell (Teil 2b): Der Patient gilt durchgehend als schlafend und relaxiert; diese Schritte legen nur die Reihenfolge fest.'),
+  padsAt: L('Placement', 'Position'), padsOn: L('Put the pads on', 'Elektroden anlegen'),
+  anaesthesia: L('Anaesthesia', 'Narkose'),
+  coach: L('Coach', 'Coach'), coachExam: L('Exam: no coach. Do your steps in the order you think right; the debrief follows the report.', 'Prüfung: kein Coach. Erledigen Sie Ihre Schritte in der Reihenfolge, die Sie für richtig halten; nach dem Bericht folgt die Nachbesprechung.'),
+  yourNext: L('Your next step', 'Ihr nächster Schritt'), whyL: L('Why', 'Warum'), waitS: L('Wait about {s} s first: {what}', 'Erst etwa {s} s warten: {what}'),
+  waitInd: L('the induction agent takes effect', 'das Hypnotikum wirkt'), waitRel: L('the fasciculations pass', 'die Faszikulationen klingen ab'),
+  nothingYours: L('Nothing for you just now: the team is working.', 'Gerade nichts für Sie: Das Team arbeitet.'),
+  doing: L('{who} is doing: {what}', '{who}: {what}'), watching: L('The seizure is running: watch the strip.', 'Der Anfall läuft: Beobachten Sie den Streifen.'),
+  nextBtn: L('Next', 'Weiter'), nextIs: L('Next: {what} ({who})', 'Als Nächstes: {what} ({who})'),
+  hurry: L('Faster ×4', 'Schneller ×4'), realTime: L('Real time', 'Echtzeit'), hurryNote: L('Faster only while you wait; it returns to real time when something is yours to do.', 'Schneller nur, während Sie warten; zurück zur Echtzeit, sobald etwas für Sie zu tun ist.'),
+  logL: L('In the room', 'Im Raum'), mistake: L('Mistake', 'Fehler'),
+  debrief: L('Debrief', 'Nachbesprechung'), noErrors: L('No mistakes noticed.', 'Keine Fehler bemerkt.'), colStep: L('Step', 'Schritt'), colRole: L('Role', 'Rolle'), colBy: L('Done by', 'Erledigt von'), colAt: L('At', 'Zeit'), notDone: L('not done', 'nicht erledigt'),
+  variation: L('The patient’s variation', 'Variation des Patienten'), moreDrugs: L('More drugs, to explore', 'Weitere Medikamente, zum Ausprobieren'),
+  whyBtn: L('Behind the stimulus', 'Hinter dem Reiz'), backBtn: L('Back to the treatment', 'Zurück zur Behandlung'),
+  atDevice: L('At the device', 'Am Gerät'),
 };
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 const SKINS = [{ k: 'skinLow', z: -1.2 }, { k: 'skinTypical', z: 0 }, { k: 'skinHigh', z: 1.5 }];
@@ -95,10 +118,16 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
   const num = (x: number, d = 0) => { const s = x.toFixed(d); return lang === 'de' ? s.replace('.', ',') : s; };
   let view: 'treat' | 'stim' = 'treat';
   let patient: EctPatient = { placement: 'BT', prepared: true, skin: 0, seed: 7 };
+  let orderIdx = 0, mode: EctMode = 'practise', roleSel: EctRole | 'all' = 'all';
+  const order = () => ECT_ORDERS[orderIdx];
+  const roles = (): EctRole[] => (roleSel === 'all' ? [...ECT_ROLES] : [roleSel]);
+  patient.placement = order().placement;
   let session = new EctSession(patient, DEFAULT_SETTINGS);
-  let speed = 4, stopped = false, raf = 0, last = 0, coverUp = false;
+  let proc = new Procedure(session, order(), mode, roles());
+  let padsChoice: PlacementId = 'BT';
+  let stopped = false, raf = 0, last = 0, hurry = false;
+  const HURRY = 4;
   let follow = true, scrollX = 0, drag: { x: number; s: number } | null = null;
-  let demo: Generator<number, void, unknown> | null = null as Generator<number, void, unknown> | null, demoWait = 0;
   let seized = false;
   let givenList: Array<{ label: LocalizedText; at: number }> = [];
   /* the stimulus view */
@@ -117,9 +146,10 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
 
   const newSession = (keepSeed = true) => {
     if (!keepSeed) patient.seed = (patient.seed * 7 + 3) % 997;
-    const settings = structuredClone(session.device.settings);
-    session = new EctSession(patient, settings);
-    seized = false; coverUp = false; follow = true; scrollX = 0; givenList = [];
+    patient.placement = order().placement;
+    session = new EctSession(patient, DEFAULT_SETTINGS);
+    proc = new Procedure(session, order(), mode, roles());
+    seized = false; hurry = false; follow = true; scrollX = 0; givenList = []; printedReports.clear(); baseCache = null;
     render();
   };
 
@@ -166,9 +196,9 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
         <div class="ect-lights"><span><span class="ect-dot" data-led-preset></span>${t('preset')}</span><span><span class="ect-dot" data-led-user></span>${t('userSet')}</span></div>
       </div>
       <div class="ect-col ect-center">
-        <div class="ect-treat ${coverUp ? 'open' : ''}" data-treat-wrap>
-          <button type="button" class="ect-btn ect-yellow ect-big" data-treat ${coverUp ? '' : 'disabled'}>${t('treat')}</button>
-          <button type="button" class="ect-cover" data-cover>${coverUp ? t('coverDown') : t('cover')}</button>
+        <div class="ect-treat ${proc.room.coverUp ? 'open' : ''}" data-treat-wrap>
+          <button type="button" class="ect-btn ect-yellow ect-big" data-treat ${proc.room.coverUp ? '' : 'disabled'}>${t('treat')}</button>
+          <button type="button" class="ect-cover" data-cover>${proc.room.coverUp ? t('coverDown') : t('cover')}</button>
         </div>
       </div>
       <div class="ect-col ect-center">
@@ -196,6 +226,14 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     p.querySelector('[data-led-mon]')!.classList.toggle('on', d.on && !session.monitoringCable);
     p.querySelector('[data-treat]')!.classList.toggle('lit', d.treat === 'delivering');
     p.querySelector('[data-power]')!.setAttribute('aria-pressed', String(d.on));
+    p.querySelector('[data-jack="mon"]')!.setAttribute('aria-pressed', String(session.monitoringCable));
+    /* the cover (the team may lift it too) */
+    const up = proc.room.coverUp, wrap = p.querySelector<HTMLElement>('[data-treat-wrap]')!;
+    if (wrap.classList.contains('open') !== up) {
+      wrap.classList.toggle('open', up);
+      (p.querySelector('[data-treat]') as HTMLButtonElement).disabled = !up;
+      p.querySelector('[data-cover]')!.textContent = up ? t('coverDown') : t('cover');
+    }
     tone(d.tone);
   };
 
@@ -273,15 +311,9 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const drugs = session.body.run.drugs;
     const hn = heartNow({ delivering: d.treat === 'delivering', seizing: session.seizing, afterStimulus: d.stimulusEnd != null ? d.t - d.stimulusEnd : null, seized, hr: session.heartRateAt(session.t), base: r?.baseHr ?? 0,
       vagalBlock: drugs.vagalBlock(), betaBlock: drugs.betaBlock(), placement: patient.placement }, num);
-    const html = `<div class="st-text"><h3>${t('next')}</h3><p>${esc(tr(step, lang))}</p></div>` +
+    const html = (mode === 'exam' ? '' : `<div class="st-text"><h3>${t('atDevice')}</h3><p>${esc(tr(step, lang))}</p></div>`) +
       (hn ? `<div class="st-text"><h3>${t('heart')}</h3><p>${esc(tr(hn, lang))}</p></div>` : '') +
       (st && ph !== 'rest' ? `<div class="st-text"><h3>${esc(tr(PHASE_LABEL[ph], lang))}</h3><p>${esc(tr(PHASE_TEXT[ph], lang))}</p></div>` : '');
-    const vit = host.querySelector<HTMLElement>('[data-vitals]');
-    if (vit) {
-      const m = (session.body.run.sim as any).metrics ?? {};
-      const v = `<span>${t('hrL')}: ${num(session.heartRateAt(session.t))} /min</span><span>${t('bpL')}: ${Number.isFinite(m.Psys) ? `${num(m.Psys)}/${num(m.Pdia)}` : '—'} mmHg</span>`;
-      if (vit.dataset.html !== v) { vit.innerHTML = v; vit.dataset.html = v; }
-    }
     const gv = host.querySelector<HTMLElement>('[data-given]');
     if (gv) { const g = givenList.length ? givenList.map((x) => `${esc(tr(x.label, lang))} (${num(x.at)} s)`).join(', ') : t('none'); const gh = `${t('given')}: ${g}`; if (gv.dataset.html !== gh) { gv.innerHTML = gh; gv.dataset.html = gh; } }
     if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
@@ -293,89 +325,163 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const dt = Math.min(0.1, last ? (now - last) / 1000 : 0);
     last = now;
     if (view === 'treat') {
-      const d = session.device;
-      /* real time while the learner works the device; faster after a stimulus, while only the seizure is to be seen */
-      const fast = d.stimulusEnd != null && d.treat === 'done';
-      session.advance(dt * (fast ? speed : 1));
-      if (demo) { demoWait -= dt * (fast ? speed : 1); while (demo && demoWait <= 0) { const r = demo.next(); if (r.done) { demo = null; renderDemoButton(); } else demoWait = r.value as number; } }
-      updatePanel(); drawStripNow(); drawReport(); drawNow();
+      /* real time; faster only while the learner waits (the rule returns it to real time when something is theirs) */
+      if (hurry && !proc.canHurry) hurry = false;
+      const k = hurry ? HURRY : 1;
+      session.advance(dt * k); proc.tick(dt * k);
+      updatePanel(); drawStripNow(); drawReport(); drawNow(); drawProcedure();
     }
     raf = requestAnimationFrame(frame);
   };
 
-  /* the manual's sequence, step by step, for "show the steps" */
-  function* demoSteps(): Generator<number, void, unknown> {
-    const d = session.device;
-    if (!d.on) { d.power(true); yield 6; }
-    d.impedanceButton(true); yield 1.6; d.impedanceButton(false); yield 0.5;
-    while (d.baseline !== 'ready') yield 0.5;
-    yield 1;
-    /* the manual's first dose: the age in percent for unilateral, half of it for the bilateral placements (59 years) */
-    const want = patient.placement === 'RUL' ? 60 : 30;
-    while (d.percent !== want) { d.turnPercent(d.percent < want ? 1 : -1); yield 0.15; }
-    if (patient.placement === 'RUL') d.settings.program = 'LOW_UB';
-    yield 1.2;
-    coverUp = true; render(); yield 0.8;
-    d.treatButton(true);
-    while (d.treat !== 'done') yield 0.1;
-    d.treatButton(false); coverUp = false; render();
-    yield 5;
-    while (session.seizing || session.device.t - (session.device.stimulusEnd ?? 0) < 20) yield 1;
-    yield 8;
-    d.startStop();
-  }
-  const renderDemoButton = () => { const b = host.querySelector<HTMLButtonElement>('[data-demo]'); if (b) b.textContent = demo ? t('demoStop') : t('demo'); };
 
   /* ---- render ------------------------------------------------------------------------------------------------ */
   const headHtml = () => `<div class="st-head">
       <button type="button" class="ghost" data-leave>← ${o.backLabel ? tr(o.backLabel, lang) : t('back')}</button>
       <div class="st-title"><div class="eyebrow">${t('eyebrow')}</div><h1>${esc(tr(ECT_STATION.title, lang))}</h1><p class="lede">${esc(tr(ECT_STATION.summary, lang))}</p></div>
-      <span class="seg st-mode" role="radiogroup" aria-label="${t('view')}">${(['treat', 'stim'] as const).map((v) => `<button type="button" role="radio" aria-checked="${view === v}" data-view="${v}">${t(v === 'treat' ? 'viewTreat' : 'viewStim')}</button>`).join('')}</span>
+      <button type="button" class="ghost st-mode" data-view="${view === 'treat' ? 'stim' : 'treat'}">${view === 'treat' ? t('whyBtn') : `← ${t('backBtn')}`}</button>
     </div>`;
 
   const render = () => {
     if (view === 'stim') { renderStim(); return; }
+    const o = order();
     host.innerHTML = `${headHtml()}
-      <div class="st-grid">
-        <aside class="panel st-settings" aria-labelledby="ect-pt-h">
-          <h2 id="ect-pt-h">${t('patient')}</h2>
-          <p class="layer-note">${t('patientNote')}</p>
-          <label class="st-preset">${t('placement')}
-            <select data-placement>${(Object.keys(PLACEMENTS) as PlacementId[]).map((k) => `<option value="${k}" ${k === patient.placement ? 'selected' : ''}>${esc(tr(PLACEMENTS[k].name, lang))}</option>`).join('')}</select></label>
-          <p class="muted small">${esc(tr(PLACEMENTS[patient.placement].where, lang))}</p>
-          <label class="st-var st-check"><input type="checkbox" data-prepared ${patient.prepared ? 'checked' : ''}><span>${t('prepared')}</span></label>
-          <div class="st-var"><span>${t('skin')}</span><span class="seg" role="radiogroup" aria-label="${t('skin')}">${SKINS.map((x) => `<button type="button" role="radio" aria-checked="${patient.skin === x.z}" data-skin="${x.z}">${t(x.k)}</button>`).join('')}</span></div>
-          <label class="st-leads">${t('speed')} <select data-speed>${[1, 4, 16].map((s) => `<option value="${s}" ${s === speed ? 'selected' : ''}>${s}×</option>`).join('')}</select></label>
-          <button type="button" class="primary" data-demo>${demo ? t('demoStop') : t('demo')}</button>
-          <button type="button" class="ghost" data-restart>${t('restart')}</button>
-          <button type="button" class="ghost" data-another>${t('another')}</button>
-          <h3>${t('premed')}</h3>
-          <p class="muted small">${t('premedNote')}</p>
-          <span class="st-bar">${PREMEDS.map((p, i) => `<button type="button" class="chip st-chip" data-give="${i}">${esc(tr(p.label, lang))}</button>`).join('')}</span>
-          <p class="muted small" data-given></p>
-        </aside>
-        <div class="st-main">
-          <section class="panel st-signal" aria-labelledby="ect-dev-h">
-            <div class="st-row"><div><h2 id="ect-dev-h">${t('device')}</h2><div class="muted small">${t('deviceNote')}</div></div></div>
-            ${panelHtml()}
-            <p class="st-measures" data-vitals></p>
-          </section>
-          <section class="panel st-signal" aria-labelledby="ect-strip-h">
-            <div class="st-row"><div><h2 id="ect-strip-h">${t('strip')}</h2><div class="muted small">${t('stripNote')}</div></div>
-              <label class="st-check"><input type="checkbox" data-follow ${follow ? 'checked' : ''}> ${t('follow')}</label></div>
-            <canvas class="st-strip ect-strip" data-strip role="img" aria-label="${t('strip')}"></canvas>
-            <input type="range" class="ect-scroll" data-scroll min="0" max="0" value="0" aria-label="${t('strip')}">
-            <h3>${t('report')}</h3><div data-report></div>
-          </section>
-          <section class="panel st-why" aria-labelledby="ect-now-h">
-            <h2 id="ect-now-h">${t('now')}</h2>
-            <div data-now></div>
-            <details><summary>${t('more')}</summary>${ECT_BACKGROUND.map((x) => `<div class="st-text"><h3>${esc(tr(x.title, lang))}</h3><p>${esc(tr(x.body, lang))}</p></div>`).join('')}</details>
-            <p class="muted small">${t('draft')}</p>
-          </section>
+      <section class="panel ect-task" aria-labelledby="ect-task-h">
+        <div class="ect-order">
+          <h2 id="ect-task-h">${t('task')}</h2>
+          <select data-order aria-label="${t('task')}">${ECT_ORDERS.map((x, i) => `<option value="${i}" ${i === orderIdx ? 'selected' : ''}>${esc(tr(x.title, lang))}</option>`).join('')}</select>
+          <ul class="ect-orderlines">${orderLines(o).map((x) => `<li>${esc(tr(x, lang))}</li>`).join('')}</ul>
         </div>
+        <div class="ect-modes">
+          <span class="seg" role="radiogroup" aria-label="${t('mode')}">${(['practise', 'watch', 'exam'] as const).map((m) => `<button type="button" role="radio" aria-checked="${mode === m}" data-mode="${m}">${esc(tr(MODE_NAME[m], lang))}</button>`).join('')}</span>
+          <p class="muted small">${t('modeNote')}</p>
+          <label class="st-preset">${t('role')}
+            <select data-role ${mode === 'watch' ? 'disabled' : ''}><option value="all" ${roleSel === 'all' ? 'selected' : ''}>${t('allRoles')}</option>${ECT_ROLES.map((r) => `<option value="${r}" ${roleSel === r ? 'selected' : ''}>${esc(tr(ROLE_NAME[r], lang))}</option>`).join('')}</select></label>
+          <p class="muted small">${t('roleNote')}</p>
+          <button type="button" class="ghost" data-restart>${t('restart')}</button>
+        </div>
+      </section>
+      <section class="panel ect-debrief" data-debrief hidden></section>
+      <div class="ect-room-grid">
+        <aside class="panel ect-steps" aria-labelledby="ect-steps-h"><h2 id="ect-steps-h">${mode === 'exam' ? t('stepsExam') : t('steps')}</h2><ol data-steps></ol></aside>
+        <section class="panel ect-room" aria-labelledby="ect-room-h">
+          <h2 id="ect-room-h">${t('room')}</h2>
+          <p class="st-measures" data-vitals></p>
+          ${roomHtml()}
+          <details class="ect-variation"><summary>${t('variation')}</summary>
+            <div class="st-var"><span>${t('skin')}</span><span class="seg" role="radiogroup" aria-label="${t('skin')}">${SKINS.map((x) => `<button type="button" role="radio" aria-checked="${patient.skin === x.z}" data-skin="${x.z}">${t(x.k)}</button>`).join('')}</span></div>
+            <button type="button" class="ghost small" data-another>${t('another')}</button>
+            <h3>${t('moreDrugs')}</h3>
+            <span class="st-bar">${PREMEDS.map((p, i) => p.drug === 'glycopyrrolate' ? '' : `<button type="button" class="chip st-chip" data-give="${i}">${esc(tr(p.label, lang))}</button>`).join('')}</span>
+            <p class="muted small" data-given></p>
+          </details>
+        </section>
+        <aside class="panel ect-coach" aria-labelledby="ect-coach-h">
+          <h2 id="ect-coach-h">${t('coach')}</h2>
+          <div data-coach aria-live="polite"></div>
+          <button type="button" class="ghost" data-hurry></button>
+          <p class="muted small">${t('hurryNote')}</p>
+          <h3>${t('logL')}</h3><ol class="ect-log" data-log></ol>
+        </aside>
+        <div class="ect-mid">
+        <section class="panel st-signal" aria-labelledby="ect-dev-h">
+          <div class="st-row"><div><h2 id="ect-dev-h">${t('device')}</h2><div class="muted small">${t('deviceNote')}</div></div></div>
+          ${panelHtml()}
+        </section>
+        <section class="panel st-signal" aria-labelledby="ect-strip-h">
+          <div class="st-row"><div><h2 id="ect-strip-h">${t('strip')}</h2><div class="muted small">${t('stripNote')}</div></div>
+            <label class="st-check"><input type="checkbox" data-follow ${follow ? 'checked' : ''}> ${t('follow')}</label></div>
+          <canvas class="st-strip ect-strip" data-strip role="img" aria-label="${t('strip')}"></canvas>
+          <input type="range" class="ect-scroll" data-scroll min="0" max="0" value="0" aria-label="${t('strip')}">
+          <h3>${t('report')}</h3><div data-report></div>
+        </section>
+        </div>
+      </div>
+      <div class="st-main">
+        <section class="panel st-why" aria-labelledby="ect-now-h">
+          <h2 id="ect-now-h">${t('now')}</h2>
+          <div data-now></div>
+          <details><summary>${t('more')}</summary>${ECT_BACKGROUND.map((x) => `<div class="st-text"><h3>${esc(tr(x.title, lang))}</h3><p>${esc(tr(x.body, lang))}</p></div>`).join('')}</details>
+          <p class="muted small">${t('draft')}</p>
+        </section>
       </div>`;
-    wireCommon(); wireTreat();
+    wireCommon(); wireTreat(); wireProcedure(); drawProcedure();
+  };
+
+  /* ---- the procedure: the room, the steps, the coach, the debrief ------------------------------------------------ */
+  const roleTag = (r: EctRole) => `<span class="ect-role ect-role-${r}">${esc(tr(ROLE_NAME[r], lang))}</span>`;
+  const roomHtml = () => {
+    if (mode === 'watch') return `<p class="muted">${t('roomWatch')}</p>`;
+    const mine = STEPS.filter((x) => x.kind === 'room' && proc.mine(x.id));
+    const btn = (id: StepId) => id === 'pads'
+      ? `<div class="ect-act ect-pads"><label>${t('padsAt')} <select data-padsel>${(Object.keys(PLACEMENTS) as PlacementId[]).map((k) => `<option value="${k}" ${k === padsChoice ? 'selected' : ''}>${esc(tr(PLACEMENTS[k].name, lang))}</option>`).join('')}</select></label><button type="button" class="ghost" data-act="pads">${t('padsOn')}</button></div>`
+      : `<button type="button" class="ghost ect-act" data-act="${id}">${esc(tr(STEP[id].title, lang))}</button>`;
+    const real = mine.filter((x) => x.modelled), narr = mine.filter((x) => !x.modelled && x.id !== 'check');
+    const check = mine.find((x) => x.id === 'check');
+    return `<div class="ect-acts">${check ? btn('check') : ''}${real.map((x) => btn(x.id)).join('')}</div>
+      ${narr.length ? `<h3>${t('anaesthesia')}</h3><p class="muted small">${t('notModelled')}</p><div class="ect-acts">${narr.map((x) => btn(x.id)).join('')}</div>` : ''}
+      ${mine.length ? '' : `<p class="muted">${t('nothingYours')}</p>`}`;
+  };
+  const sec = (x: number) => `${num(x)} s`;
+  const whoName = (w: Who) => (w === 'you' ? t('you') : tr(ROLE_NAME[w], lang));
+  const drawProcedure = () => {
+    if (view !== 'treat') return;
+    const set = (sel: string, html: string) => { const el = host.querySelector<HTMLElement>(sel); if (el && el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } };
+    const cur = proc.current(), doing = proc.teamDoing();
+    /* the steps */
+    set('[data-steps]', STEPS.filter((x) => mode !== 'exam' || proc.isDone(x.id)).map((x) => {
+      const st = proc.done.get(x.id), busy = doing.some((d) => d.step === x.id);
+      const cls = st ? 'done' : x.id === cur ? 'current' : busy ? 'busy' : proc.open(x.id) ? 'open' : '';
+      const icon = st ? '✓' : x.id === cur ? '▶' : busy ? '…' : '○';
+      return `<li class="${cls}"><span class="ect-ico" aria-hidden="true">${icon}</span><span class="ect-st">${esc(tr(x.title, lang))}<br>${roleTag(x.role)}${roleSel !== 'all' && proc.mine(x.id) ? ` <span class="ect-you">${t('you')}</span>` : ''}${st ? ` <span class="muted small">${sec(st.at)}</span>` : ''}</span></li>`;
+    }).join(''));
+    /* the room's buttons: done ones ticked */
+    host.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => { const d = proc.isDone(b.dataset.act as StepId); b.classList.toggle('on', d); b.setAttribute('aria-pressed', String(d)); b.disabled = d; });
+    const ps = host.querySelector<HTMLSelectElement>('[data-padsel]'); if (ps) ps.disabled = proc.isDone('pads');
+    /* the vitals */
+    const m = (session.body.run.sim as any).metrics ?? {};
+    set('[data-vitals]', `<span>${t('hrL')}: ${num(session.heartRateAt(session.t))} /min</span><span>${t('bpL')}: ${Number.isFinite(m.Psys) ? `${num(m.Psys)}/${num(m.Pdia)}` : '—'} mmHg</span>`);
+    /* the coach */
+    const doingHtml = doing.map((d) => `<p>${esc(t('doing').replace('{who}', tr(ROLE_NAME[d.role], lang)).replace('{what}', tr(STEP[d.step].title, lang)))}</p>`).join('');
+    const watching = proc.isDone('treat') && !proc.isDone('observe') ? `<p>${t('watching')}</p>` : '';
+    let coach = '';
+    if (mode === 'watch') {
+      const nx = proc.watchNext();
+      coach = doingHtml + watching + (proc.waitingForNext && nx ? `<p>${esc(t('nextIs').replace('{what}', tr(STEP[nx].title, lang)).replace('{who}', tr(ROLE_NAME[STEP[nx].role], lang)))}</p><p class="muted small">${esc(tr(STEP[nx].why, lang))}</p><button type="button" class="primary" data-next>${t('nextBtn')}</button>` : '');
+    } else if (mode === 'exam') {
+      coach = `<p class="muted">${t('coachExam')}</p>${doingHtml}${watching}`;
+    } else {
+      const errs = proc.errors.map((e) => `<p class="ect-err" role="alert"><b>${t('mistake')}:</b> ${esc(tr(e.text, lang))}</p>`).join('');
+      if (cur) {
+        const w = proc.waitFor(cur);
+        const what = cur === 'ventilate' ? t('waitRel') : t('waitInd');
+        coach = `${errs}<h3>${t('yourNext')}: ${esc(tr(STEP[cur].title, lang))}</h3>${w > 0 ? `<p class="ect-wait">${esc(t('waitS').replace('{s}', num(Math.ceil(w))).replace('{what}', what))}</p>` : ''}<p>${esc(tr(STEP[cur].how, lang))}</p><p class="muted small"><b>${t('whyL')}:</b> ${esc(tr(STEP[cur].why, lang))}</p>${doingHtml}`;
+      } else coach = `${errs}${watching || (proc.finished ? '' : `<p>${t('nothingYours')}</p>`)}${doingHtml}`;
+    }
+    set('[data-coach]', coach);
+    const nb = host.querySelector<HTMLButtonElement>('[data-next]'); if (nb && !nb.onclick) nb.onclick = () => proc.next();
+    const hb = host.querySelector<HTMLButtonElement>('[data-hurry]');
+    if (hb) { const can = proc.canHurry; hb.disabled = !can && !hurry; const txt = hurry ? t('realTime') : t('hurry'); if (hb.textContent !== txt) hb.textContent = txt; hb.setAttribute('aria-pressed', String(hurry)); }
+    /* the log, newest first */
+    set('[data-log]', proc.log.slice(-8).reverse().map((l) => `<li><span class="muted small">${sec(l.t)}</span> <b>${esc(whoName(l.who))}:</b> ${esc(tr(l.text, lang))}</li>`).join(''));
+    /* the debrief, once the treatment is over */
+    const db = host.querySelector<HTMLElement>('[data-debrief]');
+    if (db) {
+      db.hidden = !proc.finished;
+      if (proc.finished) set('[data-debrief]', `<h2>${t('debrief')}</h2>
+        ${proc.errors.length ? proc.errors.map((e) => `<p class="ect-err"><b>${sec(e.t)}:</b> ${esc(tr(e.text, lang))}</p>`).join('') : `<p>${t('noErrors')}</p>`}
+        <table class="lab"><thead><tr><th>${t('colStep')}</th><th>${t('colRole')}</th><th>${t('colBy')}</th><th>${t('colAt')}</th></tr></thead><tbody>
+        ${proc.summary().map(({ step, status }) => `<tr><td>${esc(tr(step.title, lang))}</td><td>${esc(tr(ROLE_NAME[step.role], lang))}</td><td>${status ? esc(whoName(status.by)) : `<span class="muted">${t('notDone')}</span>`}</td><td>${status ? sec(status.at) : ''}</td></tr>`).join('')}
+        </tbody></table>`);
+    }
+  };
+  const wireProcedure = () => {
+    host.querySelector<HTMLSelectElement>('[data-order]')!.onchange = (e) => { orderIdx = Number((e.target as HTMLSelectElement).value); newSession(); };
+    host.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.addEventListener('click', () => { mode = b.dataset.mode as EctMode; newSession(); }));
+    host.querySelector<HTMLSelectElement>('[data-role]')!.onchange = (e) => { roleSel = (e.target as HTMLSelectElement).value as EctRole | 'all'; newSession(); };
+    host.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => b.addEventListener('click', () => { const id = b.dataset.act as StepId; proc.act(id, 'you', id === 'pads' ? { placement: padsChoice } : {}); drawProcedure(); }));
+    const ps = host.querySelector<HTMLSelectElement>('[data-padsel]'); if (ps) ps.onchange = () => { padsChoice = ps.value as PlacementId; proc.choosePads(padsChoice); };
+    host.querySelector<HTMLButtonElement>('[data-hurry]')!.addEventListener('click', () => { hurry = !hurry && proc.canHurry; drawProcedure(); });
   };
 
   const wireCommon = () => {
@@ -385,18 +491,14 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
 
   const wireTreat = () => {
     const d = () => session.device;
-    host.querySelector<HTMLSelectElement>('[data-placement]')!.onchange = (e) => { patient.placement = (e.target as HTMLSelectElement).value as PlacementId; newSession(); };
-    host.querySelector<HTMLInputElement>('[data-prepared]')!.onchange = (e) => { patient.prepared = (e.target as HTMLInputElement).checked; session.setPrepared(patient.prepared); };
     host.querySelectorAll<HTMLButtonElement>('[data-skin]').forEach((b) => b.addEventListener('click', () => { patient.skin = Number(b.dataset.skin); newSession(); }));
-    host.querySelector<HTMLSelectElement>('[data-speed]')!.onchange = (e) => { speed = Number((e.target as HTMLSelectElement).value); };
-    host.querySelector('[data-restart]')!.addEventListener('click', () => { demo = null; newSession(); });
-    host.querySelector('[data-another]')!.addEventListener('click', () => { demo = null; newSession(false); });
+    host.querySelector('[data-restart]')!.addEventListener('click', () => newSession());
+    host.querySelector('[data-another]')!.addEventListener('click', () => newSession(false));
     host.querySelectorAll<HTMLButtonElement>('[data-give]').forEach((b) => b.addEventListener('click', () => {
       const p = PREMEDS[Number(b.dataset.give)];
       session.give(p.drug, p.perKg ? p.mg * session.body.model.patient.weightKg : p.mg);
       givenList.push({ label: p.label, at: session.t });
     }));
-    host.querySelector('[data-demo]')!.addEventListener('click', () => { if (demo) { demo = null; d().treatButton(false); d().impedanceButton(false); } else { demo = demoSteps(); demoWait = 0; } renderDemoButton(); });
     host.querySelector<HTMLInputElement>('[data-follow]')!.onchange = (e) => { follow = (e.target as HTMLInputElement).checked; };
     const sl = host.querySelector<HTMLInputElement>('[data-scroll]')!;
     sl.oninput = () => { follow = false; scrollX = Number(sl.value); (host.querySelector('[data-follow]') as HTMLInputElement).checked = false; };
@@ -414,8 +516,8 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
       b.addEventListener('keyup', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); f(false); } });
     };
     hold('[data-imp]', (down) => d().impedanceButton(down));
-    hold('[data-treat]', (down) => { if (coverUp) d().treatButton(down); });
-    host.querySelector('[data-cover]')!.addEventListener('click', () => { coverUp = !coverUp; if (!coverUp) d().treatButton(false); render(); });
+    hold('[data-treat]', (down) => { if (proc.room.coverUp) d().treatButton(down); });
+    host.querySelector('[data-cover]')!.addEventListener('click', () => { proc.room.coverUp = !proc.room.coverUp; if (!proc.room.coverUp) d().treatButton(false); updatePanel(); });
     host.querySelector('[data-startstop]')!.addEventListener('click', () => d().startStop());
     host.querySelector('[data-power]')!.addEventListener('click', () => d().power(!d().on));
     host.querySelectorAll<HTMLButtonElement>('[data-jack]').forEach((b) => b.addEventListener('click', () => {

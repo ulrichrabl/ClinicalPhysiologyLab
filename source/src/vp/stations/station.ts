@@ -138,8 +138,8 @@ export const EEG_STATION: StationDef = {
 export const ECT_STATION: StationDef = {
   id: 'ect', test: 'eeg',
   title: L('ECT station', 'EKT-Station'),
-  summary: L('Electroconvulsive therapy at the device. A front panel laid out as the real one, operated as its manual describes: test the impedance, collect the baseline, set the dose, treat, watch the seizure on the strip and read the report. Behind it, the stimulus’s current through the head and the seizure it starts in the thalamocortical loop.',
-    'Elektrokonvulsionstherapie am Gerät. Eine Frontplatte wie die echte, bedient, wie ihr Handbuch es beschreibt: die Impedanz prüfen, die Grundlinie ableiten, die Dosis einstellen, behandeln, den Anfall auf dem Streifen verfolgen und den Bericht lesen. Dahinter der Strom des Reizes durch den Kopf und der Anfall, den er in der thalamokortikalen Schleife auslöst.'),
+  summary: L('An electroconvulsive treatment from start to finish, as the team does it: the psychiatrist at the device, the anaesthetist with the drugs and the airway, the nurse with the skin, the leads and the cuff. Take one role or all of them; the team does the rest. The device is laid out and behaves as the real one’s manual describes; behind it run the lab’s heart and a seizure model of the thalamocortical loop.',
+    'Eine Elektrokonvulsionsbehandlung von Anfang bis Ende, wie das Team sie durchführt: die Psychiatrie am Gerät, die Anästhesie mit Medikamenten und Atemweg, die Pflege mit Haut, Ableitungen und Manschette. Übernehmen Sie eine Rolle oder alle; das Team erledigt den Rest. Das Gerät ist aufgebaut und verhält sich, wie das Handbuch des echten es beschreibt; dahinter laufen das Herz des Labors und ein Anfallsmodell der thalamokortikalen Schleife.'),
   drivers: {},
   presets: [],
 };
