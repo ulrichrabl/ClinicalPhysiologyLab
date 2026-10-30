@@ -72,6 +72,9 @@ export const ECT = defineConstants('ect', {
   desaturation: { value: 92, unit: '%', status: 'measured', refs: ['deng2026'], means: 'SpO₂ at or below which the station counts a desaturation.',
     derivation: 'Deng 2026: oxygen desaturation defined as SpO₂ ≤ 92 %; 1 of 35 patients with facemask ventilation (2.9 %); the paper cites 2.5–29 % in earlier facemask series.' },
 
+  voluntaryEmg: { value: 300, unit: 'µV', status: 'assumed', means: 'Peak surface EMG of the forearm while the awake patient makes a firm fist (the bedside check that the EMG leads work).',
+    derivation: 'Surface EMG of the forearm flexors in a firm grip is of the order of hundreds of µV; no value was taken from a source. It only has to show on the strip at the device’s EMG gain.' },
+
   /* the seizure threshold's fitted constant */
   pulseDrive: { value: 0.4506, unit: 'mV·s', status: 'derived', refs: ['vanwaarde2012'], means: 'Input to a region’s relay from one pulse when all its cortex is excited and the synapses are rested (the area of the pulse’s push).',
     derivation: 'Fitted once (scripts/fit-ect.mjs) so that a reference adult’s seizure threshold with bitemporal pads and the 0.5 ms program is 95.4 mC, the mean van Waarde 2012 measured with this device (bilateral 0.5 ms, 0.9 A, etomidate: 95.4 ± 59.5 mC). Their titration doubled the charge from step to step, so their thresholds lie above the true ones by up to a step; the fit takes the mean as it is.' },

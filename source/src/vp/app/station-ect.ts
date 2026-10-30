@@ -88,6 +88,7 @@ const T: Record<string, LocalizedText> = {
   debrief: L('Debrief', 'Nachbesprechung'), noErrors: L('No mistakes.', 'Keine Fehler.'), colStep: L('Step', 'Schritt'), colRole: L('Role', 'Rolle'), colBy: L('Done by', 'Erledigt von'), colAt: L('At', 'Zeit'), notDone: L('not done', 'nicht erledigt'),
   variation: L('The patient’s variation', 'Variation des Patienten'), moreDrugs: L('More drugs, to explore', 'Weitere Medikamente, zum Ausprobieren'),
   whyBtn: L('Behind the stimulus', 'Hinter dem Reiz'), backBtn: L('Back to the treatment', 'Zurück zur Behandlung'),
+  fist: L('“Make a fist”', '„Faust machen“'),
   atDevice: L('Device', 'Gerät'), seizure: L('Seizure', 'Anfall'),
   scene: L('The patient', 'Der Patient'), headRight: L('Head from the right', 'Kopf von rechts'), headAbove: L('Head from above: choose two sites', 'Kopf von oben: zwei Stellen wählen'), headAboveDone: L('Head from above', 'Kopf von oben'),
   chestAbove: L('Chest and arm from above', 'Brust und Arm von oben'),
@@ -422,6 +423,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const mine = STEPS.filter((x) => x.kind === 'room' && proc.mine(x.id));
     const btn = (id: StepId) => id === 'pads' ? ''
       : id === 'cuff' ? `<div class="ect-cuffctl"><b>${t('cuffL')}</b> <button type="button" class="ghost small" data-cuff="on">${t('cuffOnBtn')}</button><button type="button" class="ghost small" data-cuff="squeeze">${t('squeezeBtn')}</button><button type="button" class="ghost small" data-cuff="down">${t('deflateBtn')}</button><button type="button" class="ghost small ect-act" data-act="cuff">${t('cuffUpBtn')}</button> <span class="muted small" data-cuffnow></span></div>`
+      : id === 'leads' ? `<button type="button" class="ghost ect-act" data-act="leads">${esc(tr(STEP.leads.title, lang))}</button><button type="button" class="ghost small" data-fist>${t('fist')}</button>`
       : `<button type="button" class="ghost ect-act" data-act="${id}">${esc(tr(STEP[id].title, lang))}</button>`;
     const real = mine.filter((x) => x.modelled), narr = mine.filter((x) => !x.modelled && x.id !== 'check');
     const check = mine.find((x) => x.id === 'check');
@@ -476,6 +478,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     }).join(''));
     /* the room's buttons: done ones ticked */
     host.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => { const d = proc.isDone(b.dataset.act as StepId); b.classList.toggle('on', d); b.setAttribute('aria-pressed', String(d)); b.disabled = d; });
+    const fb = host.querySelector<HTMLButtonElement>('[data-fist]'); if (fb) fb.disabled = session.inducedAt != null;
     drawPatient();
     /* the vitals */
     const m = (session.body.run.sim as any).metrics ?? {};
@@ -520,6 +523,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     host.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.addEventListener('click', () => { mode = b.dataset.mode as EctMode; newSession(); }));
     host.querySelector<HTMLSelectElement>('[data-role]')!.onchange = (e) => { roleSel = (e.target as HTMLSelectElement).value as EctRole | 'all'; newSession(); };
     host.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => b.addEventListener('click', () => { proc.act(b.dataset.act as StepId, 'you'); drawProcedure(); }));
+    host.querySelector<HTMLButtonElement>('[data-fist]')?.addEventListener('click', () => session.fist());
     host.querySelectorAll<HTMLButtonElement>('[data-cuff]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.cuff; if (k === 'on') proc.cuffOn(); else if (k === 'squeeze') proc.squeeze(); else proc.deflate(); drawProcedure(); }));
     /* the pad sites, seen from above: the learner's hands if the pads are theirs */
     const top = host.querySelector<SVGSVGElement>('[data-top]');
@@ -587,7 +591,14 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
       let start: { a: number; moved: number; acc: number } | null = null;
       const angle = (e: PointerEvent) => { const r = b.getBoundingClientRect(); return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)); };
       b.addEventListener('wheel', (e) => { e.preventDefault(); turn(id, e.deltaY > 0 ? 1 : -1); }, { passive: false });
-      b.addEventListener('pointerdown', (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); start = { a: angle(e), moved: 0, acc: 0 }; if (id === 'percent') d().pressPercent(true); });
+      /* On the device, pressing PERCENT ENERGY shows the program and pressing, holding and turning it changes the program.
+         With a mouse: a drag turns the dial; a short tap shows the program for a second; held still for half a second it is
+         held in, and turning then changes the program. */
+      let hold: ReturnType<typeof setTimeout> | null = null, held = false;
+      b.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); b.setPointerCapture(e.pointerId); start = { a: angle(e), moved: 0, acc: 0 }; held = false;
+        if (id === 'percent') hold = setTimeout(() => { if (start && start.moved < 0.15) { held = true; d().pressPercent(true); } }, 500);
+      });
       b.addEventListener('pointermove', (e) => {
         if (!start) return;
         let da = angle(e) - start.a; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
@@ -598,8 +609,11 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
       const up = () => {
         if (!start) return;
         const click = start.moved < 0.15; start = null;
-        if (id === 'percent') d().pressPercent(false);
-        else if (click) d().pressFlex();
+        if (hold) { clearTimeout(hold); hold = null; }
+        if (id === 'percent') {
+          if (held) d().pressPercent(false);
+          else if (click) { d().pressPercent(true); setTimeout(() => d().pressPercent(false), 1000); }
+        } else if (click) d().pressFlex();
       };
       b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
       b.addEventListener('keydown', (e) => {

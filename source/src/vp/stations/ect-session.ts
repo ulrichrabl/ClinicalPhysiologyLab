@@ -92,6 +92,8 @@ export class EctSession {
   relaxedAt: number | null = null;
   armSpared = true;
   private breathingOff = false;
+  /** the awake patient's fist (the voluntary contraction that checks the EMG leads): until when */
+  private fistFrom = -Infinity;
   /** the stimulus pads on the head (the procedure starts without them; part 1's sessions have them on) */
   padsOn = true;
   private startedAt = 0;
@@ -137,6 +139,10 @@ export class EctSession {
   setPads(placement: PlacementId | null) { if (placement) this.patient.placement = placement; this.padsOn = placement != null; this.updateImpedance(); }
   /* ---- the anaesthetic (PR C) ---- */
   private setResp(change: (r: PatientModel['respiratory']) => void) { const m = structuredClone(this.body.model); change(m.respiratory); this.body.setModel(m); }
+  /** ask the awake patient to make a fist for two seconds: the EMG shows the voluntary contraction (none once anaesthetised) */
+  fist() { if (this.inducedAt == null) this.fistFrom = this.t; }
+  /** the voluntary EMG envelope now (0–1): up in 0.2 s, held, down by 2 s */
+  private fistEnvelope() { const x = this.t - this.fistFrom; return x < 0 || x > 2 ? 0 : Math.min(1, x / 0.2, (2 - x) / 0.3); }
   /** the mask on with oxygen flowing (or off: room air) */
   oxygen(on: boolean) { this.setResp((r) => { r.FiO2 = on ? ECT.maskFiO2 : 0.21; }); }
   /** the induction agent: the patient stops breathing (ECT.apnoeaAfterInduction until it returns) */
@@ -194,7 +200,10 @@ export class EctSession {
     /* the motor seizure: the motor cortex above the spinal threshold drives the cuffed arm's muscles */
     this.rec.motor[i] = a[this.lcentral];
     /* a relaxed arm gives no EMG: only the recording's noise (the cortex's drive no longer reaches its muscles) */
-    this.rec.emg[i] = mon ? emgSample(this.armRelaxed ? 0 : a[this.lcentral], this.emgNoise) : 0;
+    /* the fist draws from the EMG's noise only while it lasts, so the recordings without one stay sample for sample as before */
+    const env = this.inducedAt == null ? this.fistEnvelope() : 0;
+    const voluntary = env > 0 ? ECT.voluntaryEmg * env * this.emgNoise() : 0;
+    this.rec.emg[i] = mon ? emgSample(this.armRelaxed ? 0 : a[this.lcentral], this.emgNoise) + voluntary : 0;
     if (i % BODY_BLOCK === 0) this.stepBody();
     this.rec.ecg[i] = mon ? (this.ecgBlock[i - this.ecgAt] ?? 0) : 0;
   }
