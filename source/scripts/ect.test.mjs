@@ -327,6 +327,15 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const rr = S.scriptedTreatment(w, { program: 'LOW_05', percent: 30, after: 120 });   // past the EEG seizure's end (about 72 s)
     ok('with the cuff not above systolic, the relaxant reaches the arm: no EMG, while the EEG seizure is still seen', rr.emgEndpoint == null && rr.eegEndpoint != null && w.armRelaxed, J({ emg: rr.emgEndpoint, eeg: rr.eegEndpoint }));
   }
+  {
+    /* the awake patient's fist checks the EMG leads; under anaesthesia there is none */
+    const s = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 });
+    s.advance(2); const n0 = s.rec.n; s.fist(); s.advance(2);
+    let awake = 0; for (let i = n0; i < s.rec.n; i++) awake = Math.max(awake, Math.abs(s.rec.emg[i]));
+    s.induce(); s.advance(1); const n1 = s.rec.n; s.fist(); s.advance(2);
+    let asleep = 0; for (let i = n1; i < s.rec.n; i++) asleep = Math.max(asleep, Math.abs(s.rec.emg[i]));
+    ok('awake, a fist shows on the EMG (the bedside check of its leads); once anaesthetised it does not', awake > 100 && asleep < 10, J({ awake, asleep }));
+  }
   const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
   ok('every step, order, role and mode text exists in English and German', texts.every((x) => x.en && x.de && x.en !== x.de || ['Coach'].includes(x.en)), J(texts.filter((x) => !(x.en && x.de && x.en !== x.de)).map((x) => x.en)));
 }

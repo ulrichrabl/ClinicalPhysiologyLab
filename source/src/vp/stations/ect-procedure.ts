@@ -137,7 +137,7 @@ export const STEPS: readonly StepDef[] = [
     says: L('Pads on.', 'Elektroden angelegt.') },
   { id: 'leads', role: 'nurse', kind: 'room', modelled: true, after: ['skin'],
     title: L('Attach EEG, ECG and EMG', 'EEG, EKG und EMG anlegen'),
-    how: L('EEG above the eyebrow to the mastoid, ECG on the chest, EMG on the right forearm; plug in the cable.', 'EEG über der Augenbraue zum Mastoid, EKG auf die Brust, EMG an den rechten Unterarm; Kabel einstecken.'),
+    how: L('EEG above the eyebrow to the mastoid, ECG on the chest, EMG on the right forearm; plug in the cable. Check the EMG: ask for a fist.', 'EEG über der Augenbraue zum Mastoid, EKG auf die Brust, EMG an den rechten Unterarm; Kabel einstecken. EMG prüfen: eine Faust machen lassen.'),
     why: L('Without EEG, no baseline and no endpoints.', 'Ohne EEG keine Grundlinie und keine Endpunkte.'),
     says: L('Leads on.', 'Ableitungen angelegt.') },
   { id: 'power', role: 'psychiatrist', kind: 'device', modelled: true, after: ['check'],
