@@ -1,6 +1,7 @@
 import { figureSvg, figureLookFor, POSES, viewAt, VIEW_FRONT, type FigureLook, type Pose } from './patient-figure.ts';
 import { BED_TOP } from './figure-dress.ts';
-import { toMap, sphericalDir } from '../measurements/eeg-forward.ts';
+import { toMap, sphericalDir, electrodeDir } from '../measurements/eeg-forward.ts';
+import { STANDARD_MONTAGE, EMPTY_MONTAGE, SPOT_KIND, type Montage, type Spot } from '../stations/ect-session.ts';
 import { PLACEMENTS, type PlacementId } from '../physiology/brain/ect-stimulus.ts';
 import { ECT } from '../evidence/ect.ts';
 
@@ -61,8 +62,8 @@ function armAt(got: Record<string, Pt[]>, reach = 2.2, fallback = 3.5): ArmGeom 
 /* ---- the kit, drawn at any scale (u: drawing units per cm) ------------------------------------------------------ */
 
 /** a stick-on snap monitoring electrode, its long side along `rot` */
-function snapSvg(c: Pt, rot: number, u: number): string {
-  return `<rect x="${f(c.x - (MON_W * u) / 2)}" y="${f(c.y - (MON_H * u) / 2)}" width="${f(MON_W * u)}" height="${f(MON_H * u)}" rx="${f(0.4 * u)}" transform="rotate(${f(rot)} ${f(c.x)} ${f(c.y)})" fill="#f7f7f4" stroke="#a9aba6" stroke-width="${f(0.2 * u)}"/><circle cx="${f(c.x)}" cy="${f(c.y)}" r="${f(0.35 * u)}" fill="#c9ccce" stroke="#8a8d90" stroke-width="${f(0.14 * u)}"/>`;
+function snapSvg(c: Pt, rot: number, u: number, col = '#c9ccce'): string {
+  return `<rect x="${f(c.x - (MON_W * u) / 2)}" y="${f(c.y - (MON_H * u) / 2)}" width="${f(MON_W * u)}" height="${f(MON_H * u)}" rx="${f(0.4 * u)}" transform="rotate(${f(rot)} ${f(c.x)} ${f(c.y)})" fill="#f7f7f4" stroke="#a9aba6" stroke-width="${f(0.2 * u)}"/><circle cx="${f(c.x)}" cy="${f(c.y)}" r="${f(0.35 * u)}" fill="${col}" stroke="#8a8d90" stroke-width="${f(0.14 * u)}"/>`;
 }
 /** a lead-wire: from a point through two control points to an end (a cubic, so that it can drape) */
 function wireSvg(col: string, a: Pt, c1: Pt, c2: Pt, b: Pt, u: number, w = 0.3): string {
@@ -138,7 +139,10 @@ export interface EctDress {
   pads: SiteId[];
   /** the skin cleaned at the pad sites (a sheen) */
   cleaned: boolean;
+  /** the monitoring cable plugged in */
   leads: boolean;
+  /** where the monitoring electrodes are (when left out: the manual's montage once the cable is in, else none) */
+  montage?: Montage;
   /** the cuff on the right upper arm: on, and its pressure (mmHg) */
   cuff: { on: boolean; mmHg: number } ;
   mask: boolean; bagging: boolean; biteBlock: boolean;
@@ -149,6 +153,20 @@ const PAD_R = Math.sqrt(ECT.padArea / Math.PI);   // cm: a disc of the pad's are
 /* a Thymapad: 4.2 × 4.9 cm (Unal 2023, ECT.padArea), a white foam rectangle with a short lead ending in a socket for the
    stimulus cable's banana plug (the device's manual, "Stimulus electrodes application") */
 const PAD_W = 4.2, PAD_H = 4.9;
+/** each lead on the patient: its spot, its wire's colour and its label on the close-ups ("1−" channel 1 black) */
+export interface PlacedLead { spot: Spot; col: string; label: string }
+export function placedLeads(d: EctDress): PlacedLead[] {
+  const m = d.montage ?? (d.leads ? STANDARD_MONTAGE : EMPTY_MONTAGE()), out: PlacedLead[] = [];
+  m.ch.forEach((l, k) => { if (l.black) out.push({ spot: l.black, col: BLACK, label: `${k + 1}−` }); if (l.red) out.push({ spot: l.red, col: RED, label: `${k + 1}+` }); });
+  if (m.ground) out.push({ spot: m.ground, col: GREEN, label: 'G' });
+  return out;
+}
+export const HEAD_SPOTS: Spot[] = ['Fp1', 'Fpz', 'Fp2', 'F7', 'F8', 'TP9', 'TP10'];
+export const BODY_SPOTS: Spot[] = ['chestUR', 'chestUL', 'chestLR', 'chestLL', 'shoulderR', 'shoulderL', 'foreR1', 'foreR2', 'foreL1', 'foreL2'];
+/* the head spots seen on the right profile, in the head frame (a up, b forward, cm): above the right eyebrow (Fp2), the
+   midline of the forehead (Fpz), the front of the right temple (F8), the right mastoid behind the ear (TP10) */
+const PROFILE_HEAD: Partial<Record<Spot, Pt>> = { Fp2: { x: 11.7, y: 8.9 }, Fpz: { x: 12.2, y: 10.2 }, F8: { x: 10.4, y: 6.9 }, TP10: { x: 3.4, y: -4.8 } };
+
 /* a stick-on snap monitoring electrode: rectangular (the manual), about 2.4 × 3.4 cm (assumed: the size of common adult
    snap electrodes) */
 const MON_W = 2.4, MON_H = 3.4;
@@ -193,26 +211,29 @@ export function dressSvg(F: EctFigure, d: EctDress, t = 0, headOnly = false): st
      ground on the shoulder. EEG: above the right eyebrow (black) and on the right mastoid (red), as the model's channel 2;
      ECG: two on the front of the chest, above and below the heart, about 8 inches apart; EMG: two on the cuffed forearm,
      about 3 inches apart */
-  if (d.leads) {
-    /* the EEG: the frontal electrode's lead runs back over the scalp to the crown, the mastoid's straight down behind the
-       ear; both then drop to the mattress at the head end */
-    const fp = H(11.7, 8.9), ms = H(3.4, -4.8);       // just above the eyebrow (the brow at a ≈ 10.3–10.9), clear of a bifrontal pad
-    out.push(snapSvg(fp, ang, s), snapSvg(ms, ang + 90, s));
-    out.push(wireSvg(BLACK, fp, H(16, 2), H(9, -15), T, u));
-    out.push(wireSvg(RED, ms, H(1.5, -7), { x: T.x + 12, y: T.y - 4 }, T, u));
-    /* the ECG: the front of the chest is the top of its outline in this profile; the two electrodes 20 cm apart along it,
-       the upper below the clavicle, the lower over the lower sternum (the close-up from above shows where on the chest);
-       the ground on the point of the shoulder, 10 cm above the cuff */
+  {
+    const placed = placedLeads(d);
+    for (const l of placed) {
+      const h = PROFILE_HEAD[l.spot];
+      if (h) {
+        /* a head electrode's lead runs back over the scalp (from the front) or straight down behind the ear (the mastoid),
+           then drops to the mattress at the head end */
+        const c = H(h.x, h.y);
+        if (l.spot === 'TP10') { out.push(snapSvg(c, ang + 90, s, l.col), wireSvg(l.col, c, H(1.5, -7), { x: T.x + 12, y: T.y - 4 }, T, u)); }
+        else { out.push(snapSvg(c, ang, s, l.col), wireSvg(l.col, c, H(16, 2), H(9, -15), T, u)); }
+      }
+    }
+    /* the body: the front of the chest is the top of its outline in this profile; the upper pair below the clavicles, the
+       lower over the lower chest, 20 cm apart along it; the ground's shoulder 10 cm above the cuff; the EMG on the forearm
+       below the cuff, the first nearer the elbow. Only the right side shows. */
     if (!headOnly) {
-    const [x0, y0] = F.chest, e1 = { x: x0 + 7 * u, y: y0 + 1.4 }, e2 = { x: x0 + 27 * u, y: y0 + 1.4 };
-    const A = armAt({ upperArmR: [F.upperArmR], elbowR: [F.elbowR], armR: [], forearmR: F.forearmR }), al = Math.hypot(A.e.x - A.c.x, A.e.y - A.c.y) || 1;
-    const sh = { x: F.armEdges[0].x - ((A.e.x - A.c.x) / al) * 10 * u, y: F.armEdges[0].y - ((A.e.y - A.c.y) / al) * 10 * u + 1 };
-    out.push(snapSvg(e1, 90, u), snapSvg(e2, 90, u), snapSvg(sh, 90, u));
-    hang(e1, RED); hang(e2, BLACK); hang(sh, GREEN);
-    /* the EMG on the forearm below the cuff */
-    const [f1, f2] = F.forearmR, fa = (Math.atan2(f2.y - f1.y, f2.x - f1.x) * 180) / Math.PI;
-    out.push(snapSvg(f1, fa + 90, u), snapSvg(f2, fa + 90, u));
-    hang(f1, RED); hang(f2, BLACK);
+      const [x0, y0] = F.chest;
+      const A = armAt({ upperArmR: [F.upperArmR], elbowR: [F.elbowR], armR: [], forearmR: F.forearmR }), al = Math.hypot(A.e.x - A.c.x, A.e.y - A.c.y) || 1;
+      const sh = { x: F.armEdges[0].x - ((A.e.x - A.c.x) / al) * 10 * u, y: F.armEdges[0].y - ((A.e.y - A.c.y) / al) * 10 * u + 1 };
+      const [f1, f2] = F.forearmR, fa = (Math.atan2(f2.y - f1.y, f2.x - f1.x) * 180) / Math.PI;
+      const at: Partial<Record<Spot, [Pt, number]>> = { chestUR: [{ x: x0 + 7 * u, y: y0 + 1.4 }, 90], chestUL: [{ x: x0 + 8 * u, y: y0 + 1.2 }, 90],
+        chestLR: [{ x: x0 + 27 * u, y: y0 + 1.4 }, 90], chestLL: [{ x: x0 + 26 * u, y: y0 + 1.2 }, 90], shoulderR: [sh, 90], foreR1: [f1, fa + 90], foreR2: [f2, fa + 90] };
+      for (const l of placed) { const p = at[l.spot]; if (p) { out.push(snapSvg(p[0], p[1], u, l.col)); hang(p[0], l.col); } }
     }
   }
   /* the cuff round the right upper arm, its tube to the gauge and bulb hanging over the side of the bed */
@@ -274,36 +295,49 @@ export function headCloseUp(F: EctFigure, d: EctDress, t = 0): { viewBox: string
     device's manual), the upper below the right clavicle beside the sternum, the lower over the left lower chest; the
     ground on the right shoulder; the cuff round the right upper arm and the EMG on the forearm below it. The leads lie on
     the body and run up toward the head, where they leave the picture to the device. */
-export const CHEST_VIEWBOX = '-31 -24 48 76';
-export function chestCloseUp(look: FigureLook, d: EctDress): string {
+export const CHEST_VIEWBOX = '-31 -24 62 76';
+export function chestCloseUp(look: FigureLook, d: EctDress, opts: { targets?: boolean; armed?: string } = {}): string {
   const got: Record<string, Pt[]> = {};
   const bare: FigureLook = { ...look, exposed: new Set(['chest', 'abdomen', 'arm', 'neck']) };
   const body = figureSvg(POSES.standing, bare, VIEW_FRONT, { scene: false, head: false, chestFrame: true, collect: (k, side, pts) => { (got[k + side] ??= []).push(...pts); } });
   const out: string[] = [];
-  const exit = { x: -24, y: -24 };                                  // toward the head end, beside the right shoulder
-  const run = (a: Pt, col: string) => out.push(wireSvg(col, a, { x: a.x - 2, y: a.y - 5 }, { x: exit.x + 3, y: exit.y + 7 }, exit, 1, 0.32));
-  if (d.leads) {
-    const g = armAt(got, 1.2, 4);
-    const e1 = { x: -5, y: -6.2 }, e2 = { x: 6, y: 11.5 };          // 20 cm apart: below the clavicle, and below the heart
-    /* the point of the right shoulder: the acromion, about 19 cm from the midline (40 cm across the acromions in a man,
-       the figure's brief) at the level of the outer clavicle */
-    const shoulder = { x: -16.8, y: -9.6 };
-    out.push(snapSvg(e1, 0, 1), snapSvg(e2, 0, 1), snapSvg(shoulder, 0, 1));
-    run(e1, RED); run(e2, BLACK); run(shoulder, GREEN);
-    const [f1, f2] = g.fore, fa = (Math.atan2(f2.y - f1.y, f2.x - f1.x) * 180) / Math.PI;
-    out.push(snapSvg(f1, fa + 90, 1), snapSvg(f2, fa + 90, 1));
-    run(f1, RED); run(f2, BLACK);
-  }
+  const g = armAt(got, 1.2, 4);
+  const at = chestSpots(g);
+  /* the leads lie on the body and run up toward the head, each on its own side */
+  const run = (a: Pt, col: string) => { const ex = { x: a.x < 0 ? -24 : 24, y: -24 }; out.push(wireSvg(col, a, { x: a.x * 0.9, y: a.y - 5 }, { x: ex.x * 0.88, y: ex.y + 7 }, ex, 1, 0.32)); };
   if (d.cuff.on) {
-    const g = armAt(got, 1.2, 4), cf = cuffSvg(g, d.cuff.mmHg, 1);
+    const cf = cuffSvg(g, d.cuff.mmHg, 1);
     out.push(cf.svg, `<path d="M${f(cf.outlet.x)} ${f(cf.outlet.y)} Q${f(cf.outlet.x - 3)} ${f(cf.outlet.y + 6)} -31 ${f(cf.outlet.y + 10)}" fill="none" stroke="#444" stroke-width=".4"/>`);
   }
-  return `${body}<g pointer-events="none">${out.join('')}</g>`;
+  const placed = placedLeads(d), taken = new Set(placed.map((l) => l.spot));
+  for (const l of placed) {
+    const p = at[l.spot]; if (!p) continue;
+    out.push(snapSvg(p.c, p.rot, 1, l.col)); run(p.c, l.col);
+  }
+  for (const l of placed) { const p = at[l.spot]; if (p) out.push(labelSvg(p.c, l.label, l.col, 1)); }
+  /* where the learner can put a lead: every body spot, as a target */
+  const hits = opts.targets ? BODY_SPOTS.map((id) => { const p = at[id]!; return `<g data-spot="${id}" role="button" tabindex="0" aria-label="${id}" class="ect-spot${taken.has(id) ? ' on' : ''}">${taken.has(id) ? '' : `<rect x="${f(p.c.x - MON_W / 2)}" y="${f(p.c.y - MON_H / 2)}" width="${MON_W}" height="${MON_H}" rx=".4" transform="rotate(${f(p.rot)} ${f(p.c.x)} ${f(p.c.y)})" fill="none" stroke="#1d6f8a" stroke-width=".3" stroke-dasharray=".8 .6"/>`}<circle cx="${f(p.c.x)}" cy="${f(p.c.y)}" r="2.6" fill="transparent"/></g>`; }).join('') : '';
+  return `${body}<g pointer-events="none">${out.join('')}</g>${hits}`;
+}
+/** the body spots in the chest view (chest cm, the patient's right on the left): the chest four, 20 cm apart corner to
+    corner (above and below the heart, about 8 inches apart: the manual); the acromions about 19 cm from the midline (40 cm
+    across in a man, the figure's brief); the forearms' two each, the first nearer the elbow, the left mirroring the right */
+function chestSpots(g: ArmGeom): Record<string, { c: Pt; rot: number }> {
+  const [f1, f2] = g.fore, fa = (Math.atan2(f2.y - f1.y, f2.x - f1.x) * 180) / Math.PI;
+  return {
+    chestUR: { c: { x: -5, y: -6.2 }, rot: 0 }, chestUL: { c: { x: 5, y: -6.2 }, rot: 0 }, chestLR: { c: { x: -6, y: 11.5 }, rot: 0 }, chestLL: { c: { x: 6, y: 11.5 }, rot: 0 },
+    shoulderR: { c: { x: -16.8, y: -9.6 }, rot: 0 }, shoulderL: { c: { x: 16.8, y: -9.6 }, rot: 0 },
+    foreR1: { c: f1, rot: fa + 90 }, foreR2: { c: f2, rot: fa + 90 }, foreL1: { c: { x: -f1.x, y: f1.y }, rot: -(fa + 90) }, foreL2: { c: { x: -f2.x, y: f2.y }, rot: -(fa + 90) },
+  };
+}
+/** a lead's label beside its electrode ("1−", "4+", "G"), in the lead's colour */
+function labelSvg(c: Pt, label: string, col: string, u: number): string {
+  return `<text x="${f(c.x + 1.9 * u)}" y="${f(c.y - 1.7 * u)}" font-size="${f(2.4 * u)}" font-weight="600" fill="${col}" stroke="#fff" stroke-width="${f(0.5 * u)}" paint-order="stroke">${label}</text>`;
 }
 
 /** the head from above, nose up, the patient's right on the right of the page (as the station's other maps): the six
     sites, the chosen ones as pads */
-export function topViewSvg(chosen: SiteId[], labels: { nose: string; left: string; right: string }, site: Partial<Record<SiteId, string>> = {}): string {
+export function topViewSvg(chosen: SiteId[], labels: { nose: string; left: string; right: string }, site: Partial<Record<SiteId, string>> = {}, mon?: { dress: EctDress; targets: boolean; sites?: boolean }): string {
   const R = 100, C = 120, head = R * (90 / 130);
   const at = (sph: [number, number]) => { const [x, y] = toMap(sphericalDir(sph[0], sph[1])); return { x: C + x * R, y: C + y * R }; };
   const pr = (PAD_R / 9.2) * head;   // the pad on a head of 9.2 cm radius
@@ -311,12 +345,25 @@ export function topViewSvg(chosen: SiteId[], labels: { nose: string; left: strin
     `<path d="M${C - 9} ${f(C - head + 1)} L${C} ${f(C - head - 12)} L${C + 9} ${f(C - head + 1)}" fill="none" stroke="currentColor" stroke-width="1.2"/>`,
     `<ellipse cx="${f(C - head - 4)}" cy="${C}" rx="5" ry="11" fill="none" stroke="currentColor" stroke-width="1.2"/><ellipse cx="${f(C + head + 4)}" cy="${C}" rx="5" ry="11" fill="none" stroke="currentColor" stroke-width="1.2"/>`,
     `<text x="${C}" y="${f(C - head - 16)}" text-anchor="middle" font-size="11" fill="currentColor">${labels.nose}</text>`,
-    `<text x="8" y="${C + 32}" font-size="11" fill="currentColor">${labels.left}</text><text x="${2 * C - 8}" y="${C + 32}" text-anchor="end" font-size="11" fill="currentColor">${labels.right}</text>`];
+    `<text x="8" y="${2 * C - 10}" font-size="11" fill="currentColor">${labels.left}</text><text x="${2 * C - 8}" y="${2 * C - 10}" text-anchor="end" font-size="11" fill="currentColor">${labels.right}</text>`];
   for (const id of Object.keys(SITES) as SiteId[]) {
     const p = at(SITES[id].sph), on = chosen.includes(id);
+    if (!on && mon?.sites === false) continue;
     /* a site not chosen is a small target (the pads would overlap: the left frontal and anterior sites lie 2 cm apart); a
        chosen one is drawn as the pad, to scale */
     out.push(`<g data-site="${id}" role="button" tabindex="0" aria-pressed="${on}" aria-label="${site[id] ?? id}" class="ect-site${on ? ' on' : ''}"><circle cx="${f(p.x)}" cy="${f(p.y)}" r="${f(on ? pr : 9)}" fill="${on ? '#f4f1e8' : 'var(--surface, #fff)'}" stroke="${on ? '#8b8676' : 'currentColor'}" stroke-width="${on ? 1.2 : 1.4}"/>${on ? `<circle cx="${f(p.x)}" cy="${f(p.y)}" r="${f(pr * 0.25)}" fill="#cfd6da"/>` : `<circle cx="${f(p.x)}" cy="${f(p.y)}" r="2.5" fill="currentColor"/>`}<circle cx="${f(p.x)}" cy="${f(p.y)}" r="13" fill="transparent"/></g>`);
+  }
+  /* the EEG electrodes: square snaps at their 10-20 places, in their leads' colours and labelled; free spots as targets */
+  if (mon) {
+    const placed = placedLeads(mon.dress), by = new Map(placed.map((l) => [l.spot, l]));
+    const sz = 9;
+    for (const id of HEAD_SPOTS) {
+      const [x, y] = toMap(electrodeDir(id)), p = { x: C + x * R, y: C + y * R }, l = by.get(id);
+      if (!l && !mon.targets) continue;
+      out.push(`<g data-spot="${id}" role="button" tabindex="0" aria-label="${id}" class="ect-spot${l ? ' on' : ''}"><rect x="${f(p.x - sz / 2)}" y="${f(p.y - sz / 2)}" width="${sz}" height="${sz}" rx="1.5" fill="${l ? '#f7f7f4' : 'none'}" stroke="${l ? l.col : '#1d6f8a'}" stroke-width="${l ? 2 : 1.2}" ${l ? '' : 'stroke-dasharray="2.5 2"'}/>`
+        + (l ? `<circle cx="${f(p.x)}" cy="${f(p.y)}" r="2" fill="${l.col}"/><text x="${f(p.x + (x < 0 ? -8 : 8))}" y="${f(p.y - 7)}" text-anchor="middle" font-size="10" font-weight="600" fill="${l.col}">${l.label}</text>` : `<text x="${f(p.x)}" y="${f(p.y + 17)}" text-anchor="middle" font-size="8" fill="#1d6f8a">${id}</text>`)
+        + `<circle cx="${f(p.x)}" cy="${f(p.y)}" r="10" fill="transparent"/></g>`);
+    }
   }
   return out.join('');
 }

@@ -220,6 +220,8 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     }
     return { s, p };
   };
+  /* the learner's hands put every lead where the manual's montage has it */
+  const placeAll = (p) => { S.STANDARD_MONTAGE.ch.forEach((l, ch) => { p.placeLead({ ch, pole: 'black' }, l.black); p.placeLead({ ch, pole: 'red' }, l.red); }); p.placeLead('ground', S.STANDARD_MONTAGE.ground); };
   const inOrder = (p) => S.STEPS.every((st) => !p.done.has(st.id) || st.after.every((a) => p.done.has(a) && p.done.get(a).at <= p.done.get(st.id).at));
   for (const order of S.ECT_ORDERS) {
     const { s, p } = run(order, 'watch', []);
@@ -240,7 +242,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const order = S.ECT_ORDERS[1];
     const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });
     const p = new S.Procedure(s, order, 'exam', [...S.ECT_ROLES]);
-    for (const id of ['check', 'skin', 'leads']) p.act(id);
+    p.act('check'); p.act('skin'); placeAll(p); p.act('leads');
     p.act('pads', 'you', { placement: order.placement });
     const d = s.device; d.power(true); for (let k = 0; k < 140; k++) { s.advance(0.05); p.tick(0.05); }
     d.impedanceButton(true); for (let k = 0; k < 32; k++) { s.advance(0.05); p.tick(0.05); } d.impedanceButton(false);
@@ -261,7 +263,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const order = S.ECT_ORDERS[1];
     const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });
     const p = new S.Procedure(s, order, 'practise', [...S.ECT_ROLES]);
-    p.act('check'); p.act('pads', 'you', { placement: order.placement }); p.act('leads');   // the pads put on uncleaned skin
+    p.act('check'); p.act('pads', 'you', { placement: order.placement }); placeAll(p); p.act('leads');   // the pads put on uncleaned skin
     const d = s.device; d.power(true); for (let k = 0; k < 140; k++) { s.advance(0.05); p.tick(0.05); }
     d.impedanceButton(true); for (let k = 0; k < 32; k++) { s.advance(0.05); p.tick(0.05); } d.impedanceButton(false);
     for (let k = 0; k < 200; k++) { s.advance(0.05); p.tick(0.05); }
@@ -335,6 +337,27 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     s.induce(); s.advance(1); const n1 = s.rec.n; s.fist(); s.advance(2);
     let asleep = 0; for (let i = n1; i < s.rec.n; i++) asleep = Math.max(asleep, Math.abs(s.rec.emg[i]));
     ok('awake, a fist shows on the EMG (the bedside check of its leads); once anaesthetised it does not', awake > 100 && asleep < 10, J({ awake, asleep }));
+  }
+  {
+    /* the leads, placed by the learner: each channel is its red lead's potential minus its black lead's */
+    const mk = (edit) => { const s = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }); edit(s.montage); s.advance(4); return s; };
+    const a = mk(() => {}), b = mk((m) => { m.ch[0] = { black: 'TP9', red: 'Fp1' }; }), c = mk((m) => { m.ch[1].red = null; }), g = mk((m) => { m.ground = null; });
+    let inv = 0, flat = 0, hum = 0, same = 0;
+    for (let i = 0; i < a.rec.n; i++) { inv = Math.max(inv, Math.abs(a.rec.eeg1[i] + b.rec.eeg1[i])); flat = Math.max(flat, Math.abs(c.rec.eeg2[i])); hum = Math.max(hum, Math.abs(g.rec.eeg1[i] - a.rec.eeg1[i])); same = Math.max(same, Math.abs(b.rec.eeg2[i] - a.rec.eeg2[i])); }
+    ok('a channel is red minus black: swapping a channel’s leads inverts it and leaves the others alone; a lead not on gives no channel; without the ground the mains (50 Hz) is on every channel', inv < 1e-9 && same < 1e-9 && flat === 0 && Math.abs(hum - S.ECT.mainsHum) < 1, J({ inv, same, flat, hum }));
+    let hi = 0, lo = 0; for (let i = 0; i < a.rec.n; i++) { hi = Math.max(hi, a.rec.ecg[i]); lo = Math.min(lo, a.rec.ecg[i]); }
+    ok('channel 4 from below the right clavicle (black) to the left lower chest (red): the QRS is upright, of a monitor lead’s size (0.5–2.5 mV)', hi > -lo && hi > 500 && hi < 2500, J({ hi, lo }));
+    const rev = S.montageProblems({ ...structuredClone(S.STANDARD_MONTAGE), ch: [{ black: 'TP9', red: 'Fp1' }, ...structuredClone(S.STANDARD_MONTAGE.ch.slice(1))] });
+    ok('the procedure checks the leads against the manual’s: the standard has no problem, a reversed channel 1 is named, an empty montage misses all four channels and the ground', !S.montageProblems(S.STANDARD_MONTAGE).length && rev.length === 1 && rev[0].ch === 1 && rev[0].kind === 'reversed' && S.montageProblems(S.EMPTY_MONTAGE()).length === 5, J(rev));
+    const p = new S.Procedure(new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }), S.ECT_ORDERS[0], 'practise', [...S.ECT_ROLES]);
+    p.act('check'); p.act('skin'); p.act('leads'); const before = p.isDone('leads'); placeAll(p); p.act('leads');
+    ok('the learner plugs the cable in only once all nine leads are on', !before && p.isDone('leads') && p.session.monitoringCable, J({ before }));
+    /* the EMG on the arm the cuff did not spare: the relaxant reaches it */
+    const w = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 });
+    w.montage.ch[2] = { black: 'foreL1', red: 'foreL2' };
+    w.relax(true); w.advance(61);
+    const rr = S.scriptedTreatment(w, { program: 'LOW_05', percent: 30, after: 120 });
+    ok('EMG on the left forearm, the cuff on the right: the relaxant reaches the left arm and its EMG shows no motor seizure', rr.emgEndpoint == null && rr.eegEndpoint != null, J({ emg: rr.emgEndpoint, eeg: rr.eegEndpoint }));
   }
   const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
   ok('every step, order, role and mode text exists in English and German', texts.every((x) => x.en && x.de && x.en !== x.de || ['Coach'].includes(x.en)), J(texts.filter((x) => !(x.en && x.de && x.en !== x.de)).map((x) => x.en)));

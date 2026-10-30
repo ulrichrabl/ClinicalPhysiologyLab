@@ -9,7 +9,7 @@ import { PERCENT_STEPS } from './ect-programs.ts';
 import { seizureReport, type SeizureReport } from './ect-indices.ts';
 import { LivePatient } from '../live/live-patient.ts';
 import { healthyModel, type PatientModel } from '../physiology/state.ts';
-import { leadVectors, standardPlacement } from '../measurements/ecg.ts';
+import { siteVector, type Site } from '../measurements/ecg.ts';
 import { Ventilator } from '../physiology/lung/ventilation.ts';
 import { BARO } from '../evidence/circulation.ts';
 import type { DrugId } from '../physiology/drugs/drugs.ts';
@@ -49,6 +49,58 @@ export interface EctPatient {
   skin: number;
   seed: number;
 }
+/* ---- the monitoring leads (the device's manual, "Seizure monitoring considerations") ----------------------------------
+   Four channels, each a black (negative) and a red (positive) lead-wire, and one green ground. A channel records its red
+   lead's potential minus its black lead's: between two head sites the EEG, between two sites on the trunk or the limbs the
+   heart (each site's lead vector, as the ECG station places electrodes) and any forearm muscle under both; between a head
+   and a body site nothing the device can use. A lead not on gives no channel; no ground lets the mains in. */
+export type Spot = 'Fp1' | 'Fp2' | 'Fpz' | 'F7' | 'F8' | 'TP9' | 'TP10'
+  | 'chestUR' | 'chestUL' | 'chestLR' | 'chestLL' | 'foreR1' | 'foreR2' | 'foreL1' | 'foreL2' | 'shoulderR' | 'shoulderL';
+export type SpotKind = 'head' | 'chest' | 'foreR' | 'foreL' | 'shoulder';
+export const SPOT_KIND: Record<Spot, SpotKind> = {
+  Fp1: 'head', Fp2: 'head', Fpz: 'head', F7: 'head', F8: 'head', TP9: 'head', TP10: 'head',
+  chestUR: 'chest', chestUL: 'chest', chestLR: 'chest', chestLL: 'chest',
+  foreR1: 'foreR', foreR2: 'foreR', foreL1: 'foreL', foreL2: 'foreL', shoulderR: 'shoulder', shoulderL: 'shoulder',
+};
+/** where the body sites are for the heart: the chest four about 22 cm apart corner to corner (the manual: above and below
+    the heart, about 8 inches apart), the forearms and shoulders as the arm (Mason–Likar take the shoulder for the arm) */
+const SPOT_SITE: Partial<Record<Spot, Site>> = {
+  chestUR: { chest: { phi: -20, y: -9 } }, chestUL: { chest: { phi: 20, y: -9 } }, chestLR: { chest: { phi: -30, y: 9 } }, chestLL: { chest: { phi: 30, y: 9 } },
+  foreR1: { limb: 'right-arm' }, foreR2: { limb: 'right-arm' }, shoulderR: { limb: 'right-arm' },
+  foreL1: { limb: 'left-arm' }, foreL2: { limb: 'left-arm' }, shoulderL: { limb: 'left-arm' },
+};
+const SPOT_VEC = new Map<Spot, [number, number, number]>();
+/** a body spot's lead vector (computed once) */
+function spotVector(s: Spot): [number, number, number] {
+  let v = SPOT_VEC.get(s);
+  if (!v) { const w = siteVector(SPOT_SITE[s]!); v = [w[0], w[1], w[2]]; SPOT_VEC.set(s, v); }
+  return v;
+}
+export interface Lead { black: Spot | null; red: Spot | null }
+export interface Montage { ch: [Lead, Lead, Lead, Lead]; ground: Spot | null }
+/** the manual's montage: EEG 1 left and 2 right, black above the eyebrow and red on the mastoid of the same side; EMG on the
+    cuffed (right) forearm, 3 inches apart; ECG black below the right clavicle, red on the left lower chest (positive toward
+    the apex, so the QRS is upright as in lead II); the ground on a shoulder */
+export const STANDARD_MONTAGE: Montage = {
+  ch: [{ black: 'Fp1', red: 'TP9' }, { black: 'Fp2', red: 'TP10' }, { black: 'foreR1', red: 'foreR2' }, { black: 'chestUR', red: 'chestLL' }],
+  ground: 'shoulderR',
+};
+export const EMPTY_MONTAGE = (): Montage => ({ ch: [{ black: null, red: null }, { black: null, red: null }, { black: null, red: null }, { black: null, red: null }], ground: null });
+/** what is wrong with a montage against the manual's, channel by channel (empty: nothing) */
+export function montageProblems(m: Montage): Array<{ ch: 1 | 2 | 3 | 4 | 'ground'; kind: 'missing' | 'wrong' | 'reversed' }> {
+  const out: Array<{ ch: 1 | 2 | 3 | 4 | 'ground'; kind: 'missing' | 'wrong' | 'reversed' }> = [];
+  m.ch.forEach((l, k) => {
+    const s = STANDARD_MONTAGE.ch[k], ch = (k + 1) as 1 | 2 | 3 | 4;
+    if (!l.black || !l.red) out.push({ ch, kind: 'missing' });
+    else if (l.black === s.black && l.red === s.red) return;
+    else if (l.black === s.red && l.red === s.black) out.push({ ch, kind: 'reversed' });
+    else out.push({ ch, kind: 'wrong' });
+  });
+  if (!m.ground) out.push({ ch: 'ground', kind: 'missing' });
+  else if (SPOT_KIND[m.ground] !== 'shoulder') out.push({ ch: 'ground', kind: 'wrong' });
+  return out;
+}
+
 export const DEFAULT_PATIENT: EctPatient = { placement: 'BT', prepared: true, skin: 0, seed: 7 };
 
 /** samples per second of the recording */
@@ -101,14 +153,16 @@ export class EctSession {
   private fields = regionFields();
   /** the body: heart, circulation, lungs */
   readonly body: LivePatient;
-  /** the body's ECG (lead II, µV) for the next block of samples, and the R waves seen (session time, s) */
-  private ecgBlock = new Float32Array(0); private ecgAt = 0;
+  /** the heart's vector (mV) for the next block of samples, and the R waves seen (session time, s) */
+  private vcgBlock: [Float32Array, Float32Array, Float32Array] = [new Float32Array(0), new Float32Array(0), new Float32Array(0)]; private ecgAt = 0;
+  /** where the monitoring leads are: the manual's montage unless the learner places them */
+  montage: Montage = structuredClone(STANDARD_MONTAGE);
+  private rcentral = REGIONS.findIndex((r) => r.id === 'R-central');
   readonly rWaves: number[] = [];
   /** arterial pressure every 0.1 s (session time, systolic, diastolic, mean; mmHg) */
   readonly pressure: Array<{ t: number; sys: number; dia: number; mean: number }> = [];
   private lastActivation = -Infinity;
   private vagal = 0; private adrenergic = 0;
-  private lead2 = leadVectors(standardPlacement()).II;
   private lcentral = REGIONS.findIndex((r) => r.id === 'L-central');
 
   constructor(patient: EctPatient = DEFAULT_PATIENT, settings: DeviceSettings = DEFAULT_SETTINGS) {
@@ -192,20 +246,43 @@ export class EctSession {
     this.grow();
     const i = this.rec.n++;
     const a = this.brain.activity(), f = this.fields.perRegion;
-    let fp1 = 0, tp9 = 0, fp2 = 0, tp10 = 0;
-    for (let r = 0; r < a.length; r++) { fp1 += f[r].Fp1 * a[r]; tp9 += f[r].TP9 * a[r]; fp2 += f[r].Fp2 * a[r]; tp10 += f[r].TP10 * a[r]; }
     const mon = this.monitoringCable;
-    this.rec.eeg1[i] = mon ? fp1 - tp9 : 0;
-    this.rec.eeg2[i] = mon ? fp2 - tp10 : 0;
     /* the motor seizure: the motor cortex above the spinal threshold drives the cuffed arm's muscles */
     this.rec.motor[i] = a[this.lcentral];
-    /* a relaxed arm gives no EMG: only the recording's noise (the cortex's drive no longer reaches its muscles) */
-    /* the fist draws from the EMG's noise only while it lasts, so the recordings without one stay sample for sample as before */
-    const env = this.inducedAt == null ? this.fistEnvelope() : 0;
-    const voluntary = env > 0 ? ECT.voluntaryEmg * env * this.emgNoise() : 0;
-    this.rec.emg[i] = mon ? emgSample(this.armRelaxed ? 0 : a[this.lcentral], this.emgNoise) + voluntary : 0;
     if (i % BODY_BLOCK === 0) this.stepBody();
-    this.rec.ecg[i] = mon ? (this.ecgBlock[i - this.ecgAt] ?? 0) : 0;
+    const j = i - this.ecgAt;
+    const v = [this.vcgBlock[0][j] ?? 0, this.vcgBlock[1][j] ?? 0, this.vcgBlock[2][j] ?? 0];
+    const pot = (e: string) => { let x = 0; for (let r = 0; r < a.length; r++) x += f[r][e] * a[r]; return x; };
+    /* each arm's surface EMG: the right (cuffed) driven by the left motor cortex, the left by the right; a relaxed arm gives
+       only the noise. Drawn only for the arms the montage records, so the manual's montage draws the noise as before. */
+    const leftRelaxed = this.relaxedAt != null && this.t >= this.relaxedAt + ECT.relaxantOnset;
+    const emgOf = (side: 'R' | 'L') => {
+      if (side === 'R') {
+        const env = this.inducedAt == null ? this.fistEnvelope() : 0;
+        const voluntary = env > 0 ? ECT.voluntaryEmg * env * this.emgNoise() : 0;
+        return emgSample(this.armRelaxed ? 0 : a[this.lcentral], this.emgNoise) + voluntary;
+      }
+      return emgSample(leftRelaxed ? 0 : a[this.rcentral], this.emgNoise);
+    };
+    const hum = this.montage.ground ? 0 : ECT.mainsHum * Math.sin(2 * Math.PI * 50 * this.t);
+    const channel = (l: Lead): number => {
+      if (!mon || !l.black || !l.red) return 0;
+      const kb = SPOT_KIND[l.black], kr = SPOT_KIND[l.red];
+      let x = 0;
+      if (kb === 'head' && kr === 'head') x = pot(l.red) - pot(l.black);
+      else if (kb !== 'head' && kr !== 'head') {
+        const vb = spotVector(l.black), vr = spotVector(l.red);
+        x = 1000 * ((vr[0] - vb[0]) * v[0] + (vr[1] - vb[1]) * v[1] + (vr[2] - vb[2]) * v[2]);
+        const onR = kb === 'foreR' || kr === 'foreR', onL = kb === 'foreL' || kr === 'foreL';
+        if (onR) x += emgOf('R');
+        if (onL) x += emgOf('L');
+      }
+      return x + hum;
+    };
+    this.rec.eeg1[i] = channel(this.montage.ch[0]);
+    this.rec.eeg2[i] = channel(this.montage.ch[1]);
+    this.rec.emg[i] = channel(this.montage.ch[2]);
+    this.rec.ecg[i] = channel(this.montage.ch[3]);
   }
 
   private onEvent(e: ReturnType<EctDevice['drain']>[number]) {
@@ -279,12 +356,9 @@ export class EctSession {
     this.body.advance(dt);
     /* the new ECG samples (500 Hz) onto the recording's 200 Hz */
     const made = this.body.samples - before;
-    const v = this.body.vcg((made + 1) / 500), n = v.X.length, L = this.lead2;
-    const ii = new Float32Array(n);
-    for (let k = 0; k < n; k++) ii[k] = 1000 * (L[0] * v.X[k] + L[1] * v.Y[k] + L[2] * v.Z[k]);
-    const out = new Float32Array(BODY_BLOCK);
-    for (let k = 0; k < BODY_BLOCK; k++) { const x = (n - 1) * (k + 1) / BODY_BLOCK; const a = Math.floor(x), f = x - a; out[k] = ii[a] * (1 - f) + (ii[Math.min(n - 1, a + 1)] ?? ii[a]) * f; }
-    this.ecgBlock = out; this.ecgAt = this.rec.n - 1;
+    const v = this.body.vcg((made + 1) / 500), n = v.X.length;
+    const resample = (src: ArrayLike<number>) => { const out = new Float32Array(BODY_BLOCK); for (let k = 0; k < BODY_BLOCK; k++) { const x = (n - 1) * (k + 1) / BODY_BLOCK; const q = Math.floor(x), fr = x - q; out[k] = (src[q] ?? 0) * (1 - fr) + (src[Math.min(n - 1, q + 1)] ?? src[q] ?? 0) * fr; } return out; };
+    this.vcgBlock = [resample(v.X), resample(v.Y), resample(v.Z)]; this.ecgAt = this.rec.n - 1;
     const m = (this.body.run.sim as unknown as { metrics?: { Psys: number; Pdia: number; Pmean: number } }).metrics;
     if (m) this.pressure.push({ t: this.t + dt, sys: m.Psys, dia: m.Pdia, mean: m.Pmean });
     /* R waves: ventricular activations, from the heart's clock to the session's */
