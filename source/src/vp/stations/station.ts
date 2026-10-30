@@ -138,8 +138,8 @@ export const EEG_STATION: StationDef = {
 export const ECT_STATION: StationDef = {
   id: 'ect', test: 'eeg',
   title: L('ECT station', 'EKT-Station'),
-  summary: L('An electroconvulsive treatment from start to finish, as the team does it: the psychiatrist at the device, the anaesthetist with the drugs and the airway, the nurse with the skin, the leads and the cuff. Take one role or all of them; the team does the rest. The device is laid out and behaves as the real one’s manual describes; behind it run the lab’s heart and a seizure model of the thalamocortical loop.',
-    'Eine Elektrokonvulsionsbehandlung von Anfang bis Ende, wie das Team sie durchführt: die Psychiatrie am Gerät, die Anästhesie mit Medikamenten und Atemweg, die Pflege mit Haut, Ableitungen und Manschette. Übernehmen Sie eine Rolle oder alle; das Team erledigt den Rest. Das Gerät ist aufgebaut und verhält sich, wie das Handbuch des echten es beschreibt; dahinter laufen das Herz des Labors und ein Anfallsmodell der thalamokortikalen Schleife.'),
+  summary: L('An ECT treatment from start to finish, as the team gives it. Take one role or all; the team does the rest.',
+    'Eine EKT-Behandlung von Anfang bis Ende, wie das Team sie gibt. Übernehmen Sie eine Rolle oder alle; das Team erledigt den Rest.'),
   drivers: {},
   presets: [],
 };

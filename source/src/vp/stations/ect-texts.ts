@@ -20,20 +20,20 @@ export interface StepState {
 
 /** The next step, as the manual orders it. */
 export function nextStep(s: StepState, n: Num): LocalizedText {
-  if (!s.on) return L('Switch the device on (the power switch, right of the treatment button). It tests itself and prints a self-test line.', 'Schalten Sie das Gerät ein (Netzschalter rechts der Behandlungstaste). Es prüft sich selbst und druckt eine Selbsttestzeile.');
-  if (s.booting) return L('Self test: the left display reads SELFTEST, then NO BASE.', 'Selbsttest: Die linke Anzeige zeigt SELFTEST, dann NO BASE.');
-  if (s.treat === 'warning') return L('Keep holding TREAT: one second of continuous tone (three above 3000 Ω), no current yet.', 'Halten Sie TREAT gedrückt: eine Sekunde Dauerton (drei über 3000 Ω), noch fließt kein Strom.');
-  if (s.treat === 'delivering') return L('The current is flowing (the intermittent tone). Keep holding TREAT until the light and the tone stop: releasing early gives less charge.', 'Der Strom fließt (der unterbrochene Ton). Halten Sie TREAT, bis Licht und Ton erlöschen: Früheres Loslassen gibt weniger Ladung.');
+  if (!s.on) return L('Switch on (POWER). It prints a self test.', 'Einschalten (POWER). Es druckt einen Selbsttest.');
+  if (s.booting) return L('Self test: SELFTEST, then NO BASE.', 'Selbsttest: SELFTEST, dann NO BASE.');
+  if (s.treat === 'warning') return L('Keep holding TREAT: warning tone, no current yet.', 'TREAT halten: Warnton, noch kein Strom.');
+  if (s.treat === 'delivering') return L('Current flowing. Hold TREAT until the tone stops.', 'Strom fließt. TREAT halten, bis der Ton endet.');
   if (s.stimulusEnd != null && !s.reported) {
-    if (s.seconds < 20) return L(`${n(s.seconds)} s since the stimulus. Watch the EEG, the EMG of the cuffed arm and the ictal line along the top of the strip.`, `${n(s.seconds)} s seit dem Reiz. Beobachten Sie das EEG, das EMG des gestauten Arms und die Iktallinie am oberen Rand des Streifens.`);
-    return L(`${n(s.seconds)} s since the stimulus. When the ictal line has stopped and the EEG is flat, wait a few seconds, then press START/STOP: the device prints its report.`, `${n(s.seconds)} s seit dem Reiz. Wenn die Iktallinie aufgehört hat und das EEG flach ist, warten Sie einige Sekunden und drücken dann START/STOP: Das Gerät druckt seinen Bericht.`);
+    if (s.seconds < 20) return L(`${n(s.seconds)} s after the stimulus. Watch EEG, EMG and the ictal line.`, `${n(s.seconds)} s nach dem Reiz. EEG, EMG und Iktallinie beobachten.`);
+    return L(`${n(s.seconds)} s after the stimulus. When the EEG is flat, press START/STOP for the report.`, `${n(s.seconds)} s nach dem Reiz. Wenn das EEG flach ist, START/STOP für den Bericht.`);
   }
-  if (s.reported) return L('The report is printed. Read it below the strip: the stimulus as given, the endpoints and the seizure’s measures. For another stimulus, set the dose and treat again (the baseline is kept for a few minutes).', 'Der Bericht ist gedruckt. Lesen Sie ihn unter dem Streifen: der Reiz, wie er gegeben wurde, die Endpunkte und die Maße des Anfalls. Für einen weiteren Reiz stellen Sie die Dosis ein und behandeln erneut (die Grundlinie bleibt einige Minuten erhalten).');
-  if (s.baseline === 'none') return L('Test the impedance: press and hold IMPEDANCE TEST. The display shows TESTING, then the static impedance in ohms. Releasing the button starts the baseline EEG.', 'Prüfen Sie die Impedanz: Halten Sie IMPEDANCE TEST gedrückt. Die Anzeige zeigt TESTING, dann die statische Impedanz in Ohm. Das Loslassen startet die Grundlinien-Ableitung des EEG.');
-  if (s.testedOhm != null && s.testedOhm >= s.staticHigh) return L('3000 flashes: the contact is poor. Clean the skin, press the pads on firmly (or replace them), check the cable, then test again. Do not treat at this reading.', '3000 blinkt: Der Kontakt ist schlecht. Reinigen Sie die Haut, drücken Sie die Elektroden fest an (oder ersetzen Sie sie), prüfen Sie das Kabel und testen Sie erneut. Behandeln Sie bei diesem Wert nicht.');
-  if (s.testedOhm != null && s.testedOhm < s.staticLow) return L('Under 100 Ω suggests a short circuit, usually in the stimulus cable or gel bridging the pads. Find it before treating.', 'Unter 100 Ω deutet auf einen Kurzschluss, meist im Reizkabel oder durch Gel zwischen den Elektroden. Finden Sie ihn vor der Behandlung.');
-  if (s.baseline === 'collecting') return L('BASELINE: the device is recording the patient’s EEG before the stimulus (6–10 s). Without it there is no ictal line, no EEG endpoint and no indices.', 'BASELINE: Das Gerät zeichnet das EEG vor dem Reiz auf (6–10 s). Ohne diese Grundlinie gibt es keine Iktallinie, keinen EEG-Endpunkt und keine Indizes.');
-  return L('READY. Set the dose on the PERCENT ENERGY dial (turning it shows the charge for a second; pressing it shows the program). Then lift the cover and hold TREAT.', 'READY. Stellen Sie die Dosis am Drehknopf PERCENT ENERGY ein (Drehen zeigt für eine Sekunde die Ladung, Drücken das Programm). Dann heben Sie die Kappe und halten TREAT gedrückt.');
+  if (s.reported) return L('Report printed, below the strip.', 'Bericht gedruckt, unter dem Streifen.');
+  if (s.baseline === 'none') return L('Hold IMPEDANCE TEST; releasing it starts the baseline.', 'IMPEDANCE TEST halten; Loslassen startet die Grundlinie.');
+  if (s.testedOhm != null && s.testedOhm >= s.staticHigh) return L('3000 flashes: poor contact. Clean the skin, press the pads on, test again.', '3000 blinkt: schlechter Kontakt. Haut reinigen, Elektroden andrücken, neu testen.');
+  if (s.testedOhm != null && s.testedOhm < s.staticLow) return L('Under 100 Ω: short circuit (cable, or gel between the pads). Fix it first.', 'Unter 100 Ω: Kurzschluss (Kabel oder Gel zwischen den Elektroden). Erst beheben.');
+  if (s.baseline === 'collecting') return L('BASELINE: recording the EEG before the stimulus (6–10 s).', 'BASELINE: EEG vor dem Reiz wird aufgezeichnet (6–10 s).');
+  return L('READY. Set the dose, lift the cover, hold TREAT.', 'READY. Dosis einstellen, Kappe heben, TREAT halten.');
 }
 
 /** What the stimulus will do, with this placement and setting. */
@@ -112,20 +112,28 @@ export function reportLines(r: {
   return lines;
 }
 
-/** The heart now, for the explanations. */
+/** The heart now, in a sentence or two. */
 export function heartNow(s: { delivering: boolean; seizing: boolean; afterStimulus: number | null; seized: boolean; hr: number; base: number; vagalBlock: number; betaBlock: number; placement: 'BT' | 'BF' | 'RUL' | 'LART' }, n: Num): LocalizedText | null {
-  const blocked = s.vagalBlock > 0.3 ? L(` The anticholinergic given blocks about ${n(100 * s.vagalBlock)} % of the heart’s muscarinic receptors, so the slowing is smaller.`, ` Das gegebene Anticholinergikum blockiert etwa ${n(100 * s.vagalBlock)} % der muskarinischen Rezeptoren des Herzens, deshalb ist die Verlangsamung geringer.`) : L('', '');
-  const beta = s.betaBlock > 0.1 ? L(` The β-blocker given blocks about ${n(100 * s.betaBlock)} % of the heart’s β1 receptors and blunts the rise.`, ` Der gegebene β-Blocker blockiert etwa ${n(100 * s.betaBlock)} % der β1-Rezeptoren des Herzens und dämpft den Anstieg.`) : L('', '');
+  const blocked = s.vagalBlock > 0.3 ? L(` Anticholinergic: ${n(100 * s.vagalBlock)} % blocked, less slowing.`, ` Anticholinergikum: ${n(100 * s.vagalBlock)} % blockiert, weniger Verlangsamung.`) : L('', '');
+  const beta = s.betaBlock > 0.1 ? L(` β-blocker: ${n(100 * s.betaBlock)} % blocked, a smaller rise.`, ` β-Blocker: ${n(100 * s.betaBlock)} % blockiert, geringerer Anstieg.`) : L('', '');
   if (s.delivering) {
-    const where = s.placement === 'BF' ? L('With bifrontal pads the effect is slight (Stewart 2010: 85 to 78 /min).', 'Mit bifrontalen Elektroden ist die Wirkung gering (Stewart 2010: 85 auf 78 /min).')
-      : s.placement === 'RUL' ? L('With right unilateral pads it is strongest (Stewart 2010: 86 to 26 /min with 1.0 ms pulses, to 43 with 0.3 ms); pauses of several seconds are common (Nagler 2011: 5.6 ± 2.9 s).', 'Mit rechts unilateralen Elektroden ist sie am stärksten (Stewart 2010: 86 auf 26 /min bei 1,0-ms-Pulsen, auf 43 bei 0,3 ms); Pausen von mehreren Sekunden sind häufig (Nagler 2011: 5,6 ± 2,9 s).')
-      : L('With bitemporal pads the rate roughly halves (Stewart 2010: 85 to 46 /min).', 'Mit bitemporalen Elektroden halbiert sich die Frequenz etwa (Stewart 2010: 85 auf 46 /min).');
-    return L(`While the current flows it also discharges the vagus onto the heart’s pacemakers: the sinus node slows or stops, and so does the junction that would otherwise escape. ${where.en}${blocked.en} Why the placements differ so much is not known: the field in deep structures does not explain it in this head, so the station uses the measured effect.`,
-      `Während der Strom fließt, entlädt er auch den Vagus auf die Schrittmacher des Herzens: Der Sinusknoten verlangsamt sich oder steht still, ebenso der AV-Knoten, der sonst als Ersatz einspränge. ${where.de}${blocked.de} Warum sich die Positionen so unterscheiden, ist nicht bekannt: Das Feld in tiefen Strukturen erklärt es in diesem Kopf nicht, deshalb verwendet die Station die gemessene Wirkung.`);
+    const where = s.placement === 'BF' ? L('Bifrontal: slight (Stewart 2010: 85 → 78 /min).', 'Bifrontal: gering (Stewart 2010: 85 → 78 /min).')
+      : s.placement === 'RUL' ? L('Right unilateral: strongest (Stewart 2010: 86 → 26 /min), pauses of seconds.', 'Rechts unilateral: am stärksten (Stewart 2010: 86 → 26 /min), Pausen von Sekunden.')
+      : L('Bitemporal: about half (Stewart 2010: 85 → 46 /min).', 'Bitemporal: etwa halbiert (Stewart 2010: 85 → 46 /min).');
+    return L(`The current slows the heart through the vagus. ${where.en}${blocked.en}`, `Der Strom verlangsamt das Herz über den Vagus. ${where.de}${blocked.de}`);
   }
   if (s.afterStimulus == null) return null;
-  if (s.seizing) return L(`The seizure drives the sympathetic outflow: the heart rate rises within seconds, here ${n(s.hr)} /min from ${n(s.base)} before, highest while the seizure fires hardest and lower as it slows (Nagler 2013: 90 to 135 /min, the peak about 20 s after the stimulus). Blood pressure rises with it.${beta.en}`,
-    `Der Anfall treibt den Sympathikus an: Die Herzfrequenz steigt binnen Sekunden, hier ${n(s.hr)} /min nach ${n(s.base)} vorher, am höchsten, solange der Anfall am stärksten feuert, und niedriger, wenn er sich verlangsamt (Nagler 2013: 90 auf 135 /min, der Gipfel etwa 20 s nach dem Reiz). Der Blutdruck steigt mit.${beta.de}`);
-  if (!s.seized && s.afterStimulus < 30) return L('No seizure followed: nothing but the baroreflex answers the vagal slowing of the stimulus. In patients the slowing can outlast a subconvulsive stimulus (a pause of 18 s has been reported, Tang 2001); the model ends it with the current, a known gap.', 'Es folgte kein Anfall: Nur der Barorezeptorreflex antwortet auf die vagale Verlangsamung durch den Reiz. Bei Patienten kann sie einen unterschwelligen Reiz überdauern (eine Pause von 18 s wurde berichtet, Tang 2001); das Modell beendet sie mit dem Strom, eine bekannte Lücke.');
+  if (s.seizing) return L(`The seizure drives the sympathetic system: ${n(s.hr)} /min (before: ${n(s.base)}), peak about 20 s after the stimulus (Nagler 2013).${beta.en}`,
+    `Der Anfall treibt den Sympathikus: ${n(s.hr)} /min (vorher: ${n(s.base)}), Gipfel etwa 20 s nach dem Reiz (Nagler 2013).${beta.de}`);
+  if (!s.seized && s.afterStimulus < 30) return L('No seizure: the vagal slowing ends with the current (in patients it can last longer; a known gap).', 'Kein Anfall: Die vagale Verlangsamung endet mit dem Strom (bei Patienten kann sie länger dauern; eine bekannte Lücke).');
   return null;
 }
+
+/** The seizure now, in a line (the EEG station explains the loop at length). */
+export const ECT_PHASE: Record<'onset' | 'slowing' | 'ending' | 'postictal' | 'recovering', LocalizedText> = {
+  onset: L('Seizure: the thalamocortical loop cycles by itself, about 10 Hz.', 'Anfall: Die thalamokortikale Schleife kreist von selbst, etwa 10 Hz.'),
+  slowing: L('Seizure slowing toward spike-and-wave (about 12 → 2 Hz, Pottkämper 2021).', 'Anfall verlangsamt sich zu Spike-Wave (etwa 12 → 2 Hz, Pottkämper 2021).'),
+  ending: L('Seizure ending: bursts and pauses, then silence.', 'Anfall endet: Salven und Pausen, dann Stille.'),
+  postictal: L('Postictal suppression: the EEG is flat.', 'Postiktale Suppression: Das EEG ist flach.'),
+  recovering: L('The background rhythm returns.', 'Der Grundrhythmus kehrt zurück.'),
+};

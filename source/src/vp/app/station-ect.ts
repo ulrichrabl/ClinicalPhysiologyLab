@@ -6,8 +6,7 @@ import { ECT } from '../evidence/ect.ts';
 import { EctSession, FS, type EctPatient, type PaperEntry } from '../stations/ect-session.ts';
 import { PROGRAM_NAMES, PROGRAM_REPORT, DEFAULT_SETTINGS, stimulusFor, type ProgramChoice } from '../stations/ect-device.ts';
 import { CHARGE_MC, PERCENT_STEPS } from '../stations/ect-programs.ts';
-import { nextStep, explainStimulus, ECT_BACKGROUND, reportLines, heartNow } from '../stations/ect-texts.ts';
-import { PHASE_LABEL, PHASE_TEXT } from '../stations/eeg-seizure-texts.ts';
+import { nextStep, explainStimulus, ECT_BACKGROUND, reportLines, heartNow, ECT_PHASE } from '../stations/ect-texts.ts';
 import { phaseOf } from '../stations/eeg-seizure.ts';
 import { PLACEMENTS, thresholdField, fieldSection, energy, type PlacementId, type FieldSection, type RegionDose } from '../physiology/brain/ect-stimulus.ts';
 import { fieldFor, dosesFor } from '../physiology/brain/ect-trial.ts';
@@ -36,79 +35,67 @@ import { Procedure, STEPS, STEP, ECT_ORDERS, ECT_ROLES, ROLE_NAME, MODE_NAME, or
 const L = (en: string, de: string): LocalizedText => ({ en, de });
 const T: Record<string, LocalizedText> = {
   eyebrow: L('Station', 'Station'), back: L('Ward', 'Übersicht'),
-  view: L('View', 'Ansicht'), viewTreat: L('The treatment', 'Die Behandlung'), viewStim: L('The stimulus', 'Der Reiz'),
-  patient: L('The patient', 'Der Patient'),
-  patientNote: L('A reference adult of 59 years (the mean age at which the threshold was measured with this device), anaesthetised and relaxed, the right arm cuffed. Behind the ECG runs the lab’s own heart and circulation. Age, sex and the choice of anaesthetic come in the next parts.', 'Ein Referenzerwachsener von 59 Jahren (das mittlere Alter, bei dem die Schwelle mit diesem Gerät gemessen wurde), in Narkose und relaxiert, der rechte Arm gestaut. Hinter dem EKG laufen das Herz und der Kreislauf des Labors. Alter, Geschlecht und die Wahl der Narkose folgen in den nächsten Teilen.'),
-  premed: L('Premedication', 'Prämedikation'), premedNote: L('Given into a vein now; it takes about half a minute to arrive.', 'Jetzt intravenös gegeben; sie braucht etwa eine halbe Minute, um anzukommen.'),
-  given: L('Given', 'Gegeben'), none: L('none yet', 'noch keine'),
-  vitals: L('The patient now', 'Der Patient jetzt'), hrL: L('Heart rate', 'Herzfrequenz'), bpL: L('Blood pressure', 'Blutdruck'),
-  heart: L('The heart', 'Das Herz'),
+          given: L('Given', 'Gegeben'), none: L('none yet', 'noch keine'),
+  hrL: L('Heart rate', 'Herzfrequenz'), bpL: L('Blood pressure', 'Blutdruck'),
+  heart: L('Heart', 'Herz'),
   placement: L('Electrode placement', 'Elektrodenposition'),
-  prepared: L('Skin cleaned and pads pressed on', 'Haut gereinigt und Elektroden angedrückt'),
-  skin: L('Skin impedance', 'Hautimpedanz'), skinLow: L('low', 'niedrig'), skinTypical: L('typical', 'typisch'), skinHigh: L('high', 'hoch'),
+    skin: L('Skin impedance', 'Hautimpedanz'), skinLow: L('low', 'niedrig'), skinTypical: L('typical', 'typisch'), skinHigh: L('high', 'hoch'),
   another: L('Another run (new noise)', 'Neuer Durchlauf (anderes Rauschen)'),
   restart: L('Start again', 'Neu beginnen'),
-  speed: L('Speed after the stimulus', 'Tempo nach dem Reiz'),
-  demo: L('Show the steps', 'Schritte zeigen'), demoStop: L('Stop showing', 'Vorführung beenden'),
-  device: L('The device', 'Das Gerät'),
-  deviceNote: L('Laid out as the real front panel. Hold the buttons (impedance test, treat) as you would at the device; turn a dial with its arrows, the mouse wheel or by dragging, press it by tapping its middle.', 'Angeordnet wie die echte Frontplatte. Halten Sie die Tasten (Impedanztest, Behandlung) wie am Gerät; drehen Sie einen Knopf mit seinen Pfeilen, dem Mausrad oder durch Ziehen, drücken Sie ihn durch Tippen in die Mitte.'),
+      device: L('The device', 'Das Gerät'),
+  deviceNote: L('Hold IMPEDANCE TEST and TREAT as at the device. Dials: arrows, mouse wheel or drag; tap the centre to press.', 'IMPEDANCE TEST und TREAT wie am Gerät halten. Drehknöpfe: Pfeile, Mausrad oder Ziehen; Mitte antippen zum Drücken.'),
   impedance: L('IMPEDANCE TEST', 'IMPEDANCE TEST'), ectJack: L('ECT', 'ECT'), monJack: L('EEG/ECG/EMG', 'EEG/ECG/EMG'),
   flex: L('FLEXDIAL', 'FLEXDIAL'), percent: L('PERCENT ENERGY', 'PERCENT ENERGY'), preset: L('PRESET', 'PRESET'), userSet: L('USER SET', 'USER SET'),
   treat: L('TREAT', 'TREAT'), cover: L('Lift the cover', 'Kappe heben'), coverDown: L('Close the cover', 'Kappe schließen'),
   startStop: L('START/STOP', 'START/STOP'), safety: L('SAFETY MONITOR ACTIVATED', 'SAFETY MONITOR ACTIVATED'), power: L('POWER', 'POWER'),
-  plug: L('plugged in', 'eingesteckt'), unplug: L('not plugged in', 'nicht eingesteckt'),
-  turnDown: L('turn left', 'nach links drehen'), turnUp: L('turn right', 'nach rechts drehen'), pressDial: L('press', 'drücken'),
+    turnDown: L('turn left', 'nach links drehen'), turnUp: L('turn right', 'nach rechts drehen'), pressDial: L('press', 'drücken'),
   strip: L('The strip', 'Der Streifen'),
-  stripNote: L('EEG 1 and 2 (above each eyebrow to the mastoid) at the set gain, the EMG of the cuffed arm and the ECG at 1000 µV/cm; a mark every second, a block every 6 s, the heart rate every 3 s, the ictal line along the top. Drag or use the slider to read back.', 'EEG 1 und 2 (über jeder Augenbraue zum Mastoid) mit der eingestellten Verstärkung, das EMG des gestauten Arms und das EKG mit 1000 µV/cm; jede Sekunde eine Marke, alle 6 s ein Block, alle 3 s die Herzfrequenz, oben die Iktallinie. Ziehen oder den Regler benutzen, um zurückzulesen.'),
+  stripNote: L('EEG 1–2, EMG and ECG; a mark each second, the heart rate every 3 s, the ictal line on top. Drag to read back.', 'EEG 1–2, EMG und EKG; jede Sekunde eine Marke, alle 3 s die Herzfrequenz, oben die Iktallinie. Ziehen zum Zurücklesen.'),
   follow: L('Follow the printer', 'Dem Drucker folgen'),
-  report: L('The report', 'Der Bericht'), noReport: L('Printed when START/STOP is pressed after a treatment.', 'Gedruckt, wenn nach einer Behandlung START/STOP gedrückt wird.'),
-  now: L('What happens now', 'Was jetzt geschieht'), next: L('Next', 'Als Nächstes'),
-  more: L('Background', 'Hintergrund'),
-  draft: L('Explanations are drafts until a clinician has read them.', 'Die Erklärungen sind Entwürfe, bis ein Kliniker sie gelesen hat.'),
+  report: L('The report', 'Der Bericht'), noReport: L('Printed after the treatment with START/STOP.', 'Wird nach der Behandlung mit START/STOP gedruckt.'),
+  now: L('What happens now', 'Was jetzt geschieht'),   more: L('Background', 'Hintergrund'),
+  draft: L('Explanations are drafts until a clinician has reviewed them.', 'Die Erklärungen sind Entwürfe, bis ein Kliniker sie geprüft hat.'),
   stimTitle: L('Where the current goes', 'Wohin der Strom fließt'),
-  stimNote: L('By reciprocity through the EEG station’s four-shell head: the field from the pads is the EEG’s lead field times the current.', 'Über die Reziprozität durch den Vierschalenkopf der EEG-Station: Das Feld der Elektroden ist das Ableitfeld des EEG mal dem Strom.'),
+  stimNote: L('The pads’ field, computed by reciprocity in the EEG station’s four-shell head.', 'Das Feld der Elektroden, berechnet per Reziprozität im Vierschalenkopf der EEG-Station.'),
   pulseWidth: L('Pulse width', 'Pulsbreite'), dose: L('Dose on the dial', 'Dosis am Drehknopf'), program: L('Program', 'Programm'),
   section: L('The field in the plane of the pads', 'Das Feld in der Ebene der Elektroden'),
-  sectionNote: L('Field strength in the brain (V/cm, logarithmic): blue below what excites cortical axons with this pulse width, yellow to red above it; the mark on the scale is that threshold. Seen from the side the plane faces; the rings are brain, fluid, skull and scalp.', 'Feldstärke im Gehirn (V/cm, logarithmisch): blau unter dem, was kortikale Axone bei dieser Pulsbreite erregt, gelb bis rot darüber; die Marke auf der Skala ist diese Schwelle. Von der Seite gesehen, der die Ebene zugewandt ist; die Ringe sind Gehirn, Liquor, Schädel und Kopfhaut.'),
+  sectionNote: L('Field in the brain (V/cm, log scale): blue below the excitation threshold for this pulse width, yellow to red above it. Rings: brain, fluid, skull, scalp.', 'Feld im Gehirn (V/cm, logarithmisch): blau unter der Erregungsschwelle für diese Pulsbreite, gelb bis rot darüber. Ringe: Gehirn, Liquor, Schädel, Kopfhaut.'),
   regions: L('One pulse in each region', 'Ein Puls in jeder Region'),
-  regionsNote: L('The head from above, nose up, the pads as squares: the share of each region’s cortex one pulse excites.', 'Der Kopf von oben, Nase oben, die Elektroden als Quadrate: der Anteil der Rinde jeder Region, den ein Puls erregt.'),
+  regionsNote: L('Head from above, pads as squares: the share of each region’s cortex one pulse excites.', 'Kopf von oben, Elektroden als Quadrate: der Anteil der Rinde jeder Region, den ein Puls erregt.'),
   computing: L('Computing the field…', 'Das Feld wird berechnet…'),
   nose: L('nose', 'Nase'), left: L('left', 'links'), right: L('right', 'rechts'), up: L('vertex', 'Scheitel'),
   regionCol: L('Region', 'Region'), fieldCol: L('Field (median)', 'Feld (Median)'), excitedCol: L('Excited', 'Erregt'),
   regionName: L('frontal,central,temporal,parietal,occipital', 'frontal,zentral,temporal,parietal,okzipital'),
   sd: L('Strength and duration', 'Stärke und Dauer'),
-  sdNote: L('The field that excites an axon falls as the pulse lengthens, toward a floor: past about 0.3 ms a longer pulse spends charge without exciting much more.', 'Das Feld, das ein Axon erregt, sinkt mit länger werdendem Puls auf einen Boden zu: Über etwa 0,3 ms hinaus verbraucht ein längerer Puls Ladung, ohne viel mehr zu erregen.'),
-  seizingNow: L('The model: seizing', 'Das Modell: Anfall'),
-  /* the procedure */
+  sdNote: L('Longer pulses need a weaker field, down to a floor: beyond about 0.3 ms, extra charge adds little.', 'Längere Pulse brauchen ein schwächeres Feld, bis zu einem Boden: Über etwa 0,3 ms bringt mehr Ladung wenig.'),
+    /* the procedure */
   task: L('Your task', 'Ihre Aufgabe'), order: L('The order', 'Die Anordnung'), mode: L('Mode', 'Modus'), role: L('Your role', 'Ihre Rolle'), allRoles: L('All roles', 'Alle Rollen'),
-  modeNote: L('Practise: a coach says what your next step is and why. Watch: the team does everything, one step per “Next”. Exam: no coach; a debrief at the end.', 'Üben: Ein Coach sagt Ihnen den nächsten Schritt und warum. Zusehen: Das Team macht alles, ein Schritt pro „Weiter“. Prüfung: kein Coach; am Ende eine Nachbesprechung.'),
-  roleNote: L('The other roles are played by the team, so you see what each person does.', 'Die anderen Rollen übernimmt das Team, damit Sie sehen, was jede Person tut.'),
+  modeNote: L('Practise: with a coach. Watch: the team works, one step per “Next”. Exam: no help; a debrief at the end.', 'Üben: mit Coach. Zusehen: Das Team arbeitet, ein Schritt pro „Weiter“. Prüfung: ohne Hilfe; Nachbesprechung am Ende.'),
+  roleNote: L('The team does the other roles.', 'Das Team übernimmt die anderen Rollen.'),
   steps: L('The steps', 'Die Schritte'), stepsExam: L('Done so far', 'Bisher erledigt'), you: L('you', 'Sie'), team: L('team', 'Team'),
-  room: L('At the patient', 'Am Patienten'), roomNote: L('Your hands: the steps of your role. The others’ steps are done by the team.', 'Ihre Hände: die Schritte Ihrer Rolle. Die Schritte der anderen erledigt das Team.'),
-  roomWatch: L('In this mode the team does every step; press “Next” in the coach.', 'In diesem Modus erledigt das Team jeden Schritt; drücken Sie „Weiter“ beim Coach.'),
-  notModelled: L('Not in the model yet (part 2b): the patient is treated as asleep and relaxed throughout; these steps set the order only.', 'Noch nicht im Modell (Teil 2b): Der Patient gilt durchgehend als schlafend und relaxiert; diese Schritte legen nur die Reihenfolge fest.'),
-  padsAt: L('Placement', 'Position'), padsOn: L('Put the pads on', 'Elektroden anlegen'),
-  anaesthesia: L('Anaesthesia', 'Narkose'),
-  coach: L('Coach', 'Coach'), coachExam: L('Exam: no coach. Do your steps in the order you think right; the debrief follows the report.', 'Prüfung: kein Coach. Erledigen Sie Ihre Schritte in der Reihenfolge, die Sie für richtig halten; nach dem Bericht folgt die Nachbesprechung.'),
-  yourNext: L('Your next step', 'Ihr nächster Schritt'), whyL: L('Why', 'Warum'), waitS: L('Wait about {s} s first: {what}', 'Erst etwa {s} s warten: {what}'),
+  room: L('At the patient', 'Am Patienten'),   roomWatch: L('The team does every step; press “Next” in the coach.', 'Das Team erledigt jeden Schritt; „Weiter“ beim Coach drücken.'),
+  notModelled: L('Not yet modelled (part 2b): these steps only set the order.', 'Noch nicht modelliert (Teil 2b): Diese Schritte legen nur die Reihenfolge fest.'),
+    anaesthesia: L('Anaesthesia', 'Narkose'),
+  coach: L('Coach', 'Coach'), coachExam: L('Exam: no coach. The debrief follows the report.', 'Prüfung: kein Coach. Nach dem Bericht folgt die Nachbesprechung.'),
+  yourNext: L('Your next step', 'Ihr nächster Schritt'), whyL: L('Why', 'Warum'), waitS: L('Wait about {s} s: {what}.', 'Etwa {s} s warten: {what}.'),
   waitInd: L('the induction agent takes effect', 'das Hypnotikum wirkt'), waitRel: L('the fasciculations pass', 'die Faszikulationen klingen ab'),
-  nothingYours: L('Nothing for you just now: the team is working.', 'Gerade nichts für Sie: Das Team arbeitet.'),
-  doing: L('{who} is doing: {what}', '{who}: {what}'), watching: L('The seizure is running: watch the strip.', 'Der Anfall läuft: Beobachten Sie den Streifen.'),
+  nothingYours: L('Nothing for you now; the team is working.', 'Gerade nichts für Sie; das Team arbeitet.'),
+  doing: L('{who}: {what}', '{who}: {what}'), watching: L('Seizure running: watch the strip.', 'Anfall läuft: Streifen beobachten.'),
   nextBtn: L('Next', 'Weiter'), nextIs: L('Next: {what} ({who})', 'Als Nächstes: {what} ({who})'),
-  hurry: L('Faster ×4', 'Schneller ×4'), realTime: L('Real time', 'Echtzeit'), hurryNote: L('Faster only while you wait; it returns to real time when something is yours to do.', 'Schneller nur, während Sie warten; zurück zur Echtzeit, sobald etwas für Sie zu tun ist.'),
+  hurry: L('Faster ×4', 'Schneller ×4'), realTime: L('Real time', 'Echtzeit'), hurryNote: L('Only while you wait; back to real time when it is your turn.', 'Nur während Sie warten; zurück zur Echtzeit, wenn Sie dran sind.'),
   logL: L('In the room', 'Im Raum'), mistake: L('Mistake', 'Fehler'),
-  debrief: L('Debrief', 'Nachbesprechung'), noErrors: L('No mistakes noticed.', 'Keine Fehler bemerkt.'), colStep: L('Step', 'Schritt'), colRole: L('Role', 'Rolle'), colBy: L('Done by', 'Erledigt von'), colAt: L('At', 'Zeit'), notDone: L('not done', 'nicht erledigt'),
+  debrief: L('Debrief', 'Nachbesprechung'), noErrors: L('No mistakes.', 'Keine Fehler.'), colStep: L('Step', 'Schritt'), colRole: L('Role', 'Rolle'), colBy: L('Done by', 'Erledigt von'), colAt: L('At', 'Zeit'), notDone: L('not done', 'nicht erledigt'),
   variation: L('The patient’s variation', 'Variation des Patienten'), moreDrugs: L('More drugs, to explore', 'Weitere Medikamente, zum Ausprobieren'),
   whyBtn: L('Behind the stimulus', 'Hinter dem Reiz'), backBtn: L('Back to the treatment', 'Zurück zur Behandlung'),
-  atDevice: L('At the device', 'Am Gerät'),
-  scene: L('The patient on the trolley', 'Der Patient auf der Trage'), headRight: L('The head from the right', 'Der Kopf von rechts'), headAbove: L('From above: choose two pad sites', 'Von oben: zwei Elektrodenstellen wählen'), headAboveDone: L('From above: the pads', 'Von oben: die Elektroden'),
-  chestAbove: L('Chest and right arm from above: ECG, ground, cuff, EMG', 'Brust und rechter Arm von oben: EKG, Erdung, Manschette, EMG'),
-  padHint: L('Click two sites on the head seen from above. The pair decides the placement; check it against the order.', 'Klicken Sie zwei Stellen am Kopf von oben an. Das Paar bestimmt die Position; prüfen Sie es gegen die Anordnung.'),
-  padBad: L('Those two sites are not a standard placement; click a site again to take that pad off.', 'Diese beiden Stellen ergeben keine Standardposition; klicken Sie eine Stelle erneut an, um die Elektrode abzunehmen.'),
-  padsSet: L('Pads on: {p}.', 'Elektroden angelegt: {p}.'),
+  atDevice: L('Device', 'Gerät'), seizure: L('Seizure', 'Anfall'),
+  scene: L('The patient', 'Der Patient'), headRight: L('Head from the right', 'Kopf von rechts'), headAbove: L('Head from above: choose two sites', 'Kopf von oben: zwei Stellen wählen'), headAboveDone: L('Head from above', 'Kopf von oben'),
+  chestAbove: L('Chest and arm from above', 'Brust und Arm von oben'),
+  padHint: L('Click the two pad sites.', 'Die zwei Elektrodenstellen anklicken.'),
+  padBad: L('Not a standard pair. Click a site again to remove its pad.', 'Kein Standardpaar. Stelle erneut anklicken, um die Elektrode zu entfernen.'),
+  padsSet: L('Pads: {p}.', 'Elektroden: {p}.'),
   site_Ltemp: L('left temporal', 'links temporal'), site_Rtemp: L('right temporal', 'rechts temporal'), site_Lfront: L('left frontal', 'links frontal'), site_Rfront: L('right frontal', 'rechts frontal'), site_vertexR: L('just right of the vertex', 'knapp rechts des Scheitels'), site_LantL: L('left anterior', 'links anterior'),
   cuffL: L('The cuff', 'Die Manschette'), cuffOnBtn: L('Put the cuff on', 'Manschette anlegen'), squeezeBtn: L('Squeeze the bulb', 'Ballon drücken'), deflateBtn: L('Let it down', 'Ablassen'), cuffUpBtn: L('The cuff is up', 'Manschette ist aufgepumpt'),
-  cuffNow: L('Cuff {c} mmHg · systolic {s} mmHg', 'Manschette {c} mmHg · systolisch {s} mmHg'),
+  cuffNow: L('Cuff {c} mmHg, systolic {s} mmHg', 'Manschette {c} mmHg, systolisch {s} mmHg'),
 };
 const esc = (x: string) => x.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 const SKINS = [{ k: 'skinLow', z: -1.2 }, { k: 'skinTypical', z: 0 }, { k: 'skinHigh', z: 1.5 }];
@@ -323,9 +310,10 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const drugs = session.body.run.drugs;
     const hn = heartNow({ delivering: d.treat === 'delivering', seizing: session.seizing, afterStimulus: d.stimulusEnd != null ? d.t - d.stimulusEnd : null, seized, hr: session.heartRateAt(session.t), base: r?.baseHr ?? 0,
       vagalBlock: drugs.vagalBlock(), betaBlock: drugs.betaBlock(), placement: patient.placement }, num);
-    const html = (mode === 'exam' ? '' : `<div class="st-text"><h3>${t('atDevice')}</h3><p>${esc(tr(step, lang))}</p></div>`) +
-      (hn ? `<div class="st-text"><h3>${t('heart')}</h3><p>${esc(tr(hn, lang))}</p></div>` : '') +
-      (st && ph !== 'rest' ? `<div class="st-text"><h3>${esc(tr(PHASE_LABEL[ph], lang))}</h3><p>${esc(tr(PHASE_TEXT[ph], lang))}</p></div>` : '');
+    const line = (label: string, x: LocalizedText) => `<p><b>${label}:</b> ${esc(tr(x, lang))}</p>`;
+    const html = (mode === 'exam' ? '' : line(t('atDevice'), step))
+      + (hn ? line(t('heart'), hn) : '')
+      + (st && ph !== 'rest' ? line(t('seizure'), ECT_PHASE[ph]) : '');
     const gv = host.querySelector<HTMLElement>('[data-given]');
     if (gv) { const g = givenList.length ? givenList.map((x) => `${esc(tr(x.label, lang))} (${num(x.at)} s)`).join(', ') : t('none'); const gh = `${t('given')}: ${g}`; if (gv.dataset.html !== gh) { gv.innerHTML = gh; gv.dataset.html = gh; } }
     if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
