@@ -508,6 +508,41 @@ canvas.st-strip:focus-visible { outline: 3px solid var(--accent); outline-offset
 .ect-printer { align-self: stretch; border-radius: 6px; background: #c7c2b4; border: 1px solid #a9a495; display: grid; align-items: end; padding: 10px; min-height: 110px; }
 .ect-slot { height: 8px; border-radius: 4px; background: #2d2b27; }
 .ect-strip { touch-action: pan-y; cursor: grab; }
+/* the ECT procedure: the task, the steps, the room, the coach */
+.ect-task { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; padding: 14px; margin-bottom: 12px; }
+.ect-task h2 { margin: 0 0 6px; }
+.ect-orderlines { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 2px; }
+.ect-modes { display: grid; gap: 6px; align-content: start; }
+.ect-modes p { margin: 0; }
+.ect-room-grid { display: grid; grid-template-columns: minmax(220px, 250px) minmax(0, 1fr) minmax(240px, 300px); grid-template-areas: "steps room coach" "steps mid mid"; gap: 12px; align-items: start; margin-bottom: 12px; }
+.ect-steps { grid-area: steps; } .ect-room { grid-area: room; } .ect-coach { grid-area: coach; } .ect-mid { grid-area: mid; }
+@media (max-width: 1000px) { .ect-room-grid { grid-template-areas: "room" "coach" "mid" "steps"; } }
+@media (max-width: 1000px) { .ect-room-grid, .ect-task { grid-template-columns: minmax(0, 1fr); } }
+.ect-mid { display: grid; gap: 12px; min-width: 0; }
+.ect-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.ect-steps, .ect-room, .ect-coach { padding: 14px; display: grid; gap: 8px; align-content: start; }
+.ect-steps h2, .ect-room h2, .ect-coach h2 { margin: 0; }
+.ect-steps ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ect-steps li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 6px; font-size: .88rem; line-height: 1.3; color: var(--muted); }
+.ect-steps li.open, .ect-steps li.busy, .ect-steps li.current, .ect-steps li.done { color: var(--fg); }
+.ect-steps li.current { font-weight: 700; }
+.ect-steps li.done .ect-ico { color: var(--accent); }
+.ect-ico { text-align: center; }
+.ect-role { display: inline-block; font-size: .7rem; padding: 0 6px; border-radius: 8px; border: 1px solid var(--line); font-weight: 400; }
+.ect-role-psychiatrist { border-color: #6b8fd6; } .ect-role-anaesthetist { border-color: #c98a3a; } .ect-role-nurse { border-color: #4aa37a; }
+.ect-you { font-size: .7rem; font-weight: 700; color: var(--accent); }
+.ect-act { justify-self: start; text-align: left; }
+.ect-act.on { opacity: .6; }
+.ect-pads { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ect-room h3, .ect-coach h3 { margin: 6px 0 0; font-size: .95rem; }
+.ect-coach p { margin: 0; }
+.ect-wait { font-weight: 700; }
+.ect-err { color: #b3261e; margin: 0; }
+.ect-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: .85rem; }
+.ect-debrief { padding: 14px; margin-bottom: 12px; }
+.ect-variation { border-top: 1px solid var(--line); padding-top: 6px; }
+.ect-variation summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
+
 .ect-scroll { width: 100%; }
 .ect-report { font: .8rem/1.45 ui-monospace, Menlo, Consolas, monospace; background: var(--sunk); padding: 10px 12px; border-radius: 6px; overflow-x: auto; margin: 0; }
 .ect-regions td, .ect-regions th { padding: 2px 8px; }

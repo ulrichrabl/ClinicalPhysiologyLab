@@ -86,6 +86,8 @@ export class EctSession {
   paper: PaperEntry[] = [];
   /** cables: stimulus cable to the pads, monitoring cable to the EEG, EMG and ECG electrodes */
   stimulusCable = true; monitoringCable = true;
+  /** the stimulus pads on the head (the procedure starts without them; part 1's sessions have them on) */
+  padsOn = true;
   private startedAt = 0;
   private emgNoise: () => number;
   private fields = regionFields();
@@ -116,7 +118,7 @@ export class EctSession {
 
   /** the static impedance of this head now (Ω): what the device would read */
   get staticOhm() {
-    if (!this.stimulusCable) return Infinity;
+    if (!this.stimulusCable || !this.padsOn) return Infinity;
     const z = ECT.staticMean + this.patient.skin * ECT.staticSD;
     return Math.max(150, z) * (this.patient.prepared ? 1 : ECT.unpreparedSkin);
   }
@@ -125,6 +127,10 @@ export class EctSession {
   private updateImpedance() { this.device.staticOhm = this.staticOhm; }
   setPrepared(p: boolean) { this.patient.prepared = p; this.updateImpedance(); }
   setStimulusCable(on: boolean) { this.stimulusCable = on; this.updateImpedance(); }
+  /** put the stimulus pads on the head at a placement, or take them off (null) */
+  setPads(placement: PlacementId | null) { if (placement) this.patient.placement = placement; this.padsOn = placement != null; this.updateImpedance(); }
+  /** whether current from the device reaches the head */
+  get circuit() { return this.stimulusCable && this.padsOn; }
 
   private grow() {
     if (this.rec.n < this.rec.eeg1.length) return;
@@ -165,11 +171,11 @@ export class EctSession {
       case 'ready': this.readyAt = this.t; break;
       case 'stimulus-start': {
         this.startedAt = this.t;
-        if (this.stimulusCable) this.brain.pulses(pulseTrain(e.stimulus, dosesFor(this.patient.placement, e.stimulus.pulseWidth)));
+        if (this.circuit) this.brain.pulses(pulseTrain(e.stimulus, dosesFor(this.patient.placement, e.stimulus.pulseWidth)));
         break;
       }
       case 'stimulus-stop': {
-        const given = this.stimulusCable ? (this.brain.pulsesGiven ?? 0) : 0;
+        const given = this.circuit ? (this.brain.pulsesGiven ?? 0) : 0;
         this.brain.stopPulses();
         const s = this.device.active;
         const pw = s?.pulseWidth ?? 0.5, f = s?.frequency ?? 30;
@@ -217,7 +223,7 @@ export class EctSession {
      drive for the block are set from the stimulus and the seizure now, the body advances, and its ECG fills the block. */
   private stepBody() {
     const dt = BODY_BLOCK / FS;
-    const delivering = this.device.treat === 'delivering' && this.stimulusCable;
+    const delivering = this.device.treat === 'delivering' && this.circuit;
     const target = delivering ? vagalDrive(this.patient.placement, this.device.active?.pulseWidth ?? 0.5) : 0;
     /* the discharge acts while the current flows and fades with the vagal efferent time constant */
     this.vagal = delivering ? target : this.vagal * Math.exp(-dt / BARO.tauP);
