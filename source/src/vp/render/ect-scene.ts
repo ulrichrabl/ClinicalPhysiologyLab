@@ -309,6 +309,17 @@ export function chestCloseUp(look: FigureLook, d: EctDress, opts: { targets?: bo
     const cf = cuffSvg(g, d.cuff.mmHg, 1);
     out.push(cf.svg, `<path d="M${f(cf.outlet.x)} ${f(cf.outlet.y)} Q${f(cf.outlet.x - 3)} ${f(cf.outlet.y + 6)} -31 ${f(cf.outlet.y + 10)}" fill="none" stroke="#444" stroke-width=".4"/>`);
   }
+  /* the IV cannula in the left forearm, above the wrist (the cuffed arm is the one without it): the hub, the tape and the
+     line running off toward the drip */
+  {
+    const w = got.wristR?.[0];
+    if (w) {
+      const c = { x: -w.x, y: w.y - 6.5 };
+      out.push(`<rect x="${f(c.x - 1.6)}" y="${f(c.y - 1.2)}" width="3.2" height="2.4" rx=".4" fill="#f4f1e6" stroke="#b9b29c" stroke-width=".15" opacity=".95"/>`
+        + `<rect x="${f(c.x - 0.45)}" y="${f(c.y - 1.9)}" width=".9" height="1.6" rx=".25" fill="#e8c23a" stroke="#9c7f17" stroke-width=".12"/>`
+        + `<path d="M${f(c.x)} ${f(c.y - 1.9)} C${f(c.x + 1)} ${f(c.y - 6)} ${f(c.x + 5)} ${f(c.y - 8)} 31 ${f(c.y - 12)}" fill="none" stroke="#9fb7c2" stroke-width=".35"/>`);
+    }
+  }
   const placed = placedLeads(d), taken = new Set(placed.map((l) => l.spot));
   for (const l of placed) {
     const p = at[l.spot]; if (!p) continue;

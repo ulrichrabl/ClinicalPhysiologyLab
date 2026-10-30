@@ -75,6 +75,8 @@ export const ECT = defineConstants('ect', {
   voluntaryEmg: { value: 300, unit: 'µV', status: 'assumed', means: 'Peak surface EMG of the forearm while the awake patient makes a firm fist (the bedside check that the EMG leads work).',
     derivation: 'Surface EMG of the forearm flexors in a firm grip is of the order of hundreds of µV; no value was taken from a source. It only has to show on the strip at the device’s EMG gain.' },
 
+  restingEeg: { value: 20, unit: 'µV', status: 'measured', refs: ['hirsch2021', 'thymatron2021'], means: 'Peak-to-trough size of the awake resting EEG on channel 1 (above the left eyebrow to the left mastoid), the background the device takes its baseline from.',
+    derivation: 'The lower limit of a normal adult background: most activity at least 20 µV peak to trough in the longitudinal bipolar montage (Hirsch 2021, ACNS terminology). The device takes its baseline before the anaesthetic, with the patient awake (its manual, "Baseline EEG collection"). The forehead-to-mastoid pair is longer than a bipolar pair of neighbours, so a real channel is likely larger: the floor, not a typical value. Drawn as pink (1/f) noise in 0.5–30 Hz, its RMS the peak-to-trough over 2√2.' },
   mainsHum: { value: 50, unit: 'µV', status: 'assumed', means: 'Amplitude of the 50 Hz mains interference on every connected channel when the ground lead is not on.',
     derivation: 'Without a ground the amplifier’s inputs float and pick up the mains: a common practical fault, its size not taken from a source. The device prints its mains frequency (50 Hz here) with the self test.' },
 

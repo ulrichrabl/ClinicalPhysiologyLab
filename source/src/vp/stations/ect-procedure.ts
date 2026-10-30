@@ -168,7 +168,7 @@ export const STEPS: readonly StepDef[] = [
     says: L('Hypnotic in.', 'Hypnotikum gegeben.') },
   { id: 'cuff', role: 'nurse', kind: 'room', modelled: true, after: ['induction'],
     title: L('Inflate the arm cuff', 'Armmanschette aufpumpen'),
-    how: L('Cuff on the right upper arm; pump well above systolic; report it up.', 'Manschette an den rechten Oberarm; deutlich über systolisch pumpen; melden.'),
+    how: L('Cuff on the arm without the IV (here the right); pump well above systolic; report it up.', 'Manschette an den Arm ohne Zugang (hier rechts); deutlich über systolisch pumpen; melden.'),
     why: L('Keeps the relaxant out of the arm, so the motor seizure stays visible.', 'Hält das Relaxans aus dem Arm, damit der motorische Anfall sichtbar bleibt.'),
     says: L('Cuff up.', 'Manschette oben.') },
   { id: 'biteBlock', role: 'anaesthetist', kind: 'room', modelled: false, after: ['induction'],
