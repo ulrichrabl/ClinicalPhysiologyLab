@@ -323,7 +323,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     ok('induced on room air and not ventilated, the patient desaturates to 92 % or below within the 5 min apnoea, and the procedure notices', low <= 92 && q.errors.some((e) => e.code === 'desaturation'), J({ low, e: q.errors.map((e) => e.code) }));
     /* the cuff too low: the relaxant reaches the arm and its EMG is flat */
     const w = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 });
-    w.relax(false);
+    w.relax(false); w.advance(61);                     // the relaxant takes a minute to reach the arm
     const rr = S.scriptedTreatment(w, { program: 'LOW_05', percent: 30, after: 60 });
     ok('with the cuff not above systolic, the relaxant reaches the arm: no EMG, while the EEG seizure is still seen', rr.emgEndpoint == null && rr.eegEndpoint != null && w.armRelaxed, J({ emg: rr.emgEndpoint, eeg: rr.eegEndpoint }));
   }
