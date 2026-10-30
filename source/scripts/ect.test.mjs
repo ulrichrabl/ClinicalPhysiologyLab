@@ -138,7 +138,7 @@ console.log('\nThe seizure as the device reads it');
   const sub = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 });
   const rs = S.scriptedTreatment(sub, { program: 'LOW_05', percent: 5, after: 40 });
   ok('below threshold (5 %): no seizure in the model and no EMG activity', !sub.seizing && rs.emgEndpoint == null, J([rs.eegEndpoint, rs.emgEndpoint]));
-  gap('…and no EEG endpoint, as on the published strip of an inadequate stimulus (neither endpoint detected)', rs.eegEndpoint == null, `EEG endpoint at ${f1(rs.eegEndpoint)} s: the stimulus’s after-effects exceed a baseline that is far too small (gap 63)`);
+  gap('…and no EEG endpoint, as on the published strip of an inadequate stimulus (neither endpoint detected)', rs.eegEndpoint == null, `EEG endpoint at ${f1(rs.eegEndpoint)} s: the stimulus’s after-effects still exceed the 20 µV baseline for a few seconds (gap 65)`);
 
   const nb = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 });
   const d = nb.device; d.power(true); nb.advance(6); d.treatButton(true); while (d.treat !== 'done') nb.advance(0.1); d.treatButton(false); nb.advance(60); d.startStop(); nb.advance(0.1);
