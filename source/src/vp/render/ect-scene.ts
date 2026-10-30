@@ -41,6 +41,8 @@ export interface EctFigure {
   /** the head frame: origin and unit axes as drawn */
   o: Pt; ea: Pt; eb: Pt;
   wristR: Pt; elbowR: Pt; upperArmR: Pt; forearmR: [Pt, Pt]; chest: [number, number, number, number];
+  /** the right arm's two outline edges across the cuff's place (as drawn), so that the cuff wraps the arm itself */
+  armEdges: [Pt, Pt];
 }
 
 export function ectLook(seed = 7): FigureLook { return figureLookFor(ECT_FIGURE_PATIENT, { exposure: [] }, seed); }
@@ -54,7 +56,13 @@ export function ectFigure(look: FigureLook, jerk = 0): EctFigure {
   const svg = figureSvg(pose, look, viewAt(0), { collect: (k, side, pts) => { (got[k + side] ??= []).push(...pts); } });
   const [o, A, B] = got.headFrame;
   const xs = (got.chest ?? []).map((p) => p.x), ys = (got.chest ?? []).map((p) => p.y);
-  return { svg, o, ea: { x: A.x - o.x, y: A.y - o.y }, eb: { x: B.x - o.x, y: B.y - o.y }, wristR: got.wristR[0], elbowR: got.elbowR[0], upperArmR: got.upperArmR[0], forearmR: [got.forearmR[0], got.forearmR[1]],
+  /* across the arm at the cuff's place: the outline points nearest the line through it at right angles to the upper arm */
+  const c = got.upperArmR[0], e = got.elbowR[0], al = Math.hypot(e.x - c.x, e.y - c.y) || 1;
+  const ax = { x: (e.x - c.x) / al, y: (e.y - c.y) / al }, nx = { x: -ax.y, y: ax.x };
+  const near = (got.armR ?? []).filter((q) => Math.abs((q.x - c.x) * ax.x + (q.y - c.y) * ax.y) < 2.2);
+  const side = (sg: number) => near.filter((q) => sg * ((q.x - c.x) * nx.x + (q.y - c.y) * nx.y) > 0).reduce<Pt | null>((m, q) => (!m || Math.abs((q.x - c.x) * nx.x + (q.y - c.y) * nx.y) > Math.abs((m.x - c.x) * nx.x + (m.y - c.y) * nx.y) ? q : m), null) ?? { x: c.x + sg * 3.5 * nx.x, y: c.y + sg * 3.5 * nx.y };
+  const armEdges: [Pt, Pt] = [side(-1), side(1)];
+  return { armEdges, svg, o, ea: { x: A.x - o.x, y: A.y - o.y }, eb: { x: B.x - o.x, y: B.y - o.y }, wristR: got.wristR[0], elbowR: got.elbowR[0], upperArmR: got.upperArmR[0], forearmR: [got.forearmR[0], got.forearmR[1]],
     chest: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] };
 }
 
@@ -93,7 +101,15 @@ export interface EctDress {
 }
 export const NO_DRESS: EctDress = { pads: [], cleaned: false, leads: false, cuff: { on: false, mmHg: 0 }, mask: false, bagging: false, biteBlock: false };
 
-const PAD_R = Math.sqrt(ECT.padArea / Math.PI);   // cm: a disc of the pad's area
+const PAD_R = Math.sqrt(ECT.padArea / Math.PI);   // cm: a disc of the pad's area (the map from above)
+/* a Thymapad: 4.2 × 4.9 cm (Unal 2023, ECT.padArea), a white foam rectangle with a short lead ending in a socket for the
+   stimulus cable's banana plug (the device's manual, "Stimulus electrodes application") */
+const PAD_W = 4.2, PAD_H = 4.9;
+/* a stick-on snap monitoring electrode: rectangular (the manual), about 2.4 × 3.4 cm (assumed: the size of common adult
+   snap electrodes) */
+const MON_W = 2.4, MON_H = 3.4;
+/* the lead-wires' colours (the manual): each channel one black (negative) and one red (positive); the ground green */
+const BLACK = '#26282b', RED = '#c0352b', GREEN = '#2f8a47';
 
 function onHead(F: EctFigure) {
   const H = (a: number, b: number): Pt => ({ x: F.o.x + a * F.ea.x + b * F.eb.x, y: F.o.y + a * F.ea.y + b * F.eb.y });
@@ -106,42 +122,82 @@ function onHead(F: EctFigure) {
 export function dressSvg(F: EctFigure, d: EctDress, t = 0): string {
   const { H, s, ang } = onHead(F);
   const out: string[] = [];
-  const PAD = '#f4f1e8', PADLINE = '#8b8676', CABLE = '#4c5560', LEAD = '#2c5d8f';
+  const PAD = '#f6f4ee', PADLINE = '#9a9585', CABLE = '#4c5560';
   /* the cleaned skin: a faint sheen where the pads go */
   if (d.cleaned) for (const id of ['Rtemp', 'Rfront', 'vertexR'] as SiteId[]) { const p = SITES[id].profile!; const c = H(p.a, p.b); out.push(`<circle cx="${f(c.x)}" cy="${f(c.y)}" r="${f(PAD_R * s * 1.15)}" fill="#ffffff" opacity=".1"/>`); }
   /* the stimulus pads and their cable, toward the device at the head of the bed */
   for (const id of d.pads) {
     const p = SITES[id].profile; if (!p) continue;
-    const c = H(p.a, p.b), r = PAD_R * s;
-    const rot = p.seen === 'face' ? 0 : p.seen === 'top' ? ang + 90 : ang;
-    /* a pad on the side is seen face-on; on the top of the head edge-on; on the front-lateral forehead about half turned */
-    const ry = p.seen === 'face' ? r : p.seen === 'top' ? r * 0.28 : r * 0.5;
-    out.push(`<ellipse cx="${f(c.x)}" cy="${f(c.y)}" rx="${f(r)}" ry="${f(ry)}" transform="rotate(${f(rot)} ${f(c.x)} ${f(c.y)})" fill="${PAD}" stroke="${PADLINE}" stroke-width=".5"/>`);
-    if (p.seen === 'face') out.push(`<circle cx="${f(c.x)}" cy="${f(c.y)}" r="${f(r * 0.25)}" fill="#cfd6da" stroke="${PADLINE}" stroke-width=".3"/>`);
-    const back = H(p.a + 4, -14);
-    out.push(`<path d="M${f(c.x)} ${f(c.y)} Q${f((c.x + back.x) / 2)} ${f(Math.min(c.y, back.y) - 6)} ${f(back.x)} ${f(back.y)}" fill="none" stroke="${CABLE}" stroke-width=".9"/>`);
+    const c = H(p.a, p.b);
+    /* the pad's long side runs up the head; on the side of the head it is seen face-on, on the top edge-on, on the
+       front-lateral forehead about half turned */
+    const w = PAD_W * s, h = PAD_H * s * (p.seen === 'face' ? 1 : p.seen === 'top' ? 0.28 : 0.5);
+    const rot = p.seen === 'top' ? ang : ang - 90;
+    out.push(`<rect x="${f(c.x - h / 2)}" y="${f(c.y - w / 2)}" width="${f(h)}" height="${f(w)}" rx="${f(0.5 * s)}" transform="rotate(${f(rot + 90)} ${f(c.x)} ${f(c.y)})" fill="${PAD}" stroke="${PADLINE}" stroke-width=".5"/>`);
+    /* its lead leaves the upper back edge and ends in the socket the cable's plug goes into */
+    const edge = H(p.a + (p.seen === 'top' ? 0.6 : 2.2), p.b - (p.seen === 'top' ? 2.3 : 1.2)), sock = H(p.a + (p.seen === 'top' ? 1.4 : 3.6), p.b - 4.2);
+    out.push(`<path d="M${f(edge.x)} ${f(edge.y)} L${f(sock.x)} ${f(sock.y)}" stroke="#9aa3aa" stroke-width=".5"/><circle cx="${f(sock.x)}" cy="${f(sock.y)}" r="${f(0.45 * s)}" fill="#d9dde0" stroke="#7b848b" stroke-width=".35"/>`);
+    const back = H(p.a + 5, -15);
+    out.push(`<path d="M${f(sock.x)} ${f(sock.y)} Q${f((sock.x + back.x) / 2)} ${f(Math.min(sock.y, back.y) - 6)} ${f(back.x)} ${f(back.y)}" fill="none" stroke="${CABLE}" stroke-width=".9"/>`);
   }
-  /* the monitoring leads: EEG above the right eyebrow and on the mastoid; the ECG on the chest; the EMG on the right forearm */
+  /* the monitoring leads (the device's manual): stick-on snap electrodes; each channel's black and red lead-wires, the green
+     ground on the shoulder. EEG: above the right eyebrow (black) and on the right mastoid (red), as the model's channel 2;
+     ECG: two on the front of the chest, above and below the heart, about 8 inches apart; EMG: two on the cuffed forearm,
+     about 3 inches apart */
   if (d.leads) {
-    const lead = (c: Pt, to: Pt, via?: Pt) => out.push(`<circle cx="${f(c.x)}" cy="${f(c.y)}" r="${f(0.55 * s)}" fill="#eef2f5" stroke="${LEAD}" stroke-width=".5"/><path d="M${f(c.x)} ${f(c.y)} Q${f((via ?? { x: (c.x + to.x) / 2, y: Math.max(c.y, to.y) + 4 }).x)} ${f((via ?? { x: 0, y: Math.max(c.y, to.y) + 4 }).y)} ${f(to.x)} ${f(to.y)}" fill="none" stroke="${LEAD}" stroke-width=".45"/>`);
-    /* the EEG leads run back over the hair, above the ear, to behind the head (a cubic that stays on the scalp) */
-    const eeg = (c: Pt, c1: Pt, c2: Pt, to: Pt) => out.push(`<circle cx="${f(c.x)}" cy="${f(c.y)}" r="${f(0.55 * s)}" fill="#eef2f5" stroke="${LEAD}" stroke-width=".5"/><path d="M${f(c.x)} ${f(c.y)} C${f(c1.x)} ${f(c1.y)} ${f(c2.x)} ${f(c2.y)} ${f(to.x)} ${f(to.y)}" fill="none" stroke="${LEAD}" stroke-width=".45"/>`);
+    const snap = (c: Pt, rot: number) => out.push(`<rect x="${f(c.x - (MON_W * s) / 2)}" y="${f(c.y - (MON_H * s) / 2)}" width="${f(MON_W * s)}" height="${f(MON_H * s)}" rx="${f(0.4 * s)}" transform="rotate(${f(rot)} ${f(c.x)} ${f(c.y)})" fill="#f7f7f4" stroke="#a9aba6" stroke-width=".35"/><circle cx="${f(c.x)}" cy="${f(c.y)}" r="${f(0.35 * s)}" fill="#c9ccce" stroke="#8a8d90" stroke-width=".25"/>`);
+    const wire = (c: Pt, col: string, d1: string) => out.push(`<path d="M${f(c.x)} ${f(c.y)} ${d1}" fill="none" stroke="${col}" stroke-width=".55"/>`);
     const behind = H(5, -14);
-    eeg(H(12.2, 8.6), H(14.6, 4.5), H(13.6, -7), behind); eeg(H(3.4, -4.8), H(3.8, -8), H(4.4, -11), behind);
-    const [x0, y0, x1] = F.chest;
-    for (const k of [0.25, 0.5, 0.8]) lead({ x: x0 + (x1 - x0) * k, y: y0 + 1.2 }, { x: x0 - 8, y: y0 + 10 });
-    /* the EMG: two electrodes on the forearm below the cuff, their leads to the device at the head end */
-    const [e1, e2] = F.forearmR, up = { x: F.elbowR.x - 20, y: F.elbowR.y - 14 };
-    lead(e1, up); lead(e2, up);
+    /* just above the eyebrow (the brow is at a ≈ 10.3–10.9), low enough to clear a bifrontal pad */
+    const fp = H(11.7, 8.9), ms = H(3.4, -4.8);
+    const c1 = H(14.6, 4.5), c2 = H(13.6, -7), m1 = H(3.8, -8), m2 = H(4.4, -11);
+    snap(fp, ang); snap(ms, ang + 90);
+    wire(fp, BLACK, `C${f(c1.x)} ${f(c1.y)} ${f(c2.x)} ${f(c2.y)} ${f(behind.x)} ${f(behind.y)}`);
+    wire(ms, RED, `C${f(m1.x)} ${f(m1.y)} ${f(m2.x)} ${f(m2.y)} ${f(behind.x)} ${f(behind.y)}`);
+    /* the chest: in this profile the front of the chest is the top of the chest outline; 8 inches (20 cm) apart along it */
+    const [x0, y0] = F.chest, u = s / 1.06, top = (x: number) => ({ x, y: y0 + 1.4 });
+    /* the upper ECG electrode below the clavicle, the lower one 20 cm on, over the lower sternum; the ground on the point
+       of the shoulder, at the top of the arm 10 cm above the cuff */
+    const ua = F.upperArmR, el = F.elbowR, al = Math.hypot(el.x - ua.x, el.y - ua.y) || 1;
+    const e1 = top(x0 + 7 * u), e2 = top(x0 + 27 * u);
+    const sh = { x: F.armEdges[0].x - ((el.x - ua.x) / al) * 10 * u, y: F.armEdges[0].y - ((el.y - ua.y) / al) * 10 * u + 1 };
+    const toHead = { x: x0 - 10, y: y0 + 12 };
+    snap(e1, 90); snap(e2, 90); snap(sh, 90);
+    wire(e1, RED, `Q${f(e1.x - 6)} ${f(e1.y + 8)} ${f(toHead.x)} ${f(toHead.y)}`);
+    wire(e2, BLACK, `Q${f(e2.x - 10)} ${f(e2.y + 10)} ${f(toHead.x)} ${f(toHead.y)}`);
+    wire(sh, GREEN, `Q${f(sh.x - 4)} ${f(sh.y + 6)} ${f(toHead.x)} ${f(toHead.y)}`);
+    /* the EMG on the forearm below the cuff */
+    const [f1, f2] = F.forearmR, up = { x: F.elbowR.x - 20, y: F.elbowR.y - 14 };
+    const fa = (Math.atan2(f2.y - f1.y, f2.x - f1.x) * 180) / Math.PI;
+    snap(f1, fa + 90); snap(f2, fa + 90);
+    wire(f1, RED, `Q${f((f1.x + up.x) / 2)} ${f(f1.y + 4)} ${f(up.x)} ${f(up.y)}`);
+    wire(f2, BLACK, `Q${f((f2.x + up.x) / 2)} ${f(f2.y + 6)} ${f(up.x)} ${f(up.y)}`);
   }
-  /* the cuff round the right upper arm, its tube to the gauge and bulb hanging over the side of the bed */
+  /* the cuff round the right upper arm: a band across the whole arm, standing a little proud of it and more so as it fills;
+     its far half shows as the darker band where it curves away, the overlapping end with its Velcro on the near side, the
+     tube from its lower edge to the gauge and bulb hanging over the side of the bed */
   if (d.cuff.on) {
-    const c = F.upperArmR, e = F.elbowR, len = 11, wide = 7.5;
-    const ax = Math.atan2(e.y - c.y, e.x - c.x) * 180 / Math.PI;     // along the upper arm
-    const full = Math.min(1, d.cuff.mmHg / 250);
-    out.push(`<rect x="${f(c.x - len / 2)}" y="${f(c.y - wide / 2 - full)}" width="${f(len)}" height="${f(wide + 2 * full)}" rx="2" transform="rotate(${f(ax)} ${f(c.x)} ${f(c.y)})" fill="#3e6f8f" stroke="#284a60" stroke-width=".5"/>`);
-    const g = { x: c.x + 4, y: c.y + 40 };
-    out.push(`<path d="M${f(c.x)} ${f(c.y + 3)} Q${f(c.x - 4)} ${f(c.y + 22)} ${f(g.x - 6)} ${f(g.y)}" fill="none" stroke="#444" stroke-width=".7"/>`);
+    const [p, q] = F.armEdges, e = F.elbowR, c = F.upperArmR;
+    const al = Math.hypot(e.x - c.x, e.y - c.y) || 1, ax = { x: (e.x - c.x) / al, y: (e.y - c.y) / al };
+    const nl = Math.hypot(q.x - p.x, q.y - p.y) || 1, nn = { x: (q.x - p.x) / nl, y: (q.y - p.y) / nl };
+    const full = Math.min(1, d.cuff.mmHg / 250), proud = 0.6 + 0.9 * full;
+    const half = 6.5;                                                          // half the cuff's width along the arm (px; about 7.5 cm)
+    const P = (t: number, k: number) => ({ x: p.x + (q.x - p.x) * k - nn.x * proud * (1 - 2 * k) + ax.x * t, y: p.y + (q.y - p.y) * k - nn.y * proud * (1 - 2 * k) + ax.y * t });
+    const ring = (t: number) => [P(t, 0), P(t, 1)];
+    const [a0, b0] = ring(-half), [a1, b1] = ring(half);
+    const bow = (u0: Pt, u1: Pt, t: number) => { const m = { x: (u0.x + u1.x) / 2 + ax.x * t, y: (u0.y + u1.y) / 2 + ax.y * t }; return `Q${f(m.x)} ${f(m.y)} ${f(u1.x)} ${f(u1.y)}`; };
+    /* the band: its two ends bow along the arm, as a ring round a cylinder seen from the side does */
+    out.push(`<path d="M${f(a0.x)} ${f(a0.y)} ${bow(a0, b0, -1.6)} L${f(b1.x)} ${f(b1.y)} ${bow(b1, a1, -1.6)} Z" fill="#3e6f8f" stroke="#284a60" stroke-width=".55" stroke-linejoin="round"/>`);
+    out.push(`<path d="M${f(a1.x)} ${f(a1.y)} ${bow(a1, b1, 1.6)}" fill="none" stroke="#284a60" stroke-width=".5" opacity=".7"/>`);
+    /* the shade where it curves away, top and bottom */
+    const sh = (k: number) => { const u0 = P(-half, k), u1 = P(half, k); return `${f(u0.x)} ${f(u0.y)} L${f(u1.x)} ${f(u1.y)}`; };
+    out.push(`<path d="M${sh(0.04)}" stroke="#284a60" stroke-width="1.1" opacity=".45"/><path d="M${sh(0.96)}" stroke="#284a60" stroke-width="1.1" opacity=".45"/>`);
+    /* the overlapping end, its Velcro strip */
+    const v0 = P(-half + 2.5, 0.22), v1 = P(-half + 2.5, 0.78);
+    out.push(`<path d="M${f(v0.x)} ${f(v0.y)} L${f(v1.x)} ${f(v1.y)}" stroke="#6f9ab6" stroke-width="1.3" opacity=".8"/>`);
+    /* the tube and the gauge */
+    const outlet = P(1.5, 1), g = { x: c.x + 4, y: c.y + 40 };
+    out.push(`<path d="M${f(outlet.x)} ${f(outlet.y)} Q${f(outlet.x - 4)} ${f(outlet.y + 18)} ${f(g.x - 6)} ${f(g.y)}" fill="none" stroke="#444" stroke-width=".7"/>`);
     out.push(`<circle cx="${f(g.x)}" cy="${f(g.y)}" r="7" fill="#f7f7f2" stroke="#555" stroke-width=".7"/>`);
     const needle = -220 + 260 * Math.min(1, d.cuff.mmHg / 300);
     const nr = (needle * Math.PI) / 180;
