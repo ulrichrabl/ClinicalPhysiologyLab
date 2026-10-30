@@ -13,7 +13,7 @@ import { PLACEMENTS, thresholdField, fieldSection, energy, type PlacementId, typ
 import { fieldFor, dosesFor } from '../physiology/brain/ect-trial.ts';
 import { layoutStrip, drawStrip, type PaperItem } from '../render/ect-strip.ts';
 import { drawFieldSection, drawRegionMap } from '../render/ect-head.ts';
-import { ectFigure, ectLook, sceneSvg, headCloseUp, topViewSvg, placementOf, PLACEMENT_SITES, SCENE_VIEWBOX, type EctFigure, type EctDress, type SiteId } from '../render/ect-scene.ts';
+import { ectFigure, ectLook, sceneSvg, headCloseUp, chestCloseUp, CHEST_VIEWBOX, topViewSvg, placementOf, PLACEMENT_SITES, SCENE_VIEWBOX, type EctFigure, type EctDress, type SiteId } from '../render/ect-scene.ts';
 import { Procedure, STEPS, STEP, ECT_ORDERS, ECT_ROLES, ROLE_NAME, MODE_NAME, orderLines, type EctMode, type EctRole, type StepId, type Who } from '../stations/ect-procedure.ts';
 
 /* ---------------------------------------------------------------------------
@@ -102,6 +102,7 @@ const T: Record<string, LocalizedText> = {
   whyBtn: L('Behind the stimulus', 'Hinter dem Reiz'), backBtn: L('Back to the treatment', 'Zurück zur Behandlung'),
   atDevice: L('At the device', 'Am Gerät'),
   scene: L('The patient on the trolley', 'Der Patient auf der Trage'), headRight: L('The head from the right', 'Der Kopf von rechts'), headAbove: L('From above: choose two pad sites', 'Von oben: zwei Elektrodenstellen wählen'), headAboveDone: L('From above: the pads', 'Von oben: die Elektroden'),
+  chestAbove: L('Chest and right arm from above: ECG, ground, cuff, EMG', 'Brust und rechter Arm von oben: EKG, Erdung, Manschette, EMG'),
   padHint: L('Click two sites on the head seen from above. The pair decides the placement; check it against the order.', 'Klicken Sie zwei Stellen am Kopf von oben an. Das Paar bestimmt die Position; prüfen Sie es gegen die Anordnung.'),
   padBad: L('Those two sites are not a standard placement; click a site again to take that pad off.', 'Diese beiden Stellen ergeben keine Standardposition; klicken Sie eine Stelle erneut an, um die Elektrode abzunehmen.'),
   padsSet: L('Pads on: {p}.', 'Elektroden angelegt: {p}.'),
@@ -426,6 +427,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
       <div class="ect-close">
         <figure><figcaption class="muted small">${t('headRight')}</figcaption><svg data-head role="img" aria-label="${t('headRight')}"></svg></figure>
         <figure><figcaption class="muted small" data-topcap>${t('headAbove')}</figcaption><svg viewBox="0 0 240 240" data-top class="ect-top"></svg><p class="muted small" data-padmsg></p></figure>
+        <figure><figcaption class="muted small">${t('chestAbove')}</figcaption><svg viewBox="${CHEST_VIEWBOX}" data-chest class="ect-chest" role="img" aria-label="${t('chestAbove')}"></svg></figure>
       </div>`;
     if (mode === 'watch') return `${pic}<p class="muted">${t('roomWatch')}</p>`;
     const mine = STEPS.filter((x) => x.kind === 'room' && proc.mine(x.id));
@@ -461,6 +463,9 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     sc.innerHTML = sceneSvg(fig, d, session.t);
     const hd = host.querySelector<SVGSVGElement>('[data-head]');
     if (hd) { const c = headCloseUp(fig, d, session.t); hd.setAttribute('viewBox', c.viewBox); hd.innerHTML = c.svg; }
+    const ch = host.querySelector<SVGSVGElement>('[data-chest]');
+    const ckey = JSON.stringify([d.leads, d.cuff]);
+    if (ch && ch.dataset.key !== ckey) { ch.dataset.key = ckey; ch.innerHTML = chestCloseUp(look, d); }
     const tp = host.querySelector<SVGSVGElement>('[data-top]');
     if (tp) tp.innerHTML = topViewSvg(d.pads, { nose: t('nose'), left: t('left'), right: t('right') }, Object.fromEntries((['Ltemp', 'Rtemp', 'Lfront', 'Rfront', 'vertexR', 'LantL'] as SiteId[]).map((id) => [id, t(`site_${id}`)])));
     const cap = host.querySelector<HTMLElement>('[data-topcap]'); if (cap) cap.textContent = proc.mine('pads') && !proc.isDone('pads') ? t('headAbove') : t('headAboveDone');
