@@ -298,6 +298,35 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     ok('the chest from above draws the ECG, the ground, the cuff and the EMG without NaN', !/NaN|undefined/.test(chest) && (chest.match(/fill="#f7f7f4"/g) ?? []).length === 5 && chest.includes('#3e6f8f'), '');
     ok('the scene draws without NaN and its taps land on the head, the chest and the arm', !/NaN|undefined/.test(svg) && ['head', 'chest', 'arm'].every((h) => svg.includes(`data-hit="${h}"`)), '');
   }
+  {
+    /* the anaesthetic (PR C): breathing, oxygen, the relaxant and the cuffed arm */
+    const order = S.ECT_ORDERS[1];
+    const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });
+    const p = new S.Procedure(s, order, 'watch', []);
+    let minSpo2 = 100, back = null; const et = [];
+    for (let k = 0; k < 900 / 0.05 && !p.finished; k++) {
+      s.advance(0.05); p.tick(0.05); if (p.waitingForNext) p.next();
+      minSpo2 = Math.min(minSpo2, s.spo2);
+      if (s.inducedAt != null && back == null && s.breathing) back = s.t - s.inducedAt;
+      if (p.room.ventilating && !p.isDone('recovery') && p.isDone('treat') === false && s.etco2 != null) et.push(s.etco2);
+    }
+    const r = s.lastReport();
+    ok('the induction stops the breathing and it returns 5 min later, as Deng 2026 measured (induction to spontaneous breathing, 5 (4–6) min); the recovery waits for it', back != null && Math.abs(back - 300) < 1 && p.done.get('recovery').at >= s.inducedAt + 300, J({ back }));
+    ok('preoxygenated and bagged with 100 % oxygen, the lowest SpO₂ is at least 95 % (Deng 2026, facemask: lowest 97 %, IQR 97–98)', minSpo2 >= 95 && !p.errors.length, J({ minSpo2, errors: p.errors.map((e) => e.code) }));
+    ok('with the cuff above systolic, the arm keeps its motor seizure: the EMG endpoint is found', r?.emgEndpoint != null && r?.eegEndpoint != null, J({ emg: r?.emgEndpoint, eeg: r?.eegEndpoint }));
+    const mean = et.reduce((a, b) => a + b, 0) / Math.max(1, et.length);
+    gap('bagged at 20/min before the stimulus, the end-tidal CO₂ is in the range the hyperventilation trials targeted (18–35 mmHg, Shen 2025) — known gap 72', mean >= 18 && mean <= 35, `${mean.toFixed(1)} mmHg: with the lab’s bag-mask breath (0.5 L, 30 % mask leak, both assumed) 20/min is ordinary ventilation (alveolar about 4 L/min); the anaesthetic’s lower CO₂ production is not modelled`);
+    /* no oxygen, no breaths: the patient desaturates during the apnoea */
+    const q = new S.Procedure(new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }), order, 'practise', [...S.ECT_ROLES]);
+    q.act('check'); q.act('induction');
+    let low = 100; for (let k = 0; k < 290 / 0.1; k++) { q.session.advance(0.1); q.tick(0.1); low = Math.min(low, q.session.spo2); }
+    ok('induced on room air and not ventilated, the patient desaturates to 92 % or below within the 5 min apnoea, and the procedure notices', low <= 92 && q.errors.some((e) => e.code === 'desaturation'), J({ low, e: q.errors.map((e) => e.code) }));
+    /* the cuff too low: the relaxant reaches the arm and its EMG is flat */
+    const w = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 });
+    w.relax(false);
+    const rr = S.scriptedTreatment(w, { program: 'LOW_05', percent: 30, after: 60 });
+    ok('with the cuff not above systolic, the relaxant reaches the arm: no EMG, while the EEG seizure is still seen', rr.emgEndpoint == null && rr.eegEndpoint != null && w.armRelaxed, J({ emg: rr.emgEndpoint, eeg: rr.eegEndpoint }));
+  }
   const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
   ok('every step, order, role and mode text exists in English and German', texts.every((x) => x.en && x.de && x.en !== x.de || ['Coach'].includes(x.en)), J(texts.filter((x) => !(x.en && x.de && x.en !== x.de)).map((x) => x.en)));
 }

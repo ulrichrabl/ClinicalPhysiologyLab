@@ -60,6 +60,18 @@ export const ECT = defineConstants('ect', {
   seizureSympathetic: { value: 0.0223, unit: 'drive units per 1/s', status: 'derived', refs: ['nagler2013'], means: 'Central sympathetic drive of a seizure per 1/s of its excess cortical firing (averaged over the regions), joining the body’s chemoreflex and adrenergic drive.',
     derivation: 'Fitted once (scripts/fit-ect-heart.mjs surge) so that the peak heart rate after the stimulus is 1.5 times the rate before it, as Nagler 2013 measured under etomidate with atropine 0.25 mg (90 ± 18 to 135 ± 20 /min): the reference session (bitemporal, 30 % of the 0.5 ms program), atropine 0.25 mg, model 76 to 114 /min. The drive follows the seizure’s firing through the sympathetic time constant (BARO.tauS); hormonal catecholamines (adrenaline 15-fold, noradrenaline 3-fold, Weinger 1991) are not modelled separately.' },
 
+  /* the anaesthetic (PR C): the breathing, the oxygen, the relaxant */
+  apnoeaAfterInduction: { value: 300, unit: 's', status: 'measured', refs: ['deng2026'], means: 'From the induction of anaesthesia to the return of spontaneous breathing.',
+    derivation: 'Deng 2026 (Thymatron IV, propofol 1.5–2.0 mg/kg, succinylcholine 0.8–1.0 mg/kg once unconscious, facemask ventilation with 100 % oxygen): apnoea, from induction to spontaneous breathing, median 5 (IQR 4–6) min. The model stops the breathing drive at induction and gives it back after this time.' },
+  relaxantOnset: { value: 60, unit: 's', status: 'assumed', refs: ['shen2026', 'parikh2017'], means: 'From succinylcholine to full relaxation of a limb it reaches.',
+    derivation: 'No measured onset in ECT was found. Shen 2026 waited about a minute before the stimulus; Parikh 2017 until the fasciculations stopped. Used for the arm that the cuff did not protect.' },
+  maskFiO2: { value: 1.0, unit: 'fraction', status: 'assumed', refs: ['deng2026'], means: 'Inspired oxygen fraction with the mask on and oxygen flowing.',
+    derivation: 'Deng 2026 preoxygenated for 3 min with 100 % oxygen at 10 L/min by facemask and ventilated with 100 % oxygen. A tight mask is assumed, so the inspired fraction is taken as 1.' },
+  bagRate: { value: 20, unit: '/min', status: 'assumed', refs: ['czerwonka2024', 'shen2025hv'], means: 'Rate of the breaths given by bag and mask from the relaxant until the stimulus and after it.',
+    derivation: 'Czerwonka 2024: hyperventilate before the stimulus. No rate is given; the trials of hyperventilation targeted an end-tidal CO₂ of 18–35 mmHg (Shen 2025, 7 RCTs). 20/min with a standard bag breath is taken; the end-tidal CO₂ it gives is checked, not fitted.' },
+  desaturation: { value: 92, unit: '%', status: 'measured', refs: ['deng2026'], means: 'SpO₂ at or below which the station counts a desaturation.',
+    derivation: 'Deng 2026: oxygen desaturation defined as SpO₂ ≤ 92 %; 1 of 35 patients with facemask ventilation (2.9 %); the paper cites 2.5–29 % in earlier facemask series.' },
+
   /* the seizure threshold's fitted constant */
   pulseDrive: { value: 0.4506, unit: 'mV·s', status: 'derived', refs: ['vanwaarde2012'], means: 'Input to a region’s relay from one pulse when all its cortex is excited and the synapses are rested (the area of the pulse’s push).',
     derivation: 'Fitted once (scripts/fit-ect.mjs) so that a reference adult’s seizure threshold with bitemporal pads and the 0.5 ms program is 95.4 mC, the mean van Waarde 2012 measured with this device (bilateral 0.5 ms, 0.9 A, etomidate: 95.4 ± 59.5 mC). Their titration doubled the charge from step to step, so their thresholds lie above the true ones by up to a step; the fit takes the mean as it is.' },

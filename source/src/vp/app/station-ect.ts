@@ -74,11 +74,12 @@ const T: Record<string, LocalizedText> = {
   roleNote: L('The team does the other roles.', 'Das Team übernimmt die anderen Rollen.'),
   steps: L('The steps', 'Die Schritte'), stepsExam: L('Done so far', 'Bisher erledigt'), you: L('you', 'Sie'), team: L('team', 'Team'),
   room: L('At the patient', 'Am Patienten'),   roomWatch: L('The team does every step; press “Next” in the coach.', 'Das Team erledigt jeden Schritt; „Weiter“ beim Coach drücken.'),
-  notModelled: L('Not yet modelled (part 2b): these steps only set the order.', 'Noch nicht modelliert (Teil 2b): Diese Schritte legen nur die Reihenfolge fest.'),
+  notModelled: L('The bite block is drawn, not modelled.', 'Der Beißschutz ist gezeichnet, nicht modelliert.'),
+  breathingOwn: L('breathing', 'atmet'), apnoeic: L('apnoeic', 'apnoisch'),
     anaesthesia: L('Anaesthesia', 'Narkose'),
   coach: L('Coach', 'Coach'), coachExam: L('Exam: no coach. The debrief follows the report.', 'Prüfung: kein Coach. Nach dem Bericht folgt die Nachbesprechung.'),
   yourNext: L('Your next step', 'Ihr nächster Schritt'), whyL: L('Why', 'Warum'), waitS: L('Wait about {s} s: {what}.', 'Etwa {s} s warten: {what}.'),
-  waitInd: L('the induction agent takes effect', 'das Hypnotikum wirkt'), waitRel: L('the fasciculations pass', 'die Faszikulationen klingen ab'),
+  waitInd: L('the induction agent takes effect', 'das Hypnotikum wirkt'), waitOx: L('preoxygenation (3 min)', 'Präoxygenierung (3 min)'), waitRel: L('the fasciculations pass', 'die Faszikulationen klingen ab'),
   nothingYours: L('Nothing for you now; the team is working.', 'Gerade nichts für Sie; das Team arbeitet.'),
   doing: L('{who}: {what}', '{who}: {what}'), watching: L('Seizure running: watch the strip.', 'Anfall läuft: Streifen beobachten.'),
   nextBtn: L('Next', 'Weiter'), nextIs: L('Next: {what} ({who})', 'Als Nächstes: {what} ({who})'),
@@ -443,7 +444,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     if (moving && now - sceneAt < 100) return;
     const d = dressNow();
     const motor = session.rec.n ? session.rec.motor[session.rec.n - 1] : 0;
-    const jerk = motor > ECT.emgThreshold ? Math.round(Math.min(14, (motor - ECT.emgThreshold) / 4) * (Math.sin(session.t * 2 * Math.PI * 3) > 0 ? 1 : 0)) : 0;
+    const jerk = motor > ECT.emgThreshold && !session.armRelaxed ? Math.round(Math.min(14, (motor - ECT.emgThreshold) / 4) * (Math.sin(session.t * 2 * Math.PI * 3) > 0 ? 1 : 0)) : 0;
     if (jerk !== figJerk) { fig = ectFigure(look, jerk); figJerk = jerk; }
     const key = JSON.stringify([d, jerk, moving ? Math.round(session.t * 10) : 0]);
     if (sc.dataset.key === key) return;
@@ -478,7 +479,8 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     drawPatient();
     /* the vitals */
     const m = (session.body.run.sim as any).metrics ?? {};
-    set('[data-vitals]', `<span>${t('hrL')}: ${num(session.heartRateAt(session.t))} /min</span><span>${t('bpL')}: ${Number.isFinite(m.Psys) ? `${num(m.Psys)}/${num(m.Pdia)}` : '—'} mmHg</span>`);
+    const et = session.etco2;
+    set('[data-vitals]', `<span>${t('hrL')}: ${num(session.heartRateAt(session.t))} /min</span><span>${t('bpL')}: ${Number.isFinite(m.Psys) ? `${num(m.Psys)}/${num(m.Pdia)}` : '—'} mmHg</span><span>SpO₂: ${num(session.spo2)} %</span><span>EtCO₂: ${et == null ? '—' : `${num(et)} mmHg`}</span><span>${session.breathing ? t('breathingOwn') : t('apnoeic')}</span>`);
     /* the coach */
     const doingHtml = doing.map((d) => `<p>${esc(t('doing').replace('{who}', tr(ROLE_NAME[d.role], lang)).replace('{what}', tr(STEP[d.step].title, lang)))}</p>`).join('');
     const watching = proc.isDone('treat') && !proc.isDone('observe') ? `<p>${t('watching')}</p>` : '';
@@ -492,7 +494,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
       const errs = proc.errors.map((e) => `<p class="ect-err" role="alert"><b>${t('mistake')}:</b> ${esc(tr(e.text, lang))}</p>`).join('');
       if (cur) {
         const w = proc.waitFor(cur);
-        const what = cur === 'ventilate' ? t('waitRel') : t('waitInd');
+        const what = cur === 'treat' ? t('waitRel') : cur === 'induction' ? t('waitOx') : t('waitInd');
         coach = `${errs}<h3>${t('yourNext')}: ${esc(tr(STEP[cur].title, lang))}</h3>${w > 0 ? `<p class="ect-wait">${esc(t('waitS').replace('{s}', num(Math.ceil(w))).replace('{what}', what))}</p>` : ''}<p>${esc(tr(STEP[cur].how, lang))}</p><p class="muted small"><b>${t('whyL')}:</b> ${esc(tr(STEP[cur].why, lang))}</p>${doingHtml}`;
       } else coach = `${errs}${watching || (proc.finished ? '' : `<p>${t('nothingYours')}</p>`)}${doingHtml}`;
     }

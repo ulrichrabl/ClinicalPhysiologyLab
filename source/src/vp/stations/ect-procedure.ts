@@ -25,10 +25,11 @@ import type { EctSession } from './ect-session.ts';
    Steps that act on the model do so for real: the premedication enters the
    body, cleaning the skin lowers the impedance the device reads, pads change
    where the current goes, the monitoring leads give the strip its channels,
-   the device steps are the device's own. The anaesthetic steps (oxygen,
-   induction, cuff, relaxant, bite block, ventilation) are not in the model
-   yet (ECT part 2b): the patient is taken as asleep and relaxed throughout,
-   and these steps set the order only. The station says so.
+   the device steps are the device's own. The anaesthetic steps act on the body
+   too (ECT part 2b, PR C): the mask gives oxygen, the induction agent stops
+   the breathing until it returns, the relaxant relaxes the cuffed arm if the
+   cuff was not above systolic, the bag breathes. The bite block is drawn,
+   not modelled. The induction agent's effect on the seizure follows.
 
    No page code here: the tests run whole treatments with it.
 =========================================================================== */
@@ -67,6 +68,8 @@ export const ECT_ORDERS: readonly EctOrder[] = [
 /** after the induction agent, before the patient is asleep enough to go on (propofol: induction to loss of response 44 s,
     IQR 39–51, Shen 2026; methohexital about 30 s, Czerwonka 2024) */
 export const INDUCTION_WAIT = 45;
+/** preoxygenation before the induction (Deng 2026: 3 min of 100 % oxygen by facemask) */
+export const PREOXYGENATION = 180;
 /** after succinylcholine, before the stimulus: the fasciculations pass (Shen 2026 waited about a minute; Parikh 2017
     until the fasciculations stopped) */
 export const RELAXANT_WAIT = 60;
@@ -152,17 +155,17 @@ export const STEPS: readonly StepDef[] = [
     how: L('FlexDial: press, PROGRAMS, press, turn, press. Then PERCENT ENERGY to the ordered value.', 'FlexDial: drücken, PROGRAMS, drücken, drehen, drücken. Dann PERCENT ENERGY auf den angeordneten Wert.'),
     why: L('The charge decides whether a seizure starts, and how far above threshold.', 'Die Ladung entscheidet, ob ein Anfall beginnt und wie weit über der Schwelle.'),
     says: L('Set as ordered.', 'Wie angeordnet eingestellt.') },
-  { id: 'oxygen', role: 'anaesthetist', kind: 'room', modelled: false, after: ['leads'],
+  { id: 'oxygen', role: 'anaesthetist', kind: 'room', modelled: true, after: ['leads'],
     title: L('Preoxygenate', 'Präoxygenieren'),
     how: L('Mask on, 100 % oxygen.', 'Maske auf, 100 % Sauerstoff.'),
     why: L('An oxygen reserve for the apnoea.', 'Sauerstoffreserve für die Apnoe.'),
     says: L('Preoxygenating.', 'Präoxygeniere.') },
-  { id: 'induction', role: 'anaesthetist', kind: 'room', modelled: false, after: ['oxygen', 'impedance'],
+  { id: 'induction', role: 'anaesthetist', kind: 'room', modelled: true, after: ['oxygen', 'impedance'],
     title: L('Induce anaesthesia', 'Narkose einleiten'),
     how: L('Give the hypnotic; wait until unresponsive (about 45 s).', 'Hypnotikum geben; warten, bis keine Reaktion (etwa 45 s).'),
     why: L('Asleep before the relaxant.', 'Schlafen vor dem Relaxans.'),
     says: L('Hypnotic in.', 'Hypnotikum gegeben.') },
-  { id: 'cuff', role: 'nurse', kind: 'room', modelled: false, after: ['induction'],
+  { id: 'cuff', role: 'nurse', kind: 'room', modelled: true, after: ['induction'],
     title: L('Inflate the arm cuff', 'Armmanschette aufpumpen'),
     how: L('Cuff on the right upper arm; pump well above systolic; report it up.', 'Manschette an den rechten Oberarm; deutlich über systolisch pumpen; melden.'),
     why: L('Keeps the relaxant out of the arm, so the motor seizure stays visible.', 'Hält das Relaxans aus dem Arm, damit der motorische Anfall sichtbar bleibt.'),
@@ -172,16 +175,16 @@ export const STEPS: readonly StepDef[] = [
     how: L('Between the teeth.', 'Zwischen die Zähne.'),
     why: L('The stimulus clenches the jaw directly, relaxant or not.', 'Der Reiz presst den Kiefer direkt zusammen, mit oder ohne Relaxans.'),
     says: L('Bite block in.', 'Beißschutz drin.') },
-  { id: 'relaxant', role: 'anaesthetist', kind: 'room', modelled: false, after: ['cuff', 'biteBlock'],
-    title: L('Succinylcholine', 'Succinylcholin'),
-    how: L('Give it; wait for the fasciculations to pass (about 1 min).', 'Geben; Faszikulationen abwarten (etwa 1 min).'),
-    why: L('Softens the convulsion.', 'Mildert die Krämpfe.'),
-    says: L('Succinylcholine in.', 'Succinylcholin gegeben.') },
-  { id: 'ventilate', role: 'anaesthetist', kind: 'room', modelled: false, after: ['relaxant'],
+  { id: 'ventilate', role: 'anaesthetist', kind: 'room', modelled: true, after: ['induction'],
     title: L('Ventilate', 'Beatmen'),
     how: L('Bag and mask, slightly fast, until the stimulus.', 'Beutel und Maske, etwas schneller, bis zum Reiz.'),
     why: L('The patient is apnoeic; a low CO₂ helps the seizure.', 'Der Patient atmet nicht; niedriges CO₂ fördert den Anfall.'),
     says: L('Ventilating. Ready.', 'Beatme. Bereit.') },
+  { id: 'relaxant', role: 'anaesthetist', kind: 'room', modelled: true, after: ['cuff', 'biteBlock', 'ventilate'],
+    title: L('Succinylcholine', 'Succinylcholin'),
+    how: L('Give it; wait for the fasciculations to pass (about 1 min).', 'Geben; Faszikulationen abwarten (etwa 1 min).'),
+    why: L('Softens the convulsion.', 'Mildert die Krämpfe.'),
+    says: L('Succinylcholine in.', 'Succinylcholin gegeben.') },
   { id: 'treat', role: 'psychiatrist', kind: 'device', modelled: true, after: ['ventilate', 'dose', 'impedance'],
     title: L('Stimulate', 'Reiz auslösen'),
     how: L('Say “stimulating”, lift the cover, hold TREAT until the tone stops.', '„Reiz“ ansagen, Kappe heben, TREAT halten, bis der Ton endet.'),
@@ -197,7 +200,7 @@ export const STEPS: readonly StepDef[] = [
     how: L('When the EEG is flat, press START/STOP.', 'Wenn das EEG flach ist, START/STOP drücken.'),
     why: L('Records dose, impedance and seizure for the next treatment.', 'Hält Dosis, Impedanz und Anfall für die nächste Behandlung fest.'),
     says: L('Report printed.', 'Bericht gedruckt.') },
-  { id: 'recovery', role: 'anaesthetist', kind: 'room', modelled: false, after: ['observe'],
+  { id: 'recovery', role: 'anaesthetist', kind: 'room', modelled: true, after: ['observe'],
     title: L('Recover the patient', 'Patienten ausleiten'),
     how: L('Ventilate until breathing returns; cuff down.', 'Beatmen bis zur Spontanatmung; Manschette ab.'),
     why: L('The relaxant wears off within minutes.', 'Das Relaxans lässt binnen Minuten nach.'),
@@ -208,7 +211,7 @@ export const STEP: Record<StepId, StepDef> = Object.fromEntries(STEPS.map((s) =>
 /** a mistake the procedure noticed, at the moment it happened */
 export interface ProcedureError { t: number; code: ErrorCode; step: StepId; text: LocalizedText }
 export type ErrorCode = 'awake-stimulus' | 'unmodified' | 'early-stimulus' | 'no-bite-block' | 'no-impedance' | 'impedance-out' | 'wrong-dose' | 'wrong-pads'
-  | 'no-leads' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low';
+  | 'no-leads' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
 
 const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'awake-stimulus': L('Stimulus before anaesthesia.', 'Reiz vor der Narkose.'),
@@ -222,6 +225,7 @@ const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'no-leads': L('Stimulus without EEG and ECG.', 'Reiz ohne EEG und EKG.'),
   'not-ventilated': L('Stimulus without ventilation.', 'Reiz ohne Beatmung.'),
   'awake-paralysis': L('Relaxant before the hypnotic: awake and paralysed.', 'Relaxans vor dem Hypnotikum: wach und gelähmt.'),
+  desaturation: L('SpO₂ fell to 92 % or below.', 'SpO₂ fiel auf 92 % oder darunter.'),
   'cuff-low': L('Cuff below systolic at the relaxant: the arm is relaxed too.', 'Manschette beim Relaxans unter systolisch: Auch der Arm ist relaxiert.'),
   'no-cuff': L('Relaxant before the cuff: no motor seizure to see.', 'Relaxans vor der Manschette: kein motorischer Anfall sichtbar.'),
 };
@@ -265,8 +269,10 @@ export class Procedure {
   /** seconds still to wait before this step should be done (the anaesthetic's onset, the fasciculations) */
   waitFor(id: StepId): number {
     const since = (s: StepId, w: number) => { const at = this.stamps.get(s); return at == null ? 0 : Math.max(0, at + w - this.t); };
-    if (id === 'cuff' || id === 'biteBlock') return since('induction', INDUCTION_WAIT);
-    if (id === 'ventilate') return since('relaxant', RELAXANT_WAIT);
+    if (id === 'induction') return since('oxygen', PREOXYGENATION);
+    if (id === 'cuff' || id === 'biteBlock' || id === 'ventilate') return since('induction', INDUCTION_WAIT);
+    if (id === 'treat') return since('relaxant', RELAXANT_WAIT);
+    if (id === 'recovery') return this.session.apnoeaLeft;
     return 0;
   }
   /** the learner's steps that can be done now (open, in order) */
@@ -302,8 +308,8 @@ export class Procedure {
       case 'skin': r.skin = true; session.setPrepared(true); break;
       case 'pads': { const p = opts.placement ?? this.padsWanted ?? this.order.placement; r.pads = p; session.setPads(p); if (p !== this.order.placement) this.err('wrong-pads', id); break; }
       case 'leads': r.leads = true; session.monitoringCable = true; break;
-      case 'oxygen': r.oxygen = true; break;
-      case 'induction': r.induced = true; break;
+      case 'oxygen': r.oxygen = true; session.oxygen(true); break;
+      case 'induction': r.induced = true; session.induce(); break;
       case 'cuff':
         /* the team pumps it well above the systolic pressure (a placement: the source asks only for "high enough" to keep
            the relaxant out); the learner has pumped it themselves and says it is up */
@@ -314,9 +320,9 @@ export class Procedure {
         if (!r.induced) this.err('awake-paralysis', id);
         if (!r.cuff) this.err('no-cuff', id);
         else if (r.cuffMmHg <= this.systolic) this.err('cuff-low', id);
-        r.relaxed = true; break;
-      case 'ventilate': r.ventilating = true; break;
-      case 'recovery': r.recovered = true; r.ventilating = false; r.cuffMmHg = 0; r.cuffOn = false; break;
+        r.relaxed = true; session.relax(r.cuff && r.cuffMmHg > this.systolic); break;
+      case 'ventilate': r.ventilating = true; session.bag(true); break;
+      case 'recovery': r.recovered = true; r.ventilating = false; r.cuffMmHg = 0; r.cuffOn = false; session.bag(false); break;
     }
     this.stamps.set(id, this.t);
     this.finish(id, by);
@@ -355,6 +361,8 @@ export class Procedure {
     if (session.seizing) this.lastSeizing = this.t;
     if (!this.isDone('observe') && this.isDone('treat') && d.stimulusEnd != null && d.t - d.stimulusEnd >= OBSERVE_MIN && this.t - this.lastSeizing >= FLAT_FOR) this.finish('observe', by('observe'));
     if (!this.isDone('report') && this.isDone('treat') && session.paper.some((e) => e.kind === 'report' && e.stimulus === session.stimuli.length - 1)) this.finish('report', by('report'));
+    /* the oxygen saturation, as the pulse oximeter reads it (Deng 2026's definition of a desaturation) */
+    if (session.spo2 <= ECT.desaturation) this.err('desaturation', this.room.relaxed ? 'ventilate' : 'oxygen');
     this.runTeam(dt);
   }
   private doseRight() { const s = this.session.device.settings; return s.program === this.order.program && this.session.device.percent === this.order.percent; }
