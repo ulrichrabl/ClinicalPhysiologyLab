@@ -652,7 +652,12 @@ export function figureSvg(p: Pose, look: FigureLook, view: FigureView = VIEW_RIG
       const az = armZ(i), lz = legZ(i);
       opts.collect('wrist', side, [fin(pr.P(add(k.wrist[i], k.foreA[i], -5 * u), az.wr))]);
       opts.collect('thigh', side, [fin(pr.P(add(k.hip, k.thighA[i], 12 * u), lz.hip + (lz.knee - lz.hip) * 0.28))]);
+      /* the ankle just above the malleoli, where a cuff goes (ECT's cuffed foot) */
+      opts.collect('ankle', side, [fin(pr.P(add(k.ankle[i], k.shinA[i], -6 * u), lz.ankle))]);
     }
+    /* the head's own frame (figure-head.ts: a up toward the crown, b forward toward the face, reference cm): its origin and
+       the ends of its unit axes, as drawn; in profile they place anything on the side of the head (ECT's pads, EEG leads) */
+    opts.collect('headFrame', '', [fin(pr.P(H(0, 0))), fin(pr.P(H(1, 0))), fin(pr.P(H(0, 1)))]);
   }
   const svg = `<defs>${defs.join('')}</defs>${body}`;
   return svg.replace(/§/g, hash(svg));

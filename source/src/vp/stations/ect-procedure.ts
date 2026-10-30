@@ -70,6 +70,11 @@ export const INDUCTION_WAIT = 45;
 /** after succinylcholine, before the stimulus: the fasciculations pass (Shen 2026 waited about a minute; Parikh 2017
     until the fasciculations stopped) */
 export const RELAXANT_WAIT = 60;
+/** how far above the systolic pressure the team pumps the cuff (a placement: well above it, so that no arterial blood
+    carrying the relaxant passes) and how much one squeeze of the bulb adds (a placement: a hand bulb of a sphygmomanometer
+    raises a limb cuff by tens of mmHg a squeeze) */
+export const CUFF_ABOVE = 100;
+export const CUFF_SQUEEZE = 20;
 /** how long the team takes to start a step it can do */
 export const TEAM_DELAY = 3;
 /** how long after the stimulus the seizure is watched at least */
@@ -82,6 +87,8 @@ const FLAT_FOR = 8;
 export interface Room {
   checked: boolean; premed: boolean; skin: boolean; pads: PlacementId | null; leads: boolean;
   oxygen: boolean; induced: boolean; cuff: boolean; biteBlock: boolean; relaxed: boolean; ventilating: boolean; recovered: boolean;
+  /** the cuff above the right ankle: put on, and its pressure (mmHg) */
+  cuffOn: boolean; cuffMmHg: number;
   /** the treatment button's cover */
   coverUp: boolean;
 }
@@ -157,7 +164,7 @@ export const STEPS: readonly StepDef[] = [
     says: L('Induction agent in.', 'Hypnotikum ist drin.') },
   { id: 'cuff', role: 'nurse', kind: 'room', modelled: false, after: ['induction'],
     title: L('Inflate the cuff on the right foot', 'Manschette am rechten Fuß aufpumpen'),
-    how: L('Pump the cuff on the ankle well above the systolic pressure before the relaxant goes in.', 'Pumpen Sie die Manschette am Knöchel deutlich über den systolischen Druck, bevor das Relaxans gegeben wird.'),
+    how: L('Put the cuff on above the ankle and squeeze the bulb until the gauge is well above the systolic pressure; then say it is up. All before the relaxant.', 'Legen Sie die Manschette über dem Knöchel an und drücken Sie den Ballon, bis das Manometer deutlich über dem systolischen Druck steht; dann melden Sie sie als aufgepumpt. Alles vor dem Relaxans.'),
     why: L('The cuff keeps the relaxant out of that foot, so the motor seizure can be seen and timed there (and the EMG recorded).', 'Die Manschette hält das Relaxans von diesem Fuß fern, damit der motorische Anfall dort gesehen und gemessen werden kann (und das EMG abgeleitet).'),
     says: L('Cuff up on the right foot.', 'Manschette am rechten Fuß aufgepumpt.') },
   { id: 'biteBlock', role: 'anaesthetist', kind: 'room', modelled: false, after: ['induction'],
@@ -201,7 +208,7 @@ export const STEP: Record<StepId, StepDef> = Object.fromEntries(STEPS.map((s) =>
 /** a mistake the procedure noticed, at the moment it happened */
 export interface ProcedureError { t: number; code: ErrorCode; step: StepId; text: LocalizedText }
 export type ErrorCode = 'awake-stimulus' | 'unmodified' | 'early-stimulus' | 'no-bite-block' | 'no-impedance' | 'impedance-out' | 'wrong-dose' | 'wrong-pads'
-  | 'no-leads' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff';
+  | 'no-leads' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low';
 
 const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'awake-stimulus': L('The stimulus was given before the patient was anaesthetised.', 'Der Reiz wurde gegeben, bevor der Patient in Narkose war.'),
@@ -215,6 +222,7 @@ const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'no-leads': L('The stimulus was given without the EEG and ECG leads.', 'Der Reiz wurde ohne EEG- und EKG-Ableitungen gegeben.'),
   'not-ventilated': L('The stimulus was given while the patient was not being ventilated.', 'Der Reiz wurde gegeben, während der Patient nicht beatmet wurde.'),
   'awake-paralysis': L('The relaxant was given before the induction agent: an awake, paralysed patient.', 'Das Relaxans wurde vor dem Hypnotikum gegeben: ein wacher, gelähmter Patient.'),
+  'cuff-low': L('The cuff was not above the systolic pressure when the relaxant went in: arterial blood carries it into the foot.', 'Die Manschette lag nicht über dem systolischen Druck, als das Relaxans gegeben wurde: Arterielles Blut trägt es in den Fuß.'),
   'no-cuff': L('The relaxant was given before the cuff was up: the foot is relaxed too, and the motor seizure cannot be seen.', 'Das Relaxans wurde gegeben, bevor die Manschette aufgepumpt war: Auch der Fuß ist relaxiert, und der motorische Anfall ist nicht zu sehen.'),
 };
 
@@ -225,7 +233,7 @@ export interface StepStatus { at: number; by: Who }
 type Gen = Generator<number, void, unknown>;
 
 export class Procedure {
-  readonly room: Room = { checked: false, premed: false, skin: false, pads: null, leads: false, oxygen: false, induced: false, cuff: false, biteBlock: false, relaxed: false, ventilating: false, recovered: false, coverUp: false };
+  readonly room: Room = { checked: false, premed: false, skin: false, pads: null, leads: false, oxygen: false, induced: false, cuff: false, biteBlock: false, relaxed: false, ventilating: false, recovered: false, coverUp: false, cuffOn: false, cuffMmHg: 0 };
   readonly done = new Map<StepId, StepStatus>();
   readonly log: LogEntry[] = [];
   readonly errors: ProcedureError[] = [];
@@ -296,18 +304,29 @@ export class Procedure {
       case 'leads': r.leads = true; session.monitoringCable = true; break;
       case 'oxygen': r.oxygen = true; break;
       case 'induction': r.induced = true; break;
-      case 'cuff': r.cuff = true; break;
+      case 'cuff':
+        /* the team pumps it well above the systolic pressure (a placement: the source asks only for "high enough" to keep
+           the relaxant out); the learner has pumped it themselves and says it is up */
+        r.cuffOn = true; if (by !== 'you') r.cuffMmHg = Math.round((this.systolic + CUFF_ABOVE) / 10) * 10;
+        r.cuff = true; break;
       case 'biteBlock': r.biteBlock = true; break;
       case 'relaxant':
         if (!r.induced) this.err('awake-paralysis', id);
         if (!r.cuff) this.err('no-cuff', id);
+        else if (r.cuffMmHg <= this.systolic) this.err('cuff-low', id);
         r.relaxed = true; break;
       case 'ventilate': r.ventilating = true; break;
-      case 'recovery': r.recovered = true; r.ventilating = false; break;
+      case 'recovery': r.recovered = true; r.ventilating = false; r.cuffMmHg = 0; r.cuffOn = false; break;
     }
     this.stamps.set(id, this.t);
     this.finish(id, by);
   }
+  /** the patient's systolic pressure now (mmHg) */
+  get systolic(): number { const m = (this.session.body.run.sim as unknown as { metrics?: { Psys?: number } }).metrics; return Number.isFinite(m?.Psys) ? m!.Psys! : 120; }
+  /** the learner's hands on the cuff: put it on, squeeze the bulb (each squeeze adds pressure), or let it down */
+  cuffOn() { this.room.cuffOn = true; }
+  squeeze() { if (this.room.cuffOn) this.room.cuffMmHg = Math.min(300, this.room.cuffMmHg + CUFF_SQUEEZE); }
+  deflate() { this.room.cuffMmHg = 0; }
   /** the placement the learner chose, before pressing the pads on */
   choosePads(p: PlacementId) { this.padsWanted = p; }
 

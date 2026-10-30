@@ -278,6 +278,24 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const b = p.canHurry;                                   // the premedication is theirs now
     ok('faster time is allowed while the learner waits for the team, not when a step of theirs is open', a === true && b === false, J({ a, b }));
   }
+  {
+    /* the patient, drawn (PR B): pad sites, the cuff */
+    const pairs = Object.entries(S.PLACEMENT_SITES).every(([id, pair]) => S.placementOf(pair) === id && S.placementOf([pair[1], pair[0]]) === id);
+    ok('each placement is made by its two pad sites, in either order; other pairs make none', pairs && S.placementOf(['Rtemp', 'Rfront']) === null && S.placementOf(['Ltemp']) === null, '');
+    const site = Object.entries(S.SITES).every(([id, x]) => Object.values(S.PLACEMENTS).some((pl) => [pl.a, pl.b].some((c) => c[0] === x.sph[0] && c[1] === x.sph[1])));
+    ok('every pad site is a pad of the placements as the modelling literature defines them', site, '');
+    const F = S.ectFigure(S.ectLook());
+    const ea = Math.hypot(F.ea.x, F.ea.y), eb = Math.hypot(F.eb.x, F.eb.y), dot = (F.ea.x * F.eb.x + F.ea.y * F.eb.y) / (ea * eb);
+    ok('the head frame from the figure is square (its axes equal and at right angles) and the ankle lies at the foot end of the bed', Math.abs(ea - eb) < 0.01 * ea && Math.abs(dot) < 0.01 && F.ankleR.x > F.o.x + 150, J({ ea, eb, dot, ankle: F.ankleR, o: F.o }));
+    const order = S.ECT_ORDERS[0];
+    const { p } = run(order, 'watch', []);
+    ok('the team pumps the cuff above the systolic pressure, and lets it down at the end', p.errors.length === 0 && !p.room.cuffOn && p.log.some((l) => l.step === 'cuff'), J(p.errors.map((e) => e.code)));
+    const q = new S.Procedure(new S.EctSession({ placement: 'RUL', prepared: true, skin: 0, seed: 7 }), order, 'practise', [...S.ECT_ROLES]);
+    q.act('induction'); q.cuffOn(); q.squeeze(); q.squeeze(); q.act('cuff'); q.act('relaxant');
+    ok('a cuff below the systolic pressure when the relaxant goes in is a mistake', q.room.cuffMmHg === 2 * S.CUFF_SQUEEZE && q.errors.some((e) => e.code === 'cuff-low') && !q.errors.some((e) => e.code === 'no-cuff'), J({ mmHg: q.room.cuffMmHg, sys: q.systolic, e: q.errors.map((e) => e.code) }));
+    const svg = S.sceneSvg(F, { pads: ['Rtemp', 'vertexR'], cleaned: true, leads: true, cuff: { on: true, mmHg: 220 }, mask: true, bagging: true, biteBlock: true }, 1);
+    ok('the scene draws without NaN and its taps land on the head, the chest and the ankle', !/NaN|undefined/.test(svg) && ['head', 'chest', 'ankle'].every((h) => svg.includes(`data-hit="${h}"`)), '');
+  }
   const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
   ok('every step, order, role and mode text exists in English and German', texts.every((x) => x.en && x.de && x.en !== x.de || ['Coach'].includes(x.en)), J(texts.filter((x) => !(x.en && x.de && x.en !== x.de)).map((x) => x.en)));
 }
