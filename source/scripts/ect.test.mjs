@@ -144,7 +144,7 @@ console.log('\nThe seizure as the device reads it');
   const d = nb.device; d.power(true); nb.advance(6); d.treatButton(true); while (d.treat !== 'done') nb.advance(0.1); d.treatButton(false); nb.advance(60); d.startStop(); nb.advance(0.1);
   const r = nb.lastReport();
   ok('treated before READY: “Baseline not available”, no EEG endpoint and no indices (manual)', !r.baselineAvailable && r.eegEndpoint == null && r.asei == null);
-  const lines = S.reportLines({ percent: 30, charge: 151.2, current: 0.9, duration: 5.6, frequency: 30, pulseWidth: 0.5, staticOhm: null, dynamicOhm: 242, early: false, baselineAvailable: false, eegEndpoint: null, emgEndpoint: 40, baseHr: 75, peakHr: 75, asei: null, psi: null, msp: null, ttp: null, coh: null, ttc: null, program: 'Low 0.5 charge rate', indexes: true }, 'en', (x, k = 0) => x.toFixed(k));
+  const lines = S.reportLines({ percent: 30, charge: 151.2, current: 0.9, duration: 5.6, frequency: 30, pulseWidth: 0.5, staticOhm: null, dynamicOhm: 242, early: false, baselineAvailable: false, eegEndpoint: null, emgEndpoint: 40, baseHr: 75, peakHr: 75, asei: null, psi: null, msp: null, ttp: null, coh: null, ttc: null, program: 'Low 0.5 charge rate', indexes: true });
   ok('…and the report says so', lines.includes('Baseline not available'), J(lines));
 }
 
@@ -216,8 +216,8 @@ console.log('\nTexts');
   const facts = S.explainStimulus({ percent: 30, charge: 151.2, current: 0.9, pulseWidth: 0.5, frequency: 30, pulses: 336, duration: 5.6, dynamicOhm: 242, energy: 32.9, brainShare: 0.66, medianField: 0.79, threshold: 0.31, excitedRegions: 8, placementName: { en: 'Bitemporal', de: 'Bitemporal' }, placementWhere: { en: 'x', de: 'x' } }, n).map((x) => x.body);
   const all = [...steps, ...facts, ...S.ECT_BACKGROUND.flatMap((x) => [x.title, x.body]), S.ECT_STATION.title, S.ECT_STATION.summary];
   ok('every ECT explanation exists in English and German, with its numbers filled in', all.length > 25 && all.every((x) => x.en && x.de && x.en !== x.de && !/\$\{|undefined|NaN|Infinity/.test(x.en + x.de)), `${all.length} texts`);
-  const de = S.reportLines({ percent: 30, charge: 151.2, current: 0.9, duration: 5.6, frequency: 30, pulseWidth: 0.5, staticOhm: 1272, dynamicOhm: 242, early: false, baselineAvailable: true, eegEndpoint: 70, emgEndpoint: 50, baseHr: 75, peakHr: 75, asei: 700, psi: 90, msp: 1200, ttp: 10, coh: 80, ttc: 8, program: 'Low 0.5 charge rate', indexes: true }, 'de', n);
-  ok('the report prints in German too', de.some((l) => l.startsWith('Abgegebene Ladung')) && de.length >= 17, J(de));
+  const de = S.reportLines({ percent: 30, charge: 151.2, current: 0.9, duration: 5.6, frequency: 30, pulseWidth: 0.5, staticOhm: 1272, dynamicOhm: 242, early: false, baselineAvailable: true, eegEndpoint: 70, emgEndpoint: 50, baseHr: 75, peakHr: 75, asei: 700, psi: 90, msp: 1200, ttp: 10, coh: 80, ttc: 8, program: 'Low 0.5 charge rate', indexes: true });
+  ok('the report prints as the device does, in English with decimal points, in either language of the app (owner, 2026-10-30)', de.some((l) => l === 'Charge delivered: 151.2 mC') && de.length >= 17 && !de.some((l) => /,\d/.test(l)), J(de));
 }
 
 console.log('\nEvidence');

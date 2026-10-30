@@ -202,8 +202,8 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
   /* ---- the strip and the report -------------------------------------------------------------------------------- */
   const paperItems = (): PaperItem[] => session.paper.map((e: PaperEntry): PaperItem => {
     if (e.kind === 'trace') return { kind: 'trace', from: e.from, to: e.to ?? session.t, afterStimulus: e.afterStimulus };
-    if (e.kind === 'selftest') return { kind: 'text', at: e.at, lines: [lang === 'de' ? 'EKT-System IV  Selbsttest bestanden' : 'ECT System IV  self test passed', `${lang === 'de' ? 'Netzfrequenz' : 'Mains'} 50 Hz`] };
-    if (e.kind === 'settings') { const s = session.device.settings; return { kind: 'text', at: e.at, lines: [`${t('program')}: ${PROGRAM_NAMES[s.program]}`, `FREQUENC ${s.user.frequency} HZ  P-WIDTH ${s.user.pulseWidth} MS`, `CHANN. 1 ${s.gain[0]}  CHANN. 2 ${s.gain[1]}  PRINT ${s.paper}`, `INDEXES ${s.indexes ? 'ON' : 'OFF'}`] }; }
+    if (e.kind === 'selftest') return { kind: 'text', at: e.at, lines: ['ECT System IV  self test passed', 'Mains 50 Hz'] };
+    if (e.kind === 'settings') { const s = session.device.settings; return { kind: 'text', at: e.at, lines: [`Program: ${PROGRAM_NAMES[s.program]}`, `FREQUENC ${s.user.frequency} HZ  P-WIDTH ${s.user.pulseWidth} MS`, `CHANN. 1 ${s.gain[0]}  CHANN. 2 ${s.gain[1]}  PRINT ${s.paper}`, `INDEXES ${s.indexes ? 'ON' : 'OFF'}`] }; }
     return { kind: 'text', at: e.at, lines: reportFor(e.stimulus) };
   });
   const reportFor = (k: number): string[] => {
@@ -213,7 +213,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     return reportLines({ percent: st.percent, charge: st.given.charge, current: ECT.current, duration: st.given.duration, frequency: st.given.frequency, pulseWidth: st.given.pulseWidth,
       staticOhm: st.staticOhm, dynamicOhm: st.dynamicOhm, early: st.early, baselineAvailable: r.baselineAvailable, eegEndpoint: r.eegEndpoint, emgEndpoint: r.emgEndpoint,
       baseHr: r.baseHr, peakHr: r.peakHr, asei: r.asei, psi: r.psi, msp: r.msp, ttp: r.timeToPeakPower, coh: r.coherence, ttc: r.timeToPeakCoherence,
-      program: PROGRAM_REPORT[st.program], indexes: session.device.settings.indexes }, lang, num);
+      program: PROGRAM_REPORT[st.program], indexes: session.device.settings.indexes });
   };
   /* the report's text is fixed when it is printed */
   const printedReports = new Map<number, string[]>();
