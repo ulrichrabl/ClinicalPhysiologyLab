@@ -71,6 +71,8 @@ export class Region {
   excess = 0;
   /** φe at rest, the reference for "excess" (set by `settle`) */
   rest = 0;
+  /** the relay's firing at rest (1/s, set by `settle`): the reference for its throughput */
+  relayRest = 1;
   /** extra depolarising input to the relay (mV), e.g. a stimulus */
   kick = 0;
   /** input to the relay from other regions' cortex (mV), set by the brain each step */
@@ -190,7 +192,7 @@ export class Brain {
   settle(seconds = 6) {
     const steps = Math.round(seconds / this.dt);
     for (let k = 0; k < steps; k++) { for (const r of this.regions) r.step(0); }
-    for (const r of this.regions) { r.rest = r.x[0]; r.progress = 0; r.relayInhibition = 0; r.excess = 0; }
+    for (const r of this.regions) { r.rest = r.x[0]; r.relayRest = r.S(r.x[4]); r.progress = 0; r.relayInhibition = 0; r.excess = 0; }
     this.t = 0;
   }
 
@@ -238,6 +240,9 @@ export class Brain {
 
   advance(seconds: number) { const steps = Math.round(seconds / this.dt); for (let k = 0; k < steps; k++) this.step(); }
 
+  /** each region's relay firing relative to its resting firing: how much of the thalamic input that drives the background
+      gets through (about 1 at rest, near 0 while the relay is hyperpolarised after a seizure) */
+  relayThroughput(): Float64Array { return Float64Array.from(this.regions, (r) => r.S(r.x[4]) / r.relayRest); }
   /** each region's cortical firing relative to rest (1/s): what its patch of cortex contributes to the EEG */
   activity(): Float64Array { return Float64Array.from(this.regions, (r) => r.x[0] - r.rest); }
 }

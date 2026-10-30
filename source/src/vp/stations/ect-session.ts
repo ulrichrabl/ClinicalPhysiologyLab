@@ -158,6 +158,12 @@ export class EctSession {
   /** where the monitoring leads are: the manual's montage unless the learner places them */
   montage: Montage = structuredClone(STANDARD_MONTAGE);
   private rcentral = REGIONS.findIndex((r) => r.id === 'R-central');
+  /* the resting background (the awake EEG the device takes its baseline from): one source per region, scaled so that
+     channel 1 shows ECT.restingEeg, and let through as far as each region's relay fires (its throughput, smoothed over
+     half a second, against the patient's own over the first 2 s): after a seizure the hyperpolarised relay silences it */
+  private bg: Array<() => number> = [];
+  private bgSize = 0;
+  private relaySm: Float64Array | null = null; private relayRef: Float64Array | null = null;
   readonly rWaves: number[] = [];
   /** arterial pressure every 0.1 s (session time, systolic, diastolic, mean; mmHg) */
   readonly pressure: Array<{ t: number; sys: number; dia: number; mean: number }> = [];
@@ -175,6 +181,8 @@ export class EctSession {
     const cap = FS * 60 * 12;
     this.rec = { eeg1: new Float32Array(cap), eeg2: new Float32Array(cap), emg: new Float32Array(cap), ecg: new Float32Array(cap), motor: new Float32Array(cap), n: 0 };
     this.emgNoise = noiseSource(patient.seed);
+    this.bg = REGIONS.map((_, r) => backgroundSource(noiseSource(patient.seed * 7919 + 101 * (r + 1))));
+    { const f = this.fields.perRegion, ch = STANDARD_MONTAGE.ch[0]; let v = 0; for (const fr of f) v += (fr[ch.red!] - fr[ch.black!]) ** 2; this.bgSize = ECT.restingEeg / (2 * Math.SQRT2) / Math.sqrt(v); }
     this.updateImpedance();
   }
 
@@ -247,12 +255,19 @@ export class EctSession {
     const i = this.rec.n++;
     const a = this.brain.activity(), f = this.fields.perRegion;
     const mon = this.monitoringCable;
+    /* the background, through each relay */
+    const thr = this.brain.relayThroughput(), k = 1 / (0.5 * FS);
+    if (!this.relaySm) this.relaySm = Float64Array.from(thr);
+    for (let r = 0; r < thr.length; r++) this.relaySm[r] += k * (thr[r] - this.relaySm[r]);
+    if (!this.relayRef) { if (this.t >= 2) this.relayRef = Float64Array.from(this.relaySm); }
+    const e = Float64Array.from(a);
+    for (let r = 0; r < e.length; r++) { const g = this.relayRef ? Math.min(1, this.relaySm[r] / this.relayRef[r]) : 1; e[r] += this.bgSize * g * this.bg[r](); }
     /* the motor seizure: the motor cortex above the spinal threshold drives the cuffed arm's muscles */
     this.rec.motor[i] = a[this.lcentral];
     if (i % BODY_BLOCK === 0) this.stepBody();
     const j = i - this.ecgAt;
     const v = [this.vcgBlock[0][j] ?? 0, this.vcgBlock[1][j] ?? 0, this.vcgBlock[2][j] ?? 0];
-    const pot = (e: string) => { let x = 0; for (let r = 0; r < a.length; r++) x += f[r][e] * a[r]; return x; };
+    const pot = (el: string) => { let x = 0; for (let r = 0; r < e.length; r++) x += f[r][el] * e[r]; return x; };
     /* each arm's surface EMG: the right (cuffed) driven by the left motor cortex, the left by the right; a relaxed arm gives
        only the noise. Drawn only for the arms the montage records, so the manual's montage draws the noise as before. */
     const leftRelaxed = this.relaxedAt != null && this.t >= this.relaxedAt + ECT.relaxantOnset;
@@ -405,6 +420,29 @@ export function vagalDrive(p: PlacementId, widthMs: number): number {
   const brief = p === 'BF' ? ECT.vagalBifrontal : p === 'RUL' ? ECT.vagalUnilateral : ECT.vagalBitemporal;
   if (widthMs >= 0.5) return brief;
   return brief * (ECT.vagalUnilateralUltrabrief / ECT.vagalUnilateral);
+}
+
+/** pink (1/f) noise, the shape of the awake EEG's spectrum, band-passed to the device's EEG band (0.5–30 Hz) */
+function pinkBand(noise: () => number) {
+  const b = [0, 0, 0]; let hp = 0, prev = 0, l1 = 0, l2 = 0;
+  const a = 1 / (1 + (2 * Math.PI * 0.5) / FS), c = 1 - Math.exp((-2 * Math.PI * 30) / FS);
+  return () => {
+    const w = noise() + noise() + noise();                             // about normal
+    /* Kellet's three-pole economy filter */
+    b[0] = 0.99765 * b[0] + w * 0.099046; b[1] = 0.963 * b[1] + w * 0.2965164; b[2] = 0.57 * b[2] + w * 1.0526913;
+    const pink = b[0] + b[1] + b[2] + w * 0.1848;
+    hp = a * (hp + pink - prev); prev = pink;
+    l1 += c * (hp - l1); l2 += c * (l1 - l2);
+    return l2;
+  };
+}
+/** the band's RMS for unit noise, measured once on a separate stream, so that a background can be of unit RMS */
+let PINK_RMS = 0;
+/** The resting background of one region, of unit RMS. Seeded. */
+export function backgroundSource(noise: () => number): () => number {
+  if (!PINK_RMS) { const g = pinkBand(noiseSource(91)); let v = 0; const n = FS * 120; for (let i = 0; i < n; i++) { const x = g(); v += x * x; } PINK_RMS = Math.sqrt(v / n); }
+  const g = pinkBand(noise);
+  return () => g() / PINK_RMS;
 }
 
 /** A uniform noise source in [−1, 1), seeded. */

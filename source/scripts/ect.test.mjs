@@ -359,6 +359,18 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const rr = S.scriptedTreatment(w, { program: 'LOW_05', percent: 30, after: 120 });
     ok('EMG on the left forearm, the cuff on the right: the relaxant reaches the left arm and its EMG shows no motor seizure', rr.emgEndpoint == null && rr.eegEndpoint != null, J({ emg: rr.emgEndpoint, eeg: rr.eegEndpoint }));
   }
+  {
+    /* the awake background the device takes its baseline from, and its suppression after the seizure */
+    const s = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 });
+    s.advance(20);
+    const rms = (x, i0, i1) => { let m = 0; for (let i = i0; i < i1; i++) m += x[i]; m /= i1 - i0; let v = 0; for (let i = i0; i < i1; i++) v += (x[i] - m) ** 2; return Math.sqrt(v / (i1 - i0)); };
+    const rest = 2 * Math.SQRT2 * rms(s.rec.eeg1, s.rec.n - 2000, s.rec.n);
+    ok('awake, channel 1 shows a normal adult background: at least 20 µV peak to trough (Hirsch 2021), the floor taken (under 25)', rest >= 20 && rest < 25, rest.toFixed(1));
+    const r = S.scriptedTreatment(s, { program: 'LOW_05', percent: 30, after: 150 });
+    const e = Math.round((r.stimulus.end + r.eegEndpoint + 5) * S.FS), z = Math.round((r.stimulus.end + r.eegEndpoint + 25) * S.FS);
+    const post = 2 * Math.SQRT2 * rms(s.rec.eeg1, e, z);
+    ok('after the seizure the relays silence the background: suppressed, under 10 µV (Hirsch 2021), from 5 to 25 s after the EEG endpoint', post < 10, post.toFixed(1));
+  }
   const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
   ok('every step, order, role and mode text exists in English and German', texts.every((x) => x.en && x.de && x.en !== x.de || ['Coach'].includes(x.en)), J(texts.filter((x) => !(x.en && x.de && x.en !== x.de)).map((x) => x.en)));
 }
