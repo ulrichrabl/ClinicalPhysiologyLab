@@ -10,6 +10,7 @@ import { seizureReport, type SeizureReport } from './ect-indices.ts';
 import { LivePatient } from '../live/live-patient.ts';
 import { healthyModel, type PatientModel } from '../physiology/state.ts';
 import { leadVectors, standardPlacement } from '../measurements/ecg.ts';
+import { Ventilator } from '../physiology/lung/ventilation.ts';
 import { BARO } from '../evidence/circulation.ts';
 import type { DrugId } from '../physiology/drugs/drugs.ts';
 
@@ -86,6 +87,11 @@ export class EctSession {
   paper: PaperEntry[] = [];
   /** cables: stimulus cable to the pads, monitoring cable to the EEG, EMG and ECG electrodes */
   stimulusCable = true; monitoringCable = true;
+  /* the anaesthetic (PR C): when the breathing stopped, when the relaxant went in and whether the cuff spared the arm */
+  inducedAt: number | null = null;
+  relaxedAt: number | null = null;
+  armSpared = true;
+  private breathingOff = false;
   /** the stimulus pads on the head (the procedure starts without them; part 1's sessions have them on) */
   padsOn = true;
   private startedAt = 0;
@@ -129,6 +135,33 @@ export class EctSession {
   setStimulusCable(on: boolean) { this.stimulusCable = on; this.updateImpedance(); }
   /** put the stimulus pads on the head at a placement, or take them off (null) */
   setPads(placement: PlacementId | null) { if (placement) this.patient.placement = placement; this.padsOn = placement != null; this.updateImpedance(); }
+  /* ---- the anaesthetic (PR C) ---- */
+  private setResp(change: (r: PatientModel['respiratory']) => void) { const m = structuredClone(this.body.model); change(m.respiratory); this.body.setModel(m); }
+  /** the mask on with oxygen flowing (or off: room air) */
+  oxygen(on: boolean) { this.setResp((r) => { r.FiO2 = on ? ECT.maskFiO2 : 0.21; }); }
+  /** the induction agent: the patient stops breathing (ECT.apnoeaAfterInduction until it returns) */
+  induce() { if (this.inducedAt != null) return; this.inducedAt = this.t; this.breathingOff = true; this.setResp((r) => { r.drive = 0; }); }
+  /** succinylcholine: every muscle it reaches relaxes; the cuffed arm only if the cuff was not above the systolic pressure */
+  relax(armSpared: boolean) { if (this.relaxedAt != null) return; this.relaxedAt = this.t; this.armSpared = armSpared; }
+  /** breaths given by bag and mask at ECT.bagRate, or none */
+  bag(on: boolean) {
+    if (!on) { this.body.run.setVentilator(null); return; }
+    const v = new Ventilator('mask'); v.steady(ECT.bagRate, this.body.run.resp.t); this.body.run.setVentilator(v);
+  }
+  /** the patient breathing on their own (not under the anaesthetic's apnoea) */
+  get breathing() { return !this.breathingOff; }
+  /** seconds until the breathing returns (0 if it has) */
+  get apnoeaLeft() { return this.breathingOff && this.inducedAt != null ? Math.max(0, this.inducedAt + ECT.apnoeaAfterInduction - this.t) : 0; }
+  /** the cuffed arm relaxed: the relaxant reached it */
+  get armRelaxed() { return this.relaxedAt != null && !this.armSpared && this.t >= this.relaxedAt + ECT.relaxantOnset; }
+  /** SpO₂ (%) and end-tidal CO₂ (mmHg; null without breaths, as a capnograph shows nothing) */
+  get spo2(): number { const r = this.body.snap.resp as unknown as { SaO2?: number } | undefined; return 100 * (r?.SaO2 ?? 0.97); }
+  get etco2(): number | null {
+    const r = this.body.snap.resp as unknown as { EtCO2?: number; givenRate?: number; RR?: number } | undefined;
+    const breaths = (r?.givenRate ?? 0) > 0 || (this.breathing && (r?.RR ?? 0) > 0);
+    /* nothing until the first breath has been breathed out */
+    return breaths && (r?.EtCO2 ?? 0) > 0 ? (r?.EtCO2 ?? 0) * 7.50062 : null;
+  }
   /** whether current from the device reaches the head */
   get circuit() { return this.stimulusCable && this.padsOn; }
 
@@ -160,7 +193,8 @@ export class EctSession {
     this.rec.eeg2[i] = mon ? fp2 - tp10 : 0;
     /* the motor seizure: the motor cortex above the spinal threshold drives the cuffed arm's muscles */
     this.rec.motor[i] = a[this.lcentral];
-    this.rec.emg[i] = mon ? emgSample(a[this.lcentral], this.emgNoise) : 0;
+    /* a relaxed arm gives no EMG: only the recording's noise (the cortex's drive no longer reaches its muscles) */
+    this.rec.emg[i] = mon ? emgSample(this.armRelaxed ? 0 : a[this.lcentral], this.emgNoise) : 0;
     if (i % BODY_BLOCK === 0) this.stepBody();
     this.rec.ecg[i] = mon ? (this.ecgBlock[i - this.ecgAt] ?? 0) : 0;
   }
@@ -228,6 +262,8 @@ export class EctSession {
     /* the discharge acts while the current flows and fades with the vagal efferent time constant */
     this.vagal = delivering ? target : this.vagal * Math.exp(-dt / BARO.tauP);
     this.adrenergic += (ECT.seizureSympathetic * ictalIntensity(this.brain) - this.adrenergic) * (1 - Math.exp(-dt / BARO.tauS));
+    /* the breathing returns when the anaesthetic's apnoea is over */
+    if (this.breathingOff && this.apnoeaLeft <= 0) { this.breathingOff = false; this.setResp((r) => { r.drive = 1; }); }
     const ext = this.body.run.external;
     ext.vagalStim = this.vagal; ext.adrenergic = this.adrenergic;
     const heart = this.body.run.heart, before = this.body.samples;
