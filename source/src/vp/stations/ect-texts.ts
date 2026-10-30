@@ -75,40 +75,40 @@ export const ECT_BACKGROUND: Array<{ title: LocalizedText; body: LocalizedText }
     'Das Herz ist das des Labors: Der Reiz verlangsamt es über den Vagus, solange der Strom fließt (je nach Position, wie Stewart 2010 maßen), der Anfall beschleunigt es über den Sympathikus (an Nagler 2013 angepasst), und Atropin, Glycopyrronium, Esmolol und Labetalol wirken darauf. Narkose, Muskelrelaxans, Beatmung und Sauerstoff folgen; Alter, Geschlecht und der Anstieg der Schwelle über eine Serie danach. Bekannte Lücken: Bei gleichen Pulsen liegt die rechts unilaterale Schwelle des Modells über der bitemporalen, wo Patienten das Gegenteil zeigen (van Waarde 2012: 45,6 gegen 95,4 mC; Coffey 1995): Im Modell startet ein Reiz, der beide Hemisphären antreibt, leichter einen Anfall. Die postiktale Suppression ist tiefer als gemessen (der Grundrhythmus des Modells ist zu klein, eine Lücke des Anfallsmodells), und die Leistungsindizes fallen viel kleiner aus als die von echten Geräten gedruckten, deren Skala nicht veröffentlicht ist. Am Herzen: Unter Atropin ist die Pause bei rechts unilateralem Reiz kürzer als gemessen; nach dem Anfall fällt die Frequenz nicht unter den Ausgangswert; Esmolol dämpft schwächer als in zwei von drei Studien.') },
 ];
 
-/** The report's lines, as the device prints them, in the learner's language. */
+/** The report's lines, as the device prints them: always in English with decimal points, whatever the learner's language, as the real device's firmware prints. */
 export function reportLines(r: {
   percent: number; charge: number; current: number; duration: number; frequency: number; pulseWidth: number;
   staticOhm: number | null; dynamicOhm: number; early: boolean; baselineAvailable: boolean;
   eegEndpoint: number | null; emgEndpoint: number | null; baseHr: number; peakHr: number;
   asei: number | null; psi: number | null; msp: number | null; ttp: number | null; coh: number | null; ttc: number | null; program: string; indexes: boolean;
-}, lang: 'en' | 'de', n: Num): string[] {
-  const de = lang === 'de';
+}): string[] {
+  const n = (x: number, d = 0) => x.toFixed(d);
   const na = 'N/A';
   const v = (x: number | null, d = 0) => (x == null ? na : n(x, d));
   const lines = [
-    de ? 'EKT-System IV' : 'ECT System IV',
-    `${de ? 'Energie eingestellt' : '% Energy set'}: ${n(r.percent)} %`,
-    `${de ? 'Abgegebene Ladung' : 'Charge delivered'}: ${n(r.charge, 1)} mC${r.early ? (de ? ' (vorzeitig beendet)' : ' (stopped early)') : ''}`,
-    `${de ? 'Strom' : 'Current'}: ${n(r.current, 2)} A`,
-    `${de ? 'Reizdauer' : 'Stimulus duration'}: ${n(r.duration, 2)} s`,
-    `${de ? 'Frequenz' : 'Frequency'}: ${n(r.frequency)} Hz`,
-    `${de ? 'Pulsbreite' : 'Pulse width'}: ${n(r.pulseWidth, 2)} ms`,
-    `${de ? 'Statische Impedanz' : 'Static impedance'}: ${r.staticOhm == null ? na : n(r.staticOhm)} Ω`,
-    `${de ? 'Dynamische Impedanz' : 'Dynamic impedance'}: ${n(r.dynamicOhm)} Ω`,
+    'ECT System IV',
+    `% Energy set: ${n(r.percent)} %`,
+    `Charge delivered: ${n(r.charge, 1)} mC${r.early ? ' (stopped early)' : ''}`,
+    `Current: ${n(r.current, 2)} A`,
+    `Stimulus duration: ${n(r.duration, 2)} s`,
+    `Frequency: ${n(r.frequency)} Hz`,
+    `Pulse width: ${n(r.pulseWidth, 2)} ms`,
+    `Static impedance: ${r.staticOhm == null ? na : n(r.staticOhm)} Ω`,
+    `Dynamic impedance: ${n(r.dynamicOhm)} Ω`,
   ];
-  if (!r.baselineAvailable) lines.push(de ? 'Grundlinie nicht verfügbar' : 'Baseline not available');
-  else lines.push(r.eegEndpoint == null ? (de ? 'EEG-Endpunkt nicht erkannt' : 'EEG endpoint is not detected') : `${de ? 'EEG-Endpunkt' : 'EEG endpoint'}: ${n(r.eegEndpoint)} s`);
-  lines.push(r.emgEndpoint == null ? (de ? 'Keine EMG-Aktivität erkannt' : 'EMG activity is not detected') : `${de ? 'EMG-Endpunkt' : 'EMG endpoint'}: ${n(r.emgEndpoint)} s`);
-  lines.push(`${de ? 'Herzfrequenz Basis / Spitze' : 'Base / peak heart rate'}: ${n(r.baseHr)} / ${n(r.peakHr)} b/m`);
+  if (!r.baselineAvailable) lines.push('Baseline not available');
+  else lines.push(r.eegEndpoint == null ? 'EEG endpoint is not detected' : `EEG endpoint: ${n(r.eegEndpoint)} s`);
+  lines.push(r.emgEndpoint == null ? 'EMG activity is not detected' : `EMG endpoint: ${n(r.emgEndpoint)} s`);
+  lines.push(`Base / peak heart rate: ${n(r.baseHr)} / ${n(r.peakHr)} b/m`);
   if (r.indexes && r.baselineAvailable) {
-    lines.push(`${de ? 'Mittlerer Anfallsenergie-Index' : 'Average seizure energy index'}: ${v(r.asei)} µV²`);
-    lines.push(`${de ? 'Postiktaler Suppressionsindex' : 'Postictal suppression index'}: ${r.psi == null ? na : `${n(r.psi, 1)} %`}`);
-    lines.push(`${de ? 'Maximale anhaltende Leistung' : 'Maximum sustained power'}: ${v(r.msp)} µV²`);
-    lines.push(`${de ? 'Zeit bis zur Spitzenleistung' : 'Time to peak power'}: ${r.ttp == null ? na : `${n(r.ttp)} s`}`);
-    lines.push(`${de ? 'Maximale anhaltende Kohärenz' : 'Maximum sustained coherence'}: ${r.coh == null ? na : `${n(r.coh, 1)} %`}`);
-    lines.push(`${de ? 'Zeit bis zur Spitzenkohärenz' : 'Time to peak coherence'}: ${r.ttc == null ? na : `${n(r.ttc)} s`}`);
+    lines.push(`Average seizure energy index: ${v(r.asei)} µV²`);
+    lines.push(`Postictal suppression index: ${r.psi == null ? na : `${n(r.psi, 1)} %`}`);
+    lines.push(`Maximum sustained power: ${v(r.msp)} µV²`);
+    lines.push(`Time to peak power: ${r.ttp == null ? na : `${n(r.ttp)} s`}`);
+    lines.push(`Maximum sustained coherence: ${r.coh == null ? na : `${n(r.coh, 1)} %`}`);
+    lines.push(`Time to peak coherence: ${r.ttc == null ? na : `${n(r.ttc)} s`}`);
   }
-  lines.push(`${de ? 'Gewähltes Programm' : 'Program selected'}: ${r.program}`);
+  lines.push(`Program selected: ${r.program}`);
   return lines;
 }
 

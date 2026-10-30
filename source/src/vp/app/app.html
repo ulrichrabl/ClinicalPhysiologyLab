@@ -478,8 +478,9 @@ canvas.st-strip:focus-visible { outline: 3px solid var(--accent); outline-offset
 .ect-panel { display: grid; grid-template-columns: 1.3fr 0.9fr 1fr 0.9fr 1fr 1.2fr; gap: 10px; align-items: start; padding: 14px; border-radius: 10px; background: #d8d4c8; color: #23221f; border: 1px solid #a9a495; box-shadow: inset 0 1px 0 #f0ede4; }
 .ect-col { display: grid; gap: 8px; justify-items: stretch; min-width: 0; }
 .ect-center { justify-items: center; text-align: center; }
-.ect-led { font: 600 1.15rem/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .12em; color: #ff4a3d; background: #1b0d0b; border: 2px solid #5a5650; border-radius: 4px; padding: 8px 10px; min-height: 1.15rem; text-shadow: 0 0 6px rgba(255, 74, 61, .6); white-space: pre; overflow: hidden; }
-.ect-led8 { min-width: 10ch; } .ect-led4 { min-width: 5ch; text-align: right; }
+/* a display is a fixed window of character cells, lit or dark: its box never depends on what it shows */
+.ect-led { box-sizing: content-box; font: 600 1.15rem/1.15rem ui-monospace, Menlo, Consolas, monospace; letter-spacing: .12em; color: #ff4a3d; background: #1b0d0b; border: 2px solid #5a5650; border-radius: 4px; padding: 8px 10px; height: 1.15rem; text-shadow: 0 0 6px rgba(255, 74, 61, .6); white-space: pre; overflow: hidden; flex: none; }
+.ect-led8 { width: calc(8 * (1ch + .12em)); justify-self: start; } .ect-led4 { width: calc(4 * (1ch + .12em)); text-align: right; }
 .ect-lab { font: 600 .68rem/1.2 system-ui, sans-serif; letter-spacing: .04em; display: flex; gap: 6px; align-items: center; justify-content: center; }
 .ect-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #5d4a46; border: 1px solid #3c3330; flex: none; }
 .ect-dot.on { background: #ff3b2f; box-shadow: 0 0 6px #ff3b2f; }
