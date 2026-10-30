@@ -324,7 +324,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     /* the cuff too low: the relaxant reaches the arm and its EMG is flat */
     const w = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 });
     w.relax(false); w.advance(61);                     // the relaxant takes a minute to reach the arm
-    const rr = S.scriptedTreatment(w, { program: 'LOW_05', percent: 30, after: 60 });
+    const rr = S.scriptedTreatment(w, { program: 'LOW_05', percent: 30, after: 120 });   // past the EEG seizure's end (about 72 s)
     ok('with the cuff not above systolic, the relaxant reaches the arm: no EMG, while the EEG seizure is still seen', rr.emgEndpoint == null && rr.eegEndpoint != null && w.armRelaxed, J({ emg: rr.emgEndpoint, eeg: rr.eegEndpoint }));
   }
   const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
