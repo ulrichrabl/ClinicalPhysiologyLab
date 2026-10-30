@@ -294,6 +294,8 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     q.act('induction'); q.cuffOn(); q.squeeze(); q.squeeze(); q.act('cuff'); q.act('relaxant');
     ok('a cuff below the systolic pressure when the relaxant goes in is a mistake', q.room.cuffMmHg === 2 * S.CUFF_SQUEEZE && q.errors.some((e) => e.code === 'cuff-low') && !q.errors.some((e) => e.code === 'no-cuff'), J({ mmHg: q.room.cuffMmHg, sys: q.systolic, e: q.errors.map((e) => e.code) }));
     const svg = S.sceneSvg(F, { pads: ['Rtemp', 'vertexR'], cleaned: true, leads: true, cuff: { on: true, mmHg: 220 }, mask: true, bagging: true, biteBlock: true }, 1);
+    const chest = S.chestCloseUp(S.ectLook(), { pads: [], cleaned: true, leads: true, cuff: { on: true, mmHg: 220 }, mask: false, bagging: false, biteBlock: false });
+    ok('the chest from above draws the ECG, the ground, the cuff and the EMG without NaN', !/NaN|undefined/.test(chest) && (chest.match(/fill="#f7f7f4"/g) ?? []).length === 5 && chest.includes('#3e6f8f'), '');
     ok('the scene draws without NaN and its taps land on the head, the chest and the arm', !/NaN|undefined/.test(svg) && ['head', 'chest', 'arm'].every((h) => svg.includes(`data-hit="${h}"`)), '');
   }
   const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
