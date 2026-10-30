@@ -43,9 +43,9 @@ export const ECT = defineConstants('ect', {
   synapseRecovery: { value: 0.144, unit: 's', status: 'measured', refs: ['testasilva2014'], means: 'Time constant of the synapses’ recovery from depression.', derivation: 'Testa-Silva 2014: 144 ± 13 ms in human cortex (three times faster than in mice), unchanged with age in adults.' },
 
   /* the recording's other channels */
-  emgThreshold: { value: 50, unit: '1/s', status: 'derived', refs: ['gazdag2004'], means: 'Excess firing of the motor cortex (the left central region, for the cuffed right foot) above which the spinal motor neurons fire: the motor seizure.',
+  emgThreshold: { value: 50, unit: '1/s', status: 'derived', refs: ['gazdag2004'], means: 'Excess firing of the motor cortex (the left central region, for the cuffed right arm) above which the spinal motor neurons fire: the motor seizure.',
     derivation: 'Fitted once (scripts/fit-ect.mjs --emg, a scan) so that the device’s EMG endpoint is on average 0.755 of its EEG endpoint over six seeds (0.76 at 50/s), the ratio of the means Gazdag 2004 measured in the same seizures under etomidate (EMG 46.3 ± 23.8 s, EEG 61.3 ± 22.4 s): the reference adult, bitemporal, 30 % of the 0.5 ms program. Fragile (known gap 66): the ratio jumps (0.76 at 50/s, 0.64 at 51/s) because the model’s late clonic bursts stay as large as its early ones. Other series give 0.43–0.76 (propofol lower); Swedish guidance puts the EEG 10–20 s beyond the motor seizure (Gillving 2024).' },
-  emgPerFiring: { value: 10, unit: 'µV per 1/s', status: 'assumed', means: 'Surface EMG of the cuffed foot per 1/s of motor cortical firing above that threshold.',
+  emgPerFiring: { value: 10, unit: 'µV per 1/s', status: 'assumed', means: 'Surface EMG of the cuffed arm per 1/s of motor cortical firing above that threshold.',
     derivation: 'Sets only the EMG trace’s size on paper (printed at 1000 µV/cm); the device’s EMG endpoint is relative to the EMG’s own baseline. Placed so that the tonic phase fills a channel at that gain.' },
 
   /* the heart (part 2): the stimulus's vagal discharge and the seizure's sympathetic drive */

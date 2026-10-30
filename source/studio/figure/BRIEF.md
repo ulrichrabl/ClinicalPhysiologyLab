@@ -102,7 +102,7 @@ The backrest pivots on a fixed hinge. The pillow belongs to the head section, so
 These rules are checked by `contract.test.mjs` (part of `npm test`) and by `shoot.py`.
 
 1. **Exports:**
-   - `figureSvg(pose, look, view?, opts?)`: SVG markup that goes inside `<g id="fig">` of `<svg id="figure" viewBox="0 0 360 380">`. Keep that viewBox. `view` comes from `viewAt(angle)`. `opts`: `scene`, `head`, `chestFrame`, `collect` (used by `thorax.ts`, the arrest scene and the ECT scene; besides the touch regions it reports `wrist`, `thigh` and `ankle` per side and `headFrame`, the head's origin and unit axes as drawn, which `render/ect-scene.ts` uses to place pads and leads on the side of the head).
+   - `figureSvg(pose, look, view?, opts?)`: SVG markup that goes inside `<g id="fig">` of `<svg id="figure" viewBox="0 0 360 380">`. Keep that viewBox. `view` comes from `viewAt(angle)`. `opts`: `scene`, `head`, `chestFrame`, `collect` (used by `thorax.ts`, the arrest scene and the ECT scene; besides the touch regions it reports `wrist`, `thigh`, `ankle`, `elbow`, `upperArm` and `forearm` (two points) per side and `headFrame`, the head's origin and unit axes as drawn, which `render/ect-scene.ts` uses to place pads and leads on the side of the head, and the cuff and EMG on the arm).
    - `figureLookFor(patient, state, seed, findings?)`.
    - `POSES` with every position: `supine, reclined-45, sitting, sitting-forward, left-lateral, standing, prone, head-hanging-left, head-hanging-right`.
    - `lerpPose(a, b, t)`; `VIEW_ANGLE` (`right` 0, `front` 90, `left` 180) and `viewAt`.

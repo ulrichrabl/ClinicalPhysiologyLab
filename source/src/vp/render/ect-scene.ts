@@ -7,7 +7,10 @@ import { ECT } from '../evidence/ect.ts';
    The ECT patient, drawn (ECT station, PR B): the bedside figure lying on
    the trolley, seen from the right, and what the team puts on him: the
    stimulus pads, the EEG leads from above the eyebrow to the mastoid, the
-   ECG on the chest, the EMG on the right foot with the cuff above the ankle,
+   ECG on the chest, the EMG on the right forearm with the cuff on the upper
+   arm (the device's manual: two electrodes about 3 inches apart on a limb
+   cuffed against the relaxant, the arm with the standard leads; the owner
+   uses the arm),
    the cannula, the mask and bag, the bite block. A close-up shows the same
    head enlarged and upright; the head seen from above carries the pad sites
    the learner chooses.
@@ -37,19 +40,21 @@ export interface EctFigure {
   svg: string;
   /** the head frame: origin and unit axes as drawn */
   o: Pt; ea: Pt; eb: Pt;
-  ankleR: Pt; wristR: Pt; chest: [number, number, number, number];
+  wristR: Pt; elbowR: Pt; upperArmR: Pt; forearmR: [Pt, Pt]; chest: [number, number, number, number];
 }
 
 export function ectLook(seed = 7): FigureLook { return figureLookFor(ECT_FIGURE_PATIENT, { exposure: [] }, seed); }
 
-/** the patient lying on the trolley, seen from his right; `footJerk` (degrees) moves the cuffed foot in the motor seizure */
-export function ectFigure(look: FigureLook, footJerk = 0): EctFigure {
-  const pose: Pose = { ...POSES.supine, foot: [POSES.supine.foot[0] + footJerk, POSES.supine.foot[1]] };
+/** the patient lying on the trolley, seen from his right; `jerk` (degrees) moves the cuffed right arm in the motor
+    seizure: the elbow and the wrist flex a little with each clonic jerk */
+export function ectFigure(look: FigureLook, jerk = 0): EctFigure {
+  const b = POSES.supine;
+  const pose: Pose = { ...b, armFore: [b.armFore[0] + jerk * 0.6, b.armFore[1]], hand: [b.hand[0] + jerk, b.hand[1]] };
   const got: Record<string, Pt[]> = {};
   const svg = figureSvg(pose, look, viewAt(0), { collect: (k, side, pts) => { (got[k + side] ??= []).push(...pts); } });
   const [o, A, B] = got.headFrame;
   const xs = (got.chest ?? []).map((p) => p.x), ys = (got.chest ?? []).map((p) => p.y);
-  return { svg, o, ea: { x: A.x - o.x, y: A.y - o.y }, eb: { x: B.x - o.x, y: B.y - o.y }, ankleR: got.ankleR[0], wristR: got.wristR[0],
+  return { svg, o, ea: { x: A.x - o.x, y: A.y - o.y }, eb: { x: B.x - o.x, y: B.y - o.y }, wristR: got.wristR[0], elbowR: got.elbowR[0], upperArmR: got.upperArmR[0], forearmR: [got.forearmR[0], got.forearmR[1]],
     chest: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] };
 }
 
@@ -82,7 +87,7 @@ export interface EctDress {
   /** the skin cleaned at the pad sites (a sheen) */
   cleaned: boolean;
   leads: boolean;
-  /** the cuff above the right ankle: on, and its pressure (mmHg) */
+  /** the cuff on the right upper arm: on, and its pressure (mmHg) */
   cuff: { on: boolean; mmHg: number } ;
   mask: boolean; bagging: boolean; biteBlock: boolean;
 }
@@ -116,7 +121,7 @@ export function dressSvg(F: EctFigure, d: EctDress, t = 0): string {
     const back = H(p.a + 4, -14);
     out.push(`<path d="M${f(c.x)} ${f(c.y)} Q${f((c.x + back.x) / 2)} ${f(Math.min(c.y, back.y) - 6)} ${f(back.x)} ${f(back.y)}" fill="none" stroke="${CABLE}" stroke-width=".9"/>`);
   }
-  /* the monitoring leads: EEG above the right eyebrow and on the mastoid; the ECG on the chest; the EMG on the right foot */
+  /* the monitoring leads: EEG above the right eyebrow and on the mastoid; the ECG on the chest; the EMG on the right forearm */
   if (d.leads) {
     const lead = (c: Pt, to: Pt, via?: Pt) => out.push(`<circle cx="${f(c.x)}" cy="${f(c.y)}" r="${f(0.55 * s)}" fill="#eef2f5" stroke="${LEAD}" stroke-width=".5"/><path d="M${f(c.x)} ${f(c.y)} Q${f((via ?? { x: (c.x + to.x) / 2, y: Math.max(c.y, to.y) + 4 }).x)} ${f((via ?? { x: 0, y: Math.max(c.y, to.y) + 4 }).y)} ${f(to.x)} ${f(to.y)}" fill="none" stroke="${LEAD}" stroke-width=".45"/>`);
     /* the EEG leads run back over the hair, above the ear, to behind the head (a cubic that stays on the scalp) */
@@ -125,24 +130,24 @@ export function dressSvg(F: EctFigure, d: EctDress, t = 0): string {
     eeg(H(12.2, 8.6), H(14.6, 4.5), H(13.6, -7), behind); eeg(H(3.4, -4.8), H(3.8, -8), H(4.4, -11), behind);
     const [x0, y0, x1] = F.chest;
     for (const k of [0.25, 0.5, 0.8]) lead({ x: x0 + (x1 - x0) * k, y: y0 + 1.2 }, { x: x0 - 8, y: y0 + 10 });
-    const a = F.ankleR;
-    lead({ x: a.x + 6, y: a.y - 4 }, { x: a.x + 2, y: a.y + 14 }); lead({ x: a.x + 11, y: a.y - 9 }, { x: a.x + 2, y: a.y + 14 });
+    /* the EMG: two electrodes on the forearm below the cuff, their leads to the device at the head end */
+    const [e1, e2] = F.forearmR, up = { x: F.elbowR.x - 20, y: F.elbowR.y - 14 };
+    lead(e1, up); lead(e2, up);
   }
-  /* the cuff above the right ankle, its tube to the gauge and bulb hanging at the foot of the bed */
+  /* the cuff round the right upper arm, its tube to the gauge and bulb hanging over the side of the bed */
   if (d.cuff.on) {
-    const a = F.ankleR, w = 12, h = 8;
+    const c = F.upperArmR, e = F.elbowR, len = 11, wide = 7.5;
+    const ax = Math.atan2(e.y - c.y, e.x - c.x) * 180 / Math.PI;     // along the upper arm
     const full = Math.min(1, d.cuff.mmHg / 250);
-    out.push(`<rect x="${f(a.x - w / 2 - 4)}" y="${f(a.y - h / 2 - 1 - full * 1.2)}" width="${f(w)}" height="${f(h + full * 2.4)}" rx="2" fill="#3e6f8f" stroke="#284a60" stroke-width=".5"/>`);
-    const g = { x: a.x + 22, y: a.y + 34 };
-    out.push(`<path d="M${f(a.x - 4)} ${f(a.y + 4)} Q${f(a.x + 4)} ${f(a.y + 22)} ${f(g.x - 6)} ${f(g.y)}" fill="none" stroke="#444" stroke-width=".7"/>`);
+    out.push(`<rect x="${f(c.x - len / 2)}" y="${f(c.y - wide / 2 - full)}" width="${f(len)}" height="${f(wide + 2 * full)}" rx="2" transform="rotate(${f(ax)} ${f(c.x)} ${f(c.y)})" fill="#3e6f8f" stroke="#284a60" stroke-width=".5"/>`);
+    const g = { x: c.x + 4, y: c.y + 40 };
+    out.push(`<path d="M${f(c.x)} ${f(c.y + 3)} Q${f(c.x - 4)} ${f(c.y + 22)} ${f(g.x - 6)} ${f(g.y)}" fill="none" stroke="#444" stroke-width=".7"/>`);
     out.push(`<circle cx="${f(g.x)}" cy="${f(g.y)}" r="7" fill="#f7f7f2" stroke="#555" stroke-width=".7"/>`);
     const needle = -220 + 260 * Math.min(1, d.cuff.mmHg / 300);
     const nr = (needle * Math.PI) / 180;
     out.push(`<line x1="${f(g.x)}" y1="${f(g.y)}" x2="${f(g.x + 5.5 * Math.cos(nr))}" y2="${f(g.y + 5.5 * Math.sin(nr))}" stroke="#b3261e" stroke-width=".8"/>`);
     out.push(`<ellipse cx="${f(g.x + 2)}" cy="${f(g.y + 16)}" rx="4" ry="6" fill="#2b2b2b"/><path d="M${f(g.x)} ${f(g.y + 7)} L${f(g.x + 2)} ${f(g.y + 10)}" stroke="#444" stroke-width=".7"/>`);
   }
-  /* the bite block between the teeth: its flange shows at the lips */
-  if (d.biteBlock) { const b = H(1.7, 10.9); out.push(`<rect x="${f(b.x - 1.6)}" y="${f(b.y - 0.9)}" width="3.2" height="1.8" rx=".8" transform="rotate(${f(ang)} ${f(b.x)} ${f(b.y)})" fill="#4a90c2" stroke="#2c5d8f" stroke-width=".4"/>`); }
   /* the mask over nose and mouth, and the bag above it, squeezed while ventilating */
   if (d.mask) {
     /* a clear mask from the bridge of the nose to below the lower lip, its cushion on the cheeks, its dome over the nose */
@@ -161,13 +166,13 @@ export function dressSvg(F: EctFigure, d: EctDress, t = 0): string {
   return `<g pointer-events="none">${out.join('')}</g>`;
 }
 
-/** where taps land on the scene: the head (the close-up), the chest (the leads), the right ankle (the cuff) */
+/** where taps land on the scene: the head (the close-up), the chest (the leads), the right arm (the cuff) */
 function hitsSvg(F: EctFigure): string {
   const { H, s } = onHead(F);
-  const c = H(9, 2), [x0, y0, x1, y1] = F.chest, a = F.ankleR;
+  const c = H(9, 2), [x0, y0, x1, y1] = F.chest, a = F.upperArmR;
   return `<g class="ect-hits"><circle data-hit="head" cx="${f(c.x)}" cy="${f(c.y)}" r="${f(12 * s)}" fill="transparent"/>`
     + `<rect data-hit="chest" x="${f(x0)}" y="${f(y0 - 6)}" width="${f(x1 - x0)}" height="${f(y1 - y0 + 6)}" fill="transparent"/>`
-    + `<rect data-hit="ankle" x="${f(a.x - 14)}" y="${f(a.y - 14)}" width="34" height="30" fill="transparent"/></g>`;
+    + `<rect data-hit="arm" x="${f(a.x - 16)}" y="${f(a.y - 10)}" width="40" height="22" fill="transparent"/></g>`;
 }
 
 /** the whole patient on the trolley; the SVG's viewBox crops the figure's 360 × 380 to the bed */

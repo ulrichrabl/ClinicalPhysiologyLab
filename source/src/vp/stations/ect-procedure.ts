@@ -14,7 +14,7 @@ import type { EctSession } from './ect-session.ts';
    psychiatrist runs the device and gives the stimulus; the anaesthetist
    preoxygenates, induces, gives the relaxant, inserts the bite block and
    ventilates; the nurse prepares the skin, attaches the leads, inflates the
-   cuff on the foot before the relaxant and watches that foot during the
+   cuff on the arm before the relaxant and watches that arm during the
    seizure. The learner takes one role, or all of them; the others' steps are
    done by the team, visibly, so that the learner sees what each person does.
 
@@ -87,7 +87,7 @@ const FLAT_FOR = 8;
 export interface Room {
   checked: boolean; premed: boolean; skin: boolean; pads: PlacementId | null; leads: boolean;
   oxygen: boolean; induced: boolean; cuff: boolean; biteBlock: boolean; relaxed: boolean; ventilating: boolean; recovered: boolean;
-  /** the cuff above the right ankle: put on, and its pressure (mmHg) */
+  /** the cuff on the right upper arm: put on, and its pressure (mmHg) */
   cuffOn: boolean; cuffMmHg: number;
   /** the treatment button's cover */
   coverUp: boolean;
@@ -134,7 +134,7 @@ export const STEPS: readonly StepDef[] = [
     says: L('Pads on.', 'Elektroden angelegt.') },
   { id: 'leads', role: 'nurse', kind: 'room', modelled: true, after: ['skin'],
     title: L('Attach EEG, ECG and EMG leads', 'EEG-, EKG- und EMG-Ableitungen anlegen'),
-    how: L('EEG above each eyebrow to the mastoid, the ECG on the chest, the EMG on the right foot; plug the cable into the device.', 'EEG über jeder Augenbraue zum Mastoid, das EKG an die Brust, das EMG an den rechten Fuß; stecken Sie das Kabel ins Gerät.'),
+    how: L('EEG above each eyebrow to the mastoid, the ECG on the chest, the EMG on the right forearm, two electrodes about 3 inches apart; plug the cable into the device.', 'EEG über jeder Augenbraue zum Mastoid, das EKG an die Brust, das EMG an den rechten Unterarm, zwei Elektroden etwa 7,5 cm auseinander; stecken Sie das Kabel ins Gerät.'),
     why: L('Without them there is no EEG to judge the seizure, no baseline for the device’s endpoints and no ECG on the strip.', 'Ohne sie gibt es kein EEG, um den Anfall zu beurteilen, keine Grundlinie für die Endpunkte des Geräts und kein EKG auf dem Streifen.'),
     says: L('Leads on and plugged in.', 'Ableitungen angelegt und eingesteckt.') },
   { id: 'power', role: 'psychiatrist', kind: 'device', modelled: true, after: ['check'],
@@ -163,10 +163,10 @@ export const STEPS: readonly StepDef[] = [
     why: L('Sleep comes before the relaxant: paralysed while awake is the worst thing that can happen here.', 'Der Schlaf kommt vor dem Relaxans: wach und gelähmt ist das Schlimmste, was hier geschehen kann.'),
     says: L('Induction agent in.', 'Hypnotikum ist drin.') },
   { id: 'cuff', role: 'nurse', kind: 'room', modelled: false, after: ['induction'],
-    title: L('Inflate the cuff on the right foot', 'Manschette am rechten Fuß aufpumpen'),
-    how: L('Put the cuff on above the ankle and squeeze the bulb until the gauge is well above the systolic pressure; then say it is up. All before the relaxant.', 'Legen Sie die Manschette über dem Knöchel an und drücken Sie den Ballon, bis das Manometer deutlich über dem systolischen Druck steht; dann melden Sie sie als aufgepumpt. Alles vor dem Relaxans.'),
-    why: L('The cuff keeps the relaxant out of that foot, so the motor seizure can be seen and timed there (and the EMG recorded).', 'Die Manschette hält das Relaxans von diesem Fuß fern, damit der motorische Anfall dort gesehen und gemessen werden kann (und das EMG abgeleitet).'),
-    says: L('Cuff up on the right foot.', 'Manschette am rechten Fuß aufgepumpt.') },
+    title: L('Inflate the cuff on the right arm', 'Manschette am rechten Arm aufpumpen'),
+    how: L('Put the cuff on the upper arm and squeeze the bulb until the gauge is well above the systolic pressure; then say it is up. All before the relaxant.', 'Legen Sie die Manschette am Oberarm an und drücken Sie den Ballon, bis das Manometer deutlich über dem systolischen Druck steht; dann melden Sie sie als aufgepumpt. Alles vor dem Relaxans.'),
+    why: L('The cuff keeps the relaxant out of that arm, so the motor seizure can be seen and timed there (and the EMG recorded).', 'Die Manschette hält das Relaxans von diesem Arm fern, damit der motorische Anfall dort gesehen und gemessen werden kann (und das EMG abgeleitet).'),
+    says: L('Cuff up on the right arm.', 'Manschette am rechten Arm aufgepumpt.') },
   { id: 'biteBlock', role: 'anaesthetist', kind: 'room', modelled: false, after: ['induction'],
     title: L('Insert the bite block', 'Beißschutz einlegen'),
     how: L('Place the bite block between the teeth.', 'Legen Sie den Beißschutz zwischen die Zähne.'),
@@ -189,7 +189,7 @@ export const STEPS: readonly StepDef[] = [
     says: L('Stimulating.', 'Reiz.') },
   { id: 'observe', role: 'nurse', kind: 'wait', modelled: true, after: ['treat'],
     title: L('Watch and time the seizure', 'Anfall beobachten und messen'),
-    how: L('Watch the EEG and EMG on the strip and the cuffed foot; the anaesthetist keeps ventilating.', 'Beobachten Sie EEG und EMG auf dem Streifen und den gestauten Fuß; die Anästhesie beatmet weiter.'),
+    how: L('Watch the EEG and EMG on the strip and the cuffed arm; the anaesthetist keeps ventilating.', 'Beobachten Sie EEG und EMG auf dem Streifen und den gestauten Arm; die Anästhesie beatmet weiter.'),
     why: L('The motor seizure ends before the EEG seizure; both are recorded.', 'Der motorische Anfall endet vor dem EEG-Anfall; beide werden dokumentiert.'),
     says: L('Seizure watched and timed.', 'Anfall beobachtet und gemessen.') },
   { id: 'report', role: 'psychiatrist', kind: 'device', modelled: true, after: ['observe'],
@@ -222,8 +222,8 @@ const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'no-leads': L('The stimulus was given without the EEG and ECG leads.', 'Der Reiz wurde ohne EEG- und EKG-Ableitungen gegeben.'),
   'not-ventilated': L('The stimulus was given while the patient was not being ventilated.', 'Der Reiz wurde gegeben, während der Patient nicht beatmet wurde.'),
   'awake-paralysis': L('The relaxant was given before the induction agent: an awake, paralysed patient.', 'Das Relaxans wurde vor dem Hypnotikum gegeben: ein wacher, gelähmter Patient.'),
-  'cuff-low': L('The cuff was not above the systolic pressure when the relaxant went in: arterial blood carries it into the foot.', 'Die Manschette lag nicht über dem systolischen Druck, als das Relaxans gegeben wurde: Arterielles Blut trägt es in den Fuß.'),
-  'no-cuff': L('The relaxant was given before the cuff was up: the foot is relaxed too, and the motor seizure cannot be seen.', 'Das Relaxans wurde gegeben, bevor die Manschette aufgepumpt war: Auch der Fuß ist relaxiert, und der motorische Anfall ist nicht zu sehen.'),
+  'cuff-low': L('The cuff was not above the systolic pressure when the relaxant went in: arterial blood carries it into the arm.', 'Die Manschette lag nicht über dem systolischen Druck, als das Relaxans gegeben wurde: Arterielles Blut trägt es in den Arm.'),
+  'no-cuff': L('The relaxant was given before the cuff was up: the arm is relaxed too, and the motor seizure cannot be seen.', 'Das Relaxans wurde gegeben, bevor die Manschette aufgepumpt war: Auch der Arm ist relaxiert, und der motorische Anfall ist nicht zu sehen.'),
 };
 
 export type Who = 'you' | EctRole;

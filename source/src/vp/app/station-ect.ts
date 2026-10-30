@@ -38,7 +38,7 @@ const T: Record<string, LocalizedText> = {
   eyebrow: L('Station', 'Station'), back: L('Ward', 'Übersicht'),
   view: L('View', 'Ansicht'), viewTreat: L('The treatment', 'Die Behandlung'), viewStim: L('The stimulus', 'Der Reiz'),
   patient: L('The patient', 'Der Patient'),
-  patientNote: L('A reference adult of 59 years (the mean age at which the threshold was measured with this device), anaesthetised and relaxed, the right foot cuffed. Behind the ECG runs the lab’s own heart and circulation. Age, sex and the choice of anaesthetic come in the next parts.', 'Ein Referenzerwachsener von 59 Jahren (das mittlere Alter, bei dem die Schwelle mit diesem Gerät gemessen wurde), in Narkose und relaxiert, der rechte Fuß gestaut. Hinter dem EKG laufen das Herz und der Kreislauf des Labors. Alter, Geschlecht und die Wahl der Narkose folgen in den nächsten Teilen.'),
+  patientNote: L('A reference adult of 59 years (the mean age at which the threshold was measured with this device), anaesthetised and relaxed, the right arm cuffed. Behind the ECG runs the lab’s own heart and circulation. Age, sex and the choice of anaesthetic come in the next parts.', 'Ein Referenzerwachsener von 59 Jahren (das mittlere Alter, bei dem die Schwelle mit diesem Gerät gemessen wurde), in Narkose und relaxiert, der rechte Arm gestaut. Hinter dem EKG laufen das Herz und der Kreislauf des Labors. Alter, Geschlecht und die Wahl der Narkose folgen in den nächsten Teilen.'),
   premed: L('Premedication', 'Prämedikation'), premedNote: L('Given into a vein now; it takes about half a minute to arrive.', 'Jetzt intravenös gegeben; sie braucht etwa eine halbe Minute, um anzukommen.'),
   given: L('Given', 'Gegeben'), none: L('none yet', 'noch keine'),
   vitals: L('The patient now', 'Der Patient jetzt'), hrL: L('Heart rate', 'Herzfrequenz'), bpL: L('Blood pressure', 'Blutdruck'),
@@ -59,7 +59,7 @@ const T: Record<string, LocalizedText> = {
   plug: L('plugged in', 'eingesteckt'), unplug: L('not plugged in', 'nicht eingesteckt'),
   turnDown: L('turn left', 'nach links drehen'), turnUp: L('turn right', 'nach rechts drehen'), pressDial: L('press', 'drücken'),
   strip: L('The strip', 'Der Streifen'),
-  stripNote: L('EEG 1 and 2 (above each eyebrow to the mastoid) at the set gain, the EMG of the cuffed foot and the ECG at 1000 µV/cm; a mark every second, a block every 6 s, the heart rate every 3 s, the ictal line along the top. Drag or use the slider to read back.', 'EEG 1 und 2 (über jeder Augenbraue zum Mastoid) mit der eingestellten Verstärkung, das EMG des gestauten Fußes und das EKG mit 1000 µV/cm; jede Sekunde eine Marke, alle 6 s ein Block, alle 3 s die Herzfrequenz, oben die Iktallinie. Ziehen oder den Regler benutzen, um zurückzulesen.'),
+  stripNote: L('EEG 1 and 2 (above each eyebrow to the mastoid) at the set gain, the EMG of the cuffed arm and the ECG at 1000 µV/cm; a mark every second, a block every 6 s, the heart rate every 3 s, the ictal line along the top. Drag or use the slider to read back.', 'EEG 1 und 2 (über jeder Augenbraue zum Mastoid) mit der eingestellten Verstärkung, das EMG des gestauten Arms und das EKG mit 1000 µV/cm; jede Sekunde eine Marke, alle 6 s ein Block, alle 3 s die Herzfrequenz, oben die Iktallinie. Ziehen oder den Regler benutzen, um zurückzulesen.'),
   follow: L('Follow the printer', 'Dem Drucker folgen'),
   report: L('The report', 'Der Bericht'), noReport: L('Printed when START/STOP is pressed after a treatment.', 'Gedruckt, wenn nach einer Behandlung START/STOP gedrückt wird.'),
   now: L('What happens now', 'Was jetzt geschieht'), next: L('Next', 'Als Nächstes'),
@@ -132,7 +132,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
   patient.placement = order().placement;
   let session = new EctSession(patient, DEFAULT_SETTINGS);
   let proc = new Procedure(session, order(), mode, roles());
-  /* the drawing: the patient's look and figure (rebuilt only when the foot jerks), and the sites the learner has chosen */
+  /* the drawing: the patient's look and figure (rebuilt only when the arm jerks), and the sites the learner has chosen */
   const look = ectLook(7);
   let fig: EctFigure = ectFigure(look), figJerk = 0, padSites: SiteId[] = [], padMsg = '', sceneAt = -1;
   let stopped = false, raf = 0, last = 0, hurry = false;
@@ -438,7 +438,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
       ${narr.length ? `<h3>${t('anaesthesia')}</h3><p class="muted small">${t('notModelled')}</p><div class="ect-acts">${narr.map((x) => btn(x.id)).join('')}</div>` : ''}
       ${mine.length ? '' : `<p class="muted">${t('nothingYours')}</p>`}`;
   };
-  /* the patient, drawn: what the team has put on him, the cuffed foot jerking in the motor seizure */
+  /* the patient, drawn: what the team has put on him, the cuffed arm jerking in the motor seizure */
   const dressNow = (): EctDress => {
     const r = proc.room, up = !r.recovered;
     const pads: SiteId[] = r.pads ? [...PLACEMENT_SITES[r.pads]] : padSites;
@@ -447,7 +447,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
   const drawPatient = () => {
     const sc = host.querySelector<SVGSVGElement>('[data-scene]');
     if (!sc) return;
-    /* at most ten pictures a second: the bag and the foot move, nothing else does between steps */
+    /* at most ten pictures a second: the bag and the arm move, nothing else does between steps */
     const now = performance.now();
     const moving = proc.room.ventilating || session.seizing;
     if (moving && now - sceneAt < 100) return;

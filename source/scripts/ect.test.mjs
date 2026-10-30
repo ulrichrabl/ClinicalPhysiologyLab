@@ -286,7 +286,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     ok('every pad site is a pad of the placements as the modelling literature defines them', site, '');
     const F = S.ectFigure(S.ectLook());
     const ea = Math.hypot(F.ea.x, F.ea.y), eb = Math.hypot(F.eb.x, F.eb.y), dot = (F.ea.x * F.eb.x + F.ea.y * F.eb.y) / (ea * eb);
-    ok('the head frame from the figure is square (its axes equal and at right angles) and the ankle lies at the foot end of the bed', Math.abs(ea - eb) < 0.01 * ea && Math.abs(dot) < 0.01 && F.ankleR.x > F.o.x + 150, J({ ea, eb, dot, ankle: F.ankleR, o: F.o }));
+    ok('the head frame from the figure is square (its axes equal and at right angles) and the cuff's place on the upper arm lies between the shoulder end and the EMG on the forearm', Math.abs(ea - eb) < 0.01 * ea && Math.abs(dot) < 0.01 && F.upperArmR.x < F.elbowR.x && F.elbowR.x < F.forearmR[0].x && F.forearmR[0].x < F.forearmR[1].x, J({ ea, eb, dot, arm: [F.upperArmR, F.elbowR, F.forearmR], o: F.o }));
     const order = S.ECT_ORDERS[0];
     const { p } = run(order, 'watch', []);
     ok('the team pumps the cuff above the systolic pressure, and lets it down at the end', p.errors.length === 0 && !p.room.cuffOn && p.log.some((l) => l.step === 'cuff'), J(p.errors.map((e) => e.code)));
@@ -294,7 +294,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     q.act('induction'); q.cuffOn(); q.squeeze(); q.squeeze(); q.act('cuff'); q.act('relaxant');
     ok('a cuff below the systolic pressure when the relaxant goes in is a mistake', q.room.cuffMmHg === 2 * S.CUFF_SQUEEZE && q.errors.some((e) => e.code === 'cuff-low') && !q.errors.some((e) => e.code === 'no-cuff'), J({ mmHg: q.room.cuffMmHg, sys: q.systolic, e: q.errors.map((e) => e.code) }));
     const svg = S.sceneSvg(F, { pads: ['Rtemp', 'vertexR'], cleaned: true, leads: true, cuff: { on: true, mmHg: 220 }, mask: true, bagging: true, biteBlock: true }, 1);
-    ok('the scene draws without NaN and its taps land on the head, the chest and the ankle', !/NaN|undefined/.test(svg) && ['head', 'chest', 'ankle'].every((h) => svg.includes(`data-hit="${h}"`)), '');
+    ok('the scene draws without NaN and its taps land on the head, the chest and the arm', !/NaN|undefined/.test(svg) && ['head', 'chest', 'arm'].every((h) => svg.includes(`data-hit="${h}"`)), '');
   }
   const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
   ok('every step, order, role and mode text exists in English and German', texts.every((x) => x.en && x.de && x.en !== x.de || ['Coach'].includes(x.en)), J(texts.filter((x) => !(x.en && x.de && x.en !== x.de)).map((x) => x.en)));
