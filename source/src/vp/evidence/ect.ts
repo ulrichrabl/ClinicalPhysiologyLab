@@ -75,6 +75,9 @@ export const ECT = defineConstants('ect', {
   voluntaryEmg: { value: 300, unit: 'µV', status: 'assumed', means: 'Peak surface EMG of the forearm while the awake patient makes a firm fist (the bedside check that the EMG leads work).',
     derivation: 'Surface EMG of the forearm flexors in a firm grip is of the order of hundreds of µV; no value was taken from a source. It only has to show on the strip at the device’s EMG gain.' },
 
+  mainsHum: { value: 50, unit: 'µV', status: 'assumed', means: 'Amplitude of the 50 Hz mains interference on every connected channel when the ground lead is not on.',
+    derivation: 'Without a ground the amplifier’s inputs float and pick up the mains: a common practical fault, its size not taken from a source. The device prints its mains frequency (50 Hz here) with the self test.' },
+
   /* the seizure threshold's fitted constant */
   pulseDrive: { value: 0.4506, unit: 'mV·s', status: 'derived', refs: ['vanwaarde2012'], means: 'Input to a region’s relay from one pulse when all its cortex is excited and the synapses are rested (the area of the pulse’s push).',
     derivation: 'Fitted once (scripts/fit-ect.mjs) so that a reference adult’s seizure threshold with bitemporal pads and the 0.5 ms program is 95.4 mC, the mean van Waarde 2012 measured with this device (bilateral 0.5 ms, 0.9 A, etomidate: 95.4 ± 59.5 mC). Their titration doubled the charge from step to step, so their thresholds lie above the true ones by up to a step; the fit takes the mean as it is.' },

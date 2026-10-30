@@ -4,7 +4,8 @@ import { PLACEMENTS } from '../physiology/brain/ect-stimulus.ts';
 import { ECT } from '../evidence/ect.ts';
 import type { ProgramChoice } from './ect-device.ts';
 import { PROGRAM_NAMES } from './ect-device.ts';
-import type { EctSession } from './ect-session.ts';
+import type { EctSession, Spot } from './ect-session.ts';
+import { STANDARD_MONTAGE, EMPTY_MONTAGE, montageProblems } from './ect-session.ts';
 
 /* ===========================================================================
    The ECT treatment as a procedure (owner, 2026-10-30): the team's steps in
@@ -137,7 +138,7 @@ export const STEPS: readonly StepDef[] = [
     says: L('Pads on.', 'Elektroden angelegt.') },
   { id: 'leads', role: 'nurse', kind: 'room', modelled: true, after: ['skin'],
     title: L('Attach EEG, ECG and EMG', 'EEG, EKG und EMG anlegen'),
-    how: L('EEG above the eyebrow to the mastoid, ECG on the chest, EMG on the right forearm; plug in the cable. Check the EMG: ask for a fist.', 'EEG über der Augenbraue zum Mastoid, EKG auf die Brust, EMG an den rechten Unterarm; Kabel einstecken. EMG prüfen: eine Faust machen lassen.'),
+    how: L('Channels 1 and 2: EEG, black above the eyebrow, red on the mastoid of the same side (1 left, 2 right). Channel 3: EMG, two on the cuffed right forearm. Channel 4: ECG, black below the right clavicle, red on the left lower chest. Green ground on the shoulder. Then plug in; check the EMG with a fist.', 'Kanal 1 und 2: EEG, schwarz über der Augenbraue, rot auf dem Mastoid derselben Seite (1 links, 2 rechts). Kanal 3: EMG, zwei am gestauten rechten Unterarm. Kanal 4: EKG, schwarz unter dem rechten Schlüsselbein, rot links unten am Thorax. Grüne Erde an die Schulter. Dann einstecken; EMG mit einer Faust prüfen.'),
     why: L('Without EEG, no baseline and no endpoints.', 'Ohne EEG keine Grundlinie und keine Endpunkte.'),
     says: L('Leads on.', 'Ableitungen angelegt.') },
   { id: 'power', role: 'psychiatrist', kind: 'device', modelled: true, after: ['check'],
@@ -211,7 +212,7 @@ export const STEP: Record<StepId, StepDef> = Object.fromEntries(STEPS.map((s) =>
 /** a mistake the procedure noticed, at the moment it happened */
 export interface ProcedureError { t: number; code: ErrorCode; step: StepId; text: LocalizedText }
 export type ErrorCode = 'awake-stimulus' | 'unmodified' | 'early-stimulus' | 'no-bite-block' | 'no-impedance' | 'impedance-out' | 'wrong-dose' | 'wrong-pads'
-  | 'no-leads' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
+  | 'no-leads' | 'montage' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
 
 const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'awake-stimulus': L('Stimulus before anaesthesia.', 'Reiz vor der Narkose.'),
@@ -223,12 +224,23 @@ const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'wrong-dose': L('Program or dose not as ordered.', 'Programm oder Dosis nicht wie angeordnet.'),
   'wrong-pads': L('Pads not at the ordered placement.', 'Elektroden nicht an der angeordneten Position.'),
   'no-leads': L('Stimulus without EEG and ECG.', 'Reiz ohne EEG und EKG.'),
+  montage: L('Leads not as the manual places them.', 'Ableitungen nicht wie im Handbuch.'),
   'not-ventilated': L('Stimulus without ventilation.', 'Reiz ohne Beatmung.'),
   'awake-paralysis': L('Relaxant before the hypnotic: awake and paralysed.', 'Relaxans vor dem Hypnotikum: wach und gelähmt.'),
   desaturation: L('SpO₂ fell to 92 % or below.', 'SpO₂ fiel auf 92 % oder darunter.'),
   'cuff-low': L('Cuff below systolic at the relaxant: the arm is relaxed too.', 'Manschette beim Relaxans unter systolisch: Auch der Arm ist relaxiert.'),
   'no-cuff': L('Relaxant before the cuff: no motor seizure to see.', 'Relaxans vor der Manschette: kein motorischer Anfall sichtbar.'),
 };
+
+/** what is wrong with the leads, channel by channel, in a line */
+function montageText(p: ReturnType<typeof montageProblems>): LocalizedText {
+  const one = (x: (typeof p)[number], de: boolean) => {
+    const n = x.ch === 'ground' ? (de ? 'Erde' : 'Ground') : (de ? `Kanal ${x.ch}` : `Channel ${x.ch}`);
+    const k = x.kind === 'missing' ? (de ? 'fehlt' : 'missing') : x.kind === 'reversed' ? (de ? 'vertauscht (schwarz/rot)' : 'reversed (black/red)') : (de ? 'falsche Stelle' : 'wrong site');
+    return `${n}: ${k}`;
+  };
+  return L(`Leads: ${p.map((x) => one(x, false)).join('; ')}.`, `Ableitungen: ${p.map((x) => one(x, true)).join('; ')}.`);
+}
 
 export type Who = 'you' | EctRole;
 export interface LogEntry { t: number; who: Who; step: StepId; text: LocalizedText }
@@ -258,7 +270,16 @@ export class Procedure {
     session.setPrepared(false);
     session.setPads(null);
     session.monitoringCable = false;
+    session.montage = EMPTY_MONTAGE();
   }
+  /** the learner's hands on a lead: put it on a spot (a lead already there comes off), or take it off (null) */
+  placeLead(lead: { ch: 0 | 1 | 2 | 3; pole: 'black' | 'red' } | 'ground', spot: Spot | null) {
+    const m = this.session.montage;
+    if (spot) { for (const l of m.ch) { if (l.black === spot) l.black = null; if (l.red === spot) l.red = null; } if (m.ground === spot) m.ground = null; }
+    if (lead === 'ground') m.ground = spot; else m.ch[lead.ch][lead.pole] = spot;
+  }
+  /** every lead is on a spot */
+  get leadsPlaced(): boolean { const m = this.session.montage; return m.ground != null && m.ch.every((l) => l.black && l.red); }
 
   get t() { return this.session.t; }
   /** whether this step is the learner's to do */
@@ -307,7 +328,11 @@ export class Procedure {
       case 'premed': r.premed = true; session.give('glycopyrrolate', 0.2); break;
       case 'skin': r.skin = true; session.setPrepared(true); break;
       case 'pads': { const p = opts.placement ?? this.padsWanted ?? this.order.placement; r.pads = p; session.setPads(p); if (p !== this.order.placement) this.err('wrong-pads', id); break; }
-      case 'leads': r.leads = true; session.monitoringCable = true; break;
+      case 'leads':
+        /* the team puts them where the manual does; the learner plugs in what they placed */
+        if (by !== 'you') session.montage = structuredClone(STANDARD_MONTAGE);
+        else if (!this.leadsPlaced) return;
+        r.leads = true; session.monitoringCable = true; break;
       case 'oxygen': r.oxygen = true; session.oxygen(true); break;
       case 'induction': r.induced = true; session.induce(); break;
       case 'cuff':
@@ -342,9 +367,9 @@ export class Procedure {
     this.log.push({ t: this.t, who: by, step: id, text: STEP[id].says });
     if (this.mode === 'watch') this.gate = false;
   }
-  private err(code: ErrorCode, step: StepId) {
+  private err(code: ErrorCode, step: StepId, text: LocalizedText = ERROR_TEXT[code]) {
     if (this.errors.some((e) => e.code === code)) return;
-    this.errors.push({ t: this.t, code, step, text: ERROR_TEXT[code] });
+    this.errors.push({ t: this.t, code, step, text });
   }
 
   /* ---- each tick: notice the device steps, run the team ----------------------------------------------------------- */
@@ -377,6 +402,7 @@ export class Procedure {
     if (!this.doseRight()) this.err('wrong-dose', 'treat');
     if (r.pads !== this.order.placement) this.err('wrong-pads', 'treat');
     if (!r.leads) this.err('no-leads', 'treat');
+    else { const p = montageProblems(this.session.montage); if (p.length) this.err('montage', 'leads', montageText(p)); }
     if (r.relaxed && !r.ventilating) this.err('not-ventilated', 'treat');
   }
 

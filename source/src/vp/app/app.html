@@ -524,10 +524,19 @@ canvas.st-strip:focus-visible { outline: 3px solid var(--accent); outline-offset
 .ect-scene svg { display: block; width: 100%; height: auto; }
 .ect-close { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.8fr); gap: 10px; align-items: start; }
 @media (max-width: 700px) { .ect-close { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
-.ect-close svg.ect-chest { aspect-ratio: 48 / 76; background: #e3ebe9; }
+.ect-close svg.ect-chest { aspect-ratio: 62 / 76; background: #e3ebe9; }
 .ect-close figure { margin: 0; display: grid; gap: 4px; align-content: start; }
 .ect-close svg { width: 100%; aspect-ratio: 1; border-radius: 8px; background: #e3ebe9; }
 .ect-top { color: var(--fg); background: var(--sunk, #eef2f1) !important; }
+.ect-spot { cursor: pointer; } .ect-spot:focus { outline: none; } .ect-spot:focus-visible rect { stroke-width: 2.4; }
+.ect-leadctl { display: grid; gap: 6px; width: 100%; } .ect-leadctl > button { justify-self: start; }
+.ect-tray { display: flex; flex-wrap: wrap; gap: 4px; }
+.ect-chip { font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--surface, #fff); border: 2px solid; cursor: pointer; color: inherit; }
+.ect-chip[disabled] { opacity: .55; cursor: default; }
+.ect-chip-black { border-color: #26282b; } .ect-chip-red { border-color: #c0352b; } .ect-chip-green { border-color: #2f8a47; }
+.ect-chip.on { box-shadow: 0 0 0 2px #1d6f8a; font-weight: 600; }
+.ect-chip-at { font-size: 11px; opacity: .8; }
+@media (prefers-color-scheme: dark) { .ect-chip-black { border-color: #b8bcc0; } }
 .ect-site { cursor: pointer; } .ect-site:focus { outline: none; } .ect-site:focus-visible circle:first-child { stroke-width: 2.4; }
 .ect-cuffctl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; width: 100%; }
 @media (prefers-color-scheme: dark) { .ect-scene, .ect-close svg[data-head] { background: #2b3533; } }
