@@ -25,7 +25,7 @@ import type { DrugId } from '../physiology/drugs/drugs.ts';
    - The stimulus goes through the placement's current paths into the
      regions of the seizure model (physiology/brain/ect-stimulus.ts).
    - The two EEG channels are the device's fronto-mastoid derivations:
-     above the eyebrow to the mastoid on each side (Fp1–TP9, Fp2–TP10), from
+     above the eyebrow to the mastoid on each side (Fp1–M1, Fp2–M2), from
      the regions' activity through part 1's head (stations/eeg-seizure.ts).
    - The EMG is the cuffed right arm's: the motor seizure there follows the
      left central region's cortical firing (ECT.emgThreshold, ECT.emgPerFiring;
@@ -54,11 +54,11 @@ export interface EctPatient {
    lead's potential minus its black lead's: between two head sites the EEG, between two sites on the trunk or the limbs the
    heart (each site's lead vector, as the ECG station places electrodes) and any forearm muscle under both; between a head
    and a body site nothing the device can use. A lead not on gives no channel; no ground lets the mains in. */
-export type Spot = 'Fp1' | 'Fp2' | 'Fpz' | 'F7' | 'F8' | 'TP9' | 'TP10'
+export type Spot = 'Fp1' | 'Fp2' | 'Fpz' | 'F7' | 'F8' | 'M1' | 'M2'
   | 'chestUR' | 'chestUL' | 'chestLR' | 'chestLL' | 'foreR1' | 'foreR2' | 'foreL1' | 'foreL2' | 'shoulderR' | 'shoulderL';
 export type SpotKind = 'head' | 'chest' | 'foreR' | 'foreL' | 'shoulder';
 export const SPOT_KIND: Record<Spot, SpotKind> = {
-  Fp1: 'head', Fp2: 'head', Fpz: 'head', F7: 'head', F8: 'head', TP9: 'head', TP10: 'head',
+  Fp1: 'head', Fp2: 'head', Fpz: 'head', F7: 'head', F8: 'head', M1: 'head', M2: 'head',
   chestUR: 'chest', chestUL: 'chest', chestLR: 'chest', chestLL: 'chest',
   foreR1: 'foreR', foreR2: 'foreR', foreL1: 'foreL', foreL2: 'foreL', shoulderR: 'shoulder', shoulderL: 'shoulder',
 };
@@ -78,32 +78,39 @@ function spotVector(s: Spot): [number, number, number] {
 }
 export interface Lead { black: Spot | null; red: Spot | null }
 export interface Montage { ch: [Lead, Lead, Lead, Lead]; ground: Spot | null }
-/** the manual's montage: EEG 1 left and 2 right, black above the eyebrow and red on the mastoid of the same side; EMG on the
-    cuffed (right) forearm, 3 inches apart; ECG black below the right clavicle, red on the left lower chest (positive toward
-    the apex, so the QRS is upright as in lead II); the ground on a shoulder */
+/** the montage as the owner's hospital places it, within the manual's rules: EEG channel 1 left and 2 right, red above
+    the eyebrow and black (the reference) on the mastoid of the same side; EMG two on the cuffed (right) forearm; ECG
+    black below the right clavicle, red at the apex (lower left chest, so the QRS is upright, as lead II); the green
+    ground below the left clavicle */
 export const STANDARD_MONTAGE: Montage = {
-  ch: [{ black: 'Fp1', red: 'TP9' }, { black: 'Fp2', red: 'TP10' }, { black: 'foreR1', red: 'foreR2' }, { black: 'chestUR', red: 'chestLL' }],
-  ground: 'shoulderR',
+  ch: [{ black: 'M1', red: 'Fp1' }, { black: 'M2', red: 'Fp2' }, { black: 'foreR1', red: 'foreR2' }, { black: 'chestUR', red: 'chestLL' }],
+  ground: 'chestUL',
 };
 export const EMPTY_MONTAGE = (): Montage => ({ ch: [{ black: null, red: null }, { black: null, red: null }, { black: null, red: null }, { black: null, red: null }], ground: null });
-/** what is wrong with a montage against the manual's, channel by channel (empty: nothing). The manual ("Monitoring
-    electrodes application"): EEG black on the forehead and red on the mastoid of the same side, channel 1 left and 2
-    right, the polarity kept the same on both sides; EMG two on the cuffed limb and ECG two on the chest above and below
-    the heart, both "in any order of polarity"; the ground on either shoulder. */
+/** what is wrong with a montage, channel by channel (empty: nothing). The manual ("Monitoring electrodes application"):
+    EEG one electrode above the eyebrow and one on the mastoid of the same side, channel 1 left and 2 right, the polarity
+    the same on both sides (either way round; reversed on one side only is wrong: owner, 2026-10-31); EMG two on the cuffed
+    limb and ECG two on the chest above and below the heart, both "in any order of polarity"; the ground on a shoulder or
+    below a clavicle (owner) where no ECG lead is. */
 export function montageProblems(m: Montage): Array<{ ch: 1 | 2 | 3 | 4 | 'ground'; kind: 'missing' | 'wrong' | 'reversed' }> {
   const out: Array<{ ch: 1 | 2 | 3 | 4 | 'ground'; kind: 'missing' | 'wrong' | 'reversed' }> = [];
   const upper = (x: Spot) => x === 'chestUR' || x === 'chestUL', lower = (x: Spot) => x === 'chestLR' || x === 'chestLL';
+  const eeg: Array<'red-front' | 'black-front' | null> = [null, null];
   m.ch.forEach((l, k) => {
-    const s = STANDARD_MONTAGE.ch[k], ch = (k + 1) as 1 | 2 | 3 | 4;
+    const ch = (k + 1) as 1 | 2 | 3 | 4;
     if (!l.black || !l.red) { out.push({ ch, kind: 'missing' }); return; }
     const pair = [l.black, l.red];
     if (k === 2) { if (!pair.every((x) => SPOT_KIND[x] === 'foreR')) out.push({ ch, kind: 'wrong' }); return; }
     if (k === 3) { if (!(pair.some(upper) && pair.some(lower))) out.push({ ch, kind: 'wrong' }); return; }
-    if (l.black === s.black && l.red === s.red) return;
-    out.push({ ch, kind: l.black === s.red && l.red === s.black ? 'reversed' : 'wrong' });
+    const front = k === 0 ? 'Fp1' : 'Fp2', mast = k === 0 ? 'M1' : 'M2';
+    if (l.red === front && l.black === mast) eeg[k] = 'red-front';
+    else if (l.black === front && l.red === mast) eeg[k] = 'black-front';
+    else out.push({ ch, kind: 'wrong' });
   });
-  if (!m.ground) out.push({ ch: 'ground', kind: 'missing' });
-  else if (SPOT_KIND[m.ground] !== 'shoulder') out.push({ ch: 'ground', kind: 'wrong' });
+  if (eeg[0] && eeg[1] && eeg[0] !== eeg[1]) out.push({ ch: 2, kind: 'reversed' });
+  const g = m.ground, ecg = [m.ch[3].black, m.ch[3].red];
+  if (!g) out.push({ ch: 'ground', kind: 'missing' });
+  else if (!(SPOT_KIND[g] === 'shoulder' || (upper(g) && !ecg.includes(g)))) out.push({ ch: 'ground', kind: 'wrong' });
   return out;
 }
 

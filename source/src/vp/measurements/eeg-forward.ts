@@ -204,13 +204,16 @@ const SPHERICAL: Record<string, [number, number]> = {
   P7: [-92, 36], P3: [-60, 51], Pz: [46, -90], P4: [60, -51], P8: [92, -36],
   O1: [-92, 72], O2: [92, -72], Oz: [92, -90],
   AFz: [69, 90], TP9: [-115, 18], TP10: [115, -18],
+  /* the mastoids (ECT's EEG reference): 10° below TP9/TP10 at the same azimuth, as the 10-5 set places M1/M2 (MNE's
+     standard_1005, Oostenveld 2001: M1 at 125°, TP9 at 115°) */
+  M1: [-125, 17], M2: [125, -17],
   A1: [-130, 6], A2: [130, -6],
 };
 export type Electrode = keyof typeof SPHERICAL;
 /** The 19 scalp electrodes of the 10-20 system. */
 export const E1020 = ['Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'T7', 'C3', 'Cz', 'C4', 'T8', 'P7', 'P3', 'Pz', 'P4', 'P8', 'O1', 'O2'] as const;
 /** Every electrode the station records from: the 19, the ears, and the sites the ECT device's EEG uses. */
-export const ALL_ELECTRODES = [...E1020, 'A1', 'A2', 'Fpz', 'AFz', 'Oz', 'TP9', 'TP10'] as const;
+export const ALL_ELECTRODES = [...E1020, 'A1', 'A2', 'Fpz', 'AFz', 'Oz', 'TP9', 'TP10', 'M1', 'M2'] as const;
 /** Older names, shown in brackets (ACNS uses T7/T8 and P7/P8). */
 export const OLD_NAME: Record<string, string> = { T7: 'T3', T8: 'T4', P7: 'T5', P8: 'T6' };
 export const electrodeLabel = (e: string) => (OLD_NAME[e] ? `${e} (${OLD_NAME[e]})` : e);

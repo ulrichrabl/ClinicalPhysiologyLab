@@ -442,12 +442,11 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     if (mode === 'watch') return `${pic}<p class="muted">${t('roomWatch')}</p>`;
     const mine = STEPS.filter((x) => x.kind === 'room' && proc.mine(x.id));
     const btn = (id: StepId) => id === 'pads' ? ''
-      : id === 'cuff' ? `<div class="ect-cuffctl"><b>${t('cuffL')}</b> <button type="button" class="ghost small" data-cuff="on">${t('cuffOnBtn')}</button><button type="button" class="ghost small" data-cuff="squeeze">${t('squeezeBtn')}</button><button type="button" class="ghost small" data-cuff="down">${t('deflateBtn')}</button><button type="button" class="ghost small ect-act" data-act="cuff">${t('cuffUpBtn')}</button> <span class="muted small" data-cuffnow></span></div>`
+      : id === 'cuff' ? `<div class="ect-cuffctl"><b>${t('cuffL')}</b> <button type="button" class="ghost small" data-cuff="squeeze">${t('squeezeBtn')}</button><button type="button" class="ghost small" data-cuff="down">${t('deflateBtn')}</button><button type="button" class="ghost small ect-act" data-act="cuff">${t('cuffUpBtn')}</button> <span class="muted small" data-cuffnow></span></div>`
       : id === 'leads' ? `<div class="ect-leadctl"><b>${esc(tr(STEP.leads.title, lang))}</b><p class="muted small">${t('cableHint')}</p><svg viewBox="0 0 300 134" class="ect-cable" data-tray role="group" aria-label="${t('cableL')}"></svg><p class="muted small">${t('chLegend')}</p><div class="ect-seg" role="group"><button type="button" class="ghost small" data-pview="head">${t('viewHead')}</button><button type="button" class="ghost small" data-pview="body">${t('viewBody')}</button></div><svg class="ect-place" data-place role="group" aria-label="${t('placeL')}"></svg><p class="muted small" data-leadmsg></p><button type="button" class="ghost ect-act" data-act="leads">${t('plugIn')}</button><button type="button" class="ghost small" data-fist>${t('fist')}</button></div>`
       : `<button type="button" class="ghost ect-act" data-act="${id}">${esc(tr(STEP[id].title, lang))}</button>`;
-    const real = mine.filter((x) => x.modelled), narr = mine.filter((x) => !x.modelled && x.id !== 'check');
-    const check = mine.find((x) => x.id === 'check');
-    return `${pic}<div class="ect-acts">${check ? btn('check') : ''}${real.map((x) => btn(x.id)).join('')}</div>
+    const real = mine.filter((x) => x.modelled || x.role === 'psychiatrist'), narr = mine.filter((x) => !x.modelled && x.role !== 'psychiatrist');
+    return `${pic}<div class="ect-acts">${real.map((x) => btn(x.id)).join('')}</div>
       ${narr.length ? `<h3>${t('anaesthesia')}</h3><p class="muted small">${t('notModelled')}</p><div class="ect-acts">${narr.map((x) => btn(x.id)).join('')}</div>` : ''}
       ${mine.length ? '' : `<p class="muted">${t('nothingYours')}</p>`}`;
   };
@@ -565,7 +564,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     host.querySelector<HTMLSelectElement>('[data-role]')!.onchange = (e) => { roleSel = (e.target as HTMLSelectElement).value as EctRole | 'all'; newSession(); };
     host.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => b.addEventListener('click', () => { proc.act(b.dataset.act as StepId, 'you'); drawProcedure(); }));
     host.querySelector<HTMLButtonElement>('[data-fist]')?.addEventListener('click', () => session.fist());
-    host.querySelectorAll<HTMLButtonElement>('[data-cuff]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.cuff; if (k === 'on') proc.cuffOn(); else if (k === 'squeeze') proc.squeeze(); else proc.deflate(); drawProcedure(); }));
+    host.querySelectorAll<HTMLButtonElement>('[data-cuff]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.cuff; if (k === 'squeeze') proc.squeeze(); else proc.deflate(); drawProcedure(); }));
     /* the pad sites, seen from above: the learner's hands if the pads are theirs */
     const top = host.querySelector<SVGSVGElement>('[data-top]');
     const pick = (id: SiteId) => {
