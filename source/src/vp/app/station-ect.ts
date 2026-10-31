@@ -640,9 +640,14 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     /* holding buttons */
     const hold = (sel: string, f: (down: boolean) => void) => {
       const b = host.querySelector<HTMLButtonElement>(sel)!;
+      /* held with a finger: the press lasts from touch to release; the browser's long-press (selection, magnifier, menu)
+         must not take it over */
       b.addEventListener('pointerdown', (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); f(true); });
       b.addEventListener('pointerup', () => f(false));
       b.addEventListener('pointercancel', () => f(false));
+      b.addEventListener('lostpointercapture', () => f(false));
+      b.addEventListener('contextmenu', (e) => e.preventDefault());
+      b.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
       b.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); f(true); } });
       b.addEventListener('keyup', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); f(false); } });
     };
@@ -688,6 +693,8 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
         } else if (click) d().pressFlex();
       };
       b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
+      b.addEventListener('contextmenu', (e) => e.preventDefault());
+      b.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
       b.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); turn(id, 1); }
         else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); turn(id, -1); }
