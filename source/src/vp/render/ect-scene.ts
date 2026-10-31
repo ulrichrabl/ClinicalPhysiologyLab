@@ -161,11 +161,11 @@ export function placedLeads(d: EctDress): PlacedLead[] {
   if (m.ground) out.push({ spot: m.ground, col: GREEN, label: 'G' });
   return out;
 }
-export const HEAD_SPOTS: Spot[] = ['Fp1', 'Fpz', 'Fp2', 'F7', 'F8', 'TP9', 'TP10'];
+export const HEAD_SPOTS: Spot[] = ['Fp1', 'Fpz', 'Fp2', 'F7', 'F8', 'M1', 'M2'];
 export const BODY_SPOTS: Spot[] = ['chestUR', 'chestUL', 'chestLR', 'chestLL', 'shoulderR', 'shoulderL', 'foreR1', 'foreR2', 'foreL1', 'foreL2'];
 /* the head spots seen on the right profile, in the head frame (a up, b forward, cm): above the right eyebrow (Fp2), the
-   midline of the forehead (Fpz), the front of the right temple (F8), the right mastoid behind the ear (TP10) */
-const PROFILE_HEAD: Partial<Record<Spot, Pt>> = { Fp2: { x: 11.7, y: 8.9 }, Fpz: { x: 12.2, y: 10.2 }, F8: { x: 10.4, y: 6.9 }, TP10: { x: 3.4, y: -4.8 } };
+   midline of the forehead (Fpz), the front of the right temple (F8), the right mastoid behind the ear lobe (M2) */
+const PROFILE_HEAD: Partial<Record<Spot, Pt>> = { Fp2: { x: 11.7, y: 8.9 }, Fpz: { x: 12.2, y: 10.2 }, F8: { x: 10.4, y: 6.9 }, M2: { x: 2.2, y: -4.0 } };
 
 /* a stick-on snap monitoring electrode: rectangular (the manual), about 2.4 × 3.4 cm (assumed: the size of common adult
    snap electrodes) */
@@ -219,7 +219,7 @@ export function dressSvg(F: EctFigure, d: EctDress, t = 0, headOnly = false): st
         /* a head electrode's lead runs back over the scalp (from the front) or straight down behind the ear (the mastoid),
            then drops to the mattress at the head end */
         const c = H(h.x, h.y);
-        if (l.spot === 'TP10') { out.push(snapSvg(c, ang + 90, s, l.col), wireSvg(l.col, c, H(1.5, -7), { x: T.x + 12, y: T.y - 4 }, T, u)); }
+        if (l.spot === 'M2') { out.push(snapSvg(c, ang + 90, s, l.col), wireSvg(l.col, c, H(1.5, -7), { x: T.x + 12, y: T.y - 4 }, T, u)); }
         else { out.push(snapSvg(c, ang, s, l.col), wireSvg(l.col, c, H(16, 2), H(9, -15), T, u)); }
       }
     }
