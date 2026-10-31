@@ -314,7 +314,7 @@ export function chestCloseUp(look: FigureLook, d: EctDress, opts: { targets?: bo
   {
     const w = got.wristR?.[0];
     if (w) {
-      const c = { x: -w.x, y: w.y - 6.5 };
+      const c = { x: -w.x, y: w.y - 1.5 };
       out.push(`<rect x="${f(c.x - 1.6)}" y="${f(c.y - 1.2)}" width="3.2" height="2.4" rx=".4" fill="#f4f1e6" stroke="#b9b29c" stroke-width=".15" opacity=".95"/>`
         + `<rect x="${f(c.x - 0.45)}" y="${f(c.y - 1.9)}" width=".9" height="1.6" rx=".25" fill="#e8c23a" stroke="#9c7f17" stroke-width=".12"/>`
         + `<path d="M${f(c.x)} ${f(c.y - 1.9)} C${f(c.x + 1)} ${f(c.y - 6)} ${f(c.x + 5)} ${f(c.y - 8)} 31 ${f(c.y - 12)}" fill="none" stroke="#9fb7c2" stroke-width=".35"/>`);
@@ -327,9 +327,49 @@ export function chestCloseUp(look: FigureLook, d: EctDress, opts: { targets?: bo
   }
   for (const l of placed) { const p = at[l.spot]; if (p) out.push(labelSvg(p.c, l.label, l.col, 1)); }
   /* where the learner can put a lead: every body spot, as a target */
-  const hits = opts.targets ? BODY_SPOTS.map((id) => { const p = at[id]!; return `<g data-spot="${id}" role="button" tabindex="0" aria-label="${id}" class="ect-spot${taken.has(id) ? ' on' : ''}">${taken.has(id) ? '' : `<rect x="${f(p.c.x - MON_W / 2)}" y="${f(p.c.y - MON_H / 2)}" width="${MON_W}" height="${MON_H}" rx=".4" transform="rotate(${f(p.rot)} ${f(p.c.x)} ${f(p.c.y)})" fill="none" stroke="#1d6f8a" stroke-width=".3" stroke-dasharray=".8 .6"/>`}<circle cx="${f(p.c.x)}" cy="${f(p.c.y)}" r="2.6" fill="transparent"/></g>`; }).join('') : '';
+  const hits = opts.targets ? BODY_SPOTS.map((id) => { const p = at[id]!; return `<g data-spot="${id}" role="button" tabindex="0" aria-label="${id}" class="ect-spot${taken.has(id) ? ' on' : ''}">${taken.has(id) ? '' : `<rect x="${f(p.c.x - MON_W / 2)}" y="${f(p.c.y - MON_H / 2)}" width="${MON_W}" height="${MON_H}" rx=".4" transform="rotate(${f(p.rot)} ${f(p.c.x)} ${f(p.c.y)})" fill="none" stroke="#1d6f8a" stroke-width=".3" stroke-dasharray=".8 .6"/>`}<circle cx="${f(p.c.x)}" cy="${f(p.c.y)}" r="4" fill="transparent"/></g>`; }).join('') : '';
   return `${body}<g pointer-events="none">${out.join('')}</g>${hits}`;
 }
+/** each body spot's place in the chest view (chest cm), for the placing view's taps */
+let BODY_PTS: Record<string, Pt> | null = null;
+export function bodySpotPoints(look: FigureLook): Record<string, Pt> {
+  if (BODY_PTS) return BODY_PTS;
+  const got: Record<string, Pt[]> = {};
+  figureSvg(POSES.standing, { ...look, exposed: new Set(['chest', 'abdomen', 'arm', 'neck']) }, VIEW_FRONT, { scene: false, head: false, chestFrame: true, collect: (k, side, pts) => { (got[k + side] ??= []).push(...pts); } });
+  const sp = chestSpots(armAt(got, 1.2, 4));
+  BODY_PTS = Object.fromEntries(Object.entries(sp).map(([k, v]) => [k, v.c]));
+  return BODY_PTS;
+}
+/** each head spot's place in the head from above (the map's 240 units), for the placing view's taps */
+export function headSpotPoints(): Record<string, Pt> {
+  const R = 100, C = 120;
+  return Object.fromEntries(HEAD_SPOTS.map((id) => { const [x, y] = toMap(electrodeDir(id)); return [id, { x: C + x * R, y: C + y * R }]; }));
+}
+
+/** The flared end of the grey monitoring cable, as the manual draws it: a column for each channel 1–4, its black (−)
+    socket in the row away from the label and its red (+) socket in the row facing it, and the green ISO-GND socket. Each
+    socket is a button: the lead-wire in it is picked up; a placed one shows its plug. */
+export function cableSvg(m: Montage, armed: string | null, names: { ch: string; iso: string; gnd: string }): string {
+  const xs = [42, 98, 154, 210], xg = 268, yb = 30, yr = 104;
+  const out = [`<rect x="6" y="4" width="288" height="126" rx="10" fill="#d7dadc" stroke="#8d9397" stroke-width="1.5"/>`,
+    `<rect x="16" y="54" width="268" height="26" rx="3" fill="#fff" stroke="#8d9397"/>`,
+    `<text x="22" y="72" font-size="12" fill="#333">${names.ch}</text>`,
+    ...xs.map((x, k) => `<text x="${x}" y="72" font-size="13" font-weight="700" text-anchor="middle" fill="#222">${k + 1}</text>`),
+    `<text x="${xg}" y="66" font-size="9" text-anchor="middle" fill="#333">${names.iso}</text><text x="${xg}" y="77" font-size="9" text-anchor="middle" fill="#333">${names.gnd}</text>`,
+    `<text x="14" y="${yb + 5}" font-size="16" font-weight="700" fill="#222">−</text><text x="14" y="${yr + 5}" font-size="16" font-weight="700" fill="${RED}">+</text>`];
+  const sock = (key: string, x: number, y: number, col: string, at: Spot | null) => {
+    const on = armed === key;
+    return `<g data-lead="${key}" role="button" tabindex="0" aria-pressed="${on}" aria-label="${key}${at ? ` → ${at}` : ''}" class="ect-sock">`
+      + `<circle cx="${x}" cy="${y}" r="17" fill="${on ? '#cfe8f0' : '#eef0f1'}" stroke="${on ? '#1d6f8a' : '#8d9397'}" stroke-width="${on ? 4 : 1.5}"/>`
+      + `<circle cx="${x}" cy="${y}" r="9" fill="${col}"/>`
+      + (at ? `<path d="M${x - 4} ${y} l3 3.5 l6 -7" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>` : `<circle cx="${x}" cy="${y}" r="3" fill="#111"/>`)
+      + `<circle cx="${x}" cy="${y}" r="24" fill="transparent"/></g>`;
+  };
+  m.ch.forEach((l, k) => { out.push(sock(`${k}b`, xs[k], yb, BLACK, l.black), sock(`${k}r`, xs[k], yr, RED, l.red)); });
+  out.push(sock('g', xg, yr, GREEN, m.ground));
+  return out.join('');
+}
+
 /** the body spots in the chest view (chest cm, the patient's right on the left): the chest four, 20 cm apart corner to
     corner (above and below the heart, about 8 inches apart: the manual); the acromions about 19 cm from the midline (40 cm
     across in a man, the figure's brief); the forearms' two each, the first nearer the elbow, the left mirroring the right */
@@ -373,7 +413,7 @@ export function topViewSvg(chosen: SiteId[], labels: { nose: string; left: strin
       if (!l && !mon.targets) continue;
       out.push(`<g data-spot="${id}" role="button" tabindex="0" aria-label="${id}" class="ect-spot${l ? ' on' : ''}"><rect x="${f(p.x - sz / 2)}" y="${f(p.y - sz / 2)}" width="${sz}" height="${sz}" rx="1.5" fill="${l ? '#f7f7f4' : 'none'}" stroke="${l ? l.col : '#1d6f8a'}" stroke-width="${l ? 2 : 1.2}" ${l ? '' : 'stroke-dasharray="2.5 2"'}/>`
         + (l ? `<circle cx="${f(p.x)}" cy="${f(p.y)}" r="2" fill="${l.col}"/><text x="${f(p.x + (x < 0 ? -8 : 8))}" y="${f(p.y - 7)}" text-anchor="middle" font-size="10" font-weight="600" fill="${l.col}">${l.label}</text>` : `<text x="${f(p.x)}" y="${f(p.y + 17)}" text-anchor="middle" font-size="8" fill="#1d6f8a">${id}</text>`)
-        + `<circle cx="${f(p.x)}" cy="${f(p.y)}" r="10" fill="transparent"/></g>`);
+        + `<circle cx="${f(p.x)}" cy="${f(p.y)}" r="16" fill="transparent"/></g>`);
     }
   }
   return out.join('');

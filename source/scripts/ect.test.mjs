@@ -349,6 +349,8 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     ok('channel 4 from below the right clavicle (black) to the left lower chest (red): the QRS is upright, of a monitor lead’s size (0.5–2.5 mV)', hi > -lo && hi > 500 && hi < 2500, J({ hi, lo }));
     const rev = S.montageProblems({ ...structuredClone(S.STANDARD_MONTAGE), ch: [{ black: 'TP9', red: 'Fp1' }, ...structuredClone(S.STANDARD_MONTAGE.ch.slice(1))] });
     ok('the procedure checks the leads against the manual’s: the standard has no problem, a reversed channel 1 is named, an empty montage misses all four channels and the ground', !S.montageProblems(S.STANDARD_MONTAGE).length && rev.length === 1 && rev[0].ch === 1 && rev[0].kind === 'reversed' && S.montageProblems(S.EMPTY_MONTAGE()).length === 5, J(rev));
+    const any = S.montageProblems({ ch: [S.STANDARD_MONTAGE.ch[0], S.STANDARD_MONTAGE.ch[1], { black: 'foreR2', red: 'foreR1' }, { black: 'chestLR', red: 'chestUL' }], ground: 'shoulderL' });
+    ok('EMG and ECG in any order of polarity, the ECG on any pair above and below the heart, the ground on either shoulder (the manual)', !any.length, J(any));
     const p = new S.Procedure(new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }), S.ECT_ORDERS[0], 'practise', [...S.ECT_ROLES]);
     p.act('check'); p.act('skin'); p.act('leads'); const before = p.isDone('leads'); placeAll(p); p.act('leads');
     ok('the learner plugs the cable in only once all nine leads are on', !before && p.isDone('leads') && p.session.monitoringCable, J({ before }));

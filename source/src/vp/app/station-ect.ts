@@ -12,7 +12,7 @@ import { PLACEMENTS, thresholdField, fieldSection, energy, type PlacementId, typ
 import { fieldFor, dosesFor } from '../physiology/brain/ect-trial.ts';
 import { layoutStrip, drawStrip, type PaperItem } from '../render/ect-strip.ts';
 import { drawFieldSection, drawRegionMap } from '../render/ect-head.ts';
-import { ectFigure, ectLook, sceneSvg, headCloseUp, chestCloseUp, CHEST_VIEWBOX, topViewSvg, placementOf, PLACEMENT_SITES, SCENE_VIEWBOX, type EctFigure, type EctDress, type SiteId } from '../render/ect-scene.ts';
+import { ectFigure, ectLook, sceneSvg, headCloseUp, chestCloseUp, CHEST_VIEWBOX, topViewSvg, cableSvg, headSpotPoints, bodySpotPoints, placementOf, PLACEMENT_SITES, SCENE_VIEWBOX, type EctFigure, type EctDress, type SiteId } from '../render/ect-scene.ts';
 import { Procedure, STEPS, STEP, ECT_ORDERS, ECT_ROLES, ROLE_NAME, MODE_NAME, orderLines, type EctMode, type EctRole, type StepId, type Who } from '../stations/ect-procedure.ts';
 
 /* ---------------------------------------------------------------------------
@@ -89,8 +89,13 @@ const T: Record<string, LocalizedText> = {
   variation: L('The patient’s variation', 'Variation des Patienten'), moreDrugs: L('More drugs, to explore', 'Weitere Medikamente, zum Ausprobieren'),
   whyBtn: L('Behind the stimulus', 'Hinter dem Reiz'), backBtn: L('Back to the treatment', 'Zurück zur Behandlung'),
   fist: L('“Make a fist”', '„Faust machen“'),
-  leadTray: L('Leads: pick one, then click its spot.', 'Ableitung wählen, dann ihre Stelle anklicken.'),
-  leadOff: L('Click a placed lead (no lead picked) to take it off.', 'Angelegte Ableitung anklicken (keine gewählt), um sie abzunehmen.'),
+  leadTray: L('Tap a socket, then the spot its lead goes to.', 'Buchse antippen, dann die Stelle für ihre Ableitung.'),
+  leadOff: L('With no socket picked, tap a placed lead to take it off.', 'Ohne gewählte Buchse: angelegte Ableitung antippen, um sie abzunehmen.'),
+  cableHint: L('The monitoring cable’s end: red (+) sockets face the label, black (−) the other side, green the ground.', 'Ende des Monitorkabels: rote (+) Buchsen zur Beschriftung, schwarze (−) gegenüber, grün die Erde.'),
+  cableL: L('Monitoring cable sockets', 'Buchsen des Monitorkabels'),
+  chLegend: L('1 and 2 EEG, 3 EMG, 4 ECG, ISO-GND ground.', '1 und 2 EEG, 3 EMG, 4 EKG, ISO-GND Erde.'),
+  viewHead: L('Head', 'Kopf'), viewBody: L('Chest and arms', 'Brust und Arme'),
+  placeL: L('Where the leads go', 'Wo die Ableitungen hinkommen'),
   leadsAll: L('Place all nine leads first.', 'Erst alle neun Ableitungen anlegen.'),
   ch1: L('EEG left', 'EEG links'), ch2: L('EEG right', 'EEG rechts'), ch3: L('EMG', 'EMG'), ch4: L('ECG', 'EKG'), ground: L('Ground', 'Erde'),
   plugIn: L('Plug in', 'Einstecken'),
@@ -134,6 +139,9 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
   /* the lead the learner holds: a channel's black or red, or the ground */
   type LeadPick = { ch: 0 | 1 | 2 | 3; pole: 'black' | 'red' } | 'ground';
   let armed: LeadPick | null = null;
+  /* the placing view: the head or the body, following the lead picked up */
+  let pview: 'head' | 'body' = 'head';
+  const viewFor = (l: LeadPick | null) => (l && l !== 'ground' && l.ch < 2 ? 'head' : l ? 'body' : pview);
   const LEADS: LeadPick[] = [...[0, 1, 2, 3].flatMap((ch) => (['black', 'red'] as const).map((pole): LeadPick => ({ ch: ch as 0 | 1 | 2 | 3, pole }))), 'ground'];
   armed = LEADS[0];
   const leadKey = (l: LeadPick) => (l === 'ground' ? 'g' : `${l.ch}${l.pole[0]}`);
@@ -435,7 +443,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const mine = STEPS.filter((x) => x.kind === 'room' && proc.mine(x.id));
     const btn = (id: StepId) => id === 'pads' ? ''
       : id === 'cuff' ? `<div class="ect-cuffctl"><b>${t('cuffL')}</b> <button type="button" class="ghost small" data-cuff="on">${t('cuffOnBtn')}</button><button type="button" class="ghost small" data-cuff="squeeze">${t('squeezeBtn')}</button><button type="button" class="ghost small" data-cuff="down">${t('deflateBtn')}</button><button type="button" class="ghost small ect-act" data-act="cuff">${t('cuffUpBtn')}</button> <span class="muted small" data-cuffnow></span></div>`
-      : id === 'leads' ? `<div class="ect-leadctl"><b>${esc(tr(STEP.leads.title, lang))}</b><div class="ect-tray" data-tray></div><p class="muted small" data-leadmsg></p><button type="button" class="ghost ect-act" data-act="leads">${t('plugIn')}</button><button type="button" class="ghost small" data-fist>${t('fist')}</button></div>`
+      : id === 'leads' ? `<div class="ect-leadctl"><b>${esc(tr(STEP.leads.title, lang))}</b><p class="muted small">${t('cableHint')}</p><svg viewBox="0 0 300 134" class="ect-cable" data-tray role="group" aria-label="${t('cableL')}"></svg><p class="muted small">${t('chLegend')}</p><div class="ect-seg" role="group"><button type="button" class="ghost small" data-pview="head">${t('viewHead')}</button><button type="button" class="ghost small" data-pview="body">${t('viewBody')}</button></div><svg class="ect-place" data-place role="group" aria-label="${t('placeL')}"></svg><p class="muted small" data-leadmsg></p><button type="button" class="ghost ect-act" data-act="leads">${t('plugIn')}</button><button type="button" class="ghost small" data-fist>${t('fist')}</button></div>`
       : `<button type="button" class="ghost ect-act" data-act="${id}">${esc(tr(STEP[id].title, lang))}</button>`;
     const real = mine.filter((x) => x.modelled), narr = mine.filter((x) => !x.modelled && x.id !== 'check');
     const check = mine.find((x) => x.id === 'check');
@@ -460,6 +468,23 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const motor = session.rec.n ? session.rec.motor[session.rec.n - 1] : 0;
     const jerk = motor > ECT.emgThreshold && !session.armRelaxed ? Math.round(Math.min(14, (motor - ECT.emgThreshold) / 4) * (Math.sin(session.t * 2 * Math.PI * 3) > 0 ? 1 : 0)) : 0;
     if (jerk !== figJerk) { fig = ectFigure(look, jerk); figJerk = jerk; }
+    /* the cable's end (the sockets the leads come from) and the leadsMine() view (the head or the body, large) */
+    const tray = host.querySelector<SVGSVGElement>('[data-tray]');
+    if (tray) {
+      const html = cableSvg(session.montage, armed ? leadKey(armed) : null, { ch: 'CH', iso: 'ISO', gnd: 'GND' });
+      if (tray.dataset.html !== html) { tray.innerHTML = html; tray.dataset.html = html; }
+    }
+    const pl = host.querySelector<SVGSVGElement>('[data-place]');
+    if (pl) {
+      pl.style.display = leadsMine() ? '' : 'none';
+      host.querySelectorAll<HTMLButtonElement>('[data-pview]').forEach((x) => { x.classList.toggle('on', x.dataset.pview === pview); x.setAttribute('aria-pressed', String(x.dataset.pview === pview)); x.hidden = !leadsMine(); });
+      const pkey = JSON.stringify([pview, d.montage, d.pads, d.cuff, leadsMine()]);
+      if (leadsMine() && pl.dataset.key !== pkey) {
+        pl.dataset.key = pkey;
+        if (pview === 'head') { pl.setAttribute('viewBox', '0 0 240 240'); pl.innerHTML = topViewSvg(d.pads, { nose: t('nose'), left: t('left'), right: t('right') }, {}, { dress: d, targets: true, sites: false }); }
+        else { pl.setAttribute('viewBox', CHEST_VIEWBOX); pl.innerHTML = chestCloseUp(look, d, { targets: true }); }
+      }
+    }
     const key = JSON.stringify([d, jerk, moving ? Math.round(session.t * 10) : 0]);
     if (sc.dataset.key === key) return;
     sc.dataset.key = key; sceneAt = now;
@@ -468,22 +493,10 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     if (hd) { const c = headCloseUp(fig, d, session.t); hd.setAttribute('viewBox', c.viewBox); hd.innerHTML = c.svg; }
     const ch = host.querySelector<SVGSVGElement>('[data-chest]');
     const placing = leadsMine();
-    const ckey = JSON.stringify([d.montage, d.cuff, placing]);
-    if (ch && ch.dataset.key !== ckey) { ch.dataset.key = ckey; ch.innerHTML = chestCloseUp(look, d, { targets: placing }); }
+    const ckey = JSON.stringify([d.montage, d.cuff]);
+    if (ch && ch.dataset.key !== ckey) { ch.dataset.key = ckey; ch.innerHTML = chestCloseUp(look, d); }
     const tp = host.querySelector<SVGSVGElement>('[data-top]');
-    if (tp) tp.innerHTML = topViewSvg(d.pads, { nose: t('nose'), left: t('left'), right: t('right') }, Object.fromEntries((['Ltemp', 'Rtemp', 'Lfront', 'Rfront', 'vertexR', 'LantL'] as SiteId[]).map((id) => [id, t(`site_${id}`)])), { dress: d, targets: placing, sites: proc.mine('pads') && !proc.isDone('pads') });
-    /* the tray of leads: each in its colour, the one held marked, the placed ones ticked */
-    const tray = host.querySelector<HTMLElement>('[data-tray]');
-    if (tray) {
-      const m = session.montage, chName = (k: number) => t(`ch${k + 1}`);
-      const html = LEADS.map((l) => {
-        const at = l === 'ground' ? m.ground : m.ch[l.ch][l.pole], col = l === 'ground' ? 'green' : l.pole;
-        const name = l === 'ground' ? t('ground') : `${l.ch + 1} ${l.pole === 'black' ? '−' : '+'} <span class="muted">${chName(l.ch)}</span>`;
-        const on = armed != null && leadKey(armed) === leadKey(l);
-        return `<button type="button" class="ect-chip ect-chip-${col}${on ? ' on' : ''}" data-lead="${leadKey(l)}" aria-pressed="${on}" ${placing ? '' : 'disabled'}>${name}${at ? ` <span class="ect-chip-at">✓ ${at}</span>` : ''}</button>`;
-      }).join('');
-      if (tray.dataset.html !== html) { tray.innerHTML = html; tray.dataset.html = html; }
-    }
+    if (tp) tp.innerHTML = topViewSvg(d.pads, { nose: t('nose'), left: t('left'), right: t('right') }, Object.fromEntries((['Ltemp', 'Rtemp', 'Lfront', 'Rfront', 'vertexR', 'LantL'] as SiteId[]).map((id) => [id, t(`site_${id}`)])), { dress: d, targets: false, sites: proc.mine('pads') && !proc.isDone('pads') });
     const lm = host.querySelector<HTMLElement>('[data-leadmsg]'); if (lm) lm.textContent = placing ? (proc.leadsPlaced ? '' : `${t('leadTray')} ${t('leadOff')}`) : '';
     const cap = host.querySelector<HTMLElement>('[data-topcap]'); if (cap) cap.textContent = proc.mine('pads') && !proc.isDone('pads') ? t('headAbove') : placing ? t('headAboveLeads') : t('headAboveDone');
     const pm = host.querySelector<HTMLElement>('[data-padmsg]'); if (pm) pm.textContent = padMsg || (proc.mine('pads') && !proc.isDone('pads') ? t('padHint') : '');
@@ -583,16 +596,22 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
       }
       sceneAt = -1; drawProcedure();
     };
-    const spotAt = (e: Event) => (e.target as Element).closest('[data-spot]')?.getAttribute('data-spot') as Spot | undefined;
-    for (const el of [top, host.querySelector<SVGSVGElement>('[data-chest]')]) {
-      el?.addEventListener('click', (e) => { const sp = spotAt(e); if (sp) place(sp); });
-      el?.addEventListener('keydown', (e) => { const sp = spotAt(e); if (sp && ((e as KeyboardEvent).key === 'Enter' || (e as KeyboardEvent).key === ' ')) { e.preventDefault(); place(sp); } });
-    }
-    host.querySelector<HTMLElement>('[data-tray]')?.addEventListener('click', (e) => {
-      const k = (e.target as Element).closest('[data-lead]')?.getAttribute('data-lead'); if (!k) return;
-      const l = LEADS.find((x) => leadKey(x) === k)!;
-      armed = armed && leadKey(armed) === k ? null : l; drawProcedure();
+    /* a tap lands on the nearest spot of the placing view, within a finger's reach */
+    const plv = host.querySelector<SVGSVGElement>('[data-place]');
+    plv?.addEventListener('click', (e) => {
+      const m = plv.getScreenCTM(); if (!m) return;
+      const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+      const pts = pview === 'head' ? headSpotPoints() : bodySpotPoints(look), reach = pview === 'head' ? 26 : 6;
+      let best: string | null = null, bd = reach;
+      for (const [id, p] of Object.entries(pts)) { const dd = Math.hypot(p.x - q.x, p.y - q.y); if (dd < bd) { bd = dd; best = id; } }
+      if (best) { place(best as Spot); if (armed) pview = viewFor(armed); drawProcedure(); }
     });
+    plv?.addEventListener('keydown', (e) => { const sp = (e.target as Element).closest('[data-spot]')?.getAttribute('data-spot') as Spot | undefined; if (sp && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); place(sp); } });
+    const pickLead = (k: string) => { const l = LEADS.find((x) => leadKey(x) === k)!; armed = l; pview = viewFor(armed); drawProcedure(); };
+    const tr0 = host.querySelector<SVGSVGElement>('[data-tray]');
+    tr0?.addEventListener('click', (e) => { if (!leadsMine()) return; const k = (e.target as Element).closest('[data-lead]')?.getAttribute('data-lead'); if (k) pickLead(k); });
+    tr0?.addEventListener('keydown', (e) => { const k = (e.target as Element).closest('[data-lead]')?.getAttribute('data-lead'); if (k && leadsMine() && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pickLead(k); } });
+    host.querySelectorAll<HTMLButtonElement>('[data-pview]').forEach((x) => x.addEventListener('click', () => { pview = x.dataset.pview as 'head' | 'body'; drawProcedure(); }));
     host.querySelector<HTMLButtonElement>('[data-hurry]')!.addEventListener('click', () => { hurry = !hurry && proc.canHurry; drawProcedure(); });
   };
 
