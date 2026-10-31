@@ -475,6 +475,12 @@ canvas.st-strip:focus-visible { outline: 3px solid var(--accent); outline-offset
 .st-leads label { max-width: 100%; }
 .st-leads label select { max-width: 100%; }
 /* ECT station: the device's front panel (a physical object, so its own colours in both themes) */
+/* the device's front panel is held and turned, not read: no text selection, magnifier or callout on a long press (iOS) */
+.ect-panel, .ect-panel * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+.ect-cable, .ect-place, .ect-close svg, .ect-scene svg { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* repeated taps (the cuff's bulb, the dial's arrows) must not zoom the page */
+.ect-panel button, .ect-acts button, .ect-cuffctl button, .ect-leadctl button, .ect-seg button { touch-action: manipulation; }
+.ect-panel .ect-btn, .ect-panel .ect-face { touch-action: none; }
 .ect-panel { display: grid; grid-template-columns: 1.3fr 0.9fr 1fr 0.9fr 1fr 1.2fr; gap: 10px; align-items: start; padding: 14px; border-radius: 10px; background: #d8d4c8; color: #23221f; border: 1px solid #a9a495; box-shadow: inset 0 1px 0 #f0ede4; }
 .ect-col { display: grid; gap: 8px; justify-items: stretch; min-width: 0; }
 .ect-center { justify-items: center; text-align: center; }
