@@ -86,15 +86,21 @@ export const STANDARD_MONTAGE: Montage = {
   ground: 'shoulderR',
 };
 export const EMPTY_MONTAGE = (): Montage => ({ ch: [{ black: null, red: null }, { black: null, red: null }, { black: null, red: null }, { black: null, red: null }], ground: null });
-/** what is wrong with a montage against the manual's, channel by channel (empty: nothing) */
+/** what is wrong with a montage against the manual's, channel by channel (empty: nothing). The manual ("Monitoring
+    electrodes application"): EEG black on the forehead and red on the mastoid of the same side, channel 1 left and 2
+    right, the polarity kept the same on both sides; EMG two on the cuffed limb and ECG two on the chest above and below
+    the heart, both "in any order of polarity"; the ground on either shoulder. */
 export function montageProblems(m: Montage): Array<{ ch: 1 | 2 | 3 | 4 | 'ground'; kind: 'missing' | 'wrong' | 'reversed' }> {
   const out: Array<{ ch: 1 | 2 | 3 | 4 | 'ground'; kind: 'missing' | 'wrong' | 'reversed' }> = [];
+  const upper = (x: Spot) => x === 'chestUR' || x === 'chestUL', lower = (x: Spot) => x === 'chestLR' || x === 'chestLL';
   m.ch.forEach((l, k) => {
     const s = STANDARD_MONTAGE.ch[k], ch = (k + 1) as 1 | 2 | 3 | 4;
-    if (!l.black || !l.red) out.push({ ch, kind: 'missing' });
-    else if (l.black === s.black && l.red === s.red) return;
-    else if (l.black === s.red && l.red === s.black) out.push({ ch, kind: 'reversed' });
-    else out.push({ ch, kind: 'wrong' });
+    if (!l.black || !l.red) { out.push({ ch, kind: 'missing' }); return; }
+    const pair = [l.black, l.red];
+    if (k === 2) { if (!pair.every((x) => SPOT_KIND[x] === 'foreR')) out.push({ ch, kind: 'wrong' }); return; }
+    if (k === 3) { if (!(pair.some(upper) && pair.some(lower))) out.push({ ch, kind: 'wrong' }); return; }
+    if (l.black === s.black && l.red === s.red) return;
+    out.push({ ch, kind: l.black === s.red && l.red === s.black ? 'reversed' : 'wrong' });
   });
   if (!m.ground) out.push({ ch: 'ground', kind: 'missing' });
   else if (SPOT_KIND[m.ground] !== 'shoulder') out.push({ ch: 'ground', kind: 'wrong' });

@@ -529,6 +529,9 @@ canvas.st-strip:focus-visible { outline: 3px solid var(--accent); outline-offset
 .ect-close svg { width: 100%; aspect-ratio: 1; border-radius: 8px; background: #e3ebe9; }
 .ect-top { color: var(--fg); background: var(--sunk, #eef2f1) !important; }
 .ect-spot { cursor: pointer; } .ect-spot:focus { outline: none; } .ect-spot:focus-visible rect { stroke-width: 2.4; }
+.ect-cable { width: 100%; max-width: 360px; } .ect-sock { cursor: pointer; } .ect-sock:focus { outline: none; } .ect-sock:focus-visible circle:first-child { stroke: #1d6f8a; stroke-width: 4; }
+.ect-place { width: 100%; max-width: 420px; aspect-ratio: 1; border-radius: 8px; background: #e3ebe9; color: #222; cursor: crosshair; touch-action: manipulation; }
+.ect-seg { display: flex; gap: 4px; } .ect-seg button.on { font-weight: 600; box-shadow: inset 0 -2px 0 #1d6f8a; }
 .ect-leadctl { display: grid; gap: 6px; width: 100%; } .ect-leadctl > button { justify-self: start; }
 .ect-tray { display: flex; flex-wrap: wrap; gap: 4px; }
 .ect-chip { font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--surface, #fff); border: 2px solid; cursor: pointer; color: inherit; }
