@@ -5,7 +5,7 @@ import { ECT } from '../evidence/ect.ts';
 import type { ProgramChoice } from './ect-device.ts';
 import { PROGRAM_NAMES } from './ect-device.ts';
 import type { EctSession, Spot } from './ect-session.ts';
-import { STANDARD_MONTAGE, EMPTY_MONTAGE, montageProblems } from './ect-session.ts';
+import { HOSPITAL_MONTAGE, EMPTY_MONTAGE, montageProblems } from './ect-session.ts';
 
 /* ===========================================================================
    The ECT treatment as a procedure (owner, 2026-10-30): the team's steps in
@@ -41,7 +41,7 @@ export type EctRole = 'psychiatrist' | 'anaesthetist';
 export const ECT_ROLES: readonly EctRole[] = ['psychiatrist', 'anaesthetist'];
 export type EctMode = 'practise' | 'watch' | 'exam';
 
-export type StepId = 'check' | 'premed' | 'brakes' | 'power' | 'paper' | 'cuffOn' | 'skinEeg' | 'leads' | 'skin' | 'pads' | 'impedance' | 'dose'
+export type StepId = 'check' | 'premed' | 'brakes' | 'power' | 'paper' | 'cuffOn' | 'skinEeg' | 'leads' | 'strip' | 'skin' | 'pads' | 'impedance' | 'dose'
   | 'oxygen' | 'induction' | 'cuff' | 'biteBlock' | 'ventilate' | 'relaxant' | 'precheck' | 'treat' | 'observe' | 'report' | 'recovery';
 
 const L = (en: string, de: string): LocalizedText => ({ en, de });
@@ -61,10 +61,10 @@ export interface EctOrder {
    unilateral the age in percent, rounded to the dial's steps (60 %), with ultrabrief pulses; for the bilateral
    placements half of it (30 %) with 0.5 ms pulses. */
 export const ECT_ORDERS: readonly EctOrder[] = [
+  { id: 'bt', title: L('First treatment, bitemporal', 'Erste Behandlung, bitemporal'), placement: 'BT', program: 'LOW_05', percent: 30,
+    doseNote: L('In-house: 30 % from age 40 (20 % under 40), 0.5 ms pulses.', 'Hausintern: 30 % ab 40 Jahren (20 % darunter), Pulse von 0,5 ms.') },
   { id: 'rul', title: L('First treatment, right unilateral', 'Erste Behandlung, rechts unilateral'), placement: 'RUL', program: 'LOW_UB', percent: 60,
     doseNote: L('Dose by age (manual): 59 years → 60 %, ultrabrief pulses.', 'Dosis nach Alter (Handbuch): 59 Jahre → 60 %, ultrakurze Pulse.') },
-  { id: 'bt', title: L('First treatment, bitemporal', 'Erste Behandlung, bitemporal'), placement: 'BT', program: 'LOW_05', percent: 30,
-    doseNote: L('Dose by half the age (manual): 59 years → 30 %, 0.5 ms pulses.', 'Dosis nach halbem Alter (Handbuch): 59 Jahre → 30 %, Pulse von 0,5 ms.') },
 ];
 
 /* Waits, from treatments in patients. */
@@ -80,8 +80,15 @@ export const RELAXANT_WAIT = 60;
     carrying the relaxant passes) and how much one squeeze of the bulb adds (a placement: a hand bulb of a sphygmomanometer
     raises a limb cuff by tens of mmHg a squeeze) */
 export const CUFF_ABOVE = 100;
-/** how long the contact gel is rubbed into the stimulus sites (owner's hospital, 2026-10-31: about a minute) */
+/** how long the stimulus sites take: the abrasive paste rubbed in for 30–60 s until the skin reddens, then one puff of
+    electrode spray per side rubbed in for 30 s to 1 min (the owner's in-house procedure); the shorter of each */
 export const RUB_GEL = 60;
+/** the stimulus about 4 minutes after the hypnotic, later if the anaesthesia is deep (the in-house procedure) */
+export const HYPNOTIC_TO_STIMULUS = 240;
+/** the cuff before the relaxant: 220–240 mmHg (the in-house procedure: the tourniquet) */
+export const CUFF_LOW = 220, CUFF_HIGH = 240;
+/** the awake check strip runs at least this long (the in-house procedure) */
+export const STRIP_MIN = 5;
 export const CUFF_SQUEEZE = 20;
 /** how long the team takes to start a step it can do */
 export const TEAM_DELAY = 3;
@@ -143,40 +150,45 @@ export const STEPS: readonly StepDef[] = [
     why: L('The device checks itself before use.', 'Das Gerät prüft sich vor dem Einsatz.'),
     says: L('Device on.', 'Gerät an.') },
   { id: 'paper', role: 'psychiatrist', kind: 'room', modelled: false, after: ['power'],
-    title: L('Check the paper', 'Papier prüfen'),
-    how: L('Enough paper in the printer? A coloured stripe on the paper means it is running out.', 'Genug Papier im Drucker? Ein farbiger Streifen auf dem Papier zeigt, dass es zu Ende geht.'),
-    why: L('No paper, no strip: no seizure record.', 'Kein Papier, kein Streifen: keine Aufzeichnung des Anfalls.'),
-    says: L('Paper is in.', 'Papier ist drin.') },
+    title: L('Check paper, cables, program', 'Papier, Kabel, Programm prüfen'),
+    how: L('Enough paper (press the bar above the slot to open the cassette; a coloured stripe means it is running out)? Cables intact (a dark, translucent sheath is brittle)? Pressing PERCENT ENERGY shows “2x”: the usual 0.5 ms program, up to 200 %.', 'Genug Papier (Leiste über dem Auswurfschlitz drücken, um die Kassette zu öffnen; ein farbiger Streifen heißt, es geht zu Ende)? Kabel intakt (dunkel durchscheinender Mantel ist brüchig)? Druck auf PERCENT ENERGY zeigt „2x“: das übliche 0,5-ms-Programm bis 200 %.'),
+    why: L('No paper, no record; a brittle cable fails; the wrong program gives the wrong dose.', 'Kein Papier, keine Aufzeichnung; ein brüchiges Kabel versagt; das falsche Programm gibt die falsche Dosis.'),
+    says: L('Paper, cables and program checked.', 'Papier, Kabel und Programm geprüft.') },
   { id: 'cuffOn', role: 'psychiatrist', kind: 'room', modelled: true, after: ['check'],
     title: L('Put the cuff on', 'Manschette anlegen'),
     how: L('On the upper arm without the IV (here the right); do not pump yet.', 'An den Oberarm ohne Zugang (hier rechts); noch nicht aufpumpen.'),
     why: L('Pumped only when the patient is asleep: it hurts.', 'Erst aufpumpen, wenn der Patient schläft: Es schmerzt.'),
     says: L('Cuff on.', 'Manschette angelegt.') },
   { id: 'skinEeg', role: 'psychiatrist', kind: 'room', modelled: false, after: ['check'],
-    title: L('Clean the EEG sites', 'EEG-Stellen reinigen'),
-    how: L('Saline above both eyebrows and on both mastoids. The EMG and ECG sites need nothing.', 'Kochsalz über beiden Augenbrauen und auf beiden Mastoiden. EMG- und EKG-Stellen brauchen nichts.'),
-    why: L('Clean skin gives a clean EEG baseline.', 'Saubere Haut gibt eine saubere EEG-Grundlinie.'),
-    says: L('EEG sites cleaned.', 'EEG-Stellen gereinigt.') },
+    title: L('Clean forehead, temples, mastoids', 'Stirn, Schläfen, Mastoid reinigen'),
+    how: L('Both sides, with a swab and saline; let it dry. The EMG and ECG sites need nothing.', 'Beidseits mit Tupfer und NaCl; trocknen lassen. EMG- und EKG-Stellen brauchen nichts.'),
+    why: L('Clean skin gives a clean EEG and a lower impedance.', 'Saubere Haut gibt ein sauberes EEG und eine niedrigere Impedanz.'),
+    says: L('Forehead, temples and mastoids cleaned.', 'Stirn, Schläfen und Mastoid gereinigt.') },
   { id: 'leads', role: 'psychiatrist', kind: 'room', modelled: true, after: ['skinEeg'],
-    title: L('Attach EEG, ECG and EMG', 'EEG, EKG und EMG anlegen'),
-    how: L('EEG: channel 1 left, 2 right, above the eyebrow and on the mastoid, the same polarity on both sides. EMG (3): two on the cuffed forearm, either way round. ECG (4): black below the right clavicle, red at the apex. Green ground below the left clavicle. Plug in; check the EMG with a fist.', 'EEG: Kanal 1 links, 2 rechts, über der Augenbraue und auf dem Mastoid, beidseits gleich gepolt. EMG (3): zwei am gestauten Unterarm, beliebig herum. EKG (4): schwarz unter dem rechten Schlüsselbein, rot an der Herzspitze. Grüne Erde unter das linke Schlüsselbein. Einstecken; EMG mit einer Faust prüfen.'),
+    title: L('Attach EMG, ECG and EEG', 'EMG, EKG und EEG anlegen'),
+    how: L('EMG (3): two on the forearm below the cuff, either way round. ECG (4): green below the left clavicle, black below the right, red at the apex. EEG: channel 1 right, 2 left; black on the forehead 2–3 cm above the middle of the eyebrow, red on the mastoid, the same on both sides. Plug in.', 'EMG (3): zwei am Unterarm unter der Manschette, beliebig herum. EKG (4): grün links subclaviculär, schwarz rechts, rot Herzspitze. EEG: Kanal 1 rechts, 2 links; schwarz an die Stirn 2–3 cm über der Mitte der Augenbraue, rot ans Mastoid, beidseits gleich. Einstecken.'),
     why: L('Without EEG, no baseline and no endpoints.', 'Ohne EEG keine Grundlinie und keine Endpunkte.'),
     says: L('Leads on.', 'Ableitungen angelegt.') },
-  { id: 'skin', role: 'psychiatrist', kind: 'room', modelled: true, after: ['check'],
+  { id: 'strip', role: 'psychiatrist', kind: 'device', modelled: true, after: ['leads', 'power'],
+    title: L('Check strip, awake', 'Kontrollaufzeichnung, wach'),
+    how: L('“Close your eyes and lie still: only a recording, the stimulus comes under anaesthesia.” START/STOP for at least 5 s: EEG right and left alike? EMG flat at rest (ask for a fist)? ECG regular? Stop.', '„Augen zu und ruhig liegen: nur Aufzeichnung, Stimulation erst in Narkose.“ START/STOP mindestens 5 s: EEG rechts und links ähnlich? EMG in Ruhe Nulllinie (Faust machen lassen)? EKG regelrecht? Stoppen.'),
+    why: L('A left–right difference means an artefact: press the electrodes on, check the plugs. Blinks are easy to spot.', 'Rechts-links-Unterschiede sprechen für Artefakte: Elektroden andrücken, Steckplätze prüfen. Lidschläge sind leicht zu erkennen.'),
+    says: L('All channels fine.', 'Alle Kanäle in Ordnung.') },
+  { id: 'skin', role: 'psychiatrist', kind: 'room', modelled: true, after: ['strip'],
     title: L('Prepare the stimulus sites', 'Reizstellen vorbereiten'),
-    how: L('Saline, then abrasive gel; protect the eyes; contact gel close on both sites, rub it in with the fingers for about a minute.', 'Kochsalz, dann Abrasivgel; Augen schützen; Kontaktgel dicht auf beide Stellen, etwa eine Minute mit den Fingern einreiben.'),
+    how: L('A pea of abrasive paste on a dry swab, rubbed into both temples 30–60 s until the skin reddens; one puff of electrode spray per side (protect the eyes), rubbed in 30 s–1 min, let it dry completely.', 'Erbsengroß Peelingpaste auf einen trockenen Tupfer, beide Schläfen 30–60 s einreiben bis zur Mehrdurchblutung; je ein Sprühstoß Sigma Spray (Augen schützen), 30 s–1 min einreiben, ganz trocknen lassen.'),
     why: L('Unprepared skin drives the impedance above 3000 Ω.', 'Unvorbereitete Haut treibt die Impedanz über 3000 Ω.'),
     says: L('Stimulus sites prepared.', 'Reizstellen vorbereitet.') },
   { id: 'pads', role: 'psychiatrist', kind: 'room', modelled: true, after: ['skin'],
     title: L('Place the stimulus pads', 'Reizelektroden anlegen'),
-    how: L('Tap the two sites of the ordered placement on the head from above; the temporal one on the line from the eye’s outer corner to the ear.', 'Die zwei Stellen der angeordneten Position am Kopf von oben antippen; die temporale auf der Linie vom äußeren Augenwinkel zum Ohr.'),
+    how: L('Tap the two sites of the ordered placement on the head from above. Bitemporal: above the line from the outer eye corner to the ear canal, not on hair; connect the black cables.', 'Die zwei Stellen der angeordneten Position am Kopf von oben antippen. Bitemporal: über der Linie vom äußeren Augenwinkel zum äußeren Gehörgang, nicht auf Haare; schwarze Kabel anschließen.'),
     why: L('The placement decides where the current goes: threshold, side effects, bradycardia.', 'Die Position bestimmt den Stromweg: Schwelle, Nebenwirkungen, Bradykardie.'),
     says: L('Pads on.', 'Elektroden angelegt.') },
   { id: 'impedance', role: 'psychiatrist', kind: 'device', modelled: true, after: ['pads', 'power', 'leads'],
     title: L('Test the impedance', 'Impedanz testen'),
-    how: L('Hold IMPEDANCE TEST, release, wait for READY.', 'IMPEDANCE TEST halten, loslassen, READY abwarten.'),
-    why: L('100–3000 Ω means good contact; releasing starts the baseline EEG.', '100–3000 Ω heißt guter Kontakt; Loslassen startet das Grundlinien-EEG.'),
-    says: L('Impedance in range; READY.', 'Impedanz im Bereich; READY.') },
+    how: L('Hold IMPEDANCE TEST, release, wait for READY. Aim under 2000 Ω; 2000–3000 is rare (elderly); over 3000 no stimulus.', 'IMPEDANCE TEST halten, loslassen, READY abwarten. Ziel unter 2000 Ω; 2000–3000 selten (Betagte); über 3000 keine Stimulation.'),
+    why: L('Over 3000 Ω the pads do not touch the skin well enough; releasing starts the baseline EEG.', 'Über 3000 Ω fehlt der Kontakt zwischen Elektrode und Haut; Loslassen startet das Grundlinien-EEG.'),
+    says: L('Impedance in range; READY. Anaesthesia can start.', 'Impedanz im Bereich; READY. Anästhesie kann beginnen.') },
   { id: 'dose', role: 'psychiatrist', kind: 'device', modelled: true, after: ['power'],
     title: L('Set program and dose', 'Programm und Dosis einstellen'),
     how: L('FlexDial: press, PROGRAMS, press, turn, press. Then PERCENT ENERGY to the ordered value.', 'FlexDial: drücken, PROGRAMS, drücken, drehen, drücken. Dann PERCENT ENERGY auf den angeordneten Wert.'),
@@ -194,12 +206,12 @@ export const STEPS: readonly StepDef[] = [
     says: L('Hypnotic in. You can pump the cuff.', 'Hypnotikum gegeben. Manschette kann hoch.') },
   { id: 'cuff', role: 'psychiatrist', kind: 'room', modelled: true, after: ['induction', 'cuffOn'],
     title: L('Pump the arm cuff', 'Manschette aufpumpen'),
-    how: L('On the anaesthetist’s signal: pump well above systolic, report it up.', 'Auf Zeichen der Anästhesie: deutlich über systolisch pumpen, melden.'),
+    how: L('When anaesthesia calls before the relaxant: pump to 220–240 mmHg (the tourniquet), report it up.', 'Wenn die Anästhesie sich vor dem Relaxans meldet: auf 220–240 mmHg aufpumpen (Blutsperre), melden.'),
     why: L('Keeps the relaxant out of the arm, so the motor seizure stays visible.', 'Hält das Relaxans aus dem Arm, damit der motorische Anfall sichtbar bleibt.'),
     says: L('Cuff up.', 'Manschette oben.') },
-  { id: 'biteBlock', role: 'anaesthetist', kind: 'room', modelled: false, after: ['induction'],
+  { id: 'biteBlock', role: 'anaesthetist', kind: 'room', modelled: false, after: ['relaxant'],
     title: L('Insert the bite block', 'Beißschutz einlegen'),
-    how: L('Between the teeth.', 'Zwischen die Zähne.'),
+    how: L('After the hypnotic and once relaxed (relaxometry): between the teeth.', 'Nach dem Narkotikum und nach Relaxation (Relaxometrie): zwischen die Zähne.'),
     why: L('The stimulus clenches the jaw directly, relaxant or not.', 'Der Reiz presst den Kiefer direkt zusammen, mit oder ohne Relaxans.'),
     says: L('Bite block in.', 'Beißschutz drin.') },
   { id: 'ventilate', role: 'anaesthetist', kind: 'room', modelled: true, after: ['induction'],
@@ -207,19 +219,19 @@ export const STEPS: readonly StepDef[] = [
     how: L('Bag and mask, slightly fast, until the stimulus.', 'Beutel und Maske, etwas schneller, bis zum Reiz.'),
     why: L('The patient is apnoeic; a low CO₂ helps the seizure.', 'Der Patient atmet nicht; niedriges CO₂ fördert den Anfall.'),
     says: L('Ventilating.', 'Beatme.') },
-  { id: 'relaxant', role: 'anaesthetist', kind: 'room', modelled: true, after: ['cuff', 'biteBlock', 'ventilate'],
+  { id: 'relaxant', role: 'anaesthetist', kind: 'room', modelled: true, after: ['cuff', 'ventilate'],
     title: L('Succinylcholine', 'Succinylcholin'),
-    how: L('Give it; wait for the fasciculations to pass (about 1 min).', 'Geben; Faszikulationen abwarten (etwa 1 min).'),
+    how: L('Call the psychiatrist to pump the cuff first; then give it and wait for the fasciculations to pass (about 1 min).', 'Erst der Psychiatrie Bescheid geben (Manschette); dann geben, Faszikulationen abwarten (etwa 1 min).'),
     why: L('Softens the convulsion.', 'Mildert die Krämpfe.'),
     says: L('Succinylcholine in.', 'Succinylcholin gegeben.') },
-  { id: 'precheck', role: 'psychiatrist', kind: 'device', modelled: true, after: ['cuff'],
-    title: L('Check strip and impedance', 'Kontrollstreifen und Impedanz'),
-    how: L('Press START/STOP for a short strip: every channel shows? Stop it, then test the impedance again.', 'START/STOP für einen kurzen Streifen: Zeigen alle Kanäle etwas? Stoppen, dann die Impedanz erneut testen.'),
+  { id: 'precheck', role: 'psychiatrist', kind: 'device', modelled: true, after: ['relaxant'],
+    title: L('Impedance and strip again', 'Impedanz und Streifen erneut'),
+    how: L('IMPEDANCE TEST again; then START/STOP for a short strip (under 5 s): right and left alike? A difference means a loose electrode: press it on.', 'IMPEDANCE TEST erneut; dann START/STOP für einen kurzen Streifen (unter 5 s): rechts und links gleich? Ein Unterschied heißt Wackelelektrode: andrücken.'),
     why: L('Leads and pads can come loose while the patient is put to sleep.', 'Ableitungen und Elektroden können sich beim Einschlafen lösen.'),
-    says: L('All channels show; impedance in range.', 'Alle Kanäle zeigen; Impedanz im Bereich.') },
-  { id: 'treat', role: 'psychiatrist', kind: 'device', modelled: true, after: ['relaxant', 'precheck', 'dose'],
+    says: L('Impedance in range; all channels show.', 'Impedanz im Bereich; alle Kanäle zeigen.') },
+  { id: 'treat', role: 'psychiatrist', kind: 'device', modelled: true, after: ['relaxant', 'precheck', 'biteBlock', 'dose'],
     title: L('Stimulate', 'Reiz auslösen'),
-    how: L('Say “stimulating”, lift the cover, hold TREAT until the tone stops.', '„Reiz“ ansagen, Kappe heben, TREAT halten, bis der Ton endet.'),
+    how: L('About 4 min after the hypnotic (later if deep): say “stimulating”, lift the cover, hold TREAT at least until the tone changes.', 'Etwa 4 min nach dem Narkotikum (bei tiefer Narkose später): „Reiz“ ansagen, Klappe heben, TREAT halten, mindestens bis sich der Ton ändert.'),
     why: L('Hands off the patient; releasing early gives less charge.', 'Hände weg vom Patienten; früheres Loslassen gibt weniger Ladung.'),
     says: L('Stimulating.', 'Reiz.') },
   { id: 'observe', role: 'psychiatrist', kind: 'wait', modelled: true, after: ['treat'],
@@ -228,9 +240,9 @@ export const STEPS: readonly StepDef[] = [
     why: L('The motor seizure ends before the EEG seizure.', 'Der motorische Anfall endet vor dem EEG-Anfall.'),
     says: L('Seizure timed.', 'Anfall gemessen.') },
   { id: 'report', role: 'psychiatrist', kind: 'device', modelled: true, after: ['observe'],
-    title: L('Print the report', 'Bericht drucken'),
-    how: L('When the EEG is flat, press START/STOP.', 'Wenn das EEG flach ist, START/STOP drücken.'),
-    why: L('Records dose, impedance and seizure for the next treatment.', 'Hält Dosis, Impedanz und Anfall für die nächste Behandlung fest.'),
+    title: L('End the strip, print the report', 'Aufzeichnung beenden, Bericht'),
+    how: L('Once the spikes and spike-waves have given way to a settled, near-flat postictal suppression, record at least 5 s more, then press START/STOP.', 'Wenn Polyspikes und Spike-Wave-Muster in eine konstante, fast flache postiktale Suppression übergegangen sind, noch mindestens 5 s ableiten, dann START/STOP.'),
+    why: L('The device needs that time for its analysis; the report gives the stimulus and the seizure indices.', 'Das Gerät braucht die Zeit für die Analyse; der Bericht enthält Stimulus- und Anfallsparameter.'),
     says: L('Report printed.', 'Bericht gedruckt.') },
   { id: 'recovery', role: 'anaesthetist', kind: 'room', modelled: true, after: ['observe'],
     title: L('Recover the patient', 'Patienten ausleiten'),
@@ -243,7 +255,7 @@ export const STEP: Record<StepId, StepDef> = Object.fromEntries(STEPS.map((s) =>
 /** a mistake the procedure noticed, at the moment it happened */
 export interface ProcedureError { t: number; code: ErrorCode; step: StepId; text: LocalizedText }
 export type ErrorCode = 'awake-stimulus' | 'unmodified' | 'early-stimulus' | 'no-bite-block' | 'no-impedance' | 'impedance-out' | 'wrong-dose' | 'wrong-pads'
-  | 'no-leads' | 'montage' | 'no-brakes' | 'no-paper' | 'no-precheck' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
+  | 'no-leads' | 'montage' | 'cuff-range' | 'no-strip' | 'no-brakes' | 'no-paper' | 'no-precheck' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
 
 const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'awake-stimulus': L('Stimulus before anaesthesia.', 'Reiz vor der Narkose.'),
@@ -256,6 +268,8 @@ const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'wrong-pads': L('Pads not at the ordered placement.', 'Elektroden nicht an der angeordneten Position.'),
   'no-leads': L('Stimulus without EEG and ECG.', 'Reiz ohne EEG und EKG.'),
   montage: L('Leads not as the manual places them.', 'Ableitungen nicht wie im Handbuch.'),
+  'cuff-range': L('Cuff not at 220–240 mmHg at the relaxant.', 'Manschette beim Relaxans nicht bei 220–240 mmHg.'),
+  'no-strip': L('Stimulus without the awake check strip.', 'Reiz ohne Kontrollaufzeichnung im Wachzustand.'),
   'no-brakes': L('Stimulus with the device’s brakes off.', 'Reiz bei nicht festgestelltem Gerät.'),
   'no-paper': L('Stimulus without checking the paper.', 'Reiz ohne Papierkontrolle.'),
   'no-precheck': L('Stimulus without the check strip and a second impedance test.', 'Reiz ohne Kontrollstreifen und zweiten Impedanztest.'),
@@ -305,6 +319,8 @@ export class Procedure {
     session.setPads(null);
     session.monitoringCable = false;
     session.montage = EMPTY_MONTAGE();
+    /* doses up to 200 % (2X), as the owner's hospital (CE) has it */
+    session.device.settings.maxPercent = 200;
   }
   /** the learner's hands on a lead: put it on a spot (a lead already there comes off), or take it off (null) */
   placeLead(lead: { ch: 0 | 1 | 2 | 3; pole: 'black' | 'red' } | 'ground', spot: Spot | null) {
@@ -327,7 +343,7 @@ export class Procedure {
     if (id === 'induction') return since('oxygen', PREOXYGENATION);
     if (id === 'pads') return since('skin', RUB_GEL);
     if (id === 'cuff' || id === 'biteBlock' || id === 'ventilate') return since('induction', INDUCTION_WAIT);
-    if (id === 'treat') return since('relaxant', RELAXANT_WAIT);
+    if (id === 'treat') return Math.max(since('relaxant', RELAXANT_WAIT), since('induction', HYPNOTIC_TO_STIMULUS));
     if (id === 'recovery') return this.session.apnoeaLeft;
     return 0;
   }
@@ -369,7 +385,7 @@ export class Procedure {
       case 'pads': { const p = opts.placement ?? this.padsWanted ?? this.order.placement; r.pads = p; session.setPads(p); if (p !== this.order.placement) this.err('wrong-pads', id); break; }
       case 'leads':
         /* the team puts them where the manual does; the learner plugs in what they placed */
-        if (by !== 'you') session.montage = structuredClone(STANDARD_MONTAGE);
+        if (by !== 'you') session.montage = structuredClone(HOSPITAL_MONTAGE);
         else if (!this.leadsPlaced) return;
         r.leads = true; session.monitoringCable = true; break;
       case 'oxygen': r.oxygen = true; session.oxygen(true); break;
@@ -378,13 +394,14 @@ export class Procedure {
         /* the team pumps it well above the systolic pressure (a placement: the source asks only for "high enough" to keep
            the relaxant out); the learner has pumped it themselves and says it is up */
         if (!r.cuffOn) return;
-        if (by !== 'you') r.cuffMmHg = Math.round((this.systolic + CUFF_ABOVE) / 10) * 10;
+        if (by !== 'you') r.cuffMmHg = (CUFF_LOW + CUFF_HIGH) / 2;
         r.cuff = true; break;
       case 'biteBlock': r.biteBlock = true; break;
       case 'relaxant':
         if (!r.induced) this.err('awake-paralysis', id);
         if (!r.cuff) this.err('no-cuff', id);
         else if (r.cuffMmHg <= this.systolic) this.err('cuff-low', id);
+        else if (r.cuffMmHg < CUFF_LOW || r.cuffMmHg > CUFF_HIGH) this.err('cuff-range', id);
         r.relaxed = true; session.relax(r.cuff && r.cuffMmHg > this.systolic); break;
       case 'ventilate': r.ventilating = true; session.bag(true); break;
       case 'recovery': r.recovered = true; r.ventilating = false; r.cuffMmHg = 0; r.cuffOn = false; session.bag(false); break;
@@ -420,10 +437,15 @@ export class Procedure {
     if (!this.isDone('power') && d.on && !d.booting && session.paper.some((e) => e.kind === 'selftest')) this.finish('power', by('power'));
     if (!this.isDone('impedance') && d.baseline === 'ready' && d.lastStatic != null && d.lastStatic > ECT.staticLow && d.lastStatic < ECT.staticHigh) this.finish('impedance', by('impedance'));
     if (!this.isDone('dose') && d.on && !d.booting && this.doseRight() && (this.isDone('impedance') || this.team.get('psychiatrist')?.step === 'dose')) this.finish('dose', by('dose'));
-    /* the check before the stimulus: a short strip run and stopped, and the impedance tested again and in range, both
-       after the cuff was pumped */
-    if (!this.isDone('precheck') && this.isDone('cuff')) {
-      const t0 = this.stamps.get('cuff') ?? Infinity;
+    /* the awake check strip: at least 5 s printed and stopped with the leads plugged in, before the anaesthetic */
+    if (!this.isDone('strip') && this.isDone('leads') && !this.room.induced) {
+      const t0 = this.stamps.get('leads') ?? Infinity;
+      if (session.printing.some((x) => x.from >= t0 && x.to != null && x.to - x.from >= STRIP_MIN)) this.finish('strip', by('strip'));
+    }
+    /* the check before the stimulus: the impedance tested again and in range, and a short strip run and stopped, both
+       after the relaxant */
+    if (!this.isDone('precheck') && this.isDone('relaxant')) {
+      const t0 = this.stamps.get('relaxant') ?? Infinity;
       const strip = session.printing.some((x) => x.from >= t0 && x.to != null);
       const imp = session.baselineFrom != null && session.baselineFrom >= t0 && d.baseline === 'ready' && d.lastStatic != null && d.lastStatic > ECT.staticLow && d.lastStatic < ECT.staticHigh;
       if (strip && imp) this.finish('precheck', by('precheck'));
@@ -452,6 +474,7 @@ export class Procedure {
     if (!r.brakes) this.err('no-brakes', 'brakes');
     if (!r.paper) this.err('no-paper', 'paper');
     if (!this.isDone('precheck')) this.err('no-precheck', 'precheck');
+    if (!this.isDone('strip')) this.err('no-strip', 'strip');
     if (!r.leads) this.err('no-leads', 'treat');
     else { const p = montageProblems(this.session.montage); if (p.length) this.err('montage', 'leads', montageText(p)); }
     if (r.relaxed && !r.ventilating) this.err('not-ventilated', 'treat');
@@ -503,12 +526,17 @@ export class Procedure {
       while (d.percent !== this.order.percent) { d.turnPercent(d.percent < this.order.percent ? 1 : -1); yield 0.15; }
       yield 0.5; this.finish('dose', role); return;
     }
-    if (id === 'precheck') {
+    if (id === 'strip') {
       if (!d.printing) d.startStop();
-      yield 4; d.startStop(); yield 0.5;
+      yield STRIP_MIN + 1; d.startStop(); yield 0.5;
+      if (!done()) this.readyAt.set(id, this.t + 5);
+      return;
+    }
+    if (id === 'precheck') {
       d.impedanceButton(true); yield 1.6; d.impedanceButton(false);
       while (d.baseline !== 'ready') yield 0.25;
-      yield 0.5;
+      if (!d.printing) d.startStop();
+      yield 4; d.startStop(); yield 0.5;
       if (!done()) this.readyAt.set(id, this.t + 10);
       return;
     }
