@@ -1,3 +1,4 @@
+import { ECT } from '../evidence/ect.ts';
 /* ===========================================================================
    The device's seizure measures, computed from what it records (ECT
    station, part 1).
@@ -38,6 +39,8 @@ export interface SeizureReport {
   psi: number | null;
   msp: number | null; timeToPeakPower: number | null;
   coherence: number | null; timeToPeakCoherence: number | null;
+  /** the midictal amplitude (µV, peak to trough on channel 1): not printed by the device, read off the strip */
+  midictal: number | null;
 }
 
 /** A second-order band-pass (two first-order high-passes and two low-passes), run forward. */
@@ -113,7 +116,7 @@ export function seizureReport(o: { eeg1: Float32Array; eeg2: Float32Array; emg: 
   const { fs, end, upTo } = o;
   const e1 = bandpass(o.eeg1, fs, 2, 25), e2 = bandpass(o.eeg2, fs, 2, 25);
   const emgEnd = o.baseline ? emgEndpoint(o.emg, fs, end, o.baseline[0], o.baseline[1], upTo) : emgEndpoint(o.emg, fs, end, Math.max(0, end - 5 * fs), end, upTo);
-  const none: SeizureReport = { eegEndpoint: null, emgEndpoint: emgEnd, asei: null, psi: null, msp: null, timeToPeakPower: null, coherence: null, timeToPeakCoherence: null };
+  const none: SeizureReport = { eegEndpoint: null, emgEndpoint: emgEnd, asei: null, psi: null, msp: null, timeToPeakPower: null, coherence: null, timeToPeakCoherence: null, midictal: null };
   if (!o.baseline) return none;
   const [b0, b1] = o.baseline;
   let base = 0; for (let i = b0; i < b1; i++) base += Math.abs(e1[i]); base /= Math.max(1, b1 - b0);
@@ -134,7 +137,16 @@ export function seizureReport(o: { eeg1: Float32Array; eeg2: Float32Array; emg: 
   for (let i = end + 5 * fs; i + fs <= sEnd; i += fs) c.push(corr(e1, e2, i, i + fs));
   let coh: number | null = null, ttc: number | null = null;
   for (let k = 0; k + 5 <= c.length; k++) { const m = c.slice(k, k + 5).reduce((s, x) => s + x, 0) / 5; if (coh == null || m > coh) { coh = m; ttc = 5 + k + 2.5; } }
-  return { eegEndpoint: ep, emgEndpoint: emgEnd, asei, psi, msp, timeToPeakPower: ttp, coherence: coh == null ? null : Math.max(0, 100 * coh), timeToPeakCoherence: ttc };
+  /* the midictal amplitude: the device does not measure it (owner, 2026-11-01); the seizure adequacy markers score reads
+     the wave amplitude off the strip (Minelli 2016). Here: the median of each second's peak-to-trough on channel 1 (raw,
+     as printed) over ECT.midictalWindow seconds centred on the middle of the EEG seizure */
+  let midictal: number | null = null;
+  if (ep != null) {
+    const mid = end + Math.round((ep / 2) * fs), half = Math.round((ECT.midictalWindow / 2) * fs), pp: number[] = [];
+    for (let i = Math.max(end, mid - half); i + fs <= Math.min(sEnd, mid + half); i += fs) { let lo = Infinity, hi = -Infinity; for (let j = i; j < i + fs; j++) { lo = Math.min(lo, o.eeg1[j]); hi = Math.max(hi, o.eeg1[j]); } pp.push(hi - lo); }
+    if (pp.length) { pp.sort((a, b) => a - b); midictal = pp[Math.floor(pp.length / 2)]; }
+  }
+  return { eegEndpoint: ep, emgEndpoint: emgEnd, asei, psi, msp, timeToPeakPower: ttp, coherence: coh == null ? null : Math.max(0, 100 * coh), timeToPeakCoherence: ttc, midictal };
 }
 
 /** Whether the ictal line is printed for each second after the stimulus: the area rate above the baseline's. */
