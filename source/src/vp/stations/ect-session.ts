@@ -78,35 +78,45 @@ function spotVector(s: Spot): [number, number, number] {
 }
 export interface Lead { black: Spot | null; red: Spot | null }
 export interface Montage { ch: [Lead, Lead, Lead, Lead]; ground: Spot | null }
-/** the montage as the owner's hospital places it, within the manual's rules: EEG channel 1 left and 2 right, red above
-    the eyebrow and black (the reference) on the mastoid of the same side; EMG two on the cuffed (right) forearm; ECG
-    black below the right clavicle, red at the apex (lower left chest, so the QRS is upright, as lead II); the green
-    ground below the left clavicle */
+/** the manual's montage, which the model's fits use: EEG channel 1 left and 2 right, black above the eyebrow and red on
+    the mastoid of the same side; EMG two on the cuffed (right) forearm; ECG black below the right clavicle, red at the
+    apex (so the QRS is upright, as lead II); the green ground below the left clavicle */
 export const STANDARD_MONTAGE: Montage = {
-  ch: [{ black: 'M1', red: 'Fp1' }, { black: 'M2', red: 'Fp2' }, { black: 'foreR1', red: 'foreR2' }, { black: 'chestUR', red: 'chestLL' }],
+  ch: [{ black: 'Fp1', red: 'M1' }, { black: 'Fp2', red: 'M2' }, { black: 'foreR1', red: 'foreR2' }, { black: 'chestUR', red: 'chestLL' }],
+  ground: 'chestUL',
+};
+/** as the owner's hospital places them (its in-house procedure, 2026-10): the same, but channel 1 on the right and 2 on
+    the left */
+export const HOSPITAL_MONTAGE: Montage = {
+  ch: [{ black: 'Fp2', red: 'M2' }, { black: 'Fp1', red: 'M1' }, { black: 'foreR1', red: 'foreR2' }, { black: 'chestUR', red: 'chestLL' }],
   ground: 'chestUL',
 };
 export const EMPTY_MONTAGE = (): Montage => ({ ch: [{ black: null, red: null }, { black: null, red: null }, { black: null, red: null }, { black: null, red: null }], ground: null });
 /** what is wrong with a montage, channel by channel (empty: nothing). The manual ("Monitoring electrodes application"):
-    EEG one electrode above the eyebrow and one on the mastoid of the same side, channel 1 left and 2 right, the polarity
-    the same on both sides (either way round; reversed on one side only is wrong: owner, 2026-10-31); EMG two on the cuffed
+    EEG one electrode above the eyebrow and one on the mastoid of the same side, channels 1 and 2 on opposite sides (the
+    manual has 1 on the left, the owner's hospital on the right), the polarity the same on both sides (either way round;
+    reversed on one side only is wrong: owner, 2026-10-31); EMG two on the cuffed
     limb and ECG two on the chest above and below the heart, both "in any order of polarity"; the ground on a shoulder or
     below a clavicle (owner) where no ECG lead is. */
 export function montageProblems(m: Montage): Array<{ ch: 1 | 2 | 3 | 4 | 'ground'; kind: 'missing' | 'wrong' | 'reversed' }> {
   const out: Array<{ ch: 1 | 2 | 3 | 4 | 'ground'; kind: 'missing' | 'wrong' | 'reversed' }> = [];
   const upper = (x: Spot) => x === 'chestUR' || x === 'chestUL', lower = (x: Spot) => x === 'chestLR' || x === 'chestLL';
-  const eeg: Array<'red-front' | 'black-front' | null> = [null, null];
+  const eeg: Array<'red-front' | 'black-front' | null> = [null, null], sides: Array<string | null> = [null, null];
   m.ch.forEach((l, k) => {
     const ch = (k + 1) as 1 | 2 | 3 | 4;
     if (!l.black || !l.red) { out.push({ ch, kind: 'missing' }); return; }
     const pair = [l.black, l.red];
     if (k === 2) { if (!pair.every((x) => SPOT_KIND[x] === 'foreR')) out.push({ ch, kind: 'wrong' }); return; }
     if (k === 3) { if (!(pair.some(upper) && pair.some(lower))) out.push({ ch, kind: 'wrong' }); return; }
-    const front = k === 0 ? 'Fp1' : 'Fp2', mast = k === 0 ? 'M1' : 'M2';
-    if (l.red === front && l.black === mast) eeg[k] = 'red-front';
-    else if (l.black === front && l.red === mast) eeg[k] = 'black-front';
-    else out.push({ ch, kind: 'wrong' });
+    /* one electrode above an eyebrow, one on the mastoid of the same side; channel 1 and 2 on opposite sides */
+    const side = (x: Spot) => (x === 'Fp1' || x === 'M1' ? 'L' : x === 'Fp2' || x === 'M2' ? 'R' : null);
+    const front = (x: Spot) => x === 'Fp1' || x === 'Fp2', mast = (x: Spot) => x === 'M1' || x === 'M2';
+    const okPair = side(l.black) && side(l.black) === side(l.red) && ((front(l.black) && mast(l.red)) || (mast(l.black) && front(l.red)));
+    if (!okPair) { out.push({ ch, kind: 'wrong' }); return; }
+    eeg[k] = front(l.black) ? 'black-front' : 'red-front';
+    sides[k] = side(l.black);
   });
+  if (sides[0] && sides[1] && sides[0] === sides[1]) out.push({ ch: 2, kind: 'wrong' });
   if (eeg[0] && eeg[1] && eeg[0] !== eeg[1]) out.push({ ch: 2, kind: 'reversed' });
   const g = m.ground, ecg = [m.ch[3].black, m.ch[3].red];
   if (!g) out.push({ ch: 'ground', kind: 'missing' });

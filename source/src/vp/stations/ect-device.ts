@@ -302,7 +302,9 @@ export class EctDevice {
   /** the 4-character display */
   get right(): string {
     if (!this.on || this.booting) return '';
-    if (this.percentPressed) return PROGRAM_NAMES[this.settings.program].replace('LOW ', 'L').slice(0, 4);
+    /* pressed, PERCENT ENERGY shows the program; with doses up to 200 % (2X, where CE rules allow: the manual, Addendum VII)
+       the usual 0.5 ms program shows as "2x" (the owner's hospital's check of the settings) */
+    if (this.percentPressed) return this.settings.maxPercent === 200 && this.settings.program === 'LOW_05' ? '2x' : PROGRAM_NAMES[this.settings.program].replace('LOW ', 'L').slice(0, 4);
     const s = this.stimulusNow;
     if (!s) return '>8 S';
     if (this.t < this.chargeShownUntil) return String(Math.round(CHARGE_MC[this.settings.percentIndex]));

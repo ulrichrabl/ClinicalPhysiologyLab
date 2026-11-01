@@ -214,7 +214,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
   const run = (order, mode, roles, learner = () => {}, opts = {}) => {
     const s = new S.EctSession({ placement: order.placement, prepared: true, skin: opts.skin ?? 0, seed: 7 });
     const p = new S.Procedure(s, order, mode, roles);
-    for (let k = 0; k < 600 / 0.05 && !p.finished; k++) {
+    for (let k = 0; k < 900 / 0.05 && !p.finished; k++) {   // the in-house procedure takes about 10 min
       s.advance(0.05); p.tick(0.05); learner(p, s);
       if (p.waitingForNext) p.next();
     }
@@ -341,15 +341,18 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
   {
     /* the leads, placed by the learner: each channel is its red lead's potential minus its black lead's */
     const mk = (edit) => { const s = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }); edit(s.montage); s.advance(4); return s; };
-    const a = mk(() => {}), b = mk((m) => { m.ch[0] = { black: 'Fp1', red: 'M1' }; }), c = mk((m) => { m.ch[1].red = null; }), g = mk((m) => { m.ground = null; });
+    const a = mk(() => {}), b = mk((m) => { m.ch[0] = { black: 'M1', red: 'Fp1' }; }), c = mk((m) => { m.ch[1].red = null; }), g = mk((m) => { m.ground = null; });
     let inv = 0, flat = 0, hum = 0, same = 0;
     for (let i = 0; i < a.rec.n; i++) { inv = Math.max(inv, Math.abs(a.rec.eeg1[i] + b.rec.eeg1[i])); flat = Math.max(flat, Math.abs(c.rec.eeg2[i])); hum = Math.max(hum, Math.abs(g.rec.eeg1[i] - a.rec.eeg1[i])); same = Math.max(same, Math.abs(b.rec.eeg2[i] - a.rec.eeg2[i])); }
     ok('a channel is red minus black: swapping a channel’s leads inverts it and leaves the others alone; a lead not on gives no channel; without the ground the mains (50 Hz) is on every channel', inv < 1e-9 && same < 1e-9 && flat === 0 && Math.abs(hum - S.ECT.mainsHum) < 1, J({ inv, same, flat, hum }));
     let hi = 0, lo = 0; for (let i = 0; i < a.rec.n; i++) { hi = Math.max(hi, a.rec.ecg[i]); lo = Math.min(lo, a.rec.ecg[i]); }
     ok('channel 4 from below the right clavicle (black) to the left lower chest (red): the QRS is upright, of a monitor lead’s size (0.5–2.5 mV)', hi > -lo && hi > 500 && hi < 2500, J({ hi, lo }));
     const std = structuredClone(S.STANDARD_MONTAGE);
-    const rev = S.montageProblems({ ...std, ch: [{ black: 'Fp1', red: 'M1' }, ...std.ch.slice(1)] });
-    const both = S.montageProblems({ ...std, ch: [{ black: 'Fp1', red: 'M1' }, { black: 'Fp2', red: 'M2' }, ...std.ch.slice(2)] });
+    const rev = S.montageProblems({ ...std, ch: [{ black: 'M1', red: 'Fp1' }, ...std.ch.slice(1)] });
+    const both = S.montageProblems({ ...std, ch: [{ black: 'M1', red: 'Fp1' }, { black: 'M2', red: 'Fp2' }, ...std.ch.slice(2)] });
+    const hosp = S.montageProblems(S.HOSPITAL_MONTAGE);
+    const sameSide = S.montageProblems({ ...std, ch: [std.ch[0], { black: 'Fp1', red: 'M1' }, ...std.ch.slice(2)] });
+    ok('channel 1 may be on the right (the owner’s hospital) or the left (the manual), but channels 1 and 2 not on the same side', !hosp.length && sameSide.length === 1 && sameSide[0].ch === 2, J({ hosp, sameSide }));
     const tp = S.montageProblems({ ...std, ch: [{ black: 'F7', red: 'Fp1' }, ...std.ch.slice(1)] });
     ok('the leads are checked as the manual and the owner’s hospital place them: the hospital’s montage has no problem; the EEG either way round on both sides is fine, one side reversed is named; a channel 1 not on the mastoid is wrong; an empty montage misses all four channels and the ground', !S.montageProblems(S.STANDARD_MONTAGE).length && !both.length && rev.length === 1 && rev[0].ch === 2 && rev[0].kind === 'reversed' && tp.length === 1 && tp[0].kind === 'wrong' && S.montageProblems(S.EMPTY_MONTAGE()).length === 5, J({ rev, both, tp }));
     const any = S.montageProblems({ ch: [S.STANDARD_MONTAGE.ch[0], S.STANDARD_MONTAGE.ch[1], { black: 'foreR2', red: 'foreR1' }, { black: 'chestLR', red: 'chestUL' }], ground: 'shoulderL' });
