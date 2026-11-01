@@ -244,7 +244,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const order = S.ECT_ORDERS[0];
     const { p } = run(order, 'practise', ['anaesthetist'], (q) => { const c = q.current(); if (c && q.waitFor(c) <= 0) q.act(c); });
     const mine = S.STEPS.filter((x) => x.role === 'anaesthetist').every((x) => p.done.get(x.id)?.by === 'you');
-    const theirs = S.STEPS.filter((x) => x.role !== 'anaesthetist').every((x) => p.done.get(x.id)?.by === x.role);
+    const theirs = S.STEPS.filter((x) => x.role !== 'anaesthetist' && (p.needsRestim || !S.RESTIM_STEPS.includes(x.id))).every((x) => p.done.get(x.id)?.by === x.role);
     ok('practise as the anaesthetist: your steps are yours, the psychiatrist works the device and the patient’s skin, in order, without a mistake', p.finished && mine && theirs && inOrder(p) && !p.errors.length, J({ errors: p.errors.map((e) => e.code), log: p.log.map((l) => `${l.who}:${l.step}`) }));
   }
   {
