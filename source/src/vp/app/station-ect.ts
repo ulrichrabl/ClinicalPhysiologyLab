@@ -1,4 +1,4 @@
-import { sams, SAMS_NOTE, type Sams } from '../stations/ect-sams.ts';
+import { SAMS_NOTE } from '../stations/ect-sams.ts';
 import { tr, type LocalizedText } from '../model/i18n.ts';
 import type { Lang } from './diagrams.ts';
 import { type StationHandle, type StationOptions } from './station-ecg.ts';
@@ -105,6 +105,14 @@ const T: Record<string, LocalizedText> = {
   ubWidth: L('Ultrabrief pulse', 'Ultrakurzpuls'),
   serviceNote: L('As the device was set up: the manual offers doses up to 200 % where CE rules allow, and the ultrabrief programs with 0.25 or 0.3 ms pulses. Your hospital: 2X.', 'Wie das Gerät eingerichtet ist: Das Handbuch bietet Dosen bis 200 %, wo CE-Regeln es erlauben, und die Ultrakurzpuls-Programme mit 0,25 oder 0,3 ms. Ihr Haus: 2X.'),
   samsTitle: L('Seizure quality (SAMS)', 'Anfallsqualität (SAMS)'),
+  samsAsk: L('Tick each marker the report and the strip show. The midictal amplitude: read it off the strip.', 'Jeden Marker ankreuzen, den Bericht und Streifen zeigen. Die midiktale Amplitude: vom Streifen ablesen.'),
+  samsDecide: L('Decision', 'Entscheidung'),
+  samsBand_good: L('4–5: good; no restimulation', '4–5: gut; keine Re-Stimulation'),
+  samsBand_medium: L('2–3: medium; no restimulation, raise the dose next time', '2–3: mittel; keine Re-Stimulation, Dosis nächstes Mal erhöhen'),
+  samsBand_poor: L('0–1: poor; a restimulation may follow', '0–1: schlecht; Re-Stimulation möglich'),
+  samsCheck: L('Check', 'Prüfen'), samsPick: L('Choose a decision.', 'Entscheidung wählen.'),
+  samsYours: L('yours', 'Ihre'), samsYouSaid: L('you said', 'Sie:'), samsRated: L('Rated; the check comes in the debrief.', 'Bewertet; die Prüfung folgt in der Nachbesprechung.'),
+  samsBandWrong: L('Your decision does not fit the score.', 'Ihre Entscheidung passt nicht zum Score.'),
   headAboveLeads: L('Head from above: the EEG leads', 'Kopf von oben: die EEG-Ableitungen'),
   atDevice: L('Device', 'Gerät'), seizure: L('Seizure', 'Anfall'),
   scene: L('The patient', 'Der Patient'), headRight: L('Head from the right', 'Kopf von rechts'), headAbove: L('Head from above: choose two sites', 'Kopf von oben: zwei Stellen wählen'), headAboveDone: L('Head from above', 'Kopf von oben'),
@@ -176,7 +184,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     session = new EctSession(patient, DEFAULT_SETTINGS);
     proc = new Procedure(session, order(), mode, roles());
     padSites = []; padMsg = ''; sceneAt = -1; armed = LEADS[0];
-    seized = false; hurry = false; follow = true; scrollX = 0; givenList = []; printedReports.clear(); samsAt.clear(); baseCache = null;
+    seized = false; hurry = false; follow = true; scrollX = 0; givenList = []; printedReports.clear(); baseCache = null;
     render();
   };
 
@@ -282,7 +290,6 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
   };
   /* the report's text is fixed when it is printed */
   const printedReports = new Map<number, string[]>();
-  const samsAt = new Map<number, Sams>();
 
   const drawStripNow = () => {
     const c = host.querySelector<HTMLCanvasElement>('[data-strip]');
@@ -322,12 +329,34 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     if (!el) return;
     const k = [...session.paper.keys()].reverse().find((i) => session.paper[i].kind === 'report');
     const lines = k != null ? printedReports.get(k) : null;
-    /* the seizure adequacy markers score from the report and the strip (the owner's hospital), kept as printed */
-    if (k != null && !samsAt.has(k)) { const r = session.lastReport(); if (r) samsAt.set(k, sams({ eegEndpoint: r.eegEndpoint, psi: r.psi, coherence: r.coherence, midictal: r.midictal, peakHr: r.peakHr })); }
-    const sm = k != null ? samsAt.get(k) : null;
-    const samsHtml = sm ? `<div class="ect-sams"><h4>${t('samsTitle')}: ${sm.points}/5</h4><ul>${sm.items.map((x) => `<li class="${x.point ? 'on' : ''}">${x.point ? '✓' : '○'} ${esc(tr(x.label, lang))}: <b>${esc(x.value)}</b></li>`).join('')}</ul><p><b>${esc(tr(sm.advice, lang))}</b></p><p class="muted small">${esc(tr(SAMS_NOTE, lang))}</p></div>` : '';
+    /* the seizure adequacy markers score: rated by the learner from the report and the strip, then checked against them */
+    let samsHtml = '';
+    const truth = k != null ? proc.samsTruth() : null;
+    if (truth && proc.isDone('sams')) {
+      const mine = proc.samsRating, mineYou = proc.done.get('sams')?.by === 'you';
+      if (mode === 'exam' && !proc.finished) samsHtml = `<div class="ect-sams"><p>${t('samsRated')}</p></div>`;
+      else samsHtml = `<div class="ect-sams"><h4>${t('samsTitle')}: ${truth.points}/5${mineYou && mine ? ` <span class="muted small">(${t('samsYours')}: ${mine.points.filter(Boolean).length}/5)</span>` : ''}</h4><ul>${truth.items.map((x, i) => {
+          const agree = !mineYou || !mine || mine.points[i] === x.point;
+          return `<li class="${x.point ? 'on' : ''}${agree ? '' : ' bad'}">${x.point ? '✓' : '○'} ${esc(tr(x.label, lang))}: <b>${esc(x.value)}</b>${agree ? '' : ` — ${t('samsYouSaid')} ${mine!.points[i] ? '✓' : '○'}`}</li>`; }).join('')}</ul>`
+        + (mineYou && mine && mine.band !== truth.band ? `<p class="ect-err">${t('samsBandWrong')}</p>` : '')
+        + `<p><b>${esc(tr(truth.advice, lang))}</b></p><p class="muted small">${esc(tr(SAMS_NOTE, lang))}</p></div>`;
+    } else if (truth && proc.mine('sams') && proc.open('sams')) {
+      samsHtml = `<form class="ect-sams" data-samsform><h4>${t('samsTitle')}</h4><p class="muted small">${t('samsAsk')}</p><ul>${truth.items.map((x, i) => `<li><label><input type="checkbox" data-sams-i="${i}"> ${esc(tr(x.label, lang))}</label></li>`).join('')}</ul>
+        <fieldset><legend class="small">${t('samsDecide')}</legend>${(['good', 'medium', 'poor'] as const).map((b) => `<label class="small"><input type="radio" name="sams-band" value="${b}"> ${t(`samsBand_${b}`)}</label>`).join('<br>')}</fieldset>
+        <button type="submit" class="primary small">${t('samsCheck')}</button> <span class="muted small" data-samsmsg></span></form>`;
+    }
     const html = lines ? `<pre class="ect-report">${lines.map(esc).join('\n')}</pre>${samsHtml}` : `<p class="muted small">${t('noReport')}</p>`;
-    if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
+    if (el.dataset.html !== html) {
+      el.innerHTML = html; el.dataset.html = html;
+      const f = el.querySelector<HTMLFormElement>('[data-samsform]');
+      if (f) f.onsubmit = (e) => {
+        e.preventDefault();
+        const band = (f.querySelector('input[name="sams-band"]:checked') as HTMLInputElement | null)?.value as 'good' | 'medium' | 'poor' | undefined;
+        if (!band) { const m = f.querySelector<HTMLElement>('[data-samsmsg]'); if (m) m.textContent = t('samsPick'); return; }
+        const points = Array.from(f.querySelectorAll<HTMLInputElement>('[data-sams-i]'), (x) => x.checked);
+        proc.act('sams', 'you', { sams: { points, band } }); drawProcedure(); drawReport();
+      };
+    }
   };
 
   /* ---- what happens now -------------------------------------------------------------------------------------- */
@@ -457,7 +486,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
       </div>`;
     if (mode === 'watch') return `${pic}<p class="muted">${t('roomWatch')}</p>`;
     const mine = STEPS.filter((x) => x.kind === 'room' && proc.mine(x.id));
-    const btn = (id: StepId) => id === 'pads' ? ''
+    const btn = (id: StepId) => id === 'pads' || id === 'sams' ? ''
       : id === 'cuff' ? `<div class="ect-cuffctl"><b>${t('cuffL')}</b> <button type="button" class="ghost small" data-cuff="squeeze">${t('squeezeBtn')}</button><button type="button" class="ghost small" data-cuff="down">${t('deflateBtn')}</button><button type="button" class="ghost small ect-act" data-act="cuff">${t('cuffUpBtn')}</button> <span class="muted small" data-cuffnow></span></div>`
       : id === 'leads' ? `<div class="ect-leadctl"><b>${esc(tr(STEP.leads.title, lang))}</b><p class="muted small">${t('cableHint')}</p><svg viewBox="0 0 300 134" class="ect-cable" data-tray role="group" aria-label="${t('cableL')}"></svg><p class="muted small">${t('chLegend')}</p><div class="ect-seg" role="group"><button type="button" class="ghost small" data-pview="head">${t('viewHead')}</button><button type="button" class="ghost small" data-pview="body">${t('viewBody')}</button></div><svg class="ect-place" data-place role="group" aria-label="${t('placeL')}"></svg><p class="muted small" data-leadmsg></p><button type="button" class="ghost ect-act" data-act="leads">${t('plugIn')}</button><button type="button" class="ghost small" data-fist>${t('fist')}</button></div>`
       : `<button type="button" class="ghost ect-act" data-act="${id}">${esc(tr(STEP[id].title, lang))}</button>`;

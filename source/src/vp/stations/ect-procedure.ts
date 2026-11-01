@@ -6,6 +6,7 @@ import type { ProgramChoice } from './ect-device.ts';
 import { PROGRAM_NAMES } from './ect-device.ts';
 import type { EctSession, Spot } from './ect-session.ts';
 import { HOSPITAL_MONTAGE, EMPTY_MONTAGE, montageProblems } from './ect-session.ts';
+import { sams, type Sams } from './ect-sams.ts';
 
 /* ===========================================================================
    The ECT treatment as a procedure (owner, 2026-10-30): the team's steps in
@@ -42,7 +43,7 @@ export const ECT_ROLES: readonly EctRole[] = ['psychiatrist', 'anaesthetist'];
 export type EctMode = 'practise' | 'watch' | 'exam';
 
 export type StepId = 'check' | 'premed' | 'brakes' | 'power' | 'paper' | 'cuffOn' | 'skinEeg' | 'leads' | 'strip' | 'skin' | 'pads' | 'impedance' | 'dose'
-  | 'oxygen' | 'induction' | 'cuff' | 'biteBlock' | 'ventilate' | 'relaxant' | 'precheck' | 'treat' | 'observe' | 'report' | 'recovery';
+  | 'oxygen' | 'induction' | 'cuff' | 'biteBlock' | 'ventilate' | 'relaxant' | 'precheck' | 'treat' | 'observe' | 'report' | 'sams' | 'recovery';
 
 const L = (en: string, de: string): LocalizedText => ({ en, de });
 
@@ -244,6 +245,11 @@ export const STEPS: readonly StepDef[] = [
     how: L('Once the spikes and spike-waves have given way to a settled, near-flat postictal suppression, record at least 5 s more, then press START/STOP.', 'Wenn Polyspikes und Spike-Wave-Muster in eine konstante, fast flache postiktale Suppression übergegangen sind, noch mindestens 5 s ableiten, dann START/STOP.'),
     why: L('The device needs that time for its analysis; the report gives the stimulus and the seizure indices.', 'Das Gerät braucht die Zeit für die Analyse; der Bericht enthält Stimulus- und Anfallsparameter.'),
     says: L('Report printed.', 'Bericht gedruckt.') },
+  { id: 'sams', role: 'psychiatrist', kind: 'room', modelled: true, after: ['report'],
+    title: L('Rate the seizure (SAMS)', 'Anfall bewerten (SAMS)'),
+    how: L('From the report and the strip: one point each for an EEG seizure over 25 s, PSI over 80 %, coherence over 90 %, a midictal amplitude over 180 µV (read it off the strip), a peak heart rate over 120/min. Then decide.', 'Aus Bericht und Streifen: je ein Punkt für EEG-Anfall über 25 s, PSI über 80 %, Kohärenz über 90 %, midiktale Amplitude über 180 µV (vom Streifen ablesen), maximale Herzfrequenz über 120/min. Dann entscheiden.'),
+    why: L('The score decides: no restimulation, a higher dose next time, or a restimulation now.', 'Der Score entscheidet: keine Re-Stimulation, höhere Dosis beim nächsten Mal oder jetzt Re-Stimulation.'),
+    says: L('Seizure rated.', 'Anfall bewertet.') },
   { id: 'recovery', role: 'anaesthetist', kind: 'room', modelled: true, after: ['observe'],
     title: L('Recover the patient', 'Patienten ausleiten'),
     how: L('Ventilate until breathing returns; cuff down.', 'Beatmen bis zur Spontanatmung; Manschette ab.'),
@@ -255,7 +261,7 @@ export const STEP: Record<StepId, StepDef> = Object.fromEntries(STEPS.map((s) =>
 /** a mistake the procedure noticed, at the moment it happened */
 export interface ProcedureError { t: number; code: ErrorCode; step: StepId; text: LocalizedText }
 export type ErrorCode = 'awake-stimulus' | 'unmodified' | 'early-stimulus' | 'no-bite-block' | 'no-impedance' | 'impedance-out' | 'wrong-dose' | 'wrong-pads'
-  | 'no-leads' | 'montage' | 'cuff-range' | 'no-strip' | 'no-brakes' | 'no-paper' | 'no-precheck' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
+  | 'no-leads' | 'montage' | 'sams-items' | 'sams-decision' | 'cuff-range' | 'no-strip' | 'no-brakes' | 'no-paper' | 'no-precheck' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
 
 const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'awake-stimulus': L('Stimulus before anaesthesia.', 'Reiz vor der Narkose.'),
@@ -268,6 +274,8 @@ const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'wrong-pads': L('Pads not at the ordered placement.', 'Elektroden nicht an der angeordneten Position.'),
   'no-leads': L('Stimulus without EEG and ECG.', 'Reiz ohne EEG und EKG.'),
   montage: L('Leads not as the manual places them.', 'Ableitungen nicht wie im Handbuch.'),
+  'sams-items': L('SAMS: an item scored differently from the report and the strip.', 'SAMS: ein Punkt anders bewertet als Bericht und Streifen.'),
+  'sams-decision': L('SAMS: the wrong decision for the score.', 'SAMS: falsche Entscheidung für den Score.'),
   'cuff-range': L('Cuff not at 220–240 mmHg at the relaxant.', 'Manschette beim Relaxans nicht bei 220–240 mmHg.'),
   'no-strip': L('Stimulus without the awake check strip.', 'Reiz ohne Kontrollaufzeichnung im Wachzustand.'),
   'no-brakes': L('Stimulus with the device’s brakes off.', 'Reiz bei nicht festgestelltem Gerät.'),
@@ -352,7 +360,7 @@ export class Procedure {
   /** the learner's next step: what the coach talks about */
   current(): StepId | null { return this.myOpen()[0] ?? null; }
   /** the treatment is over: the report is printed and the patient recovered */
-  get finished() { return this.isDone('report') && this.isDone('recovery'); }
+  get finished() { return this.isDone('report') && this.isDone('sams') && this.isDone('recovery'); }
   /** time may run faster: nothing is the learner's to do just now (they wait for the team, a drug or the seizure) */
   get canHurry(): boolean {
     if (this.open('observe') && this.isDone('treat')) return true;
@@ -370,12 +378,24 @@ export class Procedure {
 
   /* ---- the learner's room actions ------------------------------------------------------------------------------- */
   /** do a room step now (the learner's hands, or the team's) */
-  act(id: StepId, by: Who = 'you', opts: { placement?: PlacementId } = {}) {
+  /** the score as the device's report and the strip give it (null before a report) */
+  samsTruth(): Sams | null { const r = this.session.lastReport(); return r ? sams({ eegEndpoint: r.eegEndpoint, psi: r.psi, coherence: r.coherence, midictal: r.midictal, peakHr: r.peakHr }) : null; }
+  /** the learner's rating: which items scored, and the decision; checked against the report */
+  samsRating: { points: boolean[]; band: Sams['band'] } | null = null;
+  act(id: StepId, by: Who = 'you', opts: { placement?: PlacementId; sams?: { points: boolean[]; band: Sams['band'] } } = {}) {
     const s = STEP[id];
     if (s.kind !== 'room' || this.isDone(id)) return;
     const r = this.room, session = this.session;
     switch (id) {
       case 'check': r.checked = true; break;
+      case 'sams': {
+        const truth = this.samsTruth(); if (!truth) return;
+        const mine = by === 'you' && opts.sams ? opts.sams : { points: truth.items.map((x) => x.point), band: truth.band };
+        this.samsRating = mine;
+        if (mine.points.some((p, i) => p !== truth.items[i].point)) this.err('sams-items', id);
+        if (mine.band !== truth.band) this.err('sams-decision', id);
+        break;
+      }
       case 'brakes': r.brakes = true; break;
       case 'paper': r.paper = true; break;
       case 'skinEeg': r.skinEeg = true; break;
