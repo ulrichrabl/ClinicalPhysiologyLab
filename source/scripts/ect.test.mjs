@@ -398,6 +398,10 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const sc = S.sams({ eegEndpoint: r.eegEndpoint, psi: r.psi, coherence: r.coherence, midictal: r.midictal, peakHr: r.peakHr });
     ok('the seizure adequacy markers score is read off the report and the strip: five items, the midictal amplitude measured on channel 1 (the device prints none)', sc.items.length === 5 && r.midictal != null && r.midictal > 0 && sc.points >= 0 && sc.points <= 5 && ['good', 'medium', 'poor'].includes(sc.band),
       J({ points: sc.points, items: sc.items.map((x) => `${x.label.en}: ${x.value}${x.point ? ' ✓' : ''}`) }));
+    /* the learner rates it; the procedure checks the rating against the report and the strip */
+    const good = new S.Procedure(s, S.ECT_ORDERS[0], 'practise', ['psychiatrist']); good.act('sams', 'you', { sams: { points: sc.items.map((x) => x.point), band: sc.band } });
+    const bad = new S.Procedure(s, S.ECT_ORDERS[0], 'practise', ['psychiatrist']); bad.act('sams', 'you', { sams: { points: sc.items.map((x) => !x.point), band: sc.band === 'poor' ? 'good' : 'poor' } });
+    ok('the learner rates the seizure; a rating that matches the report passes, a wrong item and a wrong decision are named', good.isDone('sams') && !good.errors.length && bad.errors.some((e) => e.code === 'sams-items') && bad.errors.some((e) => e.code === 'sams-decision'), J({ good: good.errors.map((e) => e.code), bad: bad.errors.map((e) => e.code) }));
     console.log(`    SAMS on the standard treatment: ${sc.points}/5 — ${sc.items.map((x) => `${x.value}${x.point ? '✓' : ''}`).join(', ')}`);
   }
   const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
