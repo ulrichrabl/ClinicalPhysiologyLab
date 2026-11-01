@@ -1,3 +1,4 @@
+import { sams, SAMS_NOTE, type Sams } from '../stations/ect-sams.ts';
 import { tr, type LocalizedText } from '../model/i18n.ts';
 import type { Lang } from './diagrams.ts';
 import { type StationHandle, type StationOptions } from './station-ecg.ts';
@@ -99,6 +100,11 @@ const T: Record<string, LocalizedText> = {
   leadsAll: L('Place all nine leads first.', 'Erst alle neun Ableitungen anlegen.'),
   ch1: L('EEG left', 'EEG links'), ch2: L('EEG right', 'EEG rechts'), ch3: L('EMG', 'EMG'), ch4: L('ECG', 'EKG'), ground: L('Ground', 'Erde'),
   plugIn: L('Plug in', 'Einstecken'),
+  service: L('Device setup (service settings)', 'Geräte-Setup (Service-Einstellungen)'),
+  doseRange: L('Dose range', 'Dosisbereich'), upTo100: L('up to 100 %', 'bis 100 %'), upTo200: L('up to 200 % (2X, CE)', 'bis 200 % (2X, CE)'),
+  ubWidth: L('Ultrabrief pulse', 'Ultrakurzpuls'),
+  serviceNote: L('As the device was set up: the manual offers doses up to 200 % where CE rules allow, and the ultrabrief programs with 0.25 or 0.3 ms pulses. Your hospital: 2X.', 'Wie das Gerät eingerichtet ist: Das Handbuch bietet Dosen bis 200 %, wo CE-Regeln es erlauben, und die Ultrakurzpuls-Programme mit 0,25 oder 0,3 ms. Ihr Haus: 2X.'),
+  samsTitle: L('Seizure quality (SAMS)', 'Anfallsqualität (SAMS)'),
   headAboveLeads: L('Head from above: the EEG leads', 'Kopf von oben: die EEG-Ableitungen'),
   atDevice: L('Device', 'Gerät'), seizure: L('Seizure', 'Anfall'),
   scene: L('The patient', 'Der Patient'), headRight: L('Head from the right', 'Kopf von rechts'), headAbove: L('Head from above: choose two sites', 'Kopf von oben: zwei Stellen wählen'), headAboveDone: L('Head from above', 'Kopf von oben'),
@@ -170,7 +176,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     session = new EctSession(patient, DEFAULT_SETTINGS);
     proc = new Procedure(session, order(), mode, roles());
     padSites = []; padMsg = ''; sceneAt = -1; armed = LEADS[0];
-    seized = false; hurry = false; follow = true; scrollX = 0; givenList = []; printedReports.clear(); baseCache = null;
+    seized = false; hurry = false; follow = true; scrollX = 0; givenList = []; printedReports.clear(); samsAt.clear(); baseCache = null;
     render();
   };
 
@@ -272,10 +278,11 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     return reportLines({ percent: st.percent, charge: st.given.charge, current: ECT.current, duration: st.given.duration, frequency: st.given.frequency, pulseWidth: st.given.pulseWidth,
       staticOhm: st.staticOhm, dynamicOhm: st.dynamicOhm, early: st.early, baselineAvailable: r.baselineAvailable, eegEndpoint: r.eegEndpoint, emgEndpoint: r.emgEndpoint,
       baseHr: r.baseHr, peakHr: r.peakHr, asei: r.asei, psi: r.psi, msp: r.msp, ttp: r.timeToPeakPower, coh: r.coherence, ttc: r.timeToPeakCoherence,
-      program: PROGRAM_REPORT[st.program], indexes: session.device.settings.indexes });
+      program: st.program === 'LOW_UB' && session.device.settings.ultrabrief === 0.3 ? 'Low 0.3 charge rate' : PROGRAM_REPORT[st.program], indexes: session.device.settings.indexes });
   };
   /* the report's text is fixed when it is printed */
   const printedReports = new Map<number, string[]>();
+  const samsAt = new Map<number, Sams>();
 
   const drawStripNow = () => {
     const c = host.querySelector<HTMLCanvasElement>('[data-strip]');
@@ -315,7 +322,12 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     if (!el) return;
     const k = [...session.paper.keys()].reverse().find((i) => session.paper[i].kind === 'report');
     const lines = k != null ? printedReports.get(k) : null;
-    el.innerHTML = lines ? `<pre class="ect-report">${lines.map(esc).join('\n')}</pre>` : `<p class="muted small">${t('noReport')}</p>`;
+    /* the seizure adequacy markers score from the report and the strip (the owner's hospital), kept as printed */
+    if (k != null && !samsAt.has(k)) { const r = session.lastReport(); if (r) samsAt.set(k, sams({ eegEndpoint: r.eegEndpoint, psi: r.psi, coherence: r.coherence, midictal: r.midictal, peakHr: r.peakHr })); }
+    const sm = k != null ? samsAt.get(k) : null;
+    const samsHtml = sm ? `<div class="ect-sams"><h4>${t('samsTitle')}: ${sm.points}/5</h4><ul>${sm.items.map((x) => `<li class="${x.point ? 'on' : ''}">${x.point ? '✓' : '○'} ${esc(tr(x.label, lang))}: <b>${esc(x.value)}</b></li>`).join('')}</ul><p><b>${esc(tr(sm.advice, lang))}</b></p><p class="muted small">${esc(tr(SAMS_NOTE, lang))}</p></div>` : '';
+    const html = lines ? `<pre class="ect-report">${lines.map(esc).join('\n')}</pre>${samsHtml}` : `<p class="muted small">${t('noReport')}</p>`;
+    if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
   };
 
   /* ---- what happens now -------------------------------------------------------------------------------------- */
@@ -409,6 +421,10 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
         <section class="panel st-signal" aria-labelledby="ect-dev-h">
           <div class="st-row"><div><h2 id="ect-dev-h">${t('device')}</h2><div class="muted small">${t('deviceNote')}</div></div></div>
           ${panelHtml()}
+          <details class="ect-service"><summary class="small">${t('service')}</summary>
+            <label class="small">${t('doseRange')} <select data-maxpct><option value="100" ${session.device.settings.maxPercent === 100 ? 'selected' : ''}>${t('upTo100')}</option><option value="200" ${session.device.settings.maxPercent === 200 ? 'selected' : ''}>${t('upTo200')}</option></select></label>
+            <label class="small">${t('ubWidth')} <select data-ubw><option value="0.25" ${session.device.settings.ultrabrief === 0.25 ? 'selected' : ''}>0.25 ms</option><option value="0.3" ${session.device.settings.ultrabrief === 0.3 ? 'selected' : ''}>0.3 ms</option></select></label>
+            <p class="muted small">${t('serviceNote')}</p></details>
         </section>
         <section class="panel st-signal" aria-labelledby="ect-strip-h">
           <div class="st-row"><div><h2 id="ect-strip-h">${t('strip')}</h2><div class="muted small">${t('stripNote')}</div></div>
@@ -654,6 +670,8 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     hold('[data-treat]', (down) => { if (proc.room.coverUp) d().treatButton(down); });
     host.querySelector('[data-cover]')!.addEventListener('click', () => { proc.room.coverUp = !proc.room.coverUp; if (!proc.room.coverUp) d().treatButton(false); updatePanel(); });
     host.querySelector('[data-startstop]')!.addEventListener('click', () => d().startStop());
+    host.querySelector<HTMLSelectElement>('[data-maxpct]')?.addEventListener('change', (e) => { const v = Number((e.target as HTMLSelectElement).value) as 100 | 200; d().settings.maxPercent = v; const max = PERCENT_STEPS.indexOf(v); if (d().settings.percentIndex > max) d().settings.percentIndex = max; });
+    host.querySelector<HTMLSelectElement>('[data-ubw]')?.addEventListener('change', (e) => { d().settings.ultrabrief = Number((e.target as HTMLSelectElement).value) as 0.25 | 0.3; });
     host.querySelector('[data-power]')!.addEventListener('click', () => d().power(!d().on));
     host.querySelectorAll<HTMLButtonElement>('[data-jack]').forEach((b) => b.addEventListener('click', () => {
       if (b.dataset.jack === 'stim') session.setStimulusCable(!session.stimulusCable); else session.monitoringCable = !session.monitoringCable;
@@ -706,7 +724,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
   /* ---- the stimulus view --------------------------------------------------------------------------------------- */
   const renderStim = () => {
     const s = session.device.settings;
-    const stim = stimulusFor(s.program, session.device.percent, s.user);
+    const stim = stimulusFor(s.program, session.device.percent, s.user, s.ultrabrief);
     const doses: RegionDose[] = dosesFor(stimPlacement, stimWidth);
     const f = fieldFor(stimPlacement), th = thresholdField(stimWidth);
     const regionNames = tr(T.regionName, lang).split(',');
@@ -750,8 +768,8 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     wireCommon();
     host.querySelector<HTMLSelectElement>('[data-splace]')!.onchange = (e) => { stimPlacement = (e.target as HTMLSelectElement).value as PlacementId; renderStim(); };
     host.querySelector<HTMLSelectElement>('[data-swidth]')!.onchange = (e) => { stimWidth = Number((e.target as HTMLSelectElement).value); renderStim(); };
-    host.querySelector<HTMLSelectElement>('[data-sprog]')!.onchange = (e) => { session.device.settings.program = (e.target as HTMLSelectElement).value as ProgramChoice; if (stimulusFor(session.device.settings.program, session.device.percent, s.user)) stimWidth = stimulusFor(session.device.settings.program, session.device.percent, s.user)!.pulseWidth; renderStim(); };
-    host.querySelector<HTMLInputElement>('[data-spct]')!.oninput = (e) => { session.device.settings.percentIndex = Number((e.target as HTMLInputElement).value); const x = stimulusFor(session.device.settings.program, session.device.percent, s.user); if (x) stimWidth = x.pulseWidth; renderStim(); };
+    host.querySelector<HTMLSelectElement>('[data-sprog]')!.onchange = (e) => { session.device.settings.program = (e.target as HTMLSelectElement).value as ProgramChoice; if (stimulusFor(session.device.settings.program, session.device.percent, s.user, s.ultrabrief)) stimWidth = stimulusFor(session.device.settings.program, session.device.percent, s.user, s.ultrabrief)!.pulseWidth; renderStim(); };
+    host.querySelector<HTMLInputElement>('[data-spct]')!.oninput = (e) => { session.device.settings.percentIndex = Number((e.target as HTMLInputElement).value); const x = stimulusFor(session.device.settings.program, session.device.percent, s.user, s.ultrabrief); if (x) stimWidth = x.pulseWidth; renderStim(); };
     drawStimFigures(doses, th);
     const key = `${stimPlacement}`;
     if (sectionKey !== key) {

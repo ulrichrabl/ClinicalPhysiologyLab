@@ -16,3 +16,4 @@ export { healthyModel } from '../src/vp/physiology/state.ts';
 export { DRUGS } from '../src/vp/evidence/drugs.ts';
 export * from '../src/vp/stations/ect-procedure.ts';
 export * from '../src/vp/render/ect-scene.ts';
+export * from '../src/vp/stations/ect-sams.ts';

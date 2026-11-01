@@ -37,7 +37,7 @@ export const PULSE_WIDTHS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5];
 export interface Stimulus { frequency: number; pulseWidth: number; pulses: number; charge: number; duration: number }
 
 /** The stimulus a program gives at a percent setting; null where a user setting would take longer than 8 s. */
-export function stimulusFor(program: ProgramChoice, percent: number, user: { frequency: number; pulseWidth: number }): Stimulus | null {
+export function stimulusFor(program: ProgramChoice, percent: number, user: { frequency: number; pulseWidth: number }, ultrabrief: 0.25 | 0.3 = 0.25): Stimulus | null {
   const i = PERCENT_STEPS.indexOf(percent);
   if (i < 0) return null;
   if (program === 'USER') {
@@ -46,7 +46,8 @@ export function stimulusFor(program: ProgramChoice, percent: number, user: { fre
     if (duration > ECT.maxDuration + 0.005) return null;
     return { frequency: user.frequency, pulseWidth: user.pulseWidth, pulses, charge: ECT.current * user.pulseWidth * pulses, duration };
   }
-  const id: ProgramId = program === 'LOWEST' ? 'LOWEST_025' : program === 'LOW_UB' ? 'LOW_025' : program;
+  const ub3 = ultrabrief === 0.3;
+  const id: ProgramId = program === 'LOWEST' ? (ub3 ? 'LOWEST_030' : 'LOWEST_025') : program === 'LOW_UB' ? (ub3 ? 'LOW_030' : 'LOW_025') : program;
   const T = PROGRAM_TABLES[id];
   const s = { frequency: T.frequency[i], pulseWidth: T.pulseWidth[i], pulses: T.pulses[i] };
   return { ...s, charge: ECT.current * s.pulseWidth * s.pulses, duration: program === 'INTERMIT' ? T.duration[i] : s.pulses / (2 * s.frequency) };
@@ -70,10 +71,13 @@ export interface DeviceSettings {
   paper: number;
   /** the highest percent the dial offers: 100, or 200 where the double range is approved (CE regions) */
   maxPercent: 100 | 200;
+  /** the ultrabrief pulse the device was set up with: 0.25 or 0.3 ms (firmware 5.60: "either 0.25 or 0.3 pulsewidths"),
+      for the LOWEST and LOW programs' ultrabrief tables (Addendum VII) */
+  ultrabrief: 0.25 | 0.3;
 }
 
 export const DEFAULT_SETTINGS: DeviceSettings = {
-  program: 'LOW_05', percentIndex: PERCENT_STEPS.indexOf(30), user: { frequency: 30, pulseWidth: 0.5 }, gain: [200, 200], indexes: true, eegFreq: 'OFF', paper: 25, maxPercent: 100,
+  program: 'LOW_05', percentIndex: PERCENT_STEPS.indexOf(30), user: { frequency: 30, pulseWidth: 0.5 }, gain: [200, 200], indexes: true, eegFreq: 'OFF', paper: 25, maxPercent: 100, ultrabrief: 0.25,
 };
 
 export type DeviceEvent =
@@ -126,7 +130,9 @@ export class EctDevice {
   constructor(settings: DeviceSettings = DEFAULT_SETTINGS) { this.settings = structuredClone(settings); }
 
   get percent() { return PERCENT_STEPS[this.settings.percentIndex]; }
-  get stimulusNow(): Stimulus | null { return stimulusFor(this.settings.program, this.percent, this.settings.user); }
+  get stimulusNow(): Stimulus | null { return stimulusFor(this.settings.program, this.percent, this.settings.user, this.settings.ultrabrief); }
+  /** the program's name as this device shows it (its ultrabrief program as LOW 0.3 if it was set up with 0.3 ms) */
+  programName(p: ProgramChoice = this.settings.program) { return p === 'LOW_UB' && this.settings.ultrabrief === 0.3 ? 'LOW 0.3' : PROGRAM_NAMES[p]; }
 
   private emit(e: DeviceEvent) { this.events.push(e); }
   /** take the events since the last call */
@@ -304,7 +310,7 @@ export class EctDevice {
     if (!this.on || this.booting) return '';
     /* pressed, PERCENT ENERGY shows the program; with doses up to 200 % (2X, where CE rules allow: the manual, Addendum VII)
        the usual 0.5 ms program shows as "2x" (the owner's hospital's check of the settings) */
-    if (this.percentPressed) return this.settings.maxPercent === 200 && this.settings.program === 'LOW_05' ? '2x' : PROGRAM_NAMES[this.settings.program].replace('LOW ', 'L').slice(0, 4);
+    if (this.percentPressed) return this.settings.maxPercent === 200 && this.settings.program === 'LOW_05' ? '2x' : this.programName().replace('LOW ', 'L').slice(0, 4);
     const s = this.stimulusNow;
     if (!s) return '>8 S';
     if (this.t < this.chargeShownUntil) return String(Math.round(CHARGE_MC[this.settings.percentIndex]));

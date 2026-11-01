@@ -74,6 +74,16 @@ console.log('\nThe device against its manual');
   ok('FlexDial: press to enter (PROGRAMS), rotate to FREQUENC, press, rotate, press: a user frequency, which leaves the preset program; the impedance button exits', fn0 === 'PROGRAMS' && fn1 === 'FREQUENC' && f.device.settings.program === 'USER' && f.device.settings.user.frequency === 50 && !f.device.flex, J([fn0, fn1, f.device.settings.user]));
 }
 
+{
+  /* the device as it can be set up (the manual): doses up to 200 % where CE rules allow, ultrabrief 0.25 or 0.3 ms */
+  const d = new S.EctDevice({ ...S.DEFAULT_SETTINGS, maxPercent: 200 }); d.power(true); d.tick(6);
+  d.turnPercent(200); const top = d.percent, st = d.stimulusNow;
+  d.pressPercent(true); const shown = d.right; d.pressPercent(false);
+  ok('2X: the dial goes to 200 %, 1008 mC (the manual’s table: 1008 mC), within 8 s; pressed, PERCENT ENERGY shows “2x” for the 0.5 ms program', top === 200 && Math.abs(st.charge - 1008) < 1008 * 0.03 && st.duration <= 8.005 && shown === '2x', J({ top, charge: st.charge, duration: st.duration, shown }));
+  const u3 = S.stimulusFor('LOW_UB', 50, {}, 0.3), u25 = S.stimulusFor('LOW_UB', 50, {}, 0.25);
+  ok('the ultrabrief program set up for 0.3 ms gives 0.3 ms pulses, the same charge as with 0.25 ms (the manual’s tables)', u3.pulseWidth === 0.3 && u25.pulseWidth === 0.25 && Math.abs(u3.charge - u25.charge) < u25.charge * 0.03, J({ u3, u25 }));
+}
+
 console.log('\nThe stimulus in the head (by reciprocity through part 1’s head)');
 const F = Object.fromEntries(['BT', 'BF', 'RUL', 'LART'].map((p) => [p, S.fieldFor(p)]));
 const brainSample = (f, I) => {
@@ -380,6 +390,15 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const e = Math.round((r.stimulus.end + r.eegEndpoint + 5) * S.FS), z = Math.round((r.stimulus.end + r.eegEndpoint + 25) * S.FS);
     const post = 2 * Math.SQRT2 * rms(s.rec.eeg1, e, z);
     ok('after the seizure the relays silence the background: suppressed, under 10 µV (Hirsch 2021), from 5 to 25 s after the EEG endpoint', post < 10, post.toFixed(1));
+  }
+  {
+    /* the seizure adequacy markers score on the standard first treatment (bitemporal, 30 % of LOW 0.5) */
+    const s = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 });
+    s.advance(4); const r = S.scriptedTreatment(s, { program: 'LOW_05', percent: 30, after: 120 });
+    const sc = S.sams({ eegEndpoint: r.eegEndpoint, psi: r.psi, coherence: r.coherence, midictal: r.midictal, peakHr: r.peakHr });
+    ok('the seizure adequacy markers score is read off the report and the strip: five items, the midictal amplitude measured on channel 1 (the device prints none)', sc.items.length === 5 && r.midictal != null && r.midictal > 0 && sc.points >= 0 && sc.points <= 5 && ['good', 'medium', 'poor'].includes(sc.band),
+      J({ points: sc.points, items: sc.items.map((x) => `${x.label.en}: ${x.value}${x.point ? ' ✓' : ''}`) }));
+    console.log(`    SAMS on the standard treatment: ${sc.points}/5 — ${sc.items.map((x) => `${x.value}${x.point ? '✓' : ''}`).join(', ')}`);
   }
   const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
   ok('every step, order, role and mode text exists in English and German', texts.every((x) => x.en && x.de && x.en !== x.de || ['Coach'].includes(x.en)), J(texts.filter((x) => !(x.en && x.de && x.en !== x.de)).map((x) => x.en)));
