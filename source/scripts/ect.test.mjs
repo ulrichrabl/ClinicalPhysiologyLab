@@ -237,7 +237,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const { s, p } = run(order, 'watch', []);
     const r = s.lastReport();
     ok(`watch (${order.id}): the team does every step, each after the steps it follows, without a mistake, and the report has its EEG endpoint`,
-      p.finished && p.done.size === S.STEPS.length && inOrder(p) && !p.errors.length && r?.eegEndpoint != null && s.patient.placement === order.placement, J({ done: p.done.size, errors: p.errors.map((e) => e.code), eeg: r?.eegEndpoint }));
+      p.finished && p.done.size === S.STEPS.length - (p.needsRestim ? 0 : S.RESTIM_STEPS.length) && inOrder(p) && !p.errors.length && r?.eegEndpoint != null && s.patient.placement === order.placement, J({ done: p.done.size, errors: p.errors.map((e) => e.code), eeg: r?.eegEndpoint }));
   }
   {
     /* the learner is the anaesthetist and does the anaesthetic steps as soon as each is open and its wait is over */
@@ -249,7 +249,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
   }
   {
     /* the learner does everything but stimulates as soon as the device is ready: before the anaesthetic */
-    const order = S.ECT_ORDERS[1];
+    const order = S.ECT_ORDERS.find((o) => o.id === 'rul');
     const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });
     const p = new S.Procedure(s, order, 'exam', [...S.ECT_ROLES]);
     p.act('check'); p.act('skin'); placeAll(p); p.act('leads');
@@ -270,7 +270,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
   }
   {
     /* the skin not cleaned: the team's impedance test reads 3000 and the procedure does not go on (the manual: unprepared skin is the usual cause) */
-    const order = S.ECT_ORDERS[1];
+    const order = S.ECT_ORDERS.find((o) => o.id === 'rul');
     const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });
     const p = new S.Procedure(s, order, 'practise', [...S.ECT_ROLES]);
     p.act('check'); p.act('pads', 'you', { placement: order.placement }); placeAll(p); p.act('leads');   // the pads put on uncleaned skin
@@ -312,7 +312,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
   }
   {
     /* the anaesthetic (PR C): breathing, oxygen, the relaxant and the cuffed arm */
-    const order = S.ECT_ORDERS[1];
+    const order = S.ECT_ORDERS.find((o) => o.id === 'rul');
     const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });
     const p = new S.Procedure(s, order, 'watch', []);
     let minSpo2 = 100, back = null; const et = [];
@@ -403,6 +403,13 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const bad = new S.Procedure(s, S.ECT_ORDERS[0], 'practise', ['psychiatrist']); bad.act('sams', 'you', { sams: { points: sc.items.map((x) => !x.point), band: sc.band === 'poor' ? 'good' : 'poor' } });
     ok('the learner rates the seizure; a rating that matches the report passes, a wrong item and a wrong decision are named', good.isDone('sams') && !good.errors.length && bad.errors.some((e) => e.code === 'sams-items') && bad.errors.some((e) => e.code === 'sams-decision'), J({ good: good.errors.map((e) => e.code), bad: bad.errors.map((e) => e.code) }));
     console.log(`    SAMS on the standard treatment: ${sc.points}/5 — ${sc.items.map((x) => `${x.value}${x.point ? '✓' : ''}`).join(', ')}`);
+  }
+  {
+    /* the restimulation rules (the in-house procedure) */
+    const s = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }); const p = new S.Procedure(s, S.ECT_ORDERS.find((o) => o.id === 'restim'), 'watch', []);
+    s.stimuli.push({ at: 0, percent: 30 }); const thirty = [p.restimPercent, p.restimDoseOk(45), p.restimDoseOk(40)];
+    s.stimuli[0].percent = 15; const fifteen = [p.restimDoseOk(22), p.restimDoseOk(23), p.restimDoseOk(25)];
+    ok('restimulation at 1.5 times the first dose, as near as the dial allows: 30 % → 45 %; 15 % → 22 or 23 %', thirty[0] === 45 && thirty[1] && !thirty[2] && fifteen[0] && fifteen[1] && !fifteen[2], J({ thirty, fifteen }));
   }
   const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
   ok('every step, order, role and mode text exists in English and German', texts.every((x) => x.en && x.de && x.en !== x.de || ['Coach'].includes(x.en)), J(texts.filter((x) => !(x.en && x.de && x.en !== x.de)).map((x) => x.en)));

@@ -14,7 +14,7 @@ import { fieldFor, dosesFor } from '../physiology/brain/ect-trial.ts';
 import { layoutStrip, drawStrip, type PaperItem } from '../render/ect-strip.ts';
 import { drawFieldSection, drawRegionMap } from '../render/ect-head.ts';
 import { ectFigure, ectLook, sceneSvg, headCloseUp, chestCloseUp, CHEST_VIEWBOX, topViewSvg, cableSvg, headSpotPoints, bodySpotPoints, placementOf, PLACEMENT_SITES, SCENE_VIEWBOX, type EctFigure, type EctDress, type SiteId } from '../render/ect-scene.ts';
-import { Procedure, STEPS, STEP, ECT_ORDERS, ECT_ROLES, ROLE_NAME, MODE_NAME, orderLines, type EctMode, type EctRole, type StepId, type Who } from '../stations/ect-procedure.ts';
+import { Procedure, STEPS, STEP, RESTIM_STEPS, ECT_ORDERS, ECT_ROLES, ROLE_NAME, MODE_NAME, orderLines, type EctMode, type EctRole, type StepId, type Who } from '../stations/ect-procedure.ts';
 
 /* ---------------------------------------------------------------------------
    The ECT station, part 1: the device, the stimulus and the seizure it starts.
@@ -112,6 +112,7 @@ const T: Record<string, LocalizedText> = {
   samsBand_poor: L('0–1: poor; a restimulation may follow', '0–1: schlecht; Re-Stimulation möglich'),
   samsCheck: L('Check', 'Prüfen'), samsPick: L('Choose a decision.', 'Entscheidung wählen.'),
   samsYours: L('yours', 'Ihre'), samsYouSaid: L('you said', 'Sie:'), samsRated: L('Rated; the check comes in the debrief.', 'Bewertet; die Prüfung folgt in der Nachbesprechung.'),
+  restimNext: L('Restimulation: agree it with anaesthesia, set {p} %, stimulate 120–180 s after the first stimulus.', 'Re-Stimulation: mit der Anästhesie absprechen, {p} % einstellen, 120–180 s nach dem ersten Reiz stimulieren.'),
   samsBandWrong: L('Your decision does not fit the score.', 'Ihre Entscheidung passt nicht zum Score.'),
   headAboveLeads: L('Head from above: the EEG leads', 'Kopf von oben: die EEG-Ableitungen'),
   atDevice: L('Device', 'Gerät'), seizure: L('Seizure', 'Anfall'),
@@ -331,17 +332,19 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const lines = k != null ? printedReports.get(k) : null;
     /* the seizure adequacy markers score: rated by the learner from the report and the strip, then checked against them */
     let samsHtml = '';
-    const truth = k != null ? proc.samsTruth() : null;
-    if (truth && proc.isDone('sams')) {
-      const mine = proc.samsRating, mineYou = proc.done.get('sams')?.by === 'you';
+    /* which rating belongs to this report: the first stimulus's or the restimulation's */
+    const which: 'sams' | 'resams' = k != null && (session.paper[k] as { stimulus?: number }).stimulus === 1 ? 'resams' : 'sams';
+    const res = proc.samsResult[which], truth = res?.truth ?? (k != null ? proc.samsTruth() : null);
+    if (res) {
+      const mine = res.mine, mineYou = res.by === 'you';
       if (mode === 'exam' && !proc.finished) samsHtml = `<div class="ect-sams"><p>${t('samsRated')}</p></div>`;
-      else samsHtml = `<div class="ect-sams"><h4>${t('samsTitle')}: ${truth.points}/5${mineYou && mine ? ` <span class="muted small">(${t('samsYours')}: ${mine.points.filter(Boolean).length}/5)</span>` : ''}</h4><ul>${truth.items.map((x, i) => {
-          const agree = !mineYou || !mine || mine.points[i] === x.point;
-          return `<li class="${x.point ? 'on' : ''}${agree ? '' : ' bad'}">${x.point ? '✓' : '○'} ${esc(tr(x.label, lang))}: <b>${esc(x.value)}</b>${agree ? '' : ` — ${t('samsYouSaid')} ${mine!.points[i] ? '✓' : '○'}`}</li>`; }).join('')}</ul>`
-        + (mineYou && mine && mine.band !== truth.band ? `<p class="ect-err">${t('samsBandWrong')}</p>` : '')
-        + `<p><b>${esc(tr(truth.advice, lang))}</b></p><p class="muted small">${esc(tr(SAMS_NOTE, lang))}</p></div>`;
-    } else if (truth && proc.mine('sams') && proc.open('sams')) {
-      samsHtml = `<form class="ect-sams" data-samsform><h4>${t('samsTitle')}</h4><p class="muted small">${t('samsAsk')}</p><ul>${truth.items.map((x, i) => `<li><label><input type="checkbox" data-sams-i="${i}"> ${esc(tr(x.label, lang))}</label></li>`).join('')}</ul>
+      else samsHtml = `<div class="ect-sams"><h4>${t('samsTitle')}: ${res.truth.points}/5${mineYou ? ` <span class="muted small">(${t('samsYours')}: ${mine.points.filter(Boolean).length}/5)</span>` : ''}</h4><ul>${res.truth.items.map((x, i) => {
+          const agree = !mineYou || mine.points[i] === x.point;
+          return `<li class="${x.point ? 'on' : ''}${agree ? '' : ' bad'}">${x.point ? '✓' : '○'} ${esc(tr(x.label, lang))}: <b>${esc(x.value)}</b>${agree ? '' : ` — ${t('samsYouSaid')} ${mine.points[i] ? '✓' : '○'}`}</li>`; }).join('')}</ul>`
+        + (mineYou && mine.band !== res.truth.band ? `<p class="ect-err">${t('samsBandWrong')}</p>` : '')
+        + `<p><b>${esc(tr(res.truth.advice, lang))}</b></p>${which === 'sams' && proc.needsRestim ? `<p>${esc(t('restimNext').replace('{p}', String(proc.restimPercent)))}</p>` : ''}<p class="muted small">${esc(tr(SAMS_NOTE, lang))}</p></div>`;
+    } else if (truth && proc.mine(which) && proc.open(which)) {
+      samsHtml = `<form class="ect-sams" data-samsform data-which="${which}"><h4>${t('samsTitle')}</h4><p class="muted small">${t('samsAsk')}</p><ul>${truth.items.map((x, i) => `<li><label><input type="checkbox" data-sams-i="${i}"> ${esc(tr(x.label, lang))}</label></li>`).join('')}</ul>
         <fieldset><legend class="small">${t('samsDecide')}</legend>${(['good', 'medium', 'poor'] as const).map((b) => `<label class="small"><input type="radio" name="sams-band" value="${b}"> ${t(`samsBand_${b}`)}</label>`).join('<br>')}</fieldset>
         <button type="submit" class="primary small">${t('samsCheck')}</button> <span class="muted small" data-samsmsg></span></form>`;
     }
@@ -354,7 +357,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
         const band = (f.querySelector('input[name="sams-band"]:checked') as HTMLInputElement | null)?.value as 'good' | 'medium' | 'poor' | undefined;
         if (!band) { const m = f.querySelector<HTMLElement>('[data-samsmsg]'); if (m) m.textContent = t('samsPick'); return; }
         const points = Array.from(f.querySelectorAll<HTMLInputElement>('[data-sams-i]'), (x) => x.checked);
-        proc.act('sams', 'you', { sams: { points, band } }); drawProcedure(); drawReport();
+        proc.act((f.dataset.which as 'sams' | 'resams') ?? 'sams', 'you', { sams: { points, band } }); drawProcedure(); drawReport();
       };
     }
   };
@@ -486,7 +489,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
       </div>`;
     if (mode === 'watch') return `${pic}<p class="muted">${t('roomWatch')}</p>`;
     const mine = STEPS.filter((x) => x.kind === 'room' && proc.mine(x.id));
-    const btn = (id: StepId) => id === 'pads' || id === 'sams' ? ''
+    const btn = (id: StepId) => id === 'pads' || id === 'sams' || id === 'resams' ? ''
       : id === 'cuff' ? `<div class="ect-cuffctl"><b>${t('cuffL')}</b> <button type="button" class="ghost small" data-cuff="squeeze">${t('squeezeBtn')}</button><button type="button" class="ghost small" data-cuff="down">${t('deflateBtn')}</button><button type="button" class="ghost small ect-act" data-act="cuff">${t('cuffUpBtn')}</button> <span class="muted small" data-cuffnow></span></div>`
       : id === 'leads' ? `<div class="ect-leadctl"><b>${esc(tr(STEP.leads.title, lang))}</b><p class="muted small">${t('cableHint')}</p><svg viewBox="0 0 300 134" class="ect-cable" data-tray role="group" aria-label="${t('cableL')}"></svg><p class="muted small">${t('chLegend')}</p><div class="ect-seg" role="group"><button type="button" class="ghost small" data-pview="head">${t('viewHead')}</button><button type="button" class="ghost small" data-pview="body">${t('viewBody')}</button></div><svg class="ect-place" data-place role="group" aria-label="${t('placeL')}"></svg><p class="muted small" data-leadmsg></p><button type="button" class="ghost ect-act" data-act="leads">${t('plugIn')}</button><button type="button" class="ghost small" data-fist>${t('fist')}</button></div>`
       : `<button type="button" class="ghost ect-act" data-act="${id}">${esc(tr(STEP[id].title, lang))}</button>`;
@@ -555,14 +558,14 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const set = (sel: string, html: string) => { const el = host.querySelector<HTMLElement>(sel); if (el && el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } };
     const cur = proc.current(), doing = proc.teamDoing();
     /* the steps */
-    set('[data-steps]', STEPS.filter((x) => mode !== 'exam' || proc.isDone(x.id)).map((x) => {
+    set('[data-steps]', STEPS.filter((x) => (mode !== 'exam' || proc.isDone(x.id)) && (!RESTIM_STEPS.includes(x.id) || proc.needsRestim || proc.isDone(x.id))).map((x) => {
       const st = proc.done.get(x.id), busy = doing.some((d) => d.step === x.id);
       const cls = st ? 'done' : x.id === cur ? 'current' : busy ? 'busy' : proc.open(x.id) ? 'open' : '';
       const icon = st ? '✓' : x.id === cur ? '▶' : busy ? '…' : '○';
       return `<li class="${cls}"><span class="ect-ico" aria-hidden="true">${icon}</span><span class="ect-st">${esc(tr(x.title, lang))}<br>${roleTag(x.role)}${roleSel !== 'all' && proc.mine(x.id) ? ` <span class="ect-you">${t('you')}</span>` : ''}${st ? ` <span class="muted small">${sec(st.at)}</span>` : ''}</span></li>`;
     }).join(''));
     /* the room's buttons: done ones ticked */
-    host.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => { const d = proc.isDone(b.dataset.act as StepId); b.classList.toggle('on', d); b.setAttribute('aria-pressed', String(d)); b.disabled = d || (b.dataset.act === 'leads' && !proc.leadsPlaced); b.title = b.dataset.act === 'leads' && !proc.leadsPlaced && !d ? t('leadsAll') : ''; });
+    host.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => { const d = proc.isDone(b.dataset.act as StepId); b.classList.toggle('on', d); b.setAttribute('aria-pressed', String(d)); b.disabled = d || (b.dataset.act === 'leads' && !proc.leadsPlaced); b.hidden = RESTIM_STEPS.includes(b.dataset.act as StepId) && !proc.needsRestim; b.title = b.dataset.act === 'leads' && !proc.leadsPlaced && !d ? t('leadsAll') : ''; });
     const fb = host.querySelector<HTMLButtonElement>('[data-fist]'); if (fb) fb.disabled = session.inducedAt != null;
     drawPatient();
     /* the vitals */
