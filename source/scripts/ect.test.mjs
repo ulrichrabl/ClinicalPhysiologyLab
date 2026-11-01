@@ -214,7 +214,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
   const run = (order, mode, roles, learner = () => {}, opts = {}) => {
     const s = new S.EctSession({ placement: order.placement, prepared: true, skin: opts.skin ?? 0, seed: 7 });
     const p = new S.Procedure(s, order, mode, roles);
-    for (let k = 0; k < 600 / 0.05 && !p.finished; k++) {
+    for (let k = 0; k < 900 / 0.05 && !p.finished; k++) {   // the in-house procedure takes about 10 min
       s.advance(0.05); p.tick(0.05); learner(p, s);
       if (p.waitingForNext) p.next();
     }
