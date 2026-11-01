@@ -4,6 +4,7 @@ import { PLACEMENTS } from '../physiology/brain/ect-stimulus.ts';
 import { ECT } from '../evidence/ect.ts';
 import type { ProgramChoice } from './ect-device.ts';
 import { PROGRAM_NAMES } from './ect-device.ts';
+import { PERCENT_STEPS } from './ect-programs.ts';
 import type { EctSession, Spot } from './ect-session.ts';
 import { HOSPITAL_MONTAGE, EMPTY_MONTAGE, montageProblems } from './ect-session.ts';
 import { sams, type Sams } from './ect-sams.ts';
@@ -43,7 +44,8 @@ export const ECT_ROLES: readonly EctRole[] = ['psychiatrist', 'anaesthetist'];
 export type EctMode = 'practise' | 'watch' | 'exam';
 
 export type StepId = 'check' | 'premed' | 'brakes' | 'power' | 'paper' | 'cuffOn' | 'skinEeg' | 'leads' | 'strip' | 'skin' | 'pads' | 'impedance' | 'dose'
-  | 'oxygen' | 'induction' | 'cuff' | 'biteBlock' | 'ventilate' | 'relaxant' | 'precheck' | 'treat' | 'observe' | 'report' | 'sams' | 'recovery';
+  | 'oxygen' | 'induction' | 'cuff' | 'biteBlock' | 'ventilate' | 'relaxant' | 'precheck' | 'treat' | 'observe' | 'report' | 'sams'
+  | 'restimAgree' | 'restimDose' | 'retreat' | 'reobserve' | 'rereport' | 'resams' | 'recovery';
 
 const L = (en: string, de: string): LocalizedText => ({ en, de });
 
@@ -64,6 +66,8 @@ export interface EctOrder {
 export const ECT_ORDERS: readonly EctOrder[] = [
   { id: 'bt', title: L('First treatment, bitemporal', 'Erste Behandlung, bitemporal'), placement: 'BT', program: 'LOW_05', percent: 30,
     doseNote: L('In-house: 30 % from age 40 (20 % under 40), 0.5 ms pulses.', 'Hausintern: 30 % ab 40 Jahren (20 % darunter), Pulse von 0,5 ms.') },
+  { id: 'restim', title: L('Restimulation: a dose below the threshold', 'Re-Stimulation: Dosis unter der Schwelle'), placement: 'BT', program: 'LOW_05', percent: 15,
+    doseNote: L('15 %: below this patient’s threshold, as when the threshold has risen during a course. Rate the seizure; restimulate if it is poor.', '15 %: unter der Schwelle dieses Patienten, wie wenn die Schwelle im Verlauf gestiegen ist. Anfall bewerten; bei schlechter Qualität re-stimulieren.') },
   { id: 'rul', title: L('First treatment, right unilateral', 'Erste Behandlung, rechts unilateral'), placement: 'RUL', program: 'LOW_UB', percent: 60,
     doseNote: L('Dose by age (manual): 59 years → 60 %, ultrabrief pulses.', 'Dosis nach Alter (Handbuch): 59 Jahre → 60 %, ultrakurze Pulse.') },
 ];
@@ -90,6 +94,11 @@ export const HYPNOTIC_TO_STIMULUS = 240;
 export const CUFF_LOW = 220, CUFF_HIGH = 240;
 /** the awake check strip runs at least this long (the in-house procedure) */
 export const STRIP_MIN = 5;
+/** the restimulation (the in-house procedure): 1.5 times the first dose, 120–180 s after the first stimulus, not if the
+    first dose was 140 % or more */
+export const RESTIM_FACTOR = 1.5, RESTIM_FROM = 120, RESTIM_TO = 180, RESTIM_MAX_FIRST = 140;
+/** the steps of a restimulation: open only when the first seizure scored 0–1 */
+export const RESTIM_STEPS: readonly StepId[] = ['restimAgree', 'restimDose', 'retreat', 'reobserve', 'rereport', 'resams'];
 export const CUFF_SQUEEZE = 20;
 /** how long the team takes to start a step it can do */
 export const TEAM_DELAY = 3;
@@ -250,6 +259,36 @@ export const STEPS: readonly StepDef[] = [
     how: L('From the report and the strip: one point each for an EEG seizure over 25 s, PSI over 80 %, coherence over 90 %, a midictal amplitude over 180 µV (read it off the strip), a peak heart rate over 120/min. Then decide.', 'Aus Bericht und Streifen: je ein Punkt für EEG-Anfall über 25 s, PSI über 80 %, Kohärenz über 90 %, midiktale Amplitude über 180 µV (vom Streifen ablesen), maximale Herzfrequenz über 120/min. Dann entscheiden.'),
     why: L('The score decides: no restimulation, a higher dose next time, or a restimulation now.', 'Der Score entscheidet: keine Re-Stimulation, höhere Dosis beim nächsten Mal oder jetzt Re-Stimulation.'),
     says: L('Seizure rated.', 'Anfall bewertet.') },
+  { id: 'restimAgree', role: 'psychiatrist', kind: 'room', modelled: false, after: ['sams'],
+    title: L('Agree the restimulation', 'Re-Stimulation absprechen'),
+    how: L('SAMS 0–1: ask anaesthesia quickly: heart? blood pressure? They oxygenate in between.', 'SAMS 0–1: kurz mit der Anästhesie absprechen: Herz? Blutdruck? Sie oxygeniert zwischendurch.'),
+    why: L('A second stimulus raises the heart rate and pressure again.', 'Ein zweiter Reiz treibt Herzfrequenz und Blutdruck erneut hoch.'),
+    says: L('Anaesthesia agrees; oxygenating.', 'Anästhesie einverstanden; oxygeniert.') },
+  { id: 'restimDose', role: 'psychiatrist', kind: 'device', modelled: true, after: ['restimAgree'],
+    title: L('Set 1.5 times the dose', '1,5-fache Dosis einstellen'),
+    how: L('PERCENT ENERGY to 1.5 times the first dose (e.g. 30 % → 45 %). Not if the first was 140 % or more.', 'PERCENT ENERGY auf das 1,5-fache der ersten Dosis (z. B. 30 % → 45 %). Nicht, wenn die erste 140 % oder mehr war.'),
+    why: L('The first stimulus was too weak for a good seizure.', 'Der erste Reiz war zu schwach für einen guten Anfall.'),
+    says: L('Dose set.', 'Dosis eingestellt.') },
+  { id: 'retreat', role: 'psychiatrist', kind: 'device', modelled: true, after: ['restimDose'],
+    title: L('Restimulate', 'Re-stimulieren'),
+    how: L('120–180 s after the first stimulus: lift the cover, hold TREAT until the tone changes.', '120–180 s nach dem ersten Reiz: Klappe heben, TREAT halten, bis sich der Ton ändert.'),
+    why: L('Too soon after the first, the brain is still refractory; much later, the anaesthesia wears off.', 'Zu früh nach dem ersten ist das Gehirn noch refraktär; viel später lässt die Narkose nach.'),
+    says: L('Restimulating.', 'Re-Stimulation.') },
+  { id: 'reobserve', role: 'psychiatrist', kind: 'wait', modelled: true, after: ['retreat'],
+    title: L('Time the second seizure', 'Zweiten Anfall messen'),
+    how: L('Watch the arm and the strip.', 'Arm und Streifen beobachten.'),
+    why: L('As before.', 'Wie zuvor.'),
+    says: L('Seizure timed.', 'Anfall gemessen.') },
+  { id: 'rereport', role: 'psychiatrist', kind: 'device', modelled: true, after: ['reobserve'],
+    title: L('End the strip, print the report', 'Aufzeichnung beenden, Bericht'),
+    how: L('Once the suppression has settled, 5 s more, then START/STOP.', 'Wenn die Suppression steht, noch 5 s, dann START/STOP.'),
+    why: L('The report of the second seizure.', 'Der Bericht zum zweiten Anfall.'),
+    says: L('Report printed.', 'Bericht gedruckt.') },
+  { id: 'resams', role: 'psychiatrist', kind: 'room', modelled: true, after: ['rereport'],
+    title: L('Rate the second seizure', 'Zweiten Anfall bewerten'),
+    how: L('SAMS again, from the second report and the strip.', 'SAMS erneut, aus dem zweiten Bericht und dem Streifen.'),
+    why: L('It decides the dose for the next treatment.', 'Er bestimmt die Dosis der nächsten Behandlung.'),
+    says: L('Second seizure rated.', 'Zweiten Anfall bewertet.') },
   { id: 'recovery', role: 'anaesthetist', kind: 'room', modelled: true, after: ['observe'],
     title: L('Recover the patient', 'Patienten ausleiten'),
     how: L('Ventilate until breathing returns; cuff down.', 'Beatmen bis zur Spontanatmung; Manschette ab.'),
@@ -261,7 +300,7 @@ export const STEP: Record<StepId, StepDef> = Object.fromEntries(STEPS.map((s) =>
 /** a mistake the procedure noticed, at the moment it happened */
 export interface ProcedureError { t: number; code: ErrorCode; step: StepId; text: LocalizedText }
 export type ErrorCode = 'awake-stimulus' | 'unmodified' | 'early-stimulus' | 'no-bite-block' | 'no-impedance' | 'impedance-out' | 'wrong-dose' | 'wrong-pads'
-  | 'no-leads' | 'montage' | 'sams-items' | 'sams-decision' | 'cuff-range' | 'no-strip' | 'no-brakes' | 'no-paper' | 'no-precheck' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
+  | 'no-leads' | 'montage' | 'restim-unneeded' | 'restim-unagreed' | 'restim-dose' | 'restim-timing' | 'sams-items' | 'sams-decision' | 'cuff-range' | 'no-strip' | 'no-brakes' | 'no-paper' | 'no-precheck' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
 
 const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'awake-stimulus': L('Stimulus before anaesthesia.', 'Reiz vor der Narkose.'),
@@ -274,6 +313,10 @@ const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'wrong-pads': L('Pads not at the ordered placement.', 'Elektroden nicht an der angeordneten Position.'),
   'no-leads': L('Stimulus without EEG and ECG.', 'Reiz ohne EEG und EKG.'),
   montage: L('Leads not as the manual places them.', 'Ableitungen nicht wie im Handbuch.'),
+  'restim-unneeded': L('A restimulation without a poor first seizure (SAMS 0–1), or after a first dose of 140 % or more.', 'Re-Stimulation ohne schlechten ersten Anfall (SAMS 0–1) oder nach einer ersten Dosis ab 140 %.'),
+  'restim-unagreed': L('Restimulation not agreed with anaesthesia.', 'Re-Stimulation nicht mit der Anästhesie abgesprochen.'),
+  'restim-dose': L('Restimulation not at 1.5 times the first dose.', 'Re-Stimulation nicht mit der 1,5-fachen Dosis.'),
+  'restim-timing': L('Restimulation outside 120–180 s after the first stimulus.', 'Re-Stimulation außerhalb von 120–180 s nach dem ersten Reiz.'),
   'sams-items': L('SAMS: an item scored differently from the report and the strip.', 'SAMS: ein Punkt anders bewertet als Bericht und Streifen.'),
   'sams-decision': L('SAMS: the wrong decision for the score.', 'SAMS: falsche Entscheidung für den Score.'),
   'cuff-range': L('Cuff not at 220–240 mmHg at the relaxant.', 'Manschette beim Relaxans nicht bei 220–240 mmHg.'),
@@ -344,12 +387,33 @@ export class Procedure {
   mine(id: StepId) { return this.mode !== 'watch' && this.roles.includes(STEP[id].role); }
   isDone(id: StepId) { return this.done.has(id); }
   /** all the steps before it are done */
-  open(id: StepId) { return !this.isDone(id) && STEP[id].after.every((a) => this.isDone(a)); }
+  open(id: StepId) {
+    if (this.isDone(id) || !STEP[id].after.every((a) => this.isDone(a))) return false;
+    if (RESTIM_STEPS.includes(id)) return this.needsRestim;
+    /* the patient is recovered after the last seizure has been rated */
+    if (id === 'recovery') return this.isDone('sams') && (!this.needsRestim || this.isDone('resams'));
+    return true;
+  }
+  /** the first seizure scored 0–1 and its dose was under 140 %: a restimulation follows */
+  get needsRestim(): boolean { const t = this.samsResult.sams?.truth; return !!t && t.band === 'poor' && (this.session.stimuli[0]?.percent ?? 0) < RESTIM_MAX_FIRST; }
+  /** whether a dial setting is 1.5 times the first dose, as near as the dial allows (15 % → 22 or 23 %) */
+  restimDoseOk(p: number): boolean {
+    const first = this.session.stimuli[0]?.percent, best = this.restimPercent; if (first == null || best == null) return false;
+    const want = first * RESTIM_FACTOR;
+    return Math.abs(p - want) <= Math.max(0.5, Math.abs(best - want)) + 1e-9;
+  }
+  /** the dial setting the restimulation should use: the dial's step nearest 1.5 times the first dose */
+  get restimPercent(): number | null {
+    const first = this.session.stimuli[0]?.percent; if (first == null) return null;
+    const want = first * RESTIM_FACTOR, max = this.session.device.settings.maxPercent;
+    return PERCENT_STEPS.filter((x) => x <= max).reduce((b, x) => (Math.abs(x - want) < Math.abs(b - want) ? x : b), 1);
+  }
   /** seconds still to wait before this step should be done (the anaesthetic's onset, the fasciculations) */
   waitFor(id: StepId): number {
     const since = (s: StepId, w: number) => { const at = this.stamps.get(s); return at == null ? 0 : Math.max(0, at + w - this.t); };
     if (id === 'induction') return since('oxygen', PREOXYGENATION);
     if (id === 'pads') return since('skin', RUB_GEL);
+    if (id === 'retreat') { const f = this.session.stimuli[0]; return f ? Math.max(0, f.at + RESTIM_FROM - this.t) : 0; }
     if (id === 'cuff' || id === 'biteBlock' || id === 'ventilate') return since('induction', INDUCTION_WAIT);
     if (id === 'treat') return Math.max(since('relaxant', RELAXANT_WAIT), since('induction', HYPNOTIC_TO_STIMULUS));
     if (id === 'recovery') return this.session.apnoeaLeft;
@@ -360,7 +424,7 @@ export class Procedure {
   /** the learner's next step: what the coach talks about */
   current(): StepId | null { return this.myOpen()[0] ?? null; }
   /** the treatment is over: the report is printed and the patient recovered */
-  get finished() { return this.isDone('report') && this.isDone('sams') && this.isDone('recovery'); }
+  get finished() { return this.isDone('report') && this.isDone('sams') && this.isDone('recovery') && (!this.needsRestim || this.isDone('resams')); }
   /** time may run faster: nothing is the learner's to do just now (they wait for the team, a drug or the seizure) */
   get canHurry(): boolean {
     if (this.open('observe') && this.isDone('treat')) return true;
@@ -381,17 +445,18 @@ export class Procedure {
   /** the score as the device's report and the strip give it (null before a report) */
   samsTruth(): Sams | null { const r = this.session.lastReport(); return r ? sams({ eegEndpoint: r.eegEndpoint, psi: r.psi, coherence: r.coherence, midictal: r.midictal, peakHr: r.peakHr }) : null; }
   /** the learner's rating: which items scored, and the decision; checked against the report */
-  samsRating: { points: boolean[]; band: Sams['band'] } | null = null;
+  samsResult: Partial<Record<'sams' | 'resams', { truth: Sams; mine: { points: boolean[]; band: Sams['band'] }; by: Who }>> = {};
   act(id: StepId, by: Who = 'you', opts: { placement?: PlacementId; sams?: { points: boolean[]; band: Sams['band'] } } = {}) {
     const s = STEP[id];
     if (s.kind !== 'room' || this.isDone(id)) return;
     const r = this.room, session = this.session;
     switch (id) {
       case 'check': r.checked = true; break;
-      case 'sams': {
+      case 'restimAgree': if (!this.needsRestim) return; break;
+      case 'sams': case 'resams': {
         const truth = this.samsTruth(); if (!truth) return;
         const mine = by === 'you' && opts.sams ? opts.sams : { points: truth.items.map((x) => x.point), band: truth.band };
-        this.samsRating = mine;
+        this.samsResult[id] = { truth, mine, by };
         if (mine.points.some((p, i) => p !== truth.items[i].point)) this.err('sams-items', id);
         if (mine.band !== truth.band) this.err('sams-decision', id);
         break;
@@ -471,16 +536,30 @@ export class Procedure {
       if (strip && imp) this.finish('precheck', by('precheck'));
     }
     /* the stimulus: check the room at the moment it starts */
-    if (session.stimuli.length > this.stimulusSeen) { this.stimulusSeen = session.stimuli.length; this.checkStimulus(); }
+    if (session.stimuli.length > this.stimulusSeen) { this.stimulusSeen = session.stimuli.length; if (this.stimulusSeen === 1) this.checkStimulus(); else this.checkRestim(); }
+    /* the restimulation: the dose step, the second stimulus, its seizure and report */
+    if (this.open('restimDose') && this.restimDoseOk(d.percent) && d.settings.program === this.order.program) this.finish('restimDose', by('restimDose'));
+    if (!this.isDone('retreat') && session.stimuli.length > 1 && d.stimulusEnd != null && d.treat !== 'delivering' && d.treat !== 'warning') this.finish('retreat', by('retreat'));
+    if (this.open('reobserve') && d.stimulusEnd != null && d.t - d.stimulusEnd >= OBSERVE_MIN && this.t - this.lastSeizing >= FLAT_FOR) this.finish('reobserve', by('reobserve'));
+    if (this.open('rereport') && session.paper.some((e) => e.kind === 'report' && e.stimulus === 1)) this.finish('rereport', by('rereport'));
     if (!this.isDone('treat') && session.stimuli.length > 0 && d.stimulusEnd != null && d.treat !== 'delivering' && d.treat !== 'warning') this.finish('treat', by('treat'));
     if (session.seizing) this.lastSeizing = this.t;
-    if (!this.isDone('observe') && this.isDone('treat') && d.stimulusEnd != null && d.t - d.stimulusEnd >= OBSERVE_MIN && this.t - this.lastSeizing >= FLAT_FOR) this.finish('observe', by('observe'));
-    if (!this.isDone('report') && this.isDone('treat') && session.paper.some((e) => e.kind === 'report' && e.stimulus === session.stimuli.length - 1)) this.finish('report', by('report'));
+    if (!this.isDone('observe') && this.isDone('treat') && session.stimuli.length === 1 && d.stimulusEnd != null && d.t - d.stimulusEnd >= OBSERVE_MIN && this.t - this.lastSeizing >= FLAT_FOR) this.finish('observe', by('observe'));
+    if (!this.isDone('report') && this.isDone('treat') && session.paper.some((e) => e.kind === 'report' && e.stimulus === 0)) this.finish('report', by('report'));
     /* the oxygen saturation, as the pulse oximeter reads it (Deng 2026's definition of a desaturation) */
     if (session.spo2 <= ECT.desaturation) this.err('desaturation', this.room.relaxed ? 'ventilate' : 'oxygen');
     this.runTeam(dt);
   }
   private doseRight() { const s = this.session.device.settings; return s.program === this.order.program && this.session.device.percent === this.order.percent; }
+  /** the second stimulus: only after a poor first seizure, agreed, at 1.5 times the dose, 120–180 s after the first */
+  private checkRestim() {
+    const st = this.session.stimuli, first = st[0], second = st[st.length - 1];
+    if (!this.needsRestim) { this.err('restim-unneeded', 'retreat'); return; }
+    if (!this.isDone('restimAgree')) this.err('restim-unagreed', 'restimAgree');
+    if (!this.restimDoseOk(second.percent)) this.err('restim-dose', 'restimDose');
+    const gap = second.at - first.at;
+    if (gap < RESTIM_FROM || gap > RESTIM_TO) this.err('restim-timing', 'retreat', L(`Restimulation ${Math.round(gap)} s after the first stimulus, not 120–180 s.`, `Re-Stimulation ${Math.round(gap)} s nach dem ersten Reiz, nicht 120–180 s.`));
+  }
   private checkStimulus() {
     const r = this.room, d = this.session.device;
     if (!r.induced) this.err('awake-stimulus', 'treat');
@@ -559,6 +638,19 @@ export class Procedure {
       yield 4; d.startStop(); yield 0.5;
       if (!done()) this.readyAt.set(id, this.t + 10);
       return;
+    }
+    if (id === 'restimDose') {
+      const want = this.restimPercent ?? d.percent;
+      while (d.percent !== want) { d.turnPercent(d.percent < want ? 1 : -1); yield 0.15; }
+      yield 0.5; return;
+    }
+    if (id === 'retreat' || id === 'rereport') {
+      if (id === 'rereport') { d.startStop(); while (!done()) yield 0.25; return; }
+      this.room.coverUp = true; yield 0.8;
+      d.treatButton(true);
+      while (d.treat !== 'done') yield 0.1;
+      d.treatButton(false); this.room.coverUp = false;
+      yield 0.2; return;
     }
     if (id === 'treat') {
       this.room.coverUp = true; yield 0.8;
