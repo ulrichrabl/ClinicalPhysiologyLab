@@ -269,6 +269,53 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     ok('pads at another placement than the order are noticed, and the current then goes where they are', w.errors.some((e) => e.code === 'wrong-pads') && w.session.patient.placement === 'BF', J(w.errors.map((e) => e.code)));
   }
   {
+    /* the exam always comes to an end: the learner does every step of every role at the device and in the room, with one
+       slip each time. Each slip is a scored mistake, never a procedure that waits for good */
+    const exam = (order, slip, roles = [...S.ECT_ROLES]) => {
+      const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });
+      const p = new S.Procedure(s, order, 'exam', roles), d = s.device;
+      const hosp = () => { S.HOSPITAL_MONTAGE.ch.forEach((l, ch) => { p.placeLead({ ch, pole: 'black' }, l.black); p.placeLead({ ch, pole: 'red' }, l.red); }); p.placeLead('ground', S.HOSPITAL_MONTAGE.ground); };
+      const treat = function* () { p.room.coverUp = true; d.treatButton(true); while (d.treat !== 'done') yield 0.1; d.treatButton(false); p.room.coverUp = false; };
+      const dial = function* (want) { while (d.percent !== want) { d.turnPercent(d.percent < want ? 1 : -1); yield 0.15; } yield 1; };
+      const job = function* (id) {
+        if (id === 'power') { d.power(true); while (!p.isDone(id)) yield 0.25; return; }
+        if (id === 'impedance' || id === 'precheck') { d.impedanceButton(true); yield 1.6; d.impedanceButton(false); while (d.baseline !== 'ready') yield 0.25; if (id === 'precheck') { d.startStop(); yield 4; d.startStop(); } yield 1; return; }
+        if (id === 'dose') { d.settings.program = order.program; yield* dial(order.percent); return; }
+        if (id === 'strip') { d.startStop(); yield 6; d.startStop(); yield 1; return; }
+        if (id === 'treat') { yield* treat(); if (slip === 'second-treat') { yield 5; yield* treat(); } return; }
+        if (id === 'retreat') { yield* treat(); return; }
+        if (id === 'restimDose') { yield* dial(slip === 'restim-dose' ? S.PERCENT_STEPS[S.PERCENT_STEPS.indexOf(p.restimPercent) + 3] : p.restimPercent); if (slip === 'restim-dose') yield* treat(); return; }
+        if (id === 'report' || id === 'rereport') { d.startStop(); while (!p.isDone(id)) yield 0.25; return; }
+        if (id === 'cuff') { while (p.room.cuffMmHg < 230) { p.squeeze(); yield 0.3; } p.act('cuff'); return; }
+        if (id === 'leads') { hosp(); p.act('leads'); return; }
+        if (id === 'sams' || id === 'resams') { const t = p.samsTruth(); p.act(id, 'you', { sams: { points: t.items.map((x) => x.point), band: slip === 'sams-good' && id === 'sams' ? 'good' : t.band } }); return; }
+        if (id === 'pads') { p.act('pads', 'you', { placement: order.placement }); return; }
+        p.act(id);
+      };
+      let busy = null, wait = 0;
+      for (let k = 0; k < 1200 / 0.05 && !p.finished; k++) {
+        s.advance(0.05); p.tick(0.05);
+        if (busy) { wait -= 0.05; while (busy && wait <= 0) { const r = busy.next(); if (r.done) busy = null; else wait += r.value; } }
+        if (!busy) { const c = p.myOpen().find((id) => p.waitFor(id) <= 0); if (c) { busy = job(c); wait = 0; } }
+      }
+      return { s, p, codes: p.errors.map((e) => e.code) };
+    };
+    const bt = S.ECT_ORDERS.find((o) => o.id === 'bt'), re = S.ECT_ORDERS.find((o) => o.id === 'restim');
+    const clean = exam(bt, null);
+    ok('exam, every role, no slip: the treatment ends without a mistake', clean.p.finished && !clean.codes.length, J({ codes: clean.codes, open: S.STEPS.filter((x) => clean.p.open(x.id)).map((x) => x.id) }));
+    const two = exam(bt, 'second-treat');
+    ok('exam: TREAT pressed again during the first seizure is a needless restimulation, and the treatment still ends (the watch moves to the second seizure)', two.p.finished && two.s.stimuli.length === 2 && two.codes.includes('restim-unneeded'), J({ codes: two.codes, open: S.STEPS.filter((x) => two.p.open(x.id)).map((x) => x.id) }));
+    for (const roles of [[...S.ECT_ROLES], ['psychiatrist']]) {
+      const g = exam(re, 'sams-good', roles);
+      ok(`exam (${roles.join(', ')}): a poor first seizure rated good is a wrong decision; the procedure follows the decision (no restimulation) and ends`, g.p.finished && g.s.stimuli.length === 1 && g.codes.includes('sams-decision') && g.p.restimIndicated && !g.p.needsRestim, J({ codes: g.codes, open: S.STEPS.filter((x) => g.p.open(x.id)).map((x) => x.id) }));
+    }
+    const w = exam(re, 'restim-dose');
+    ok('exam: a restimulation at the wrong dose is a mistake, and the treatment still ends', w.p.finished && w.s.stimuli.length === 2 && w.codes.includes('restim-dose'), J({ codes: w.codes, open: S.STEPS.filter((x) => w.p.open(x.id)).map((x) => x.id) }));
+    const e = new S.Procedure(new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }), bt, 'exam', [...S.ECT_ROLES]);
+    e.act('check'); e.end();
+    ok('the learner can end the exam at any time: the debrief opens with the steps not done', e.over && !e.finished && e.endedAt != null && e.summary().some((x) => !x.status), '');
+  }
+  {
     /* the skin not cleaned: the team's impedance test reads 3000 and the procedure does not go on (the manual: unprepared skin is the usual cause) */
     const order = S.ECT_ORDERS.find((o) => o.id === 'rul');
     const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });

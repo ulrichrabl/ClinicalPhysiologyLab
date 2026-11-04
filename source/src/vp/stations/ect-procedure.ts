@@ -394,8 +394,16 @@ export class Procedure {
     if (id === 'recovery') return this.isDone('sams') && (!this.needsRestim || this.isDone('resams'));
     return true;
   }
-  /** the first seizure scored 0–1 and its dose was under 140 %: a restimulation follows */
-  get needsRestim(): boolean { const t = this.samsResult.sams?.truth; return !!t && t.band === 'poor' && (this.session.stimuli[0]?.percent ?? 0) < RESTIM_MAX_FIRST; }
+  /** the first seizure scored 0–1 by the report and the strip, and its dose was under 140 %: a restimulation is indicated */
+  get restimIndicated(): boolean { const t = this.samsResult.sams?.truth; return !!t && t.band === 'poor' && (this.session.stimuli[0]?.percent ?? 0) < RESTIM_MAX_FIRST; }
+  /** a restimulation follows: whoever rated the first seizure decided it was poor, and its dose was under 140 %. The
+      procedure goes on as the rater decided; a wrong decision is a mistake ('sams-decision'), not a dead end */
+  get needsRestim(): boolean { const r = this.samsResult.sams; return !!r && r.mine.band === 'poor' && (this.session.stimuli[0]?.percent ?? 0) < RESTIM_MAX_FIRST; }
+  /** the learner ended the exam before the treatment was over (the debrief then lists what was not done) */
+  endedAt: number | null = null;
+  end() { if (this.endedAt == null && !this.finished) this.endedAt = this.t; }
+  /** the debrief can be shown: the treatment is over, or the learner ended it */
+  get over() { return this.finished || this.endedAt != null; }
   /** whether a dial setting is 1.5 times the first dose, as near as the dial allows (15 % → 22 or 23 %) */
   restimDoseOk(p: number): boolean {
     const first = this.session.stimuli[0]?.percent, best = this.restimPercent; if (first == null || best == null) return false;
@@ -541,11 +549,13 @@ export class Procedure {
     if (this.open('restimDose') && this.restimDoseOk(d.percent) && d.settings.program === this.order.program) this.finish('restimDose', by('restimDose'));
     if (!this.isDone('retreat') && session.stimuli.length > 1 && d.stimulusEnd != null && d.treat !== 'delivering' && d.treat !== 'warning') this.finish('retreat', by('retreat'));
     if (this.open('reobserve') && d.stimulusEnd != null && d.t - d.stimulusEnd >= OBSERVE_MIN && this.t - this.lastSeizing >= FLAT_FOR) this.finish('reobserve', by('reobserve'));
-    if (this.open('rereport') && session.paper.some((e) => e.kind === 'report' && e.stimulus === 1)) this.finish('rereport', by('rereport'));
+    if (this.open('rereport') && session.paper.some((e) => e.kind === 'report' && e.stimulus >= 1)) this.finish('rereport', by('rereport'));
     if (!this.isDone('treat') && session.stimuli.length > 0 && d.stimulusEnd != null && d.treat !== 'delivering' && d.treat !== 'warning') this.finish('treat', by('treat'));
     if (session.seizing) this.lastSeizing = this.t;
-    if (!this.isDone('observe') && this.isDone('treat') && session.stimuli.length === 1 && d.stimulusEnd != null && d.t - d.stimulusEnd >= OBSERVE_MIN && this.t - this.lastSeizing >= FLAT_FOR) this.finish('observe', by('observe'));
-    if (!this.isDone('report') && this.isDone('treat') && session.paper.some((e) => e.kind === 'report' && e.stimulus === 0)) this.finish('report', by('report'));
+    /* the first seizure is timed and reported; an unplanned second stimulus before that (a mistake: 'restim-unneeded')
+       moves the watch to its seizure rather than leaving the step open for good */
+    if (!this.isDone('observe') && this.isDone('treat') && d.stimulusEnd != null && d.t - d.stimulusEnd >= OBSERVE_MIN && this.t - this.lastSeizing >= FLAT_FOR) this.finish('observe', by('observe'));
+    if (!this.isDone('report') && this.isDone('treat') && session.paper.some((e) => e.kind === 'report')) this.finish('report', by('report'));
     /* the oxygen saturation, as the pulse oximeter reads it (Deng 2026's definition of a desaturation) */
     if (session.spo2 <= ECT.desaturation) this.err('desaturation', this.room.relaxed ? 'ventilate' : 'oxygen');
     this.runTeam(dt);
@@ -554,7 +564,7 @@ export class Procedure {
   /** the second stimulus: only after a poor first seizure, agreed, at 1.5 times the dose, 120–180 s after the first */
   private checkRestim() {
     const st = this.session.stimuli, first = st[0], second = st[st.length - 1];
-    if (!this.needsRestim) { this.err('restim-unneeded', 'retreat'); return; }
+    if (!this.restimIndicated) { this.err('restim-unneeded', 'retreat'); return; }
     if (!this.isDone('restimAgree')) this.err('restim-unagreed', 'restimAgree');
     if (!this.restimDoseOk(second.percent)) this.err('restim-dose', 'restimDose');
     const gap = second.at - first.at;
@@ -580,6 +590,7 @@ export class Procedure {
   }
 
   private runTeam(dt: number) {
+    if (this.endedAt != null) return;
     for (const [role, job] of [...this.team]) {
       job.wait -= dt;
       while (job.wait <= 0) {
