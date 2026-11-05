@@ -77,6 +77,8 @@ const T: Record<string, LocalizedText> = {
   room: L('At the patient', 'Am Patienten'),   roomWatch: L('The team does every step; press “Next” in the coach.', 'Das Team erledigt jeden Schritt; „Weiter“ beim Coach drücken.'),
   notModelled: L('The bite block is drawn, not modelled.', 'Der Beißschutz ist gezeichnet, nicht modelliert.'),
   breathingOwn: L('breathing', 'atmet'), apnoeic: L('apnoeic', 'apnoisch'),
+  waitTof: L('Waiting for the block: TOF {tof}.', 'Warten auf die Blockade: TOF {tof}.'),
+  waitRec: L('Waiting: {b}, TOF {tof}.', 'Warten: {b}, TOF {tof}.'),
     anaesthesia: L('Anaesthesia', 'Narkose'),
   coach: L('Coach', 'Coach'), coachExam: L('Exam: no coach. The debrief follows when the treatment is over: the seizure rated (and a restimulation if you decided on one) and the patient recovered.', 'Prüfung: kein Coach. Die Nachbesprechung folgt, wenn die Behandlung abgeschlossen ist: Anfall bewertet (und, falls so entschieden, re-stimuliert) und Patient ausgeleitet.'),
   endExam: L('End the exam', 'Prüfung beenden'), endedAt: L('Exam ended at {s} before the treatment was over; the steps not done are marked.', 'Prüfung bei {s} vor Abschluss der Behandlung beendet; nicht erledigte Schritte sind markiert.'),
@@ -495,7 +497,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const btn = (id: StepId) => id === 'pads' || id === 'sams' || id === 'resams' ? ''
       : id === 'cuff' ? `<div class="ect-cuffctl"><b>${t('cuffL')}</b> <button type="button" class="ghost small" data-cuff="squeeze">${t('squeezeBtn')}</button><button type="button" class="ghost small" data-cuff="down">${t('deflateBtn')}</button><button type="button" class="ghost small ect-act" data-act="cuff">${t('cuffUpBtn')}</button> <span class="muted small" data-cuffnow></span></div>`
       : id === 'leads' ? `<div class="ect-leadctl"><b>${esc(tr(STEP.leads.title, lang))}</b><p class="muted small">${t('cableHint')}</p><svg viewBox="0 0 300 134" class="ect-cable" data-tray role="group" aria-label="${t('cableL')}"></svg><p class="muted small">${t('chLegend')}</p><div class="ect-seg" role="group"><button type="button" class="ghost small" data-pview="head">${t('viewHead')}</button><button type="button" class="ghost small" data-pview="body">${t('viewBody')}</button></div><svg class="ect-place" data-place role="group" aria-label="${t('placeL')}"></svg><p class="muted small" data-leadmsg></p><button type="button" class="ghost ect-act" data-act="leads">${t('plugIn')}</button><button type="button" class="ghost small" data-fist>${t('fist')}</button></div>`
-      : `<button type="button" class="ghost ect-act" data-act="${id}">${esc(tr(STEP[id].title, lang))}</button>`;
+      : `<button type="button" class="ghost ect-act" data-act="${id}">${esc(tr(proc.stepDef(id).title, lang))}</button>`;
     const real = mine.filter((x) => x.modelled || x.role === 'psychiatrist'), narr = mine.filter((x) => !x.modelled && x.role !== 'psychiatrist');
     return `${pic}<div class="ect-acts">${real.map((x) => btn(x.id)).join('')}</div>
       ${narr.length ? `<h3>${t('anaesthesia')}</h3><p class="muted small">${t('notModelled')}</p><div class="ect-acts">${narr.map((x) => btn(x.id)).join('')}</div>` : ''}
@@ -556,32 +558,35 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
   const leadsMine = () => proc.mine('leads') && proc.open('leads');
   const sec = (x: number) => `${num(x)} s`;
   const whoName = (w: Who) => (w === 'you' ? t('you') : tr(ROLE_NAME[w], lang));
+  /** the train of four as the relaxometer shows it: the twitches, and the ratio when all four are there */
+  const tofText = () => { const a = session.anaesthesia, c = a.tofCount; return c < 4 ? `${c}/4` : `4/4, ${num(Math.round(100 * a.tofRatio))} %`; };
   const drawProcedure = () => {
     if (view !== 'treat') return;
     const set = (sel: string, html: string) => { const el = host.querySelector<HTMLElement>(sel); if (el && el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } };
     const cur = proc.current(), doing = proc.teamDoing();
     /* the steps */
-    set('[data-steps]', STEPS.filter((x) => (mode !== 'exam' || proc.isDone(x.id)) && (!RESTIM_STEPS.includes(x.id) || proc.needsRestim || proc.isDone(x.id))).map((x) => {
+    set('[data-steps]', STEPS.filter((x) => (mode !== 'exam' || proc.isDone(x.id)) && proc.shown(x.id)).map((s0) => {
+      const x = proc.stepDef(s0.id);
       const st = proc.done.get(x.id), busy = doing.some((d) => d.step === x.id);
       const cls = st ? 'done' : x.id === cur ? 'current' : busy ? 'busy' : proc.open(x.id) ? 'open' : '';
       const icon = st ? '✓' : x.id === cur ? '▶' : busy ? '…' : '○';
       return `<li class="${cls}"><span class="ect-ico" aria-hidden="true">${icon}</span><span class="ect-st">${esc(tr(x.title, lang))}<br>${roleTag(x.role)}${roleSel !== 'all' && proc.mine(x.id) ? ` <span class="ect-you">${t('you')}</span>` : ''}${st ? ` <span class="muted small">${sec(st.at)}</span>` : ''}</span></li>`;
     }).join(''));
     /* the room's buttons: done ones ticked */
-    host.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => { const d = proc.isDone(b.dataset.act as StepId); b.classList.toggle('on', d); b.setAttribute('aria-pressed', String(d)); b.disabled = d || (b.dataset.act === 'leads' && !proc.leadsPlaced); b.hidden = RESTIM_STEPS.includes(b.dataset.act as StepId) && !proc.needsRestim; b.title = b.dataset.act === 'leads' && !proc.leadsPlaced && !d ? t('leadsAll') : ''; });
+    host.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => { const d = proc.isDone(b.dataset.act as StepId); b.classList.toggle('on', d); b.setAttribute('aria-pressed', String(d)); b.disabled = d || (b.dataset.act === 'leads' && !proc.leadsPlaced); b.hidden = !proc.shown(b.dataset.act as StepId); b.title = b.dataset.act === 'leads' && !proc.leadsPlaced && !d ? t('leadsAll') : ''; });
     const fb = host.querySelector<HTMLButtonElement>('[data-fist]'); if (fb) fb.disabled = session.inducedAt != null;
     drawPatient();
     /* the vitals */
     const m = (session.body.run.sim as any).metrics ?? {};
     const et = session.etco2;
-    set('[data-vitals]', `<span>${t('hrL')}: ${num(session.heartRateAt(session.t))} /min</span><span>${t('bpL')}: ${Number.isFinite(m.Psys) ? `${num(m.Psys)}/${num(m.Pdia)}` : '—'} mmHg</span><span>SpO₂: ${num(session.spo2)} %</span><span>EtCO₂: ${et == null ? '—' : `${num(et)} mmHg`}</span><span>${session.breathing ? t('breathingOwn') : t('apnoeic')}</span>`);
+    set('[data-vitals]', `<span>${t('hrL')}: ${num(session.heartRateAt(session.t))} /min</span><span>${t('bpL')}: ${Number.isFinite(m.Psys) ? `${num(m.Psys)}/${num(m.Pdia)}` : '—'} mmHg</span><span>SpO₂: ${num(session.spo2)} %</span><span>EtCO₂: ${et == null ? '—' : `${num(et)} mmHg`}</span><span>${session.breathing ? t('breathingOwn') : t('apnoeic')}</span>${proc.room.relaxed ? `<span>TOF: ${tofText()}</span>` : ''}`);
     /* the coach */
-    const doingHtml = doing.map((d) => `<p>${esc(t('doing').replace('{who}', tr(ROLE_NAME[d.role], lang)).replace('{what}', tr(STEP[d.step].title, lang)))}</p>`).join('');
+    const doingHtml = doing.map((d) => `<p>${esc(t('doing').replace('{who}', tr(ROLE_NAME[d.role], lang)).replace('{what}', tr(proc.stepDef(d.step).title, lang)))}</p>`).join('');
     const watching = proc.isDone('treat') && !proc.isDone('observe') ? `<p>${t('watching')}</p>` : '';
     let coach = '';
     if (mode === 'watch') {
       const nx = proc.watchNext();
-      coach = doingHtml + watching + (proc.waitingForNext && nx ? `<p>${esc(t('nextIs').replace('{what}', tr(STEP[nx].title, lang)).replace('{who}', tr(ROLE_NAME[STEP[nx].role], lang)))}</p><p class="muted small">${esc(tr(STEP[nx].why, lang))}</p><button type="button" class="primary" data-next>${t('nextBtn')}</button>` : '');
+      coach = doingHtml + watching + (proc.waitingForNext && nx ? `<p>${esc(t('nextIs').replace('{what}', tr(proc.stepDef(nx).title, lang)).replace('{who}', tr(ROLE_NAME[STEP[nx].role], lang)))}</p><p class="muted small">${esc(tr(proc.stepDef(nx).why, lang))}</p><button type="button" class="primary" data-next>${t('nextBtn')}</button>` : '');
     } else if (mode === 'exam') {
       coach = `<p class="muted">${t('coachExam')}</p>${doingHtml}${watching}${proc.over ? '' : `<button type="button" class="ghost small" data-endexam>${t('endExam')}</button>`}`;
     } else {
@@ -589,7 +594,12 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
       if (cur) {
         const w = proc.waitFor(cur);
         const what = cur === 'treat' ? t('waitRel') : cur === 'induction' ? t('waitOx') : t('waitInd');
-        coach = `${errs}<h3>${t('yourNext')}: ${esc(tr(STEP[cur].title, lang))}</h3>${w > 0 ? `<p class="ect-wait">${esc(t('waitS').replace('{s}', num(Math.ceil(w))).replace('{what}', what))}</p>` : ''}<p>${esc(tr(STEP[cur].how, lang))}</p><p class="muted small"><b>${t('whyL')}:</b> ${esc(tr(STEP[cur].why, lang))}</p>${doingHtml}`;
+        /* the relaxometry and the recovery wait on the patient, not on a clock: show what they wait on */
+        const waitHtml = cur === 'relaxometry' && w > 0 ? `<p class="ect-wait">${esc(t('waitTof').replace('{tof}', tofText()))}</p>`
+          : cur === 'recovery' && w > 0 ? `<p class="ect-wait">${esc(t('waitRec').replace('{b}', session.breathing ? t('breathingOwn') : t('apnoeic')).replace('{tof}', tofText()))}</p>`
+          : w > 0 ? `<p class="ect-wait">${esc(t('waitS').replace('{s}', num(Math.ceil(w))).replace('{what}', what))}</p>` : '';
+        const cd = proc.stepDef(cur);
+        coach = `${errs}<h3>${t('yourNext')}: ${esc(tr(cd.title, lang))}</h3>${waitHtml}<p>${esc(tr(cd.how, lang))}</p><p class="muted small"><b>${t('whyL')}:</b> ${esc(tr(cd.why, lang))}</p>${doingHtml}`;
       } else coach = `${errs}${watching || (proc.finished ? '' : `<p>${t('nothingYours')}</p>`)}${doingHtml}`;
     }
     set('[data-coach]', coach);
@@ -607,7 +617,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
         ${proc.endedAt != null ? `<p class="ect-err">${esc(t('endedAt').replace('{s}', sec(proc.endedAt)))}</p>` : ''}
         ${proc.errors.length ? proc.errors.map((e) => `<p class="ect-err"><b>${sec(e.t)}:</b> ${esc(tr(e.text, lang))}</p>`).join('') : `<p>${t('noErrors')}</p>`}
         <table class="lab"><thead><tr><th>${t('colStep')}</th><th>${t('colRole')}</th><th>${t('colBy')}</th><th>${t('colAt')}</th></tr></thead><tbody>
-        ${proc.summary().filter(({ step, status }) => status || !RESTIM_STEPS.includes(step.id) || proc.needsRestim || proc.restimIndicated).map(({ step, status }) => `<tr><td>${esc(tr(step.title, lang))}</td><td>${esc(tr(ROLE_NAME[step.role], lang))}</td><td>${status ? esc(whoName(status.by)) : `<span class="muted">${t('notDone')}</span>`}</td><td>${status ? sec(status.at) : ''}</td></tr>`).join('')}
+        ${proc.summary().filter(({ step, status }) => status || proc.applies(step.id) || (RESTIM_STEPS.includes(step.id) && proc.restimIndicated)).map(({ step, status }) => `<tr><td>${esc(tr(proc.stepDef(step.id).title, lang))}</td><td>${esc(tr(ROLE_NAME[step.role], lang))}</td><td>${status ? esc(whoName(status.by)) : `<span class="muted">${t('notDone')}</span>`}</td><td>${status ? sec(status.at) : ''}</td></tr>`).join('')}
         </tbody></table>`);
     }
   };
