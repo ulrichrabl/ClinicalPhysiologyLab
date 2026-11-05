@@ -1,4 +1,5 @@
 import { ANAES } from '../../evidence/ect-anaesthesia.ts';
+import { ECT } from '../../evidence/ect.ts';
 
 /* ===========================================================================
    The anaesthetic for ECT (part 2b, second half): what the drugs do between
@@ -171,9 +172,9 @@ export const SUX_ONSET = 60;
 
 const apnoeaCache = new Map<string, number>();
 let computingApnoea = false;
-/** the propofol effect-site level below which breathing returns: what Deng 2026's dose leaves at 300 s */
+/** the propofol effect-site level below which breathing returns: what Deng 2026's dose leaves when breathing returned (`ECT.apnoeaAfterInduction`, 300 s) */
 export function apnoeaCe(p: Demographics): number {
   const k = JSON.stringify(p); let v = apnoeaCache.get(k);
-  if (v == null) { computingApnoea = true; try { const a = new Anaesthesia(p); a.give('propofol', ANAES.apnoeaDose * p.weightKg); a.step(300); v = a.propofolCe; } finally { computingApnoea = false; } apnoeaCache.set(k, v); }
+  if (v == null) { computingApnoea = true; try { const a = new Anaesthesia(p); a.give('propofol', ANAES.apnoeaDose * p.weightKg); a.step(ECT.apnoeaAfterInduction); v = a.propofolCe; } finally { computingApnoea = false; } apnoeaCache.set(k, v); }
   return v;
 }
