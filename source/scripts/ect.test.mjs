@@ -116,6 +116,17 @@ console.log('\nThe device against its manual');
   ok('the manual’s preferred EEG montage, a forehead-centre electrode shared by both channels through the splitter, is accepted', !m.length, J(m));
 }
 
+{
+  /* the physics explainer's numbers (ECT part 4) */
+  const a = S.stimulusPhysics('LOW_05', 30, 242), b = S.stimulusPhysics(S.counterpart('LOW_05'), 30, 242), hi = S.stimulusPhysics('LOW_05', 30, 600), top = S.stimulusPhysics('LOW_05', 100, 220);
+  ok('physics: 30 % of LOW 0.5 is 0.9 A × 0.5 ms × 336 pulses = 151 mC; into 242 Ω the current needs 218 V and gives about 33 J', Math.abs(a.charge - 151.2) < 0.6 && a.stimulus.pulses === 336 && Math.abs(a.voltage - 217.8) < 0.1 && Math.abs(a.energy - 32.9) < 0.3 && !a.limited, J({ q: a.charge, v: a.voltage, e: a.energy }));
+  ok('…the ultrabrief program at the same percent gives the same charge with 0.25 ms pulses', b.stimulus.pulseWidth === 0.25 && Math.abs(b.charge - a.charge) < a.charge * 0.03, J({ w: b.stimulus.pulseWidth, q: b.charge }));
+  ok('…above 500 Ω the 450 V limit lowers the current and the charge delivered (600 Ω: 0.75 A)', hi.limited && Math.abs(hi.current - 0.75) < 1e-9 && hi.voltage === 450 && hi.charge < hi.setCharge, J({ I: hi.current, q: hi.charge }));
+  ok('…100 % at 220 Ω is about 100 J (the manual quotes the energy at 220 Ω; 504 mC × 0.9 A × 220 Ω)', Math.abs(top.energyAt220 - 99.8) < 1, `${top.energyAt220.toFixed(1)} J`);
+  const st = a.stimulus, I = (t) => S.currentAt(st, t);
+  ok('…the train alternates: +0.9 A for the pulse width at the start of each period, −0.9 A half a period later, nothing between or after', I(0.0001) === 0.9 && I(0.0006) === 0 && I(1 / 60 + 0.0001) === -0.9 && I(st.duration + 0.01) === 0);
+}
+
 console.log('\nThe stimulus in the head (by reciprocity through part 1’s head)');
 const F = Object.fromEntries(['BT', 'BF', 'RUL', 'LART'].map((p) => [p, S.fieldFor(p)]));
 const brainSample = (f, I) => {

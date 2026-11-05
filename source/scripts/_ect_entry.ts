@@ -18,3 +18,4 @@ export * from '../src/vp/stations/ect-procedure.ts';
 export * from '../src/vp/render/ect-scene.ts';
 export * from '../src/vp/stations/ect-sams.ts';
 export * from '../src/vp/physiology/drugs/anaesthetics.ts';
+export * from '../src/vp/stations/ect-physics.ts';
