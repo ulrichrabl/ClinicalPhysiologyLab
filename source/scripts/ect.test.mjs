@@ -300,6 +300,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
         return;
       }
       if (slip === 'reverse-early' && c === 'biteBlock') { q.act('biteBlock'); s.reverse(152); return; }
+      if (slip === 'skip-terminate' && c === 'terminate') { const o = q.myOpen().find((x) => x !== 'terminate' && q.waitFor(x) <= 0); if (o) q.act(o); return; }
       if (slip === 'no-flumazenil' && c === 'flumazenil') { const o = q.myOpen().find((x) => x !== 'flumazenil' && q.waitFor(x) <= 0); if (o) q.act(o); else if (q.isDone('oxygen') && !q.isDone('induction') && q.waitFor('induction') <= 0) q.act('induction'); return; }
       q.act(c);
     });
@@ -310,6 +311,15 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     ok('sugammadex before the stimulus is noticed (the syringe swap of Uludag Yanaral 2026), and the convulsion comes unmodified', codes(er).includes('not-relaxed') && er.p.finished, J(codes(er)));
     const bz = S.ECT_ORDERS.find((o) => o.id === 'benzo'), nf = anaes(bz, 'no-flumazenil');
     ok('a patient on lorazepam stimulated without flumazenil is noticed', codes(nf).includes('no-flumazenil') && nf.p.finished, J(codes(nf)));
+    /* PR D: the prolonged seizure, the lifting pad, the next dose */
+    const pr = S.ECT_ORDERS.find((o) => o.id === 'prolonged');
+    const prW = run(pr, 'watch', []);
+    const prEnd = prW.s.lastReport()?.eegEndpoint;
+    ok('a prolonged seizure: the team stops it with propofol 1 mg/kg at 2 min (KU Leuven), and it ends within about a minute of the bolus, without a mistake', prW.p.finished && prW.p.isDone('terminate') && prEnd != null && prEnd > 120 && prEnd < 200 && !codes(prW).length, J({ eeg: prEnd, errors: codes(prW) }));
+    const prU = anaes(pr, 'skip-terminate');
+    ok('…not stopped by the anaesthetist (the learner), it runs past 3 min and is noticed', codes(prU).includes('prolonged-untreated') && (prU.s.lastReport()?.eegEndpoint ?? 999) > 200, J({ codes: codes(prU), eeg: prU.s.lastReport()?.eegEndpoint }));
+    const im = S.ECT_ORDERS.find((o) => o.id === 'impedance'), imW = run(im, 'watch', []);
+    ok('a pad lifting: the impedance reads 3000, the pads are pressed on, the test is repeated, and the stimulus goes in at a normal impedance', imW.p.finished && imW.p.isDone('pressPads') && imW.s.stimuli[0]?.staticOhm < 3000 && !codes(imW).length, J({ ohm: imW.s.stimuli[0]?.staticOhm, errors: codes(imW) }));
     /* the hypnotic wearing off before the stimulus, the rocuronium still acting: induced, cuffed, ventilated, relaxed, and no
        stimulus for 8 min */
     const late = new S.Procedure(new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }), bt, 'practise', [...S.ECT_ROLES]);
@@ -360,6 +370,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
         if (id === 'leads') { hosp(); p.act('leads'); return; }
         if (id === 'sams' || id === 'resams') { const t = p.samsTruth(); p.act(id, 'you', { sams: { points: t.items.map((x) => x.point), band: slip === 'sams-good' && id === 'sams' ? 'good' : t.band } }); return; }
         if (id === 'pads') { p.act('pads', 'you', { placement: pads }); return; }
+        if (id === 'nextDose') { const lr = p.lastRating; const ok0 = S.allowedNextDose(lr.points); p.act('nextDose', 'you', { next: slip === 'next-wrong' ? (ok0.includes('same') ? 'up20plus' : 'same') : ok0[0] }); return; }
         p.act(id);
       };
       let busy = null, wait = 0;
@@ -384,6 +395,20 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     for (const roles of [[...S.ECT_ROLES], ['psychiatrist']]) {
       const g = exam(re, 'sams-good', roles);
       ok(`exam (${roles.join(', ')}): a poor first seizure rated good is a wrong decision; the procedure follows the decision (no restimulation) and ends`, g.p.finished && g.s.stimuli.length === 1 && g.codes.includes('sams-decision') && g.p.restimIndicated && !g.p.needsRestim, J({ codes: g.codes, open: S.STEPS.filter((x) => g.p.open(x.id)).map((x) => x.id) }));
+    }
+    const nw = exam(bt, 'next-wrong');
+    ok('exam: a next dose that does not follow from the SAMS is noticed', nw.p.finished && nw.codes.includes('next-dose'), J(nw.codes));
+    {
+      const r5 = S.allowedNextDose(5), r4 = S.allowedNextDose(4), r3 = S.allowedNextDose(3), r1 = S.allowedNextDose(1);
+      ok('the next dose from the SAMS (the hospital): 5/5 the same; 4/5 the same or 10–20 % more; 3/5 10–20 % more; under 3 at least 20 % more', J(r5) === J(['same']) && J(r4) === J(['same', 'up10to20']) && J(r3) === J(['up10to20']) && J(r1) === J(['up20plus']));
+      ok('…on the dial: 30 % → 35 % (10–20 % more) or 40 % (at least 20 %: 36 % or more, the dial in 5 % steps there); 20 % → 23 % or 25 %', S.nextPercent(30, 'up10to20') === 35 && S.nextPercent(30, 'up20plus') === 40 && S.nextPercent(20, 'up10to20') === 23 && S.nextPercent(20, 'up20plus') === 25, J([S.nextPercent(30, 'up10to20'), S.nextPercent(30, 'up20plus'), S.nextPercent(20, 'up10to20'), S.nextPercent(20, 'up20plus')]));
+      /* the fit (ect-course.driveDrop) is on bitemporal; right unilateral is a check, bifrontal a known gap */
+      for (const pl of ['BT', 'RUL', 'BF']) {
+        const t1 = S.thresholdCharge(pl, ladder('LOW_05'), 3), t6 = S.thresholdCharge(pl, ladder('LOW_05'), 3, S.courseDrive(6));
+        const good = t1 != null && t6 != null && Math.abs(t6 / t1 - 1.47) <= 0.147, d = `${f1(t1)} → ${f1(t6)} mC (${t1 && t6 ? f2(t6 / t1) : '—'})`;
+        const name = `over a course the ${pl} threshold rises: by the sixth treatment about 47 % higher (Coffey 1995; ± 10 %)${pl === 'BT' ? ' (the fit)' : ''}`;
+        if (pl === 'BF') gap(name, good, d); else ok(name, good, d);
+      }
     }
     const w = exam(re, 'restim-dose');
     ok('exam: a restimulation at the wrong dose is a mistake, and the treatment still ends', w.p.finished && w.s.stimuli.length === 2 && w.codes.includes('restim-dose'), J({ codes: w.codes, open: S.STEPS.filter((x) => w.p.open(x.id)).map((x) => x.id) }));
@@ -597,6 +622,11 @@ console.log('\nTexts');
   ok('every ECT explanation exists in English and German, with its numbers filled in', all.length > 25 && all.every((x) => x.en && x.de && x.en !== x.de && !/\$\{|undefined|NaN|Infinity/.test(x.en + x.de)), `${all.length} texts`);
   const de = S.reportLines({ percent: 30, charge: 151.2, current: 0.9, duration: 5.6, frequency: 30, pulseWidth: 0.5, staticOhm: 1272, dynamicOhm: 242, early: false, baselineAvailable: true, eegEndpoint: 70, emgEndpoint: 50, baseHr: 75, peakHr: 75, asei: 700, psi: 90, msp: 1200, ttp: 10, coh: 80, ttc: 8, program: 'Low 0.5 charge rate', indexes: true });
   ok('the report prints as the device does, in English with decimal points, in either language of the app (owner, 2026-10-30)', de.some((l) => l === 'Charge delivered: 151.2 mC') && de.length >= 17 && !de.some((l) => /,\d/.test(l)), J(de));
+}
+
+{
+  const bad = S.ECT_CLINICAL.filter((x) => !x.title.en || !x.title.de || !x.body.en || !x.body.de || x.body.en === x.body.de);
+  ok('the clinical background (part 4): every section in English and German', S.ECT_CLINICAL.length >= 8 && !bad.length, J(bad.map((x) => x.title.en)));
 }
 
 console.log('\nEvidence');
