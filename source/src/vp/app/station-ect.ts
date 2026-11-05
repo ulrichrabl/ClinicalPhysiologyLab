@@ -8,13 +8,14 @@ import { EctSession, FS, type EctPatient, type PaperEntry, type Spot } from '../
 import { PROGRAM_NAMES, PROGRAM_REPORT, PROGRAM_ORDER, DEFAULT_SETTINGS, stimulusFor, type ProgramChoice } from '../stations/ect-device.ts';
 import { stimulusPhysics, counterpart, currentAt, type StimulusPhysics } from '../stations/ect-physics.ts';
 import { CHARGE_MC, PERCENT_STEPS } from '../stations/ect-programs.ts';
-import { nextStep, explainStimulus, ECT_BACKGROUND, reportLines, heartNow, ECT_PHASE } from '../stations/ect-texts.ts';
+import { nextStep, explainStimulus, ECT_BACKGROUND, ECT_CLINICAL, reportLines, heartNow, ECT_PHASE } from '../stations/ect-texts.ts';
 import { phaseOf } from '../stations/eeg-seizure.ts';
 import { PLACEMENTS, thresholdField, fieldSection, energy, type PlacementId, type FieldSection, type RegionDose } from '../physiology/brain/ect-stimulus.ts';
 import { fieldFor, dosesFor } from '../physiology/brain/ect-trial.ts';
 import { layoutStrip, drawStrip, type PaperItem } from '../render/ect-strip.ts';
 import { drawFieldSection, drawRegionMap } from '../render/ect-head.ts';
 import { ectFigure, ectLook, sceneSvg, headCloseUp, chestCloseUp, CHEST_VIEWBOX, topViewSvg, cableSvg, headSpotPoints, bodySpotPoints, placementOf, PLACEMENT_SITES, SCENE_VIEWBOX, type EctFigure, type EctDress, type SiteId } from '../render/ect-scene.ts';
+import { NEXT_DOSE_NAME, allowedNextDose, type CourseEntry, type NextDose } from '../stations/ect-course.ts';
 import { Procedure, STEPS, STEP, RESTIM_STEPS, ECT_ORDERS, ECT_ROLES, ROLE_NAME, MODE_NAME, orderLines, type EctMode, type EctRole, type StepId, type Who } from '../stations/ect-procedure.ts';
 
 /* ---------------------------------------------------------------------------
@@ -92,6 +93,20 @@ const T: Record<string, LocalizedText> = {
   notModelled: L('The bite block is drawn, not modelled.', 'Der Beißschutz ist gezeichnet, nicht modelliert.'),
   breathingOwn: L('breathing', 'atmet'), apnoeic: L('apnoeic', 'apnoisch'),
   waitTof: L('Waiting for the block: TOF {tof}.', 'Warten auf die Blockade: TOF {tof}.'),
+  clinical: L('ECT in the clinic: why it works, for whom, risks, drugs, after the course, consent, history', 'EKT in der Klinik: warum sie wirkt, für wen, Risiken, Medikamente, nach der Serie, Einwilligung, Geschichte'),
+  courseL: L('As a course: the next treatment starts at the dose you order; the threshold rises from treatment to treatment', 'Als Serie: die nächste Behandlung beginnt mit der angeordneten Dosis; die Schwelle steigt von Behandlung zu Behandlung'),
+  courseNow: L('Treatment {n} of the course.', 'Behandlung {n} der Serie.'),
+  courseTitle: L('The course so far', 'Die Serie bisher'),
+  courseNext: L('Next treatment', 'Nächste Behandlung'),
+  colN: L('No.', 'Nr.'), colDose: L('Dose', 'Dosis'), colRestim: L('Restim.', 'Re-Stim.'), colSeizure: L('EEG seizure', 'EEG-Anfall'), colSams: L('SAMS', 'SAMS'), colNext: L('Next', 'Nächste'), colErrs: L('Mistakes', 'Fehler'),
+  nextTitle: L('The dose for the next treatment', 'Dosis für die nächste Behandlung'),
+  nextAsk: L('From the last seizure’s SAMS ({p}/5), at {pct} %:', 'Aus dem SAMS des letzten Anfalls ({p}/5), bei {pct} %:'),
+  nextBtn2: L('Order it', 'Anordnen'), nextPick: L('Choose one.', 'Bitte eins wählen.'),
+  nextDone: L('Next treatment: {pct} % ({c}).', 'Nächste Behandlung: {pct} % ({c}).'),
+  nextWrong: L('The SAMS asks for: {a}.', 'Das SAMS verlangt: {a}.'),
+  dbSummary: L('Treatment {n}: EEG seizure {eeg}; SAMS {p}/5; {m} mistake(s).', 'Behandlung {n}: EEG-Anfall {eeg}; SAMS {p}/5; {m} Fehler.'),
+  dbTiming: L('From the induction to the stimulus {a}; from the relaxant to the stimulus {b}.', 'Von der Einleitung bis zum Reiz {a}; vom Relaxans bis zum Reiz {b}.'),
+  dbInstead: L('What to do instead', 'Stattdessen'),
   waitRec: L('Waiting: {b}, TOF {tof}.', 'Warten: {b}, TOF {tof}.'),
     anaesthesia: L('Anaesthesia', 'Narkose'),
   coach: L('Coach', 'Coach'), coachExam: L('Exam: no coach. The debrief follows when the treatment is over: the seizure rated (and a restimulation if you decided on one) and the patient recovered.', 'Prüfung: kein Coach. Die Nachbesprechung folgt, wenn die Behandlung abgeschlossen ist: Anfall bewertet (und, falls so entschieden, re-stimuliert) und Patient ausgeleitet.'),
@@ -160,11 +175,14 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
   let view: 'treat' | 'stim' = 'treat';
   let patient: EctPatient = { placement: 'BT', prepared: true, skin: 0, seed: 7 };
   let orderIdx = 0, mode: EctMode = 'practise', roleSel: EctRole | 'all' = 'all';
-  const order = () => ECT_ORDERS[orderIdx];
+  /* a course: the treatments so far, this one's number and the dose the last one ordered for it */
+  let courseOn = false, treatmentNo = 1, coursePercent: number | null = null;
+  let courseLog: CourseEntry[] = [];
+  const order = () => { const o = ECT_ORDERS[orderIdx]; return courseOn && coursePercent != null ? { ...o, percent: coursePercent } : o; };
   const roles = (): EctRole[] => (roleSel === 'all' ? [...ECT_ROLES] : [roleSel]);
   patient.placement = order().placement;
   let session = new EctSession(patient, DEFAULT_SETTINGS);
-  let proc = new Procedure(session, order(), mode, roles());
+  let proc = new Procedure(session, order(), mode, roles(), { treatment: treatmentNo });
   /* the drawing: the patient's look and figure (rebuilt only when the arm jerks), and the sites the learner has chosen */
   const look = ectLook(7);
   let fig: EctFigure = ectFigure(look), figJerk = 0, padSites: SiteId[] = [], padMsg = '', sceneAt = -1;
@@ -196,11 +214,22 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     return { g, w };
   };
 
+  const resetCourse = () => { treatmentNo = 1; coursePercent = null; courseLog = []; };
+  /* the next treatment of the course: this one goes into the log, the next starts at the dose it ordered */
+  const thisEntry = (): CourseEntry => {
+    const r = session.lastReport(), lr = proc.lastRating;
+    return { n: treatmentNo, percent: session.stimuli[0]?.percent ?? order().percent, restimPercent: session.stimuli[1]?.percent ?? null, eegEndpoint: r?.eegEndpoint ?? null, points: lr?.points ?? null, next: proc.nextOrder?.choice ?? null, nextPercent: proc.nextOrder?.percent ?? null, mistakes: proc.errors.length };
+  };
+  const nextTreatment = () => {
+    courseLog.push(thisEntry());
+    coursePercent = proc.nextOrder?.percent ?? order().percent; treatmentNo++;
+    newSession();
+  };
   const newSession = (keepSeed = true) => {
     if (!keepSeed) patient.seed = (patient.seed * 7 + 3) % 997;
     patient.placement = order().placement;
     session = new EctSession(patient, DEFAULT_SETTINGS);
-    proc = new Procedure(session, order(), mode, roles());
+    proc = new Procedure(session, order(), mode, roles(), { treatment: treatmentNo });
     padSites = []; padMsg = ''; sceneAt = -1; armed = LEADS[0];
     seized = false; hurry = false; follow = true; scrollX = 0; givenList = []; printedReports.clear(); baseCache = null;
     render();
@@ -366,9 +395,27 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
         <fieldset><legend class="small">${t('samsDecide')}</legend>${(['good', 'medium', 'poor'] as const).map((b) => `<label class="small"><input type="radio" name="sams-band" value="${b}"> ${t(`samsBand_${b}`)}</label>`).join('<br>')}</fieldset>
         <button type="submit" class="primary small">${t('samsCheck')}</button> <span class="muted small" data-samsmsg></span></form>`;
     }
-    const html = lines ? `<pre class="ect-report">${lines.map(esc).join('\n')}</pre>${samsHtml}` : `<p class="muted small">${t('noReport')}</p>`;
+    /* the dose for the next treatment, once the last seizure is rated */
+    let nextHtml = '';
+    const lr = proc.lastRating;
+    if (proc.nextOrder && (mode !== 'exam' || proc.over)) {
+      const ok = lr && allowedNextDose(lr.points).includes(proc.nextOrder.choice);
+      nextHtml = `<div class="ect-sams"><p><b>${esc(t('nextDone').replace('{pct}', String(proc.nextOrder.percent)).replace('{c}', tr(NEXT_DOSE_NAME[proc.nextOrder.choice], lang)))}</b></p>${ok || !lr ? '' : `<p class="ect-err">${esc(t('nextWrong').replace('{a}', allowedNextDose(lr.points).map((x) => tr(NEXT_DOSE_NAME[x], lang)).join(' / ')))}</p>`}</div>`;
+    } else if (lr && proc.mine('nextDose') && proc.open('nextDose')) {
+      nextHtml = `<form class="ect-sams" data-nextform><h4>${t('nextTitle')}</h4><p class="muted small">${esc(t('nextAsk').replace('{p}', String(lr.points)).replace('{pct}', String(lr.percent)))}</p>
+        ${(['same', 'up10to20', 'up20plus'] as NextDose[]).map((c) => `<label class="small"><input type="radio" name="next-dose" value="${c}"> ${esc(tr(NEXT_DOSE_NAME[c], lang))}</label>`).join('<br>')}
+        <br><button type="submit" class="primary small">${t('nextBtn2')}</button> <span class="muted small" data-nextmsg></span></form>`;
+    }
+    const html = lines ? `<pre class="ect-report">${lines.map(esc).join('\n')}</pre>${samsHtml}${nextHtml}` : `<p class="muted small">${t('noReport')}</p>`;
     if (el.dataset.html !== html) {
       el.innerHTML = html; el.dataset.html = html;
+      const nf = el.querySelector<HTMLFormElement>('[data-nextform]');
+      if (nf) nf.onsubmit = (e) => {
+        e.preventDefault();
+        const c = (nf.querySelector('input[name="next-dose"]:checked') as HTMLInputElement | null)?.value as NextDose | undefined;
+        if (!c) { const m = nf.querySelector<HTMLElement>('[data-nextmsg]'); if (m) m.textContent = t('nextPick'); return; }
+        proc.act('nextDose', 'you', { next: c }); drawProcedure(); drawReport();
+      };
       const f = el.querySelector<HTMLFormElement>('[data-samsform]');
       if (f) f.onsubmit = (e) => {
         e.preventDefault();
@@ -442,6 +489,8 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
           <label class="st-preset">${t('role')}
             <select data-role ${mode === 'watch' ? 'disabled' : ''}><option value="all" ${roleSel === 'all' ? 'selected' : ''}>${t('allRoles')}</option>${ECT_ROLES.map((r) => `<option value="${r}" ${roleSel === r ? 'selected' : ''}>${esc(tr(ROLE_NAME[r], lang))}</option>`).join('')}</select></label>
           <p class="muted small">${t('roleNote')}</p>
+          <label class="small"><input type="checkbox" data-course ${courseOn ? 'checked' : ''}> ${t('courseL')}</label>
+          ${courseOn ? `<p class="muted small">${esc(t('courseNow').replace('{n}', String(treatmentNo)))}</p>` : ''}
           <button type="button" class="ghost" data-restart>${t('restart')}</button>
         </div>
       </section>
@@ -491,6 +540,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
           <h2 id="ect-now-h">${t('now')}</h2>
           <div data-now></div>
           <details><summary>${t('more')}</summary>${ECT_BACKGROUND.map((x) => `<div class="st-text"><h3>${esc(tr(x.title, lang))}</h3><p>${esc(tr(x.body, lang))}</p></div>`).join('')}</details>
+          <details><summary>${t('clinical')}</summary>${ECT_CLINICAL.map((x) => `<div class="st-text"><h3>${esc(tr(x.title, lang))}</h3><p>${esc(tr(x.body, lang))}</p></div>`).join('')}</details>
           <p class="muted small">${t('draft')}</p>
         </section>
       </div>`;
@@ -508,7 +558,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
       </div>`;
     if (mode === 'watch') return `${pic}<p class="muted">${t('roomWatch')}</p>`;
     const mine = STEPS.filter((x) => x.kind === 'room' && proc.mine(x.id));
-    const btn = (id: StepId) => id === 'pads' || id === 'sams' || id === 'resams' ? ''
+    const btn = (id: StepId) => id === 'pads' || id === 'sams' || id === 'resams' || id === 'nextDose' ? ''
       : id === 'cuff' ? `<div class="ect-cuffctl"><b>${t('cuffL')}</b> <button type="button" class="ghost small" data-cuff="squeeze">${t('squeezeBtn')}</button><button type="button" class="ghost small" data-cuff="down">${t('deflateBtn')}</button><button type="button" class="ghost small ect-act" data-act="cuff">${t('cuffUpBtn')}</button> <span class="muted small" data-cuffnow></span></div>`
       : id === 'leads' ? `<div class="ect-leadctl"><b>${esc(tr(STEP.leads.title, lang))}</b><p class="muted small">${t('cableHint')}</p><svg viewBox="0 0 300 134" class="ect-cable" data-tray role="group" aria-label="${t('cableL')}"></svg><p class="muted small">${t('chLegend')}</p><div class="ect-seg" role="group"><button type="button" class="ghost small" data-pview="head">${t('viewHead')}</button><button type="button" class="ghost small" data-pview="body">${t('viewBody')}</button></div><svg class="ect-place" data-place role="group" aria-label="${t('placeL')}"></svg><p class="muted small" data-leadmsg></p><button type="button" class="ghost ect-act" data-act="leads">${t('plugIn')}</button><button type="button" class="ghost small" data-fist>${t('fist')}</button></div>`
       : `<button type="button" class="ghost ect-act" data-act="${id}">${esc(tr(proc.stepDef(id).title, lang))}</button>`;
@@ -619,6 +669,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     set('[data-coach]', coach);
     const nb = host.querySelector<HTMLButtonElement>('[data-next]'); if (nb && !nb.onclick) nb.onclick = () => proc.next();
     const eb = host.querySelector<HTMLButtonElement>('[data-endexam]'); if (eb && !eb.onclick) eb.onclick = () => { proc.end(); hurry = false; drawProcedure(); drawReport(); };
+    const ntb = host.querySelector<HTMLButtonElement>('[data-nexttreat]'); if (ntb && !ntb.onclick) ntb.onclick = () => nextTreatment();
     const hb = host.querySelector<HTMLButtonElement>('[data-hurry]');
     if (hb) { const can = proc.canHurry; hb.disabled = !can && !hurry; const txt = hurry ? t('realTime') : t('hurry'); if (hb.textContent !== txt) hb.textContent = txt; hb.setAttribute('aria-pressed', String(hurry)); }
     /* the log, newest first */
@@ -627,16 +678,35 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const db = host.querySelector<HTMLElement>('[data-debrief]');
     if (db) {
       db.hidden = !proc.over;
+      const rep = session.lastReport(), lr2 = proc.lastRating, st0 = session.stimuli[0];
+      const ind = proc.done.get('induction')?.at, rel = proc.done.get('relaxant')?.at;
+      const dur = (a: number | undefined) => (a != null && st0 ? sec(st0.at - a) : '—');
       if (proc.over) set('[data-debrief]', `<h2>${t('debrief')}</h2>
         ${proc.endedAt != null ? `<p class="ect-err">${esc(t('endedAt').replace('{s}', sec(proc.endedAt)))}</p>` : ''}
-        ${proc.errors.length ? proc.errors.map((e) => `<p class="ect-err"><b>${sec(e.t)}:</b> ${esc(tr(e.text, lang))}</p>`).join('') : `<p>${t('noErrors')}</p>`}
+        <p>${esc(t('dbSummary').replace('{n}', String(treatmentNo)).replace('{eeg}', rep?.eegEndpoint != null ? `${num(rep.eegEndpoint)} s` : '—').replace('{p}', lr2 ? String(lr2.points) : '—').replace('{m}', String(proc.errors.length)))}</p>
+        <p class="muted small">${esc(t('dbTiming').replace('{a}', dur(ind)).replace('{b}', dur(rel)))}</p>
+        ${nextHtmlFor()}
+        ${proc.errors.length ? proc.errors.map((e) => `<div class="ect-err"><p><b>${sec(e.t)} · ${esc(tr(ROLE_NAME[STEP[e.step].role], lang))}:</b> ${esc(tr(e.text, lang))}</p><p class="small"><b>${t('dbInstead')}:</b> ${esc(tr(proc.stepDef(e.step).how, lang))}</p></div>`).join('') : `<p>${t('noErrors')}</p>`}
+        ${courseHtml()}
         <table class="lab"><thead><tr><th>${t('colStep')}</th><th>${t('colRole')}</th><th>${t('colBy')}</th><th>${t('colAt')}</th></tr></thead><tbody>
         ${proc.summary().filter(({ step, status }) => status || proc.applies(step.id) || (RESTIM_STEPS.includes(step.id) && proc.restimIndicated)).map(({ step, status }) => `<tr><td>${esc(tr(proc.stepDef(step.id).title, lang))}</td><td>${esc(tr(ROLE_NAME[step.role], lang))}</td><td>${status ? esc(whoName(status.by)) : `<span class="muted">${t('notDone')}</span>`}</td><td>${status ? sec(status.at) : ''}</td></tr>`).join('')}
         </tbody></table>`);
     }
   };
+  const nextHtmlFor = () => {
+    if (!proc.nextOrder) return '';
+    return `<p>${esc(t('nextDone').replace('{pct}', String(proc.nextOrder.percent)).replace('{c}', tr(NEXT_DOSE_NAME[proc.nextOrder.choice], lang)))}</p>`;
+  };
+  /* the course's log, and the button to the next treatment */
+  const courseHtml = () => {
+    if (!courseOn) return '';
+    const rows = [...courseLog, ...(proc.finished ? [thisEntry()] : [])].map((c) => `<tr><td>${c.n}</td><td>${c.percent} %</td><td>${c.restimPercent != null ? `${c.restimPercent} %` : '—'}</td><td>${c.eegEndpoint != null ? `${num(c.eegEndpoint)} s` : '—'}</td><td>${c.points ?? '—'}/5</td><td>${c.nextPercent != null ? `${c.nextPercent} %` : '—'}</td><td>${c.mistakes}</td></tr>`).join('');
+    return `<h3>${t('courseTitle')}</h3>${rows ? `<table class="lab"><thead><tr><th>${t('colN')}</th><th>${t('colDose')}</th><th>${t('colRestim')}</th><th>${t('colSeizure')}</th><th>${t('colSams')}</th><th>${t('colNext')}</th><th>${t('colErrs')}</th></tr></thead><tbody>${rows}</tbody></table>` : ''}
+      ${proc.finished && proc.nextOrder ? `<p><button type="button" class="primary" data-nexttreat>${t('courseNext')} (${treatmentNo + 1})</button></p>` : ''}`;
+  };
   const wireProcedure = () => {
-    host.querySelector<HTMLSelectElement>('[data-order]')!.onchange = (e) => { orderIdx = Number((e.target as HTMLSelectElement).value); newSession(); };
+    host.querySelector<HTMLSelectElement>('[data-order]')!.onchange = (e) => { orderIdx = Number((e.target as HTMLSelectElement).value); resetCourse(); newSession(); };
+    const cb = host.querySelector<HTMLInputElement>('[data-course]'); if (cb) cb.onchange = () => { courseOn = cb.checked; resetCourse(); newSession(); };
     host.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.addEventListener('click', () => { mode = b.dataset.mode as EctMode; newSession(); }));
     host.querySelector<HTMLSelectElement>('[data-role]')!.onchange = (e) => { roleSel = (e.target as HTMLSelectElement).value as EctRole | 'all'; newSession(); };
     host.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => b.addEventListener('click', () => { proc.act(b.dataset.act as StepId, 'you'); drawProcedure(); }));

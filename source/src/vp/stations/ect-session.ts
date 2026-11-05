@@ -177,6 +177,14 @@ export class EctSession {
   private breathingOff = false;
   /** the awake patient's fist (the voluntary contraction that checks the EMG leads): until when */
   private fistFrom = -Infinity;
+  /** a course of ECT: each pulse's drive at this treatment (1 at the first; the threshold rises over a course, so it falls:
+      stations/ect-course.ts) */
+  courseDrive = 1;
+  /** how fast this patient's seizures end, against the reference (1): below 1 for a patient prone to prolonged seizures (a
+      case's setting, not a model constant) */
+  terminationFactor = 1;
+  /** a stimulus pad lifting off the skin: the static impedance reads high until it is pressed on */
+  padLifting = false;
   /** the anaesthetic: propofol, esketamine, the relaxant and its reversal, a benzodiazepine and flumazenil */
   readonly anaesthesia = new Anaesthesia(ECT_PATIENT);
   /** the stimulus pads on the head (the procedure starts without them; part 1's sessions have them on) */
@@ -224,7 +232,7 @@ export class EctSession {
   get staticOhm() {
     if (!this.stimulusCable || !this.padsOn) return Infinity;
     const z = ECT.staticMean + this.patient.skin * ECT.staticSD;
-    return Math.max(150, z) * (this.patient.prepared ? 1 : ECT.unpreparedSkin);
+    return Math.max(150, z) * (this.patient.prepared && !this.padLifting ? 1 : ECT.unpreparedSkin);
   }
   /** the dynamic impedance it presents to the 0.9 A stimulus (Ω); Infinity with the circuit open (no pads, no cable) */
   get dynamicOhm() { return this.circuit ? ECT.dynamicMean + ECT.staticToDynamic * this.patient.skin * ECT.dynamicSD : Infinity; }
@@ -232,6 +240,8 @@ export class EctSession {
   get stimulusCurrent() { const z = this.dynamicOhm; return Number.isFinite(z) ? Math.min(ECT.current, ECT.maxVoltage / z) : 0; }
   private updateImpedance() { this.device.staticOhm = this.staticOhm; }
   setPrepared(p: boolean) { this.patient.prepared = p; this.updateImpedance(); }
+  /** press a lifting pad back onto the skin */
+  pressPads() { this.padLifting = false; this.updateImpedance(); }
   setStimulusCable(on: boolean) { this.stimulusCable = on; this.updateImpedance(); }
   /** put the stimulus pads on the head at a placement, or take them off (null) */
   setPads(placement: PlacementId | null) { if (placement) this.patient.placement = placement; this.padsOn = placement != null; this.updateImpedance(); }
@@ -362,8 +372,9 @@ export class EctSession {
       case 'stimulus-start': {
         this.startedAt = this.t;
         if (this.circuit) {
-          const tr = pulseTrain(e.stimulus, dosesFor(this.patient.placement, e.stimulus.pulseWidth)), k = this.stimulusCurrent / ECT.current;
-          /* above the 450 V limit the current, and with it each pulse's push, is smaller */
+          const tr = pulseTrain(e.stimulus, dosesFor(this.patient.placement, e.stimulus.pulseWidth)), k = (this.stimulusCurrent / ECT.current) * this.courseDrive;
+          /* above the 450 V limit the current, and with it each pulse's push, is smaller; over a course each pulse drives
+             the brain less (the rising threshold) */
           this.brain.pulses(k < 1 ? { ...tr, area: Array.from(tr.area, (a) => a * k) } : tr);
         }
         this.baselineAtStimulus = this.device.baseline === 'ready';
@@ -427,7 +438,7 @@ export class EctSession {
     /* the anaesthetic: its levels move on; its anticonvulsant load hastens the end of a seizure; the breathing returns
        when the propofol has fallen below the apnoea level and the diaphragm is free (and stops again if it is not) */
     this.anaesthesia.step(dt);
-    const term = this.anaesthesia.termination; for (const r of this.brain.regions) r.termination = term;
+    const term = this.anaesthesia.termination * this.terminationFactor; for (const r of this.brain.regions) r.termination = term;
     if (this.inducedAt != null) {
       const breathes = this.anaesthesia.breathes;
       if (this.breathingOff && breathes) { this.breathingOff = false; this.setResp((r) => { r.drive = 1; }); }
