@@ -866,12 +866,16 @@ export const ROLE_NAME: Record<EctRole, LocalizedText> = {
 export const MODE_NAME: Record<EctMode, LocalizedText> = { practise: L('Practise', 'Üben'), watch: L('Watch', 'Zusehen'), exam: L('Exam', 'Prüfung') };
 
 /** the order as the card shows it */
-export function orderLines(o: EctOrder): LocalizedText[] {
+/** the order card's lines; in a course after the first treatment (`treatment` > 1) they say so, and that the dose is the
+    one written after the last treatment */
+export function orderLines(o: EctOrder, treatment = 1): LocalizedText[] {
   const p = PLACEMENTS[o.placement];
   return [
+    ...(treatment > 1 ? [L(`Treatment ${treatment} of the course`, `Behandlung ${treatment} der Serie`)] : []),
     L(`Pads: ${p.name.en}`, `Elektroden: ${p.name.de}`),
     L(`Program ${PROGRAM_NAMES[o.program]}, ${o.percent} %`, `Programm ${PROGRAM_NAMES[o.program]}, ${o.percent} %`),
     L('Premedication: glycopyrrolate 0.2 mg IV', 'Prämedikation: Glycopyrronium 0,2 mg i. v.'),
+    ...(treatment > 1 ? [L(`The dose is the one written after treatment ${treatment - 1}, from its seizure’s SAMS; the note below is for the first treatment.`, `Die Dosis ist die nach Behandlung ${treatment - 1} angeordnete, aus dem SAMS ihres Anfalls; der Hinweis darunter gilt für die erste Behandlung.`)] : []),
     o.doseNote,
   ];
 }

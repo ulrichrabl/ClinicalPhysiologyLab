@@ -481,7 +481,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
         <div class="ect-order">
           <h2 id="ect-task-h">${t('task')}</h2>
           <select data-order aria-label="${t('task')}">${ECT_ORDERS.map((x, i) => `<option value="${i}" ${i === orderIdx ? 'selected' : ''}>${esc(tr(x.title, lang))}</option>`).join('')}</select>
-          <ul class="ect-orderlines">${orderLines(o).map((x) => `<li>${esc(tr(x, lang))}</li>`).join('')}</ul>
+          <ul class="ect-orderlines">${orderLines(o, courseOn ? treatmentNo : 1).map((x) => `<li>${esc(tr(x, lang))}</li>`).join('')}</ul>
         </div>
         <div class="ect-modes">
           <span class="seg" role="radiogroup" aria-label="${t('mode')}">${(['practise', 'watch', 'exam'] as const).map((m) => `<button type="button" role="radio" aria-checked="${mode === m}" data-mode="${m}">${esc(tr(MODE_NAME[m], lang))}</button>`).join('')}</span>
