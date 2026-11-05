@@ -271,7 +271,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
   {
     /* the exam always comes to an end: the learner does every step of every role at the device and in the room, with one
        slip each time. Each slip is a scored mistake, never a procedure that waits for good */
-    const exam = (order, slip, roles = [...S.ECT_ROLES]) => {
+    const exam = (order, slip, roles = [...S.ECT_ROLES], pads = order.placement) => {
       const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });
       const p = new S.Procedure(s, order, 'exam', roles), d = s.device;
       const hosp = () => { S.HOSPITAL_MONTAGE.ch.forEach((l, ch) => { p.placeLead({ ch, pole: 'black' }, l.black); p.placeLead({ ch, pole: 'red' }, l.red); }); p.placeLead('ground', S.HOSPITAL_MONTAGE.ground); };
@@ -282,14 +282,14 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
         if (id === 'impedance' || id === 'precheck') { d.impedanceButton(true); yield 1.6; d.impedanceButton(false); while (d.baseline !== 'ready') yield 0.25; if (id === 'precheck') { d.startStop(); yield 4; d.startStop(); } yield 1; return; }
         if (id === 'dose') { d.settings.program = order.program; yield* dial(order.percent); return; }
         if (id === 'strip') { d.startStop(); yield 6; d.startStop(); yield 1; return; }
-        if (id === 'treat') { yield* treat(); if (slip === 'second-treat') { yield 5; yield* treat(); } return; }
+        if (id === 'treat') { yield* treat(); if (slip === 'second-treat' || slip === 'treat-again-30') { yield slip === 'second-treat' ? 5 : 30; yield* treat(); } return; }
         if (id === 'retreat') { yield* treat(); return; }
         if (id === 'restimDose') { yield* dial(slip === 'restim-dose' ? S.PERCENT_STEPS[S.PERCENT_STEPS.indexOf(p.restimPercent) + 3] : p.restimPercent); if (slip === 'restim-dose') yield* treat(); return; }
         if (id === 'report' || id === 'rereport') { d.startStop(); while (!p.isDone(id)) yield 0.25; return; }
         if (id === 'cuff') { while (p.room.cuffMmHg < 230) { p.squeeze(); yield 0.3; } p.act('cuff'); return; }
         if (id === 'leads') { hosp(); p.act('leads'); return; }
         if (id === 'sams' || id === 'resams') { const t = p.samsTruth(); p.act(id, 'you', { sams: { points: t.items.map((x) => x.point), band: slip === 'sams-good' && id === 'sams' ? 'good' : t.band } }); return; }
-        if (id === 'pads') { p.act('pads', 'you', { placement: order.placement }); return; }
+        if (id === 'pads') { p.act('pads', 'you', { placement: pads }); return; }
         p.act(id);
       };
       let busy = null, wait = 0;
@@ -304,7 +304,13 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const clean = exam(bt, null);
     ok('exam, every role, no slip: the treatment ends without a mistake', clean.p.finished && !clean.codes.length, J({ codes: clean.codes, open: S.STEPS.filter((x) => clean.p.open(x.id)).map((x) => x.id) }));
     const two = exam(bt, 'second-treat');
-    ok('exam: TREAT pressed again during the first seizure is a needless restimulation, and the treatment still ends (the watch moves to the second seizure)', two.p.finished && two.s.stimuli.length === 2 && two.codes.includes('restim-unneeded'), J({ codes: two.codes, open: S.STEPS.filter((x) => two.p.open(x.id)).map((x) => x.id) }));
+    ok('exam: TREAT pressed again during the first seizure is a stimulus before the rating, too early, and the treatment still ends (the watch moves to the second seizure)', two.p.finished && two.s.stimuli.length === 2 && two.codes.includes('restim-unrated') && two.codes.includes('restim-timing'), J({ codes: two.codes, open: S.STEPS.filter((x) => two.p.open(x.id)).map((x) => x.id) }));
+    /* the owner's run: pads at the wrong placement, a stimulus and no seizure, TREAT pressed again 30 s later before the
+       report; the second seizure rated poor must not plan a third stimulus */
+    const none = exam(bt, 'treat-again-30', [...S.ECT_ROLES], 'BF');
+    ok('exam: wrong pads, no seizure, TREAT again after 30 s before the report: wrong pads, a stimulus before the rating and too early are named; no third stimulus is asked for, and the treatment ends', none.p.finished && none.s.stimuli.length === 2 && ['wrong-pads', 'restim-unrated', 'restim-timing'].every((c) => none.codes.includes(c)) && !none.p.needsRestim, J({ codes: none.codes, open: S.STEPS.filter((x) => none.p.open(x.id)).map((x) => x.id) }));
+    const noneOk = exam(bt, null, [...S.ECT_ROLES], 'BF');
+    ok('exam: wrong pads and no seizure, rated poor and restimulated by the rules: the treatment ends with only the pads named', noneOk.p.finished && noneOk.s.stimuli.length === 2 && JSON.stringify(noneOk.codes) === '["wrong-pads"]', J({ codes: noneOk.codes }));
     for (const roles of [[...S.ECT_ROLES], ['psychiatrist']]) {
       const g = exam(re, 'sams-good', roles);
       ok(`exam (${roles.join(', ')}): a poor first seizure rated good is a wrong decision; the procedure follows the decision (no restimulation) and ends`, g.p.finished && g.s.stimuli.length === 1 && g.codes.includes('sams-decision') && g.p.restimIndicated && !g.p.needsRestim, J({ codes: g.codes, open: S.STEPS.filter((x) => g.p.open(x.id)).map((x) => x.id) }));

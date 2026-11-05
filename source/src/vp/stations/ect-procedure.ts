@@ -300,7 +300,7 @@ export const STEP: Record<StepId, StepDef> = Object.fromEntries(STEPS.map((s) =>
 /** a mistake the procedure noticed, at the moment it happened */
 export interface ProcedureError { t: number; code: ErrorCode; step: StepId; text: LocalizedText }
 export type ErrorCode = 'awake-stimulus' | 'unmodified' | 'early-stimulus' | 'no-bite-block' | 'no-impedance' | 'impedance-out' | 'wrong-dose' | 'wrong-pads'
-  | 'no-leads' | 'montage' | 'restim-unneeded' | 'restim-unagreed' | 'restim-dose' | 'restim-timing' | 'sams-items' | 'sams-decision' | 'cuff-range' | 'no-strip' | 'no-brakes' | 'no-paper' | 'no-precheck' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
+  | 'no-leads' | 'montage' | 'restim-unneeded' | 'restim-unrated' | 'restim-unagreed' | 'restim-dose' | 'restim-timing' | 'sams-items' | 'sams-decision' | 'cuff-range' | 'no-strip' | 'no-brakes' | 'no-paper' | 'no-precheck' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
 
 const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'awake-stimulus': L('Stimulus before anaesthesia.', 'Reiz vor der Narkose.'),
@@ -314,6 +314,7 @@ const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'no-leads': L('Stimulus without EEG and ECG.', 'Reiz ohne EEG und EKG.'),
   montage: L('Leads not as the manual places them.', 'Ableitungen nicht wie im Handbuch.'),
   'restim-unneeded': L('A restimulation without a poor first seizure (SAMS 0–1), or after a first dose of 140 % or more.', 'Re-Stimulation ohne schlechten ersten Anfall (SAMS 0–1) oder nach einer ersten Dosis ab 140 %.'),
+  'restim-unrated': L('A second stimulus before the first seizure was reported and rated (SAMS) and the restimulation agreed with anaesthesia.', 'Zweiter Reiz, bevor der erste Anfall dokumentiert und bewertet (SAMS) und die Re-Stimulation mit der Anästhesie abgesprochen war.'),
   'restim-unagreed': L('Restimulation not agreed with anaesthesia.', 'Re-Stimulation nicht mit der Anästhesie abgesprochen.'),
   'restim-dose': L('Restimulation not at 1.5 times the first dose.', 'Re-Stimulation nicht mit der 1,5-fachen Dosis.'),
   'restim-timing': L('Restimulation outside 120–180 s after the first stimulus.', 'Re-Stimulation außerhalb von 120–180 s nach dem ersten Reiz.'),
@@ -395,10 +396,12 @@ export class Procedure {
     return true;
   }
   /** the first seizure scored 0–1 by the report and the strip, and its dose was under 140 %: a restimulation is indicated */
-  get restimIndicated(): boolean { const t = this.samsResult.sams?.truth; return !!t && t.band === 'poor' && (this.session.stimuli[0]?.percent ?? 0) < RESTIM_MAX_FIRST; }
+  get restimIndicated(): boolean { const r = this.samsResult.sams; return !!r && r.of === 0 && r.truth.band === 'poor' && (this.session.stimuli[0]?.percent ?? 0) < RESTIM_MAX_FIRST; }
   /** a restimulation follows: whoever rated the first seizure decided it was poor, and its dose was under 140 %. The
-      procedure goes on as the rater decided; a wrong decision is a mistake ('sams-decision'), not a dead end */
-  get needsRestim(): boolean { const r = this.samsResult.sams; return !!r && r.mine.band === 'poor' && (this.session.stimuli[0]?.percent ?? 0) < RESTIM_MAX_FIRST; }
+      procedure goes on as the rater decided; a wrong decision is a mistake ('sams-decision'), not a dead end. Only the
+      rating of the first stimulus's report plans one: after an unplanned second stimulus (TREAT pressed again before the
+      report), that stimulus was the restimulation */
+  get needsRestim(): boolean { const r = this.samsResult.sams; return !!r && r.of === 0 && r.mine.band === 'poor' && (this.session.stimuli[0]?.percent ?? 0) < RESTIM_MAX_FIRST; }
   /** the learner ended the exam before the treatment was over (the debrief then lists what was not done) */
   endedAt: number | null = null;
   end() { if (this.endedAt == null && !this.finished) this.endedAt = this.t; }
@@ -453,7 +456,7 @@ export class Procedure {
   /** the score as the device's report and the strip give it (null before a report) */
   samsTruth(): Sams | null { const r = this.session.lastReport(); return r ? sams({ eegEndpoint: r.eegEndpoint, psi: r.psi, coherence: r.coherence, midictal: r.midictal, peakHr: r.peakHr }) : null; }
   /** the learner's rating: which items scored, and the decision; checked against the report */
-  samsResult: Partial<Record<'sams' | 'resams', { truth: Sams; mine: { points: boolean[]; band: Sams['band'] }; by: Who }>> = {};
+  samsResult: Partial<Record<'sams' | 'resams', { truth: Sams; mine: { points: boolean[]; band: Sams['band'] }; by: Who; of: number }>> = {};
   act(id: StepId, by: Who = 'you', opts: { placement?: PlacementId; sams?: { points: boolean[]; band: Sams['band'] } } = {}) {
     const s = STEP[id];
     if (s.kind !== 'room' || this.isDone(id)) return;
@@ -464,7 +467,8 @@ export class Procedure {
       case 'sams': case 'resams': {
         const truth = this.samsTruth(); if (!truth) return;
         const mine = by === 'you' && opts.sams ? opts.sams : { points: truth.items.map((x) => x.point), band: truth.band };
-        this.samsResult[id] = { truth, mine, by };
+        const of = [...session.paper].reverse().find((e) => e.kind === 'report')?.stimulus ?? 0;
+        this.samsResult[id] = { truth, mine, by, of };
         if (mine.points.some((p, i) => p !== truth.items[i].point)) this.err('sams-items', id);
         if (mine.band !== truth.band) this.err('sams-decision', id);
         break;
@@ -564,11 +568,13 @@ export class Procedure {
   /** the second stimulus: only after a poor first seizure, agreed, at 1.5 times the dose, 120–180 s after the first */
   private checkRestim() {
     const st = this.session.stimuli, first = st[0], second = st[st.length - 1];
+    const gap = second.at - first.at;
+    const timing = () => this.err('restim-timing', 'retreat', L(`Restimulation ${Math.round(gap)} s after the first stimulus, not 120–180 s.`, `Re-Stimulation ${Math.round(gap)} s nach dem ersten Reiz, nicht 120–180 s.`));
+    if (!this.samsResult.sams) { this.err('restim-unrated', 'sams'); if (gap < RESTIM_FROM || gap > RESTIM_TO) timing(); return; }
     if (!this.restimIndicated) { this.err('restim-unneeded', 'retreat'); return; }
     if (!this.isDone('restimAgree')) this.err('restim-unagreed', 'restimAgree');
     if (!this.restimDoseOk(second.percent)) this.err('restim-dose', 'restimDose');
-    const gap = second.at - first.at;
-    if (gap < RESTIM_FROM || gap > RESTIM_TO) this.err('restim-timing', 'retreat', L(`Restimulation ${Math.round(gap)} s after the first stimulus, not 120–180 s.`, `Re-Stimulation ${Math.round(gap)} s nach dem ersten Reiz, nicht 120–180 s.`));
+    if (gap < RESTIM_FROM || gap > RESTIM_TO) timing();
   }
   private checkStimulus() {
     const r = this.room, d = this.session.device;
