@@ -78,7 +78,8 @@ const T: Record<string, LocalizedText> = {
   notModelled: L('The bite block is drawn, not modelled.', 'Der Beißschutz ist gezeichnet, nicht modelliert.'),
   breathingOwn: L('breathing', 'atmet'), apnoeic: L('apnoeic', 'apnoisch'),
     anaesthesia: L('Anaesthesia', 'Narkose'),
-  coach: L('Coach', 'Coach'), coachExam: L('Exam: no coach. The debrief follows the report.', 'Prüfung: kein Coach. Nach dem Bericht folgt die Nachbesprechung.'),
+  coach: L('Coach', 'Coach'), coachExam: L('Exam: no coach. The debrief follows when the treatment is over: the seizure rated (and a restimulation if you decided on one) and the patient recovered.', 'Prüfung: kein Coach. Die Nachbesprechung folgt, wenn die Behandlung abgeschlossen ist: Anfall bewertet (und, falls so entschieden, re-stimuliert) und Patient ausgeleitet.'),
+  endExam: L('End the exam', 'Prüfung beenden'), endedAt: L('Exam ended at {s} before the treatment was over; the steps not done are marked.', 'Prüfung bei {s} vor Abschluss der Behandlung beendet; nicht erledigte Schritte sind markiert.'),
   yourNext: L('Your next step', 'Ihr nächster Schritt'), whyL: L('Why', 'Warum'), waitS: L('Wait about {s} s: {what}.', 'Etwa {s} s warten: {what}.'),
   waitInd: L('the induction agent takes effect', 'das Hypnotikum wirkt'), waitOx: L('preoxygenation (3 min)', 'Präoxygenierung (3 min)'), waitRel: L('the fasciculations pass', 'die Faszikulationen klingen ab'),
   nothingYours: L('Nothing for you now; the team is working.', 'Gerade nichts für Sie; das Team arbeitet.'),
@@ -337,7 +338,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const res = proc.samsResult[which], truth = res?.truth ?? (k != null ? proc.samsTruth() : null);
     if (res) {
       const mine = res.mine, mineYou = res.by === 'you';
-      if (mode === 'exam' && !proc.finished) samsHtml = `<div class="ect-sams"><p>${t('samsRated')}</p></div>`;
+      if (mode === 'exam' && !proc.over) samsHtml = `<div class="ect-sams"><p>${t('samsRated')}</p></div>`;
       else samsHtml = `<div class="ect-sams"><h4>${t('samsTitle')}: ${res.truth.points}/5${mineYou ? ` <span class="muted small">(${t('samsYours')}: ${mine.points.filter(Boolean).length}/5)</span>` : ''}</h4><ul>${res.truth.items.map((x, i) => {
           const agree = !mineYou || mine.points[i] === x.point;
           return `<li class="${x.point ? 'on' : ''}${agree ? '' : ' bad'}">${x.point ? '✓' : '○'} ${esc(tr(x.label, lang))}: <b>${esc(x.value)}</b>${agree ? '' : ` — ${t('samsYouSaid')} ${mine.points[i] ? '✓' : '○'}`}</li>`; }).join('')}</ul>`
@@ -580,7 +581,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
       const nx = proc.watchNext();
       coach = doingHtml + watching + (proc.waitingForNext && nx ? `<p>${esc(t('nextIs').replace('{what}', tr(STEP[nx].title, lang)).replace('{who}', tr(ROLE_NAME[STEP[nx].role], lang)))}</p><p class="muted small">${esc(tr(STEP[nx].why, lang))}</p><button type="button" class="primary" data-next>${t('nextBtn')}</button>` : '');
     } else if (mode === 'exam') {
-      coach = `<p class="muted">${t('coachExam')}</p>${doingHtml}${watching}`;
+      coach = `<p class="muted">${t('coachExam')}</p>${doingHtml}${watching}${proc.over ? '' : `<button type="button" class="ghost small" data-endexam>${t('endExam')}</button>`}`;
     } else {
       const errs = proc.errors.map((e) => `<p class="ect-err" role="alert"><b>${t('mistake')}:</b> ${esc(tr(e.text, lang))}</p>`).join('');
       if (cur) {
@@ -591,6 +592,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     }
     set('[data-coach]', coach);
     const nb = host.querySelector<HTMLButtonElement>('[data-next]'); if (nb && !nb.onclick) nb.onclick = () => proc.next();
+    const eb = host.querySelector<HTMLButtonElement>('[data-endexam]'); if (eb && !eb.onclick) eb.onclick = () => { proc.end(); hurry = false; drawProcedure(); drawReport(); };
     const hb = host.querySelector<HTMLButtonElement>('[data-hurry]');
     if (hb) { const can = proc.canHurry; hb.disabled = !can && !hurry; const txt = hurry ? t('realTime') : t('hurry'); if (hb.textContent !== txt) hb.textContent = txt; hb.setAttribute('aria-pressed', String(hurry)); }
     /* the log, newest first */
@@ -598,11 +600,12 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     /* the debrief, once the treatment is over */
     const db = host.querySelector<HTMLElement>('[data-debrief]');
     if (db) {
-      db.hidden = !proc.finished;
-      if (proc.finished) set('[data-debrief]', `<h2>${t('debrief')}</h2>
+      db.hidden = !proc.over;
+      if (proc.over) set('[data-debrief]', `<h2>${t('debrief')}</h2>
+        ${proc.endedAt != null ? `<p class="ect-err">${esc(t('endedAt').replace('{s}', sec(proc.endedAt)))}</p>` : ''}
         ${proc.errors.length ? proc.errors.map((e) => `<p class="ect-err"><b>${sec(e.t)}:</b> ${esc(tr(e.text, lang))}</p>`).join('') : `<p>${t('noErrors')}</p>`}
         <table class="lab"><thead><tr><th>${t('colStep')}</th><th>${t('colRole')}</th><th>${t('colBy')}</th><th>${t('colAt')}</th></tr></thead><tbody>
-        ${proc.summary().map(({ step, status }) => `<tr><td>${esc(tr(step.title, lang))}</td><td>${esc(tr(ROLE_NAME[step.role], lang))}</td><td>${status ? esc(whoName(status.by)) : `<span class="muted">${t('notDone')}</span>`}</td><td>${status ? sec(status.at) : ''}</td></tr>`).join('')}
+        ${proc.summary().filter(({ step, status }) => status || !RESTIM_STEPS.includes(step.id) || proc.needsRestim || proc.restimIndicated).map(({ step, status }) => `<tr><td>${esc(tr(step.title, lang))}</td><td>${esc(tr(ROLE_NAME[step.role], lang))}</td><td>${status ? esc(whoName(status.by)) : `<span class="muted">${t('notDone')}</span>`}</td><td>${status ? sec(status.at) : ''}</td></tr>`).join('')}
         </tbody></table>`);
     }
   };
