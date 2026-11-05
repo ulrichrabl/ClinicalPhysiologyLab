@@ -6,6 +6,7 @@ import { ECT_STATION } from '../stations/station.ts';
 import { ECT } from '../evidence/ect.ts';
 import { EctSession, FS, type EctPatient, type PaperEntry, type Spot } from '../stations/ect-session.ts';
 import { PROGRAM_NAMES, PROGRAM_REPORT, PROGRAM_ORDER, DEFAULT_SETTINGS, stimulusFor, type ProgramChoice } from '../stations/ect-device.ts';
+import { stimulusPhysics, counterpart, currentAt, type StimulusPhysics } from '../stations/ect-physics.ts';
 import { CHARGE_MC, PERCENT_STEPS } from '../stations/ect-programs.ts';
 import { nextStep, explainStimulus, ECT_BACKGROUND, reportLines, heartNow, ECT_PHASE } from '../stations/ect-texts.ts';
 import { phaseOf } from '../stations/eeg-seizure.ts';
@@ -57,6 +58,19 @@ const T: Record<string, LocalizedText> = {
   now: L('What happens now', 'Was jetzt geschieht'),   more: L('Background', 'Hintergrund'),
   draft: L('Explanations are drafts until a clinician has reviewed them.', 'Die Erklärungen sind Entwürfe, bis ein Kliniker sie geprüft hat.'),
   stimTitle: L('Where the current goes', 'Wohin der Strom fließt'),
+  physTitle: L('The stimulus as physics', 'Der Reiz als Physik'),
+  physNote: L('The dial sets a charge. Move the impedance to see what the device must do to deliver it.', 'Der Regler stellt eine Ladung ein. Verschieben Sie die Impedanz, um zu sehen, was das Gerät tun muss, um sie abzugeben.'),
+  zDyn: L('Dynamic impedance of the head', 'Dynamische Impedanz des Kopfes'),
+  trainCap: L('The first 100 ms of the train, to scale: current against time', 'Die ersten 100 ms der Pulsfolge, maßstäblich: Strom gegen Zeit'),
+  pulseCap: L('Close up: the first 3 ms, one pulse at its true width', 'Nahaufnahme: die ersten 3 ms, ein Puls in seiner wahren Breite'),
+  colProg: L('Program', 'Programm'), colWidth: L('Pulse width', 'Pulsbreite'), colFreq: L('Frequency', 'Frequenz'), colPulses: L('Pulses', 'Pulse'), colDur: L('Duration', 'Dauer'),
+  colQset: L('Charge set', 'Ladung eingestellt'), colI: L('Current', 'Strom'), colV: L('Voltage', 'Spannung'), colQ: L('Charge delivered', 'Ladung abgegeben'), colE: L('Energy', 'Energie'), colE220: L('Energy at 220 Ω', 'Energie bei 220 Ω'),
+  physQ: L('Charge = current × pulse width × pulses: {I} A × {w} ms × {n} = {q} mC. The pulses are two per period: 2 × {f} Hz × {d} s.', 'Ladung = Strom × Pulsbreite × Pulse: {I} A × {w} ms × {n} = {q} mC. Je Periode zwei Pulse: 2 × {f} Hz × {d} s.'),
+  physV: L('Voltage = current × impedance (Ohm’s law): {I} A × {z} Ω = {v} V.', 'Spannung = Strom × Impedanz (ohmsches Gesetz): {I} A × {z} Ω = {v} V.'),
+  physLimit: L('Above 500 Ω the 0.9 A would need more than the device’s 450 V: the current falls to {I} A, and the charge delivered with it, to {q} mC instead of {qs}.', 'Über 500 Ω bräuchten 0,9 A mehr als die 450 V des Geräts: Der Strom fällt auf {I} A und mit ihm die abgegebene Ladung, auf {q} statt {qs} mC.'),
+  physE: L('Energy = charge × voltage = {q} mC × {v} V = {e} J. The dial is called “percent energy”, but it sets the charge: the energy depends on the head (the manual quotes it at 220 Ω: {e220} J).', 'Energie = Ladung × Spannung = {q} mC × {v} V = {e} J. Der Regler heißt „Prozent Energie“, stellt aber die Ladung ein: Die Energie hängt vom Kopf ab (das Handbuch nennt sie bei 220 Ω: {e220} J).'),
+  physStatic: L('The impedance test reads about {zs} Ω with a current too small to be felt; under the stimulus’s current the skin conducts far better, so the same head presents about {zd} Ω.', 'Der Impedanztest liest mit einem nicht spürbaren Strom etwa {zs} Ω; beim Strom des Reizes leitet die Haut weit besser, derselbe Kopf zeigt dann etwa {zd} Ω.'),
+  physCompare: L('Beside it, {p} at the same {pct} %: the same charge, as narrower or wider pulses at another rate and over another time. Narrow pulses waste less charge after the axon’s membrane has charged (chronaxie about 0.15 ms).', 'Daneben {p} bei denselben {pct} %: dieselbe Ladung, als schmalere oder breitere Pulse in anderer Folge und über andere Zeit. Schmale Pulse verschwenden weniger Ladung, nachdem die Membran des Axons geladen ist (Chronaxie etwa 0,15 ms).'),
   stimNote: L('The pads’ field, computed by reciprocity in the EEG station’s four-shell head.', 'Das Feld der Elektroden, berechnet per Reziprozität im Vierschalenkopf der EEG-Station.'),
   pulseWidth: L('Pulse width', 'Pulsbreite'), dose: L('Dose on the dial', 'Dosis am Drehknopf'), program: L('Program', 'Programm'),
   section: L('The field in the plane of the pads', 'Das Feld in der Ebene der Elektroden'),
@@ -806,6 +820,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
               <tbody>${doses.map((x) => `<tr><td>${esc(rname(x.def.id))}</td><td>${num(x.field, 2)} V/cm</td><td>${num(100 * x.excited)} %</td></tr>`).join('')}</tbody></table>
             <figure><figcaption class="muted small">${t('sd')}</figcaption><canvas class="st-heart" data-sd role="img" aria-label="${t('sd')}"></canvas><span class="muted small">${t('sdNote')}</span></figure>
           </section>
+          ${physHtml()}
           <section class="panel st-why">
             ${facts.map((x) => `<div class="st-text"><h3>${esc(tr(x.title, lang))}</h3><p>${esc(tr(x.body, lang))}</p></div>`).join('')}
             <details><summary>${t('more')}</summary>${ECT_BACKGROUND.map((x) => `<div class="st-text"><h3>${esc(tr(x.title, lang))}</h3><p>${esc(tr(x.body, lang))}</p></div>`).join('')}</details>
@@ -819,12 +834,82 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     host.querySelector<HTMLSelectElement>('[data-sprog]')!.onchange = (e) => { session.device.settings.program = (e.target as HTMLSelectElement).value as ProgramChoice; if (stimulusFor(session.device.settings.program, session.device.percent, s.user, s.ultrabrief)) stimWidth = stimulusFor(session.device.settings.program, session.device.percent, s.user, s.ultrabrief)!.pulseWidth; renderStim(); };
     host.querySelector<HTMLInputElement>('[data-spct]')!.oninput = (e) => { session.device.settings.percentIndex = Number((e.target as HTMLInputElement).value); const x = stimulusFor(session.device.settings.program, session.device.percent, s.user, s.ultrabrief); if (x) stimWidth = x.pulseWidth; renderStim(); };
     drawStimFigures(doses, th);
+    wirePhysics();
     const key = `${stimPlacement}`;
     if (sectionKey !== key) {
       section = null; sectionKey = key;
       const job = ++sectionJob;
       setTimeout(() => { if (job !== sectionJob || stopped) return; section = fieldSection(f, 72); if (view === 'stim') drawStimFigures(dosesFor(stimPlacement, stimWidth), thresholdField(stimWidth)); }, 30);
     }
+  };
+  /* ---- the physics panel: the pulse train to scale, Ohm's law, charge and energy ---- */
+  /* the head's dynamic impedance to start from: the session's, or the measured mean while the pads are off */
+  let physZ = Number.isFinite(session.dynamicOhm) ? Math.round(session.dynamicOhm / 10) * 10 : Math.round(ECT.dynamicMean / 10) * 10;
+  const physHtml = () => {
+    const s = session.device.settings, pct = session.device.percent;
+    const a = stimulusPhysics(s.program, pct, physZ, s.user, s.ultrabrief), other = counterpart(s.program), b = stimulusPhysics(other, pct, physZ, s.user, s.ultrabrief);
+    if (!a) return '';
+    const row = (name: string, x: StimulusPhysics | null) => x ? `<tr><td>${esc(name)}</td><td>${num(x.stimulus.pulseWidth, 2)} ms</td><td>${num(x.stimulus.frequency)} Hz</td><td>${num(x.stimulus.pulses)}</td><td>${num(x.stimulus.duration, 2)} s</td><td>${num(x.setCharge, 1)} mC</td><td>${num(x.current, 2)} A</td><td>${num(x.voltage)} V</td><td>${num(x.charge, 1)} mC</td><td>${num(x.energy, 1)} J</td><td>${num(x.energyAt220, 1)} J</td></tr>` : '';
+    const st = a.stimulus, fill = (k: string, m: Record<string, string>) => Object.entries(m).reduce((x, [key, v]) => x.split(`{${key}}`).join(v), t(k));
+    const lines = [
+      fill('physQ', { I: num(a.current, 2), w: num(st.pulseWidth, 2), n: num(st.pulses), q: num(a.charge, 1), f: num(st.frequency), d: num(st.duration, 2) }),
+      fill('physV', { I: num(a.current, 2), z: num(physZ), v: num(a.voltage) }),
+      ...(a.limited ? [fill('physLimit', { I: num(a.current, 2), q: num(a.charge, 1), qs: num(a.setCharge, 1) })] : []),
+      fill('physE', { q: num(a.charge, 1), v: num(a.voltage), e: num(a.energy, 1), e220: num(a.energyAt220, 1) }),
+      fill('physStatic', { zs: num(Math.round(ECT.staticMean / 10) * 10), zd: num(Math.round(ECT.dynamicMean / 10) * 10) }),
+      fill('physCompare', { p: session.device.programName(other), pct: num(pct) }),
+    ];
+    return `<section class="panel st-physics" aria-labelledby="ect-ph-h">
+      <h2 id="ect-ph-h">${t('physTitle')}</h2><p class="layer-note">${t('physNote')}</p>
+      <label class="st-var"><span>${t('zDyn')} <output data-zout>${num(physZ)} Ω</output></span><input type="range" data-zdyn min="100" max="900" step="10" value="${physZ}"></label>
+      <figure><figcaption class="muted small">${t('trainCap')}</figcaption><canvas class="st-heart" data-train role="img" aria-label="${t('trainCap')}"></canvas></figure>
+      <figure><figcaption class="muted small">${t('pulseCap')}</figcaption><canvas class="st-heart" data-pulse role="img" aria-label="${t('pulseCap')}"></canvas></figure>
+      <div class="table-scroll"><table class="lab ect-phys"><thead><tr><th>${t('colProg')}</th><th>${t('colWidth')}</th><th>${t('colFreq')}</th><th>${t('colPulses')}</th><th>${t('colDur')}</th><th>${t('colQset')}</th><th>${t('colI')}</th><th>${t('colV')}</th><th>${t('colQ')}</th><th>${t('colE')}</th><th>${t('colE220')}</th></tr></thead>
+        <tbody>${row(session.device.programName(), a)}${row(session.device.programName(other), b)}</tbody></table></div>
+      ${lines.map((x) => `<p class="small">${esc(x)}</p>`).join('')}
+    </section>`;
+  };
+  const wirePhysics = () => {
+    const z = host.querySelector<HTMLInputElement>('[data-zdyn]');
+    if (z) z.oninput = () => { physZ = Number(z.value); const keep = window.scrollY; renderStim(); window.scrollTo(0, keep); host.querySelector<HTMLInputElement>('[data-zdyn]')?.focus(); };
+    drawPhysics();
+  };
+  const drawPhysics = () => {
+    const s = session.device.settings, pct = session.device.percent;
+    const a = stimulusPhysics(s.program, pct, physZ, s.user, s.ultrabrief), b = stimulusPhysics(counterpart(s.program), pct, physZ, s.user, s.ultrabrief);
+    if (!a) return;
+    const col = { fg: css('--fg'), muted: css('--muted'), line: css('--line'), accent: css('--accent') };
+    const rows = [{ x: a, name: session.device.programName(), c: col.accent }, ...(b ? [{ x: b, name: session.device.programName(counterpart(s.program)), c: col.fg }] : [])];
+    /* the trace of a stimulus: current against time, drawn sample by sample at the canvas's own resolution so narrow pulses
+       stay visible as lines of their true width (at least one pixel) */
+    const trace = (sel: string, span: number, offsetOf: (x: StimulusPhysics) => number[]) => {
+      const cv = host.querySelector<HTMLCanvasElement>(sel); if (!cv) return;
+      const H = 70 * rows.length + 22, { g, w } = sizeCanvas(cv, H), x0 = 92, x1 = w - 10;
+      g.font = '11px system-ui, sans-serif';
+      rows.forEach((r, k) => {
+        const mid = 12 + k * 70 + 32, amp = 26 * (r.x.current / ECT.current);
+        g.fillStyle = col.muted; g.textAlign = 'right'; g.fillText(r.name, x0 - 8, mid + 4);
+        g.strokeStyle = col.line; g.beginPath(); g.moveTo(x0, mid); g.lineTo(x1, mid); g.stroke();
+        g.strokeStyle = r.c; g.lineWidth = 1.5; g.beginPath();
+        for (const off of offsetOf(r.x)) {
+          let prev = 0; g.moveTo(x0, mid);
+          for (let px = 0; px <= x1 - x0; px++) {
+            const t0 = off + (px / (x1 - x0)) * span, t1 = off + ((px + 1) / (x1 - x0)) * span;
+            /* the pixel's current: a pulse anywhere inside it shows (so a 0.25 ms pulse is not lost between samples) */
+            let i = 0; for (let k2 = 0; k2 < 8; k2++) { const c = currentAt(r.x.stimulus, t0 + ((t1 - t0) * k2) / 8, r.x.current); if (Math.abs(c) > Math.abs(i)) i = c; }
+            const y = mid - (i / r.x.current) * amp;
+            if (i !== prev) { g.lineTo(x0 + px, mid - (prev / r.x.current) * amp); g.lineTo(x0 + px, y); prev = i; } else g.lineTo(x0 + px, y);
+          }
+        }
+        g.stroke(); g.lineWidth = 1;
+      });
+      g.fillStyle = col.muted; g.textAlign = 'center';
+      for (let k = 0; k <= 4; k++) { const ms = (span * 1000 * k) / 4; g.textAlign = k === 4 ? 'right' : k === 0 ? 'left' : 'center'; g.fillText(`${num(ms, span < 0.01 ? 2 : 0)} ms`, x0 + ((x1 - x0) * k) / 4, H - 4); }
+      g.textAlign = 'left'; g.fillText(`±${num(ECT.current, 1)} A`, 4, 12);
+    };
+    trace('[data-train]', 0.1, () => [0]);
+    /* the close-up: the first pulse (positive) from its start, 3 ms */
+    trace('[data-pulse]', 0.003, () => [0]);
   };
   const shares = new Map<PlacementId, number>();
   const brainShareOf = (p: PlacementId) => { if (!shares.has(p)) shares.set(p, fieldFor(p).brainShare(300)); return shares.get(p)!; };
