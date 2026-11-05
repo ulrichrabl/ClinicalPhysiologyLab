@@ -82,6 +82,38 @@ console.log('\nThe device against its manual');
   ok('2X: the dial goes to 200 %, 1008 mC (the manual’s table: 1008 mC), within 8 s; pressed, PERCENT ENERGY shows “2x” for the 0.5 ms program', top === 200 && Math.abs(st.charge - 1008) < 1008 * 0.03 && st.duration <= 8.005 && shown === '2x', J({ top, charge: st.charge, duration: st.duration, shown }));
   const u3 = S.stimulusFor('LOW_UB', 50, {}, 0.3), u25 = S.stimulusFor('LOW_UB', 50, {}, 0.25);
   ok('the ultrabrief program set up for 0.3 ms gives 0.3 ms pulses, the same charge as with 0.25 ms (the manual’s tables)', u3.pulseWidth === 0.3 && u25.pulseWidth === 0.25 && Math.abs(u3.charge - u25.charge) < u25.charge * 0.03, J({ u3, u25 }));
+  const d3 = new S.EctDevice({ ...S.DEFAULT_SETTINGS, ultrabrief: 0.3 });
+  ok('a device set up for 0.3 ms has no 0.25 ms user setting (the manual, “Pulse width”)', !d3.pulseWidths().includes(0.25) && d3.pulseWidths()[0] === 0.3, J(d3.pulseWidths()));
+  ok('INTERMIT is not offered: its intermittent train is not simulated', !S.PROGRAM_ORDER.includes('INTERMIT') && !new S.EctDevice().options('PROGRAMS').includes('INTERMIT'));
+}
+
+{
+  /* the baseline (the manual: testing the impedance again does not affect it; IMPEDANCE TEST with the PERCENT ENERGY dial
+     pressed resets it; it is kept for the baseline retention time after a treatment) */
+  const ready = (s) => { const d = s.device; d.power(true); s.advance(6); d.impedanceButton(true); s.advance(1.5); d.impedanceButton(false); s.advance(9); };
+  const s = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }), d = s.device;
+  ready(s); const from = s.baselineFrom;
+  d.impedanceButton(true); s.advance(1.5); d.impedanceButton(false); s.advance(0.5);
+  ok('testing the impedance again keeps the READY baseline (the manual: it does not affect the baseline)', d.baseline === 'ready' && s.baselineFrom === from && d.left === 'READY', d.left);
+  d.pressPercent(true); d.impedanceButton(true); s.advance(1.5); d.impedanceButton(false); d.pressPercent(false); s.advance(0.5);
+  ok('…pressed together with the PERCENT ENERGY dial, a new baseline is collected (firmware 5.60)', d.baseline === 'collecting' && s.baselineFrom > from, d.left);
+  s.advance(9);
+  d.treatButton(true); while (d.treat !== 'done') s.advance(0.05); d.treatButton(false);
+  s.advance(100); const kept = d.baseline; s.advance(25);
+  ok('the baseline is kept for the retention time after the treatment (BLV, factory 2 min), then gone: NO BASE once the report is printed', kept === 'ready' && d.baseline === 'none', J({ kept, now: d.baseline }));
+  const s3 = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }, { ...S.DEFAULT_SETTINGS, baselineRetention: 3 });
+  ready(s3); s3.device.treatButton(true); while (s3.device.treat !== 'done') s3.advance(0.05); s3.device.treatButton(false); s3.advance(150);
+  ok('…with BLV 3 min a restimulation at 150 s still has it', s3.device.baseline === 'ready');
+  const nc = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }); nc.montage.ch[0] = { black: null, red: null };
+  ready(nc);
+  ok('no READY without EEG channel 1 (the manual: channel 1 must be used to obtain the baseline)', nc.device.baseline === 'collecting' && nc.device.left === 'BASELINE', nc.device.left);
+  const open = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }); open.setPads(null); ready(open);
+  open.device.treatButton(true); while (open.device.treat !== 'done') open.advance(0.05); open.device.treatButton(false); open.advance(1);
+  ok('with the pads off nothing is delivered: charge 0 and the dynamic impedance out of range', open.stimuli[0].given.charge === 0 && !Number.isFinite(open.stimuli[0].dynamicOhm), J(open.stimuli[0].given));
+  const hv = new S.EctSession({ placement: 'BT', prepared: true, skin: 14, seed: 7 });
+  ok('above 500 Ω of dynamic impedance the 450 V limit lowers the current (the manual: 0.9 A, limited to 450 V)', hv.dynamicOhm > 500 && Math.abs(hv.stimulusCurrent - 450 / hv.dynamicOhm) < 1e-9 && new S.EctSession().stimulusCurrent === 0.9, `${hv.dynamicOhm.toFixed(0)} Ω → ${hv.stimulusCurrent.toFixed(2)} A`);
+  const m = S.montageProblems({ ...S.HOSPITAL_MONTAGE, ch: [{ black: 'Fpz', red: 'M2' }, { black: 'Fpz', red: 'M1' }, S.HOSPITAL_MONTAGE.ch[2], S.HOSPITAL_MONTAGE.ch[3]] });
+  ok('the manual’s preferred EEG montage, a forehead-centre electrode shared by both channels through the splitter, is accepted', !m.length, J(m));
 }
 
 console.log('\nThe stimulus in the head (by reciprocity through part 1’s head)');
@@ -284,7 +316,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
         if (id === 'strip') { d.startStop(); yield 6; d.startStop(); yield 1; return; }
         if (id === 'treat') { yield* treat(); if (slip === 'second-treat' || slip === 'treat-again-30') { yield slip === 'second-treat' ? 5 : 30; yield* treat(); } return; }
         if (id === 'retreat') { yield* treat(); return; }
-        if (id === 'restimDose') { yield* dial(slip === 'restim-dose' ? S.PERCENT_STEPS[S.PERCENT_STEPS.indexOf(p.restimPercent) + 3] : p.restimPercent); if (slip === 'restim-dose') yield* treat(); return; }
+        if (id === 'restimDose') { if (d.baseline !== 'ready') { d.impedanceButton(true); yield 1.6; d.impedanceButton(false); while (d.baseline !== 'ready') yield 0.25; } yield* dial(slip === 'restim-dose' ? S.PERCENT_STEPS[S.PERCENT_STEPS.indexOf(p.restimPercent) + 3] : p.restimPercent); if (slip === 'restim-dose') yield* treat(); return; }
         if (id === 'report' || id === 'rereport') { d.startStop(); while (!p.isDone(id)) yield 0.25; return; }
         if (id === 'cuff') { while (p.room.cuffMmHg < 230) { p.squeeze(); yield 0.3; } p.act('cuff'); return; }
         if (id === 'leads') { hosp(); p.act('leads'); return; }

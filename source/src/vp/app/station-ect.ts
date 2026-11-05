@@ -5,7 +5,7 @@ import { type StationHandle, type StationOptions } from './station-ecg.ts';
 import { ECT_STATION } from '../stations/station.ts';
 import { ECT } from '../evidence/ect.ts';
 import { EctSession, FS, type EctPatient, type PaperEntry, type Spot } from '../stations/ect-session.ts';
-import { PROGRAM_NAMES, PROGRAM_REPORT, DEFAULT_SETTINGS, stimulusFor, type ProgramChoice } from '../stations/ect-device.ts';
+import { PROGRAM_NAMES, PROGRAM_REPORT, PROGRAM_ORDER, DEFAULT_SETTINGS, stimulusFor, type ProgramChoice } from '../stations/ect-device.ts';
 import { CHARGE_MC, PERCENT_STEPS } from '../stations/ect-programs.ts';
 import { nextStep, explainStimulus, ECT_BACKGROUND, reportLines, heartNow, ECT_PHASE } from '../stations/ect-texts.ts';
 import { phaseOf } from '../stations/eeg-seizure.ts';
@@ -104,7 +104,8 @@ const T: Record<string, LocalizedText> = {
   service: L('Device setup (service settings)', 'Geräte-Setup (Service-Einstellungen)'),
   doseRange: L('Dose range', 'Dosisbereich'), upTo100: L('up to 100 %', 'bis 100 %'), upTo200: L('up to 200 % (2X, CE)', 'bis 200 % (2X, CE)'),
   ubWidth: L('Ultrabrief pulse', 'Ultrakurzpuls'),
-  serviceNote: L('As the device was set up: the manual offers doses up to 200 % where CE rules allow, and the ultrabrief programs with 0.25 or 0.3 ms pulses. Your hospital: 2X.', 'Wie das Gerät eingerichtet ist: Das Handbuch bietet Dosen bis 200 %, wo CE-Regeln es erlauben, und die Ultrakurzpuls-Programme mit 0,25 oder 0,3 ms. Ihr Haus: 2X.'),
+  serviceNote: L('As the device was set up: the manual offers doses up to 200 % where CE rules allow, the ultrabrief programs with 0.25 or 0.3 ms pulses, and a baseline retention (BLV) of 0–5 min: how long the EEG baseline is kept after a treatment, so that a restimulation within it needs no new baseline (factory setting 2 min). Your hospital: 2X.', 'Wie das Gerät eingerichtet ist: Das Handbuch bietet Dosen bis 200 %, wo CE-Regeln es erlauben, die Ultrakurzpuls-Programme mit 0,25 oder 0,3 ms und eine Baseline-Speicherung (BLV) von 0–5 min: wie lange die EEG-Baseline nach einer Behandlung erhalten bleibt, sodass eine Re-Stimulation in dieser Zeit keine neue Baseline braucht (Werkseinstellung 2 min). Ihr Haus: 2X.'),
+  blv: L('Baseline kept after a treatment (BLV)', 'Baseline nach Behandlung behalten (BLV)'),
   samsTitle: L('Seizure quality (SAMS)', 'Anfallsqualität (SAMS)'),
   samsAsk: L('Tick each marker the report and the strip show. The midictal amplitude: read it off the strip.', 'Jeden Marker ankreuzen, den Bericht und Streifen zeigen. Die midiktale Amplitude: vom Streifen ablesen.'),
   samsDecide: L('Decision', 'Entscheidung'),
@@ -135,7 +136,6 @@ const PREMEDS: Array<{ drug: 'atropine' | 'glycopyrrolate' | 'esmolol' | 'labeta
   { drug: 'esmolol', mg: 1, perKg: true, label: L('Esmolol 1 mg/kg', 'Esmolol 1 mg/kg') },
   { drug: 'labetalol', mg: 0.1, perKg: true, label: L('Labetalol 0.1 mg/kg', 'Labetalol 0,1 mg/kg') },
 ];
-const PROGRAM_ORDER: ProgramChoice[] = ['DGX', 'LOWEST', 'LOW_UB', 'LOW_05', 'INTERMIT', 'USER'];
 
 export function mountEctStation(host: HTMLElement, o: StationOptions): StationHandle {
   let lang: Lang = o.lang;
@@ -277,7 +277,8 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
   /* ---- the strip and the report -------------------------------------------------------------------------------- */
   const paperItems = (): PaperItem[] => session.paper.map((e: PaperEntry): PaperItem => {
     if (e.kind === 'trace') return { kind: 'trace', from: e.from, to: e.to ?? session.t, afterStimulus: e.afterStimulus };
-    if (e.kind === 'selftest') return { kind: 'text', at: e.at, lines: ['ECT System IV  self test passed', 'Mains 50 Hz'] };
+    /* the manual ("Power on"): the serial number, then the date and time, the firmware version and the mains frequency */
+    if (e.kind === 'selftest') return { kind: 'text', at: e.at, lines: ['S/N 0000', `${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}  S-IV version 6.3`, '50 Hz'] };
     if (e.kind === 'settings') { const s = session.device.settings; return { kind: 'text', at: e.at, lines: [`Program: ${PROGRAM_NAMES[s.program]}`, `FREQUENC ${s.user.frequency} HZ  P-WIDTH ${s.user.pulseWidth} MS`, `CHANN. 1 ${s.gain[0]}  CHANN. 2 ${s.gain[1]}  PRINT ${s.paper}`, `INDEXES ${s.indexes ? 'ON' : 'OFF'}`] }; }
     return { kind: 'text', at: e.at, lines: reportFor(e.stimulus) };
   });
@@ -285,7 +286,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     const st = session.stimuli[k];
     if (!st) return [];
     const r = session.lastReport()!;
-    return reportLines({ percent: st.percent, charge: st.given.charge, current: ECT.current, duration: st.given.duration, frequency: st.given.frequency, pulseWidth: st.given.pulseWidth,
+    return reportLines({ percent: st.percent, charge: st.given.charge, current: st.current, duration: st.given.duration, frequency: st.given.frequency, pulseWidth: st.given.pulseWidth,
       staticOhm: st.staticOhm, dynamicOhm: st.dynamicOhm, early: st.early, baselineAvailable: r.baselineAvailable, eegEndpoint: r.eegEndpoint, emgEndpoint: r.emgEndpoint,
       baseHr: r.baseHr, peakHr: r.peakHr, asei: r.asei, psi: r.psi, msp: r.msp, ttp: r.timeToPeakPower, coh: r.coherence, ttc: r.timeToPeakCoherence,
       program: st.program === 'LOW_UB' && session.device.settings.ultrabrief === 0.3 ? 'Low 0.3 charge rate' : PROGRAM_REPORT[st.program], indexes: session.device.settings.indexes });
@@ -456,6 +457,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
           ${panelHtml()}
           <details class="ect-service"><summary class="small">${t('service')}</summary>
             <label class="small">${t('doseRange')} <select data-maxpct><option value="100" ${session.device.settings.maxPercent === 100 ? 'selected' : ''}>${t('upTo100')}</option><option value="200" ${session.device.settings.maxPercent === 200 ? 'selected' : ''}>${t('upTo200')}</option></select></label>
+            <label class="small">${t('blv')} <select data-blv>${[0, 1, 2, 3, 4, 5].map((m) => `<option value="${m}" ${session.device.settings.baselineRetention === m ? 'selected' : ''}>${m} min</option>`).join('')}</select></label>
             <label class="small">${t('ubWidth')} <select data-ubw><option value="0.25" ${session.device.settings.ultrabrief === 0.25 ? 'selected' : ''}>0.25 ms</option><option value="0.3" ${session.device.settings.ultrabrief === 0.3 ? 'selected' : ''}>0.3 ms</option></select></label>
             <p class="muted small">${t('serviceNote')}</p></details>
         </section>
@@ -706,6 +708,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
     host.querySelector('[data-cover]')!.addEventListener('click', () => { proc.room.coverUp = !proc.room.coverUp; if (!proc.room.coverUp) d().treatButton(false); updatePanel(); });
     host.querySelector('[data-startstop]')!.addEventListener('click', () => d().startStop());
     host.querySelector<HTMLSelectElement>('[data-maxpct]')?.addEventListener('change', (e) => { const v = Number((e.target as HTMLSelectElement).value) as 100 | 200; d().settings.maxPercent = v; const max = PERCENT_STEPS.indexOf(v); if (d().settings.percentIndex > max) d().settings.percentIndex = max; });
+    host.querySelector<HTMLSelectElement>('[data-blv]')?.addEventListener('change', (e) => { d().settings.baselineRetention = Number((e.target as HTMLSelectElement).value); });
     host.querySelector<HTMLSelectElement>('[data-ubw]')?.addEventListener('change', (e) => { d().settings.ultrabrief = Number((e.target as HTMLSelectElement).value) as 0.25 | 0.3; });
     host.querySelector('[data-power]')!.addEventListener('click', () => d().power(!d().on));
     host.querySelectorAll<HTMLButtonElement>('[data-jack]').forEach((b) => b.addEventListener('click', () => {
@@ -779,7 +782,7 @@ export function mountEctStation(host: HTMLElement, o: StationOptions): StationHa
           <label class="st-preset">${t('pulseWidth')}
             <select data-swidth>${[0.25, 0.3, 0.5, 1.0, 1.5].map((w) => `<option value="${w}" ${w === stimWidth ? 'selected' : ''}>${num(w, 2)} ms</option>`).join('')}</select></label>
           <label class="st-preset">${t('program')}
-            <select data-sprog>${PROGRAM_ORDER.filter((p) => p !== 'INTERMIT').map((p) => `<option value="${p}" ${p === s.program ? 'selected' : ''}>${PROGRAM_NAMES[p]}</option>`).join('')}</select></label>
+            <select data-sprog>${PROGRAM_ORDER.map((p) => `<option value="${p}" ${p === s.program ? 'selected' : ''}>${PROGRAM_NAMES[p]}</option>`).join('')}</select></label>
           <label class="st-var"><span>${t('dose')} <output>${num(session.device.percent)} % · ${num(CHARGE_MC[s.percentIndex], 1)} mC</output></span>
             <input type="range" data-spct min="0" max="${PERCENT_STEPS.indexOf(s.maxPercent)}" step="1" value="${s.percentIndex}"></label>
         </aside>

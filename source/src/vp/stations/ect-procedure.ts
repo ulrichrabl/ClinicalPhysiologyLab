@@ -61,15 +61,16 @@ export interface EctOrder {
 }
 
 /* The two first treatments the station offers. The dose is the manual's age method (the patient is 59): for right
-   unilateral the age in percent, rounded to the dial's steps (60 %), with ultrabrief pulses; for the bilateral
-   placements half of it (30 %) with 0.5 ms pulses. */
+   unilateral the age in percent, rounded to the dial's steps (60 %); for the bilateral placements half of it (30 %) with
+   0.5 ms pulses. The manual recommends LOW 0.5 for every first treatment; the right unilateral order uses ultrabrief
+   pulses as the literature does for that placement (Sackeim 2008), and says so. */
 export const ECT_ORDERS: readonly EctOrder[] = [
   { id: 'bt', title: L('First treatment, bitemporal', 'Erste Behandlung, bitemporal'), placement: 'BT', program: 'LOW_05', percent: 30,
     doseNote: L('In-house: 30 % from age 40 (20 % under 40), 0.5 ms pulses.', 'Hausintern: 30 % ab 40 Jahren (20 % darunter), Pulse von 0,5 ms.') },
   { id: 'restim', title: L('Restimulation: a dose below the threshold', 'Re-Stimulation: Dosis unter der Schwelle'), placement: 'BT', program: 'LOW_05', percent: 15,
     doseNote: L('15 %: below this patient’s threshold, as when the threshold has risen during a course. Rate the seizure; restimulate if it is poor.', '15 %: unter der Schwelle dieses Patienten, wie wenn die Schwelle im Verlauf gestiegen ist. Anfall bewerten; bei schlechter Qualität re-stimulieren.') },
   { id: 'rul', title: L('First treatment, right unilateral', 'Erste Behandlung, rechts unilateral'), placement: 'RUL', program: 'LOW_UB', percent: 60,
-    doseNote: L('Dose by age (manual): 59 years → 60 %, ultrabrief pulses.', 'Dosis nach Alter (Handbuch): 59 Jahre → 60 %, ultrakurze Pulse.') },
+    doseNote: L('Dose by age (manual): 59 years → 60 %. Ultrabrief pulses as the literature uses them for right unilateral ECT (Sackeim 2008); the manual itself recommends LOW 0.5 for a first treatment.', 'Dosis nach Alter (Handbuch): 59 Jahre → 60 %. Ultrakurze Pulse, wie die Literatur sie für rechts unilaterale EKT verwendet (Sackeim 2008); das Handbuch selbst empfiehlt für die erste Behandlung LOW 0.5.') },
 ];
 
 /* Waits, from treatments in patients. */
@@ -241,7 +242,7 @@ export const STEPS: readonly StepDef[] = [
     says: L('Impedance in range; all channels show.', 'Impedanz im Bereich; alle Kanäle zeigen.') },
   { id: 'treat', role: 'psychiatrist', kind: 'device', modelled: true, after: ['relaxant', 'precheck', 'biteBlock', 'dose'],
     title: L('Stimulate', 'Reiz auslösen'),
-    how: L('About 4 min after the hypnotic (later if deep): say “stimulating”, lift the cover, hold TREAT at least until the tone changes.', 'Etwa 4 min nach dem Narkotikum (bei tiefer Narkose später): „Reiz“ ansagen, Klappe heben, TREAT halten, mindestens bis sich der Ton ändert.'),
+    how: L('About 4 min after the hypnotic (later if deep): say “stimulating”, lift the cover, hold TREAT until the treatment light has gone out and the buzzing stopped (the tone changes when the current starts; letting go earlier cuts the stimulus short).', 'Etwa 4 min nach dem Narkotikum (bei tiefer Narkose später): „Reiz“ ansagen, Klappe heben, TREAT halten, bis die Behandlungsleuchte erloschen ist und das Summen aufhört (der Ton wechselt, wenn der Strom beginnt; früheres Loslassen kürzt den Reiz).'),
     why: L('Hands off the patient; releasing early gives less charge.', 'Hände weg vom Patienten; früheres Loslassen gibt weniger Ladung.'),
     says: L('Stimulating.', 'Reiz.') },
   { id: 'observe', role: 'psychiatrist', kind: 'wait', modelled: true, after: ['treat'],
@@ -266,12 +267,12 @@ export const STEPS: readonly StepDef[] = [
     says: L('Anaesthesia agrees; oxygenating.', 'Anästhesie einverstanden; oxygeniert.') },
   { id: 'restimDose', role: 'psychiatrist', kind: 'device', modelled: true, after: ['restimAgree'],
     title: L('Set 1.5 times the dose', '1,5-fache Dosis einstellen'),
-    how: L('PERCENT ENERGY to 1.5 times the first dose (e.g. 30 % → 45 %). Not if the first was 140 % or more.', 'PERCENT ENERGY auf das 1,5-fache der ersten Dosis (z. B. 30 % → 45 %). Nicht, wenn die erste 140 % oder mehr war.'),
+    how: L('PERCENT ENERGY to 1.5 times the first dose (e.g. 30 % → 45 %). Not if the first was 140 % or more. If the display shows NO BASE, the baseline retention (BLV) has run out: test the impedance again for a new baseline.', 'PERCENT ENERGY auf das 1,5-fache der ersten Dosis (z. B. 30 % → 45 %). Nicht, wenn die erste 140 % oder mehr war. Zeigt das Display NO BASE, ist die Baseline-Speicherung (BLV) abgelaufen: Impedanz erneut testen für eine neue Baseline.'),
     why: L('The first stimulus was too weak for a good seizure.', 'Der erste Reiz war zu schwach für einen guten Anfall.'),
     says: L('Dose set.', 'Dosis eingestellt.') },
   { id: 'retreat', role: 'psychiatrist', kind: 'device', modelled: true, after: ['restimDose'],
     title: L('Restimulate', 'Re-stimulieren'),
-    how: L('120–180 s after the first stimulus: lift the cover, hold TREAT until the tone changes.', '120–180 s nach dem ersten Reiz: Klappe heben, TREAT halten, bis sich der Ton ändert.'),
+    how: L('120–180 s after the first stimulus: lift the cover, hold TREAT until the light has gone out and the buzzing stopped.', '120–180 s nach dem ersten Reiz: Klappe heben, TREAT halten, bis die Leuchte erloschen ist und das Summen aufhört.'),
     why: L('Too soon after the first, the brain is still refractory; much later, the anaesthesia wears off.', 'Zu früh nach dem ersten ist das Gehirn noch refraktär; viel später lässt die Narkose nach.'),
     says: L('Restimulating.', 'Re-Stimulation.') },
   { id: 'reobserve', role: 'psychiatrist', kind: 'wait', modelled: true, after: ['retreat'],
@@ -300,7 +301,7 @@ export const STEP: Record<StepId, StepDef> = Object.fromEntries(STEPS.map((s) =>
 /** a mistake the procedure noticed, at the moment it happened */
 export interface ProcedureError { t: number; code: ErrorCode; step: StepId; text: LocalizedText }
 export type ErrorCode = 'awake-stimulus' | 'unmodified' | 'early-stimulus' | 'no-bite-block' | 'no-impedance' | 'impedance-out' | 'wrong-dose' | 'wrong-pads'
-  | 'no-leads' | 'montage' | 'restim-unneeded' | 'restim-unrated' | 'restim-unagreed' | 'restim-dose' | 'restim-timing' | 'sams-items' | 'sams-decision' | 'cuff-range' | 'no-strip' | 'no-brakes' | 'no-paper' | 'no-precheck' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
+  | 'no-leads' | 'montage' | 'restim-unneeded' | 'restim-unrated' | 'restim-baseline' | 'restim-unagreed' | 'restim-dose' | 'restim-timing' | 'sams-items' | 'sams-decision' | 'cuff-range' | 'no-strip' | 'no-brakes' | 'no-paper' | 'no-precheck' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
 
 const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'awake-stimulus': L('Stimulus before anaesthesia.', 'Reiz vor der Narkose.'),
@@ -312,8 +313,9 @@ const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'wrong-dose': L('Program or dose not as ordered.', 'Programm oder Dosis nicht wie angeordnet.'),
   'wrong-pads': L('Pads not at the ordered placement.', 'Elektroden nicht an der angeordneten Position.'),
   'no-leads': L('Stimulus without EEG and ECG.', 'Reiz ohne EEG und EKG.'),
-  montage: L('Leads not as the manual places them.', 'Ableitungen nicht wie im Handbuch.'),
+  montage: L('Leads not placed correctly (above the eyebrows or the forehead centre to the mastoids, channels on opposite sides, the same polarity on both).', 'Ableitungen nicht richtig angelegt (über den Augenbrauen oder Stirnmitte zu den Mastoiden, Kanäle auf verschiedenen Seiten, Polung auf beiden Seiten gleich).'),
   'restim-unneeded': L('A restimulation without a poor first seizure (SAMS 0–1), or after a first dose of 140 % or more.', 'Re-Stimulation ohne schlechten ersten Anfall (SAMS 0–1) oder nach einer ersten Dosis ab 140 %.'),
+  'restim-baseline': L('Restimulated without a baseline: the retention had run out and no new one was taken, so the report has no endpoint and no indices.', 'Re-Stimulation ohne Baseline: Die Speicherung war abgelaufen und keine neue erhoben, daher hat der Bericht keinen Endpunkt und keine Indizes.'),
   'restim-unrated': L('A second stimulus before the first seizure was reported and rated (SAMS) and the restimulation agreed with anaesthesia.', 'Zweiter Reiz, bevor der erste Anfall dokumentiert und bewertet (SAMS) und die Re-Stimulation mit der Anästhesie abgesprochen war.'),
   'restim-unagreed': L('Restimulation not agreed with anaesthesia.', 'Re-Stimulation nicht mit der Anästhesie abgesprochen.'),
   'restim-dose': L('Restimulation not at 1.5 times the first dose.', 'Re-Stimulation nicht mit der 1,5-fachen Dosis.'),
@@ -377,7 +379,10 @@ export class Procedure {
   /** the learner's hands on a lead: put it on a spot (a lead already there comes off), or take it off (null) */
   placeLead(lead: { ch: 0 | 1 | 2 | 3; pole: 'black' | 'red' } | 'ground', spot: Spot | null) {
     const m = this.session.montage;
-    if (spot) { for (const l of m.ch) { if (l.black === spot) l.black = null; if (l.red === spot) l.red = null; } if (m.ground === spot) m.ground = null; }
+    /* one lead per spot, except the forehead centre: both EEG channels' black leads may share it through the splitter
+       (the manual's preferred montage, "Monitoring electrodes application") */
+    const shared = (l: number, pole: 'black' | 'red') => spot === 'Fpz' && lead !== 'ground' && lead.pole === 'black' && lead.ch <= 1 && pole === 'black' && l <= 1;
+    if (spot) { m.ch.forEach((l, k) => { if (l.black === spot && !shared(k, 'black')) l.black = null; if (l.red === spot) l.red = null; }); if (m.ground === spot) m.ground = null; }
     if (lead === 'ground') m.ground = spot; else m.ch[lead.ch][lead.pole] = spot;
   }
   /** every lead is on a spot */
@@ -544,7 +549,8 @@ export class Procedure {
     if (!this.isDone('precheck') && this.isDone('relaxant')) {
       const t0 = this.stamps.get('relaxant') ?? Infinity;
       const strip = session.printing.some((x) => x.from >= t0 && x.to != null);
-      const imp = session.baselineFrom != null && session.baselineFrom >= t0 && d.baseline === 'ready' && d.lastStatic != null && d.lastStatic > ECT.staticLow && d.lastStatic < ECT.staticHigh;
+      /* the baseline taken awake is kept (testing again does not reset it: the manual) */
+      const imp = d.lastStaticAt >= t0 && d.baseline === 'ready' && d.lastStatic != null && d.lastStatic > ECT.staticLow && d.lastStatic < ECT.staticHigh;
       if (strip && imp) this.finish('precheck', by('precheck'));
     }
     /* the stimulus: check the room at the moment it starts */
@@ -573,6 +579,7 @@ export class Procedure {
     if (!this.samsResult.sams) { this.err('restim-unrated', 'sams'); if (gap < RESTIM_FROM || gap > RESTIM_TO) timing(); return; }
     if (!this.restimIndicated) { this.err('restim-unneeded', 'retreat'); return; }
     if (!this.isDone('restimAgree')) this.err('restim-unagreed', 'restimAgree');
+    if (!second.baseline) this.err('restim-baseline', 'restimDose');
     if (!this.restimDoseOk(second.percent)) this.err('restim-dose', 'restimDose');
     if (gap < RESTIM_FROM || gap > RESTIM_TO) timing();
   }
@@ -657,6 +664,8 @@ export class Procedure {
       return;
     }
     if (id === 'restimDose') {
+      /* past the baseline retention a new baseline first (the manual, "Baseline retention") */
+      if (d.baseline !== 'ready') { d.impedanceButton(true); yield 1.6; d.impedanceButton(false); while ((d.baseline as string) !== 'ready') yield 0.25; }
       const want = this.restimPercent ?? d.percent;
       while (d.percent !== want) { d.turnPercent(d.percent < want ? 1 : -1); yield 0.15; }
       yield 0.5; return;

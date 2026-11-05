@@ -12,6 +12,7 @@ import { defineConstants } from './constants.ts';
 export const ECT = defineConstants('ect', {
   /* the device (manual, specifications) */
   current: { value: 0.9, unit: 'A', status: 'measured', refs: ['thymatron2021'], means: 'Stimulus current: constant, limited to 450 V.', derivation: 'Manual, specifications: 0.9 A constant current.' },
+  maxVoltage: { value: 450, unit: 'V', status: 'measured', refs: ['thymatron2021'], means: 'The highest voltage the device drives its constant current with: above 500 Ω of dynamic impedance the current falls below 0.9 A.', derivation: 'Manual, specifications: constant current 0.9 A, limited to 450 V; dynamic impedance range 0–500 Ω.' },
   maxDuration: { value: 8, unit: 's', status: 'measured', refs: ['thymatron2021'], means: 'Longest stimulus train.', derivation: 'Manual, specifications: 0.08 to 8.00 s.' },
   staticLow: { value: 100, unit: 'Ω', status: 'measured', refs: ['thymatron2021'], means: 'Static impedance below which the manual suspects a short circuit.', derivation: 'Manual, “Impedance test”: more than 100 and less than 3000 Ω before treating.' },
   staticHigh: { value: 3000, unit: 'Ω', status: 'measured', refs: ['thymatron2021'], means: 'Static impedance at and above which the display flashes 3000 and the warning tone before a stimulus lasts 3 s.', derivation: 'Manual, “Impedance test” and “Treatment stimulus administration”.' },

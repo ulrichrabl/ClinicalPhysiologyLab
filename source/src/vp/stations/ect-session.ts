@@ -109,12 +109,15 @@ export function montageProblems(m: Montage): Array<{ ch: 1 | 2 | 3 | 4 | 'ground
     if (k === 2) { if (!pair.every((x) => SPOT_KIND[x] === 'foreR')) out.push({ ch, kind: 'wrong' }); return; }
     if (k === 3) { if (!(pair.some(upper) && pair.some(lower))) out.push({ ch, kind: 'wrong' }); return; }
     /* one electrode above an eyebrow, one on the mastoid of the same side; channel 1 and 2 on opposite sides */
+    /* or, the manual's preferred montage, one electrode in the centre of the forehead (Fpz) shared by both channels
+       through the splitter, each channel to its own mastoid */
     const side = (x: Spot) => (x === 'Fp1' || x === 'M1' ? 'L' : x === 'Fp2' || x === 'M2' ? 'R' : null);
-    const front = (x: Spot) => x === 'Fp1' || x === 'Fp2', mast = (x: Spot) => x === 'M1' || x === 'M2';
-    const okPair = side(l.black) && side(l.black) === side(l.red) && ((front(l.black) && mast(l.red)) || (mast(l.black) && front(l.red)));
+    const front = (x: Spot) => x === 'Fp1' || x === 'Fp2' || x === 'Fpz', mast = (x: Spot) => x === 'M1' || x === 'M2';
+    const fr = front(l.black) ? l.black : l.red, ms = front(l.black) ? l.red : l.black;
+    const okPair = front(fr) && mast(ms) && (fr === 'Fpz' || side(fr) === side(ms));
     if (!okPair) { out.push({ ch, kind: 'wrong' }); return; }
     eeg[k] = front(l.black) ? 'black-front' : 'red-front';
-    sides[k] = side(l.black);
+    sides[k] = side(ms);
   });
   if (sides[0] && sides[1] && sides[0] === sides[1]) out.push({ ch: 2, kind: 'wrong' });
   if (eeg[0] && eeg[1] && eeg[0] !== eeg[1]) out.push({ ch: 2, kind: 'reversed' });
@@ -144,7 +147,11 @@ export type PaperEntry =
   | { kind: 'trace'; from: number; to: number | null; afterStimulus: number | null }
   | { kind: 'report'; at: number; stimulus: number };
 
-export interface StimulusRecord { at: number; end: number; percent: number; program: DeviceSettings['program']; given: Stimulus; early: boolean; dynamicOhm: number; staticOhm: number | null; energy: number }
+export interface StimulusRecord { at: number; end: number; percent: number; program: DeviceSettings['program']; given: Stimulus; early: boolean; dynamicOhm: number; staticOhm: number | null; energy: number;
+  /** the device held a baseline when the stimulus started (none: no ictal line, no endpoint, no indices) */
+  baseline: boolean;
+  /** the current the device could drive (A): 0.9, less where the dynamic impedance needs more than 450 V */
+  current: number }
 
 export class EctSession {
   readonly device: EctDevice;
@@ -172,6 +179,7 @@ export class EctSession {
   /** the stimulus pads on the head (the procedure starts without them; part 1's sessions have them on) */
   padsOn = true;
   private startedAt = 0;
+  private baselineAtStimulus = false;
   private emgNoise: () => number;
   private fields = regionFields();
   /** the body: heart, circulation, lungs */
@@ -215,8 +223,10 @@ export class EctSession {
     const z = ECT.staticMean + this.patient.skin * ECT.staticSD;
     return Math.max(150, z) * (this.patient.prepared ? 1 : ECT.unpreparedSkin);
   }
-  /** the dynamic impedance it presents to the 0.9 A stimulus (Ω) */
-  get dynamicOhm() { return ECT.dynamicMean + ECT.staticToDynamic * this.patient.skin * ECT.dynamicSD; }
+  /** the dynamic impedance it presents to the 0.9 A stimulus (Ω); Infinity with the circuit open (no pads, no cable) */
+  get dynamicOhm() { return this.circuit ? ECT.dynamicMean + ECT.staticToDynamic * this.patient.skin * ECT.dynamicSD : Infinity; }
+  /** the current the device drives into this head (A): constant 0.9 A up to its 450 V limit (the manual, specifications) */
+  get stimulusCurrent() { const z = this.dynamicOhm; return Number.isFinite(z) ? Math.min(ECT.current, ECT.maxVoltage / z) : 0; }
   private updateImpedance() { this.device.staticOhm = this.staticOhm; }
   setPrepared(p: boolean) { this.patient.prepared = p; this.updateImpedance(); }
   setStimulusCable(on: boolean) { this.stimulusCable = on; this.updateImpedance(); }
@@ -270,6 +280,7 @@ export class EctSession {
 
   private sample() {
     const dt = 1 / FS;
+    { const c1 = this.montage.ch[0]; this.device.eegConnected = this.monitoringCable && !!c1.black && !!c1.red && SPOT_KIND[c1.black] === 'head' && SPOT_KIND[c1.red] === 'head'; }
     this.device.tick(dt);
     for (const e of this.device.drain()) this.onEvent(e);
     this.brain.advance(dt);
@@ -329,7 +340,12 @@ export class EctSession {
       case 'ready': this.readyAt = this.t; break;
       case 'stimulus-start': {
         this.startedAt = this.t;
-        if (this.circuit) this.brain.pulses(pulseTrain(e.stimulus, dosesFor(this.patient.placement, e.stimulus.pulseWidth)));
+        if (this.circuit) {
+          const tr = pulseTrain(e.stimulus, dosesFor(this.patient.placement, e.stimulus.pulseWidth)), k = this.stimulusCurrent / ECT.current;
+          /* above the 450 V limit the current, and with it each pulse's push, is smaller */
+          this.brain.pulses(k < 1 ? { ...tr, area: Array.from(tr.area, (a) => a * k) } : tr);
+        }
+        this.baselineAtStimulus = this.device.baseline === 'ready';
         break;
       }
       case 'stimulus-stop': {
@@ -337,9 +353,10 @@ export class EctSession {
         this.brain.stopPulses();
         const s = this.device.active;
         const pw = s?.pulseWidth ?? 0.5, f = s?.frequency ?? 30;
-        const g: Stimulus = { frequency: f, pulseWidth: pw, pulses: given, charge: chargeOf({ frequency: f, pulseWidth: pw, pulses: given }), duration: given / (2 * f) };
+        const I = this.stimulusCurrent;
+        const g: Stimulus = { frequency: f, pulseWidth: pw, pulses: given, charge: chargeOf({ frequency: f, pulseWidth: pw, pulses: given }) * (I / ECT.current), duration: given / (2 * f) };
         this.device.setDelivered(g);
-        this.stimuli.push({ at: this.startedAt, end: this.t, percent: this.device.percent, program: this.device.settings.program, given: g, early: e.early, dynamicOhm: this.dynamicOhm, staticOhm: this.device.lastStatic, energy: (g.charge / 1000) * ECT.current * this.dynamicOhm });
+        this.stimuli.push({ at: this.startedAt, end: this.t, percent: this.device.percent, program: this.device.settings.program, given: g, early: e.early, dynamicOhm: this.dynamicOhm, staticOhm: this.device.lastStatic, energy: Number.isFinite(this.dynamicOhm) ? (g.charge / 1000) * I * this.dynamicOhm : 0, baseline: this.baselineAtStimulus, current: I });
         break;
       }
       case 'printer': {
@@ -365,9 +382,9 @@ export class EctSession {
     const st = this.stimuli[this.stimuli.length - 1];
     if (!st) return null;
     /* the baseline counts only if READY came before the stimulus */
-    const ok = this.baselineFrom != null && this.readyAt != null && this.readyAt <= st.at;
+    const ok = st.baseline && this.baselineFrom != null && this.readyAt != null && this.readyAt <= st.at;
     const base: [number, number] | null = ok ? [Math.round(this.baselineFrom! * FS), Math.round(this.readyAt! * FS)] : null;
-    const r = seizureReport({ eeg1: this.rec.eeg1, eeg2: this.rec.eeg2, emg: this.rec.emg, fs: FS, end: Math.round(st.end * FS), upTo: this.rec.n, baseline: base });
+    const r = seizureReport({ eeg1: this.rec.eeg1, eeg2: this.rec.eeg2, emg: this.rec.emg, fs: FS, start: Math.round(st.at * FS), end: Math.round(st.end * FS), upTo: this.rec.n, baseline: base });
     /* the heart, as the device takes it (US 5,871,517): the baseline over the 5 s before the stimulus, the peak after it */
     let hb = 0, nb = 0; for (let x = st.at - 5; x < st.at; x += 0.5) { const h = this.heartRateAt(x); if (h > 0) { hb += h; nb++; } }
     let peak = 0; for (let x = st.end; x <= this.t; x += 0.5) peak = Math.max(peak, this.heartRateAt(x));

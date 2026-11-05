@@ -23,6 +23,9 @@ import { PERCENT_STEPS, CHARGE_MC, PROGRAM_TABLES, type ProgramId } from './ect-
 =========================================================================== */
 
 export type ProgramChoice = 'DGX' | 'LOWEST' | 'LOW_UB' | 'LOW_05' | 'INTERMIT' | 'USER';
+/** the programs the station's device offers, in the dial's order: the manual's, without INTERMIT (its intermittent train
+    is not simulated, so it is not offered rather than silently doing nothing) */
+export const PROGRAM_ORDER: ProgramChoice[] = ['DGX', 'LOWEST', 'LOW_UB', 'LOW_05', 'USER'];
 export const PROGRAM_NAMES: Record<ProgramChoice, string> = {
   DGX: 'DGX', LOWEST: 'LOWEST', LOW_UB: 'LOW 0.25', LOW_05: 'LOW 0.5', INTERMIT: 'INTERMIT', USER: 'USER',
 };
@@ -74,10 +77,13 @@ export interface DeviceSettings {
   /** the ultrabrief pulse the device was set up with: 0.25 or 0.3 ms (firmware 5.60: "either 0.25 or 0.3 pulsewidths"),
       for the LOWEST and LOW programs' ultrabrief tables (Addendum VII) */
   ultrabrief: 0.25 | 0.3;
+  /** baseline retention, BLV (FlexDial ENDPOINT; minutes, 0–5, factory 2): how long the EEG baseline is kept after a
+      treatment, so that a restimulation within it needs no new baseline (the manual, "Baseline retention") */
+  baselineRetention: number;
 }
 
 export const DEFAULT_SETTINGS: DeviceSettings = {
-  program: 'LOW_05', percentIndex: PERCENT_STEPS.indexOf(30), user: { frequency: 30, pulseWidth: 0.5 }, gain: [200, 200], indexes: true, eegFreq: 'OFF', paper: 25, maxPercent: 100, ultrabrief: 0.25,
+  program: 'LOW_05', percentIndex: PERCENT_STEPS.indexOf(30), user: { frequency: 30, pulseWidth: 0.5 }, gain: [200, 200], indexes: true, eegFreq: 'OFF', paper: 25, maxPercent: 100, ultrabrief: 0.25, baselineRetention: 2,
 };
 
 export type DeviceEvent =
@@ -85,6 +91,7 @@ export type DeviceEvent =
   | { type: 'impedance-test' }
   | { type: 'baseline-start' }
   | { type: 'ready' }
+  | { type: 'baseline-expired' }
   | { type: 'stimulus-start'; stimulus: Stimulus }
   | { type: 'stimulus-stop'; early: boolean }
   | { type: 'printer'; running: boolean }
@@ -102,17 +109,23 @@ export class EctDevice {
   /** 'none' before the impedance test, then collecting, then ready */
   baseline: 'none' | 'collecting' | 'ready' = 'none';
   private baselineAt = 0;
+  /** whether EEG channel 1 is connected (the monitoring cable in and both its leads on the head): the baseline needs it
+      (the manual, "Seizure monitoring considerations": channel 1 must be used to obtain the baseline EEG) */
+  eegConnected = true;
   /** what the station says the device would measure now (Ω); Infinity with nothing connected */
   staticOhm = Infinity;
   /** the impedance test button */
   testing = false; private testAt = 0;
-  /** last static impedance shown */
+  /** last static impedance shown, and when (device time) */
   lastStatic: number | null = null;
+  lastStaticAt = -Infinity;
   /** the treatment button */
   treat: 'idle' | 'warning' | 'delivering' | 'done' = 'idle';
   private treatAt = 0;
   /** the stimulus set when the treatment button was pressed */
   active: Stimulus | null = null;
+  /** end of the last treatment (device time), for the baseline retention; kept after the report */
+  lastTreatmentEnd: number | null = null;
   /** end of the last stimulus (device time), and what it gave */
   stimulusEnd: number | null = null;
   delivered: Stimulus | null = null;
@@ -143,7 +156,7 @@ export class EctDevice {
   power(on: boolean) {
     if (on === this.on) return;
     this.on = on;
-    if (on) { this.bootAt = this.t; this.baseline = 'none'; this.treat = 'idle'; this.flex = null; this.printing = false; this.stimulusEnd = null; }
+    if (on) { this.bootAt = this.t; this.baseline = 'none'; this.lastTreatmentEnd = null; this.treat = 'idle'; this.flex = null; this.printing = false; this.stimulusEnd = null; }
     else { this.printing = false; this.flex = null; this.treat = 'idle'; }
   }
   get booting() { return this.on && this.t - this.bootAt < 5; }
@@ -152,7 +165,7 @@ export class EctDevice {
   turnPercent(steps: number) {
     if (!this.on || this.booting) return;
     if (this.percentPressed) {
-      const order: ProgramChoice[] = ['DGX', 'LOWEST', 'LOW_UB', 'LOW_05', 'INTERMIT', 'USER'];
+      const order = PROGRAM_ORDER;
       const i = order.indexOf(this.settings.program);
       this.settings.program = order[(i + steps + order.length * 10) % order.length];
       return;
@@ -181,21 +194,24 @@ export class EctDevice {
   }
   options(fn: FlexFunction): string[] {
     switch (fn) {
-      case 'PROGRAMS': return (['DGX', 'LOWEST', 'LOW_UB', 'LOW_05', 'INTERMIT', 'USER'] as ProgramChoice[]).map((p) => PROGRAM_NAMES[p]);
+      case 'PROGRAMS': return PROGRAM_ORDER.map((p) => this.programName(p));
       case 'FREQUENC': return FREQUENCIES.map((f) => `${f} HZ`);
-      case 'P-WIDTH': return PULSE_WIDTHS.map((w) => `${w} MS`);
+      case 'P-WIDTH': return this.pulseWidths().map((w) => `${w} MS`);
       case 'CHANN. 1': case 'CHANN. 2': return EEG_GAINS.map((g) => `GAIN ${g}`);
       case 'INDEXES': return ['ON', 'OFF'];
       case 'EEG FREQ': return [...EEG_FREQ];
       case 'PRINTOUT': return PAPER.map((p) => `PRINT ${p}`);
     }
   }
+  /** the user-set pulse widths: a device set up for 0.3 ms has no 0.25 ms settings (the manual, "Pulse width"), so its
+      shortest is 0.3 */
+  pulseWidths(): number[] { return this.settings.ultrabrief === 0.3 ? [0.3, ...PULSE_WIDTHS.slice(1)] : PULSE_WIDTHS; }
   private currentOption(fn: FlexFunction): number {
     const s = this.settings;
     switch (fn) {
-      case 'PROGRAMS': return ['DGX', 'LOWEST', 'LOW_UB', 'LOW_05', 'INTERMIT', 'USER'].indexOf(s.program);
+      case 'PROGRAMS': return Math.max(0, PROGRAM_ORDER.indexOf(s.program));
       case 'FREQUENC': return FREQUENCIES.indexOf(s.user.frequency);
-      case 'P-WIDTH': return PULSE_WIDTHS.indexOf(s.user.pulseWidth);
+      case 'P-WIDTH': return Math.max(0, this.pulseWidths().indexOf(s.user.pulseWidth));
       case 'CHANN. 1': return EEG_GAINS.indexOf(s.gain[0]);
       case 'CHANN. 2': return EEG_GAINS.indexOf(s.gain[1]);
       case 'INDEXES': return s.indexes ? 0 : 1;
@@ -206,10 +222,10 @@ export class EctDevice {
   private applyOption(fn: FlexFunction, i: number) {
     const s = this.settings;
     switch (fn) {
-      case 'PROGRAMS': s.program = (['DGX', 'LOWEST', 'LOW_UB', 'LOW_05', 'INTERMIT', 'USER'] as ProgramChoice[])[i]; break;
+      case 'PROGRAMS': s.program = PROGRAM_ORDER[i]; break;
       /* a frequency or pulse width of its own takes the device out of any preset program (manual) */
       case 'FREQUENC': s.user.frequency = FREQUENCIES[i]; s.program = 'USER'; break;
-      case 'P-WIDTH': s.user.pulseWidth = PULSE_WIDTHS[i]; s.program = 'USER'; break;
+      case 'P-WIDTH': s.user.pulseWidth = this.pulseWidths()[i]; s.program = 'USER'; break;
       case 'CHANN. 1': s.gain[0] = EEG_GAINS[i]; break;
       case 'CHANN. 2': s.gain[1] = EEG_GAINS[i]; break;
       case 'INDEXES': s.indexes = i === 0; break;
@@ -221,12 +237,16 @@ export class EctDevice {
   /** the impedance test button, pressed (true) or released (false) */
   impedanceButton(down: boolean) {
     if (!this.on || this.booting) return;
-    if (this.flex) { if (down) this.flex = null; return; }   // locks in and leaves FlexDial mode
+    /* in FlexDial mode it locks in the option shown and leaves (the manual, "FlexDial operation") */
+    if (this.flex) { if (down) { if (this.flex.option != null) { this.applyOption(FLEX_FUNCTIONS[this.flex.fn], this.flex.option); this.lastFn = this.flex.fn; } this.flex = null; } return; }
     if (down) { this.testing = true; this.testAt = this.t; this.emit({ type: 'impedance-test' }); return; }
     if (!this.testing) return;
     this.testing = false;
-    if (this.t - this.testAt >= 1) this.lastStatic = Math.min(this.staticOhm, ECT.staticHigh);
-    /* releasing the button starts the baseline EEG collection */
+    if (this.t - this.testAt >= 1) { this.lastStatic = Math.min(this.staticOhm, ECT.staticHigh); this.lastStaticAt = this.t; }
+    /* releasing the button starts the baseline EEG collection, unless a baseline is held: testing the impedance again does
+       not affect it (the manual, "Impedance test"); pressed together with the PERCENT ENERGY dial it collects a new one
+       (firmware 5.60: "Reset EEG Baseline when pushing Impedance Test & Energy Buttons simultaneously") */
+    if (this.baseline === 'ready' && !this.percentPressed) return;
     this.baseline = 'collecting'; this.baselineAt = this.t; this.emit({ type: 'baseline-start' });
   }
 
@@ -247,7 +267,7 @@ export class EctDevice {
     if (down) {
       if (this.treat !== 'idle' && this.treat !== 'done') return;
       const s = this.stimulusNow;
-      if (!s || this.settings.program === 'INTERMIT') return;
+      if (!s || this.settings.program === 'INTERMIT') return;   // INTERMIT is not offered (PROGRAM_ORDER)
       this.active = s; this.treat = 'warning'; this.treatAt = this.t;
       if (this.printing) { this.printing = false; this.emit({ type: 'printer', running: false }); }
       return;
@@ -257,7 +277,7 @@ export class EctDevice {
   }
   private finishStimulus(early: boolean) {
     this.treat = 'done';
-    this.stimulusEnd = this.t;
+    this.stimulusEnd = this.t; this.lastTreatmentEnd = this.t;
     this.emit({ type: 'stimulus-stop', early });
     this.printing = true; this.emit({ type: 'printer', running: true });
   }
@@ -270,7 +290,13 @@ export class EctDevice {
     this.t += dt;
     if (!this.on) return;
     if (before - this.bootAt < 5 && this.t - this.bootAt >= 5) this.emit({ type: 'selftest-printed' });
+    /* the baseline collects only while channel 1 records (the time without it does not count) */
+    if (this.baseline === 'collecting' && !this.eegConnected) this.baselineAt += dt;
     if (this.baseline === 'collecting' && this.t - this.baselineAt >= ECT.baselineSeconds) { this.baseline = 'ready'; this.emit({ type: 'ready' }); }
+    /* after a treatment the baseline is kept for the baseline retention time, then a new one must be acquired */
+    if (this.baseline === 'ready' && this.lastTreatmentEnd != null && this.treat !== 'warning' && this.treat !== 'delivering' && this.t - this.lastTreatmentEnd >= 60 * this.settings.baselineRetention) {
+      this.baseline = 'none'; this.emit({ type: 'baseline-expired' });
+    }
     if (this.treat === 'warning') {
       const tone = this.staticOhm >= ECT.staticHigh ? 3 * ECT.warningTone : ECT.warningTone;
       if (this.t - this.treatAt >= tone) { this.treat = 'delivering'; this.treatAt = this.t; this.emit({ type: 'stimulus-start', stimulus: this.active! }); }
