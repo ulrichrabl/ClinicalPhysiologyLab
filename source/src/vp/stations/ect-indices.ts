@@ -112,10 +112,13 @@ function corr(a: ArrayLike<number>, b: ArrayLike<number>, from: number, to: numb
  * The end-of-treatment measures. `eeg1`, `eeg2` raw (µV), `emg` raw; `end` the sample at which the stimulus ended;
  * `baseline` the sample range of the baseline collection (null if none: then no EEG endpoint and no indices).
  */
-export function seizureReport(o: { eeg1: Float32Array; eeg2: Float32Array; emg: Float32Array; fs: number; end: number; upTo: number; baseline: [number, number] | null }): SeizureReport {
+export function seizureReport(o: { eeg1: Float32Array; eeg2: Float32Array; emg: Float32Array; fs: number; start?: number; end: number; upTo: number; baseline: [number, number] | null }): SeizureReport {
   const { fs, end, upTo } = o;
   const e1 = bandpass(o.eeg1, fs, 2, 25), e2 = bandpass(o.eeg2, fs, 2, 25);
-  const emgEnd = o.baseline ? emgEndpoint(o.emg, fs, end, o.baseline[0], o.baseline[1], upTo) : emgEndpoint(o.emg, fs, end, Math.max(0, end - 5 * fs), end, upTo);
+  /* the EMG's reference: the 5 s before the stimulus, not the EEG baseline ("Baseline EMG collection is neither required,
+     nor possible": the manual; the awake baseline may hold the patient's fist) */
+  const s0 = o.start ?? end;
+  const emgEnd = emgEndpoint(o.emg, fs, end, Math.max(0, s0 - 5 * fs), s0, upTo);
   const none: SeizureReport = { eegEndpoint: null, emgEndpoint: emgEnd, asei: null, psi: null, msp: null, timeToPeakPower: null, coherence: null, timeToPeakCoherence: null, midictal: null };
   if (!o.baseline) return none;
   const [b0, b1] = o.baseline;
