@@ -289,7 +289,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
         return;
       }
       if (slip === 'reverse-early' && c === 'biteBlock') { q.act('biteBlock'); s.reverse(152); return; }
-      if (slip === 'no-flumazenil' && c === 'flumazenil') { const o = q.myOpen().find((x) => x !== 'flumazenil' && q.waitFor(x) <= 0); if (o) q.act(o); return; }
+      if (slip === 'no-flumazenil' && c === 'flumazenil') { const o = q.myOpen().find((x) => x !== 'flumazenil' && q.waitFor(x) <= 0); if (o) q.act(o); else if (q.isDone('oxygen') && !q.isDone('induction') && q.waitFor('induction') <= 0) q.act('induction'); return; }
       q.act(c);
     });
     const codes = (x) => x.p.errors.map((e) => e.code);
@@ -427,11 +427,12 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const order = S.ECT_ORDERS.find((o) => o.id === 'rul');
     const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });
     const p = new S.Procedure(s, order, 'watch', []);
-    let minSpo2 = 100, back = null; const et = [];
+    let minSpo2 = 100, back = null, stopped = false; const et = [];
     for (let k = 0; k < 1500 / 0.05 && !p.finished; k++) {
       s.advance(0.05); p.tick(0.05); if (p.waitingForNext) p.next();
       minSpo2 = Math.min(minSpo2, s.spo2);
-      if (s.inducedAt != null && back == null && s.breathing) back = s.t;
+      if (s.inducedAt != null && !s.breathing) stopped = true;
+      if (stopped && back == null && s.breathing) back = s.t;
       if (p.room.ventilating && !p.isDone('recovery') && p.isDone('treat') === false && s.etco2 != null) et.push(s.etco2);
     }
     const r = s.lastReport();
