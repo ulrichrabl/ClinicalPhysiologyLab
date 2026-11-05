@@ -79,6 +79,9 @@ export class Region {
   coupling = 0;
   /** extra depolarising input to the cortex (mV) */
   cortexKick = 0;
+  /** how much faster than normal the seizure's late inhibition builds (1 normal): the anticonvulsant load of an
+      anaesthetic or a benzodiazepine hastens the end of a seizure (stations/ect-session.ts sets it) */
+  termination = 1;
   private k = [new Float64Array(8), new Float64Array(8), new Float64Array(8), new Float64Array(8)];
   private tmp = new Float64Array(8);
 
@@ -124,7 +127,7 @@ export class Region {
     this.excess += (dt * (ex - this.excess)) / 0.5;
     if (this.excess > CT.seizingThreshold) this.progress += dt * CT.progressRate * ex;
     else this.progress -= (dt * this.progress) / CT.progressDecay;
-    this.relayInhibition += dt * (CT.relayInhibitionRate * ex * Math.min(1, this.progress) ** 2 - this.relayInhibition / CT.relayRecovery);
+    this.relayInhibition += dt * (CT.relayInhibitionRate * this.termination * ex * Math.min(1, this.progress) ** 2 - this.relayInhibition / CT.relayRecovery);
   }
 
   /** The loop's gains at the current mean state (Robinson; Stuiver 2026): X cortical, Y corticothalamic loop, Z intrathalamic.

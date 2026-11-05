@@ -8,6 +8,7 @@ import { PERCENT_STEPS } from './ect-programs.ts';
 import type { EctSession, Spot } from './ect-session.ts';
 import { HOSPITAL_MONTAGE, EMPTY_MONTAGE, montageProblems } from './ect-session.ts';
 import { sams, type Sams } from './ect-sams.ts';
+import { ECT_PATIENT } from '../physiology/drugs/anaesthetics.ts';
 
 /* ===========================================================================
    The ECT treatment as a procedure (owner, 2026-10-30): the team's steps in
@@ -34,7 +35,14 @@ import { sams, type Sams } from './ect-sams.ts';
    too (ECT part 2b, PR C): the mask gives oxygen, the induction agent stops
    the breathing until it returns, the relaxant relaxes the cuffed arm if the
    cuff was not above systolic, the bag breathes. The bite block is drawn,
-   not modelled. The induction agent's effect on the seizure follows.
+   not modelled. Part 2b's second half: the anaesthetic of the owner's hospital
+   (physiology/drugs/anaesthetics.ts): propofol with esketamine, rocuronium
+   checked by relaxometry before the stimulus and reversed by sugammadex after
+   the seizure (succinylcholine the alternative order), flumazenil before the
+   anaesthetic for a patient on a benzodiazepine, a top-up of propofol before a
+   restimulation. The propofol at the effect site (and a benzodiazepine not
+   reversed) shortens the seizure; the patient wakes and breathes as the drugs
+   wear off, and waking with the muscles still blocked is a mistake.
 
    No page code here: the tests run whole treatments with it.
 =========================================================================== */
@@ -44,8 +52,8 @@ export const ECT_ROLES: readonly EctRole[] = ['psychiatrist', 'anaesthetist'];
 export type EctMode = 'practise' | 'watch' | 'exam';
 
 export type StepId = 'check' | 'premed' | 'brakes' | 'power' | 'paper' | 'cuffOn' | 'skinEeg' | 'leads' | 'strip' | 'skin' | 'pads' | 'impedance' | 'dose'
-  | 'oxygen' | 'induction' | 'cuff' | 'biteBlock' | 'ventilate' | 'relaxant' | 'precheck' | 'treat' | 'observe' | 'report' | 'sams'
-  | 'restimAgree' | 'restimDose' | 'retreat' | 'reobserve' | 'rereport' | 'resams' | 'recovery';
+  | 'flumazenil' | 'oxygen' | 'induction' | 'cuff' | 'biteBlock' | 'ventilate' | 'relaxant' | 'relaxometry' | 'precheck' | 'treat' | 'observe' | 'report' | 'sams'
+  | 'restimAgree' | 'restimDose' | 'retreat' | 'reobserve' | 'rereport' | 'resams' | 'reversal' | 'recovery';
 
 const L = (en: string, de: string): LocalizedText => ({ en, de });
 
@@ -58,6 +66,10 @@ export interface EctOrder {
   percent: number;
   /** why this dose (the manual's method) */
   doseNote: LocalizedText;
+  /** the relaxant: the hospital's rocuronium (reversed by sugammadex), or succinylcholine (the alternative) */
+  relaxant?: 'rocuronium' | 'succinylcholine';
+  /** lorazepam the patient takes a day (mg), if on a benzodiazepine */
+  benzoPerDay?: number;
 }
 
 /* The two first treatments the station offers. The dose is the manual's age method (the patient is 59): for right
@@ -71,7 +83,17 @@ export const ECT_ORDERS: readonly EctOrder[] = [
     doseNote: L('15 %: below this patient’s threshold, as when the threshold has risen during a course. Rate the seizure; restimulate if it is poor.', '15 %: unter der Schwelle dieses Patienten, wie wenn die Schwelle im Verlauf gestiegen ist. Anfall bewerten; bei schlechter Qualität re-stimulieren.') },
   { id: 'rul', title: L('First treatment, right unilateral', 'Erste Behandlung, rechts unilateral'), placement: 'RUL', program: 'LOW_UB', percent: 60,
     doseNote: L('Dose by age (manual): 59 years → 60 %. Ultrabrief pulses as the literature uses them for right unilateral ECT (Sackeim 2008); the manual itself recommends LOW 0.5 for a first treatment.', 'Dosis nach Alter (Handbuch): 59 Jahre → 60 %. Ultrakurze Pulse, wie die Literatur sie für rechts unilaterale EKT verwendet (Sackeim 2008); das Handbuch selbst empfiehlt für die erste Behandlung LOW 0.5.') },
+  { id: 'benzo', title: L('On lorazepam: flumazenil first', 'Unter Lorazepam: zuerst Flumazenil'), placement: 'BT', program: 'LOW_05', percent: 30, benzoPerDay: 2.5,
+    doseNote: L('The patient takes lorazepam 2.5 mg a day. Benzodiazepines shorten the seizure; flumazenil 0.5 mg just before the anaesthetic reverses them for the treatment (Krystal 1998). Afterwards watch for agitation.', 'Der Patient nimmt täglich 2,5 mg Lorazepam. Benzodiazepine verkürzen den Anfall; Flumazenil 0,5 mg unmittelbar vor der Narkose hebt sie für die Behandlung auf (Krystal 1998). Danach auf Unruhe achten.') },
+  { id: 'sux', title: L('Alternative relaxant: succinylcholine', 'Alternatives Relaxans: Succinylcholin'), placement: 'BT', program: 'LOW_05', percent: 30, relaxant: 'succinylcholine',
+    doseNote: L('Succinylcholine 1 mg/kg instead of rocuronium (e.g. when sugammadex is not to hand): fasciculations first, no reversal; it wears off by itself in about 10 min.', 'Succinylcholin 1 mg/kg statt Rocuronium (z. B. wenn Sugammadex nicht verfügbar ist): erst Faszikulationen, keine Antagonisierung; es lässt nach etwa 10 min von selbst nach.') },
 ];
+/** the anaesthetic's doses (the owner's hospital; per kg of the station's patient, 76 kg) */
+export const DOSES = { propofol: 1 * ECT_PATIENT.weightKg, esketamine: 0.5 * ECT_PATIENT.weightKg, rocuronium: 0.4 * ECT_PATIENT.weightKg, succinylcholine: 1 * ECT_PATIENT.weightKg,
+  sugammadex: 2 * ECT_PATIENT.weightKg, flumazenil: 0.5, topUp: 0.5 * ECT_PATIENT.weightKg } as const;
+/** relaxometry before the stimulus: at most this many twitches of the train of four (the block deep enough to modify the
+    convulsion; an assumption to confirm with the owner's hospital) */
+export const TOF_FOR_STIMULUS = 1;
 
 /* Waits, from treatments in patients. */
 /** after the induction agent, before the patient is asleep enough to go on (propofol: induction to loss of response 44 s,
@@ -205,22 +227,27 @@ export const STEPS: readonly StepDef[] = [
     how: L('FlexDial: press, PROGRAMS, press, turn, press. Then PERCENT ENERGY to the ordered value.', 'FlexDial: drücken, PROGRAMS, drücken, drehen, drücken. Dann PERCENT ENERGY auf den angeordneten Wert.'),
     why: L('The charge decides whether a seizure starts, and how far above threshold.', 'Die Ladung entscheidet, ob ein Anfall beginnt und wie weit über der Schwelle.'),
     says: L('Set as ordered.', 'Wie angeordnet eingestellt.') },
+  { id: 'flumazenil', role: 'anaesthetist', kind: 'room', modelled: true, after: ['impedance', 'dose', 'paper', 'brakes', 'cuffOn'],
+    title: L('Give flumazenil', 'Flumazenil geben'),
+    how: L('On a benzodiazepine: flumazenil 0.5 mg IV just before the anaesthetic.', 'Unter Benzodiazepin: Flumazenil 0,5 mg i. v. unmittelbar vor der Narkose.'),
+    why: L('The benzodiazepine shortens the seizure; flumazenil lifts it for the treatment (it lasts about an hour).', 'Das Benzodiazepin verkürzt den Anfall; Flumazenil hebt es für die Behandlung auf (es wirkt etwa eine Stunde).'),
+    says: L('Flumazenil 0.5 mg in.', 'Flumazenil 0,5 mg gegeben.') },
   { id: 'oxygen', role: 'anaesthetist', kind: 'room', modelled: true, after: ['impedance', 'dose', 'paper', 'brakes', 'cuffOn'],
     title: L('Preoxygenate', 'Präoxygenieren'),
     how: L('When the psychiatrist is ready: mask on, 100 % oxygen.', 'Wenn die Psychiatrie bereit ist: Maske auf, 100 % Sauerstoff.'),
     why: L('An oxygen reserve for the apnoea.', 'Sauerstoffreserve für die Apnoe.'),
     says: L('Preoxygenating.', 'Präoxygeniere.') },
-  { id: 'induction', role: 'anaesthetist', kind: 'room', modelled: true, after: ['oxygen'],
-    title: L('Induce anaesthesia', 'Narkose einleiten'),
-    how: L('Give the hypnotic; wait until unresponsive (about 45 s).', 'Hypnotikum geben; warten, bis keine Reaktion (etwa 45 s).'),
-    why: L('Asleep before the relaxant.', 'Schlafen vor dem Relaxans.'),
-    says: L('Hypnotic in. You can pump the cuff.', 'Hypnotikum gegeben. Manschette kann hoch.') },
+  { id: 'induction', role: 'anaesthetist', kind: 'room', modelled: true, after: ['oxygen', 'flumazenil'],
+    title: L('Propofol and esketamine', 'Propofol und Esketamin'),
+    how: L('Propofol 1 mg/kg (76 mg) with esketamine 0.5 mg/kg (38 mg); wait until unresponsive (about 45 s).', 'Propofol 1 mg/kg (76 mg) mit Esketamin 0,5 mg/kg (38 mg); warten, bis keine Reaktion (etwa 45 s).'),
+    why: L('Asleep before the relaxant. Propofol shortens the seizure, the more the more of it is at the brain when the stimulus comes; esketamine lets the propofol dose be small.', 'Schlafen vor dem Relaxans. Propofol verkürzt den Anfall, umso mehr, je mehr davon beim Reiz im Gehirn ist; Esketamin erlaubt eine kleine Propofoldosis.'),
+    says: L('Propofol and esketamine in. You can pump the cuff.', 'Propofol und Esketamin gegeben. Manschette kann hoch.') },
   { id: 'cuff', role: 'psychiatrist', kind: 'room', modelled: true, after: ['induction', 'cuffOn'],
     title: L('Pump the arm cuff', 'Manschette aufpumpen'),
     how: L('When anaesthesia calls before the relaxant: pump to 220–240 mmHg (the tourniquet), report it up.', 'Wenn die Anästhesie sich vor dem Relaxans meldet: auf 220–240 mmHg aufpumpen (Blutsperre), melden.'),
     why: L('Keeps the relaxant out of the arm, so the motor seizure stays visible.', 'Hält das Relaxans aus dem Arm, damit der motorische Anfall sichtbar bleibt.'),
     says: L('Cuff up.', 'Manschette oben.') },
-  { id: 'biteBlock', role: 'anaesthetist', kind: 'room', modelled: false, after: ['relaxant'],
+  { id: 'biteBlock', role: 'anaesthetist', kind: 'room', modelled: false, after: ['relaxometry'],
     title: L('Insert the bite block', 'Beißschutz einlegen'),
     how: L('After the hypnotic and once relaxed (relaxometry): between the teeth.', 'Nach dem Narkotikum und nach Relaxation (Relaxometrie): zwischen die Zähne.'),
     why: L('The stimulus clenches the jaw directly, relaxant or not.', 'Der Reiz presst den Kiefer direkt zusammen, mit oder ohne Relaxans.'),
@@ -231,11 +258,16 @@ export const STEPS: readonly StepDef[] = [
     why: L('The patient is apnoeic; a low CO₂ helps the seizure.', 'Der Patient atmet nicht; niedriges CO₂ fördert den Anfall.'),
     says: L('Ventilating.', 'Beatme.') },
   { id: 'relaxant', role: 'anaesthetist', kind: 'room', modelled: true, after: ['cuff', 'ventilate'],
-    title: L('Succinylcholine', 'Succinylcholin'),
-    how: L('Call the psychiatrist to pump the cuff first; then give it and wait for the fasciculations to pass (about 1 min).', 'Erst der Psychiatrie Bescheid geben (Manschette); dann geben, Faszikulationen abwarten (etwa 1 min).'),
-    why: L('Softens the convulsion.', 'Mildert die Krämpfe.'),
-    says: L('Succinylcholine in.', 'Succinylcholin gegeben.') },
-  { id: 'precheck', role: 'psychiatrist', kind: 'device', modelled: true, after: ['relaxant'],
+    title: L('Give rocuronium', 'Rocuronium geben'),
+    how: L('Call the psychiatrist to pump the cuff first; then rocuronium 0.4 mg/kg (30 mg).', 'Erst der Psychiatrie Bescheid geben (Manschette); dann Rocuronium 0,4 mg/kg (30 mg).'),
+    why: L('Softens the convulsion. Rocuronium does not cause fasciculations and can be reversed at once with sugammadex.', 'Mildert die Krämpfe. Rocuronium macht keine Faszikulationen und lässt sich mit Sugammadex sofort aufheben.'),
+    says: L('Rocuronium in.', 'Rocuronium gegeben.') },
+  { id: 'relaxometry', role: 'anaesthetist', kind: 'room', modelled: true, after: ['relaxant'],
+    title: L('Relaxometry', 'Relaxometrie'),
+    how: L('Train of four at the left wrist: wait until at most one twitch is left (about 3–4 min with rocuronium 0.4 mg/kg).', 'Train-of-Four am linken Handgelenk: warten, bis höchstens eine Zuckung übrig ist (mit Rocuronium 0,4 mg/kg etwa 3–4 min).'),
+    why: L('Only a deep enough block keeps the convulsion from breaking bones or teeth; rocuronium sets in more slowly than succinylcholine.', 'Nur eine ausreichend tiefe Blockade verhindert, dass der Krampf Knochen oder Zähne verletzt; Rocuronium wirkt langsamer als Succinylcholin.'),
+    says: L('Relaxed: TOF count 1 or less.', 'Relaxiert: TOF-Zahl 1 oder weniger.') },
+  { id: 'precheck', role: 'psychiatrist', kind: 'device', modelled: true, after: ['relaxometry'],
     title: L('Impedance and strip again', 'Impedanz und Streifen erneut'),
     how: L('IMPEDANCE TEST again; then START/STOP for a short strip (under 5 s): right and left alike? A difference means a loose electrode: press it on.', 'IMPEDANCE TEST erneut; dann START/STOP für einen kurzen Streifen (unter 5 s): rechts und links gleich? Ein Unterschied heißt Wackelelektrode: andrücken.'),
     why: L('Leads and pads can come loose while the patient is put to sleep.', 'Ableitungen und Elektroden können sich beim Einschlafen lösen.'),
@@ -260,11 +292,11 @@ export const STEPS: readonly StepDef[] = [
     how: L('From the report and the strip: one point each for an EEG seizure over 25 s, PSI over 80 %, coherence over 90 %, a midictal amplitude over 180 µV (read it off the strip), a peak heart rate over 120/min. Then decide.', 'Aus Bericht und Streifen: je ein Punkt für EEG-Anfall über 25 s, PSI über 80 %, Kohärenz über 90 %, midiktale Amplitude über 180 µV (vom Streifen ablesen), maximale Herzfrequenz über 120/min. Dann entscheiden.'),
     why: L('The score decides: no restimulation, a higher dose next time, or a restimulation now.', 'Der Score entscheidet: keine Re-Stimulation, höhere Dosis beim nächsten Mal oder jetzt Re-Stimulation.'),
     says: L('Seizure rated.', 'Anfall bewertet.') },
-  { id: 'restimAgree', role: 'psychiatrist', kind: 'room', modelled: false, after: ['sams'],
+  { id: 'restimAgree', role: 'psychiatrist', kind: 'room', modelled: true, after: ['sams'],
     title: L('Agree the restimulation', 'Re-Stimulation absprechen'),
-    how: L('SAMS 0–1: ask anaesthesia quickly: heart? blood pressure? They oxygenate in between.', 'SAMS 0–1: kurz mit der Anästhesie absprechen: Herz? Blutdruck? Sie oxygeniert zwischendurch.'),
-    why: L('A second stimulus raises the heart rate and pressure again.', 'Ein zweiter Reiz treibt Herzfrequenz und Blutdruck erneut hoch.'),
-    says: L('Anaesthesia agrees; oxygenating.', 'Anästhesie einverstanden; oxygeniert.') },
+    how: L('SAMS 0–1: ask anaesthesia quickly: heart? blood pressure? They oxygenate in between and top up the propofol (0.5 mg/kg).', 'SAMS 0–1: kurz mit der Anästhesie absprechen: Herz? Blutdruck? Sie oxygeniert zwischendurch und gibt Propofol nach (0,5 mg/kg).'),
+    why: L('A second stimulus raises the heart rate and pressure again, and the first dose of the hypnotic is wearing off.', 'Ein zweiter Reiz treibt Herzfrequenz und Blutdruck erneut hoch, und die erste Dosis des Hypnotikums lässt nach.'),
+    says: L('Anaesthesia agrees; propofol topped up; oxygenating.', 'Anästhesie einverstanden; Propofol nachgegeben; oxygeniert.') },
   { id: 'restimDose', role: 'psychiatrist', kind: 'device', modelled: true, after: ['restimAgree'],
     title: L('Set 1.5 times the dose', '1,5-fache Dosis einstellen'),
     how: L('PERCENT ENERGY to 1.5 times the first dose (e.g. 30 % → 45 %). Not if the first was 140 % or more. If the display shows NO BASE, the baseline retention (BLV) has run out: test the impedance again for a new baseline.', 'PERCENT ENERGY auf das 1,5-fache der ersten Dosis (z. B. 30 % → 45 %). Nicht, wenn die erste 140 % oder mehr war. Zeigt das Display NO BASE, ist die Baseline-Speicherung (BLV) abgelaufen: Impedanz erneut testen für eine neue Baseline.'),
@@ -290,10 +322,15 @@ export const STEPS: readonly StepDef[] = [
     how: L('SAMS again, from the second report and the strip.', 'SAMS erneut, aus dem zweiten Bericht und dem Streifen.'),
     why: L('It decides the dose for the next treatment.', 'Er bestimmt die Dosis der nächsten Behandlung.'),
     says: L('Second seizure rated.', 'Zweiten Anfall bewertet.') },
-  { id: 'recovery', role: 'anaesthetist', kind: 'room', modelled: true, after: ['observe'],
+  { id: 'reversal', role: 'anaesthetist', kind: 'room', modelled: true, after: ['observe'],
+    title: L('Give sugammadex', 'Sugammadex geben'),
+    how: L('Once the seizure is over and no restimulation follows: sugammadex 2 mg/kg (152 mg).', 'Wenn der Anfall vorbei ist und keine Re-Stimulation folgt: Sugammadex 2 mg/kg (152 mg).'),
+    why: L('It binds the rocuronium, so the patient breathes and moves again before the hypnotic wears off; given before the stimulus it would leave the convulsion unmodified.', 'Es bindet das Rocuronium, sodass der Patient wieder atmet und sich bewegt, bevor das Hypnotikum nachlässt; vor dem Reiz gegeben, bliebe der Krampf ungemildert.'),
+    says: L('Sugammadex in.', 'Sugammadex gegeben.') },
+  { id: 'recovery', role: 'anaesthetist', kind: 'room', modelled: true, after: ['observe', 'reversal'],
     title: L('Recover the patient', 'Patienten ausleiten'),
-    how: L('Ventilate until breathing returns; cuff down.', 'Beatmen bis zur Spontanatmung; Manschette ab.'),
-    why: L('The relaxant wears off within minutes.', 'Das Relaxans lässt binnen Minuten nach.'),
+    how: L('Ventilate until breathing returns and the train of four is back (ratio 0.9); cuff down.', 'Beatmen bis zur Spontanatmung und bis der Train-of-Four zurück ist (Quotient 0,9); Manschette ab.'),
+    why: L('Breathing returns as the propofol and the block wear off.', 'Die Atmung kehrt zurück, wenn Propofol und Blockade nachlassen.'),
     says: L('Breathing; cuff down.', 'Atmet; Manschette ab.') },
 ];
 export const STEP: Record<StepId, StepDef> = Object.fromEntries(STEPS.map((s) => [s.id, s])) as Record<StepId, StepDef>;
@@ -301,12 +338,17 @@ export const STEP: Record<StepId, StepDef> = Object.fromEntries(STEPS.map((s) =>
 /** a mistake the procedure noticed, at the moment it happened */
 export interface ProcedureError { t: number; code: ErrorCode; step: StepId; text: LocalizedText }
 export type ErrorCode = 'awake-stimulus' | 'unmodified' | 'early-stimulus' | 'no-bite-block' | 'no-impedance' | 'impedance-out' | 'wrong-dose' | 'wrong-pads'
-  | 'no-leads' | 'montage' | 'restim-unneeded' | 'restim-unrated' | 'restim-baseline' | 'restim-unagreed' | 'restim-dose' | 'restim-timing' | 'sams-items' | 'sams-decision' | 'cuff-range' | 'no-strip' | 'no-brakes' | 'no-paper' | 'no-precheck' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation';
+  | 'no-leads' | 'montage' | 'restim-unneeded' | 'restim-unrated' | 'restim-baseline' | 'restim-unagreed' | 'restim-dose' | 'restim-timing' | 'sams-items' | 'sams-decision' | 'cuff-range' | 'no-strip' | 'no-brakes' | 'no-paper' | 'no-precheck' | 'not-ventilated' | 'awake-paralysis' | 'no-cuff' | 'cuff-low' | 'desaturation' | 'not-relaxed' | 'early-reversal' | 'woke-blocked' | 'no-flumazenil' | 'no-top-up';
 
 const ERROR_TEXT: Record<ErrorCode, LocalizedText> = {
   'awake-stimulus': L('Stimulus before anaesthesia.', 'Reiz vor der Narkose.'),
   unmodified: L('Stimulus without relaxant.', 'Reiz ohne Relaxans.'),
   'early-stimulus': L('Stimulus within 60 s of the relaxant.', 'Reiz innerhalb von 60 s nach dem Relaxans.'),
+  'not-relaxed': L('Stimulus before the block was deep enough (more than one twitch of the train of four): the convulsion was not modified.', 'Reiz, bevor die Blockade tief genug war (mehr als eine Zuckung im Train-of-Four): Der Krampf war nicht gemildert.'),
+  'early-reversal': L('Sugammadex before the stimulus: the block was gone when the convulsion came (Uludag Yanaral 2026 report this as a syringe swap).', 'Sugammadex vor dem Reiz: Die Blockade war weg, als der Krampf kam (Uludag Yanaral 2026 berichten dies als Spritzenverwechslung).'),
+  'woke-blocked': L('The hypnotic wore off before the stimulus with the muscles still blocked: awake and paralysed. Stimulate in time, or top up the hypnotic.', 'Das Hypnotikum ließ vor dem Reiz nach, die Muskeln noch blockiert: wach und gelähmt. Rechtzeitig stimulieren oder Hypnotikum nachgeben.'),
+  'no-flumazenil': L('Stimulus in a patient on a benzodiazepine without flumazenil: the seizure is shorter than it need be.', 'Reiz bei einem Patienten unter Benzodiazepin ohne Flumazenil: Der Anfall ist kürzer als nötig.'),
+  'no-top-up': L('Restimulated without topping up the hypnotic.', 'Re-Stimulation, ohne das Hypnotikum nachzugeben.'),
   'no-bite-block': L('Stimulus without bite block.', 'Reiz ohne Beißschutz.'),
   'no-impedance': L('Stimulus without impedance test.', 'Reiz ohne Impedanztest.'),
   'impedance-out': L('Stimulus with impedance outside 100–3000 Ω.', 'Reiz bei Impedanz außerhalb 100–3000 Ω.'),
@@ -366,6 +408,8 @@ export class Procedure {
   private stimulusSeen = 0;
   private lastSeizing = -Infinity;
   private padsWanted: PlacementId | null = null;
+  private toppedUp = false;
+  private wokeChecked = false;
 
   constructor(readonly session: EctSession, readonly order: EctOrder, readonly mode: EctMode, readonly roles: readonly EctRole[]) {
     /* the room before anything is done: skin not cleaned, no pads, no leads */
@@ -375,7 +419,31 @@ export class Procedure {
     session.montage = EMPTY_MONTAGE();
     /* doses up to 200 % (2X), as the owner's hospital (CE) has it */
     session.device.settings.maxPercent = 200;
+    /* the patient's regular benzodiazepine, if any */
+    session.anaesthesia.benzoPerDay = order.benzoPerDay ?? 0;
   }
+  /** the relaxant of this order */
+  get relaxantDrug(): 'rocuronium' | 'succinylcholine' { return this.order.relaxant ?? 'rocuronium'; }
+  /** a step as this order has it (the relaxant's texts follow the drug) */
+  stepDef(id: StepId): StepDef {
+    const d = STEP[id];
+    if (id === 'relaxant' && this.relaxantDrug === 'succinylcholine') return { ...d, title: L('Succinylcholine', 'Succinylcholin'),
+      how: L('Call the psychiatrist to pump the cuff first; then succinylcholine 1 mg/kg (76 mg) and wait for the fasciculations to pass (about 1 min).', 'Erst der Psychiatrie Bescheid geben (Manschette); dann Succinylcholin 1 mg/kg (76 mg), Faszikulationen abwarten (etwa 1 min).'),
+      why: L('Softens the convulsion; it wears off by itself in about 10 min.', 'Mildert die Krämpfe; es lässt nach etwa 10 min von selbst nach.'), says: L('Succinylcholine in.', 'Succinylcholin gegeben.') };
+    if (id === 'relaxometry' && this.relaxantDrug === 'succinylcholine') return { ...d,
+      how: L('Train of four at the left wrist: the fasciculations over, at most one twitch left (about 1 min).', 'Train-of-Four am linken Handgelenk: Faszikulationen vorbei, höchstens eine Zuckung übrig (etwa 1 min).') };
+    return d;
+  }
+  /** whether a step belongs to this treatment: the restimulation only after a poor first seizure, flumazenil only for a
+      patient on a benzodiazepine, sugammadex only after rocuronium */
+  applies(id: StepId): boolean {
+    if (RESTIM_STEPS.includes(id)) return this.needsRestim;
+    if (id === 'flumazenil') return !!this.order.benzoPerDay;
+    if (id === 'reversal') return this.relaxantDrug === 'rocuronium';
+    return true;
+  }
+  /** whether the page shows a step: it belongs to the treatment, or was done anyway */
+  shown(id: StepId): boolean { return this.applies(id) || this.isDone(id); }
   /** the learner's hands on a lead: put it on a spot (a lead already there comes off), or take it off (null) */
   placeLead(lead: { ch: 0 | 1 | 2 | 3; pole: 'black' | 'red' } | 'ground', spot: Spot | null) {
     const m = this.session.montage;
@@ -394,8 +462,10 @@ export class Procedure {
   isDone(id: StepId) { return this.done.has(id); }
   /** all the steps before it are done */
   open(id: StepId) {
-    if (this.isDone(id) || !STEP[id].after.every((a) => this.isDone(a))) return false;
-    if (RESTIM_STEPS.includes(id)) return this.needsRestim;
+    if (this.isDone(id) || !this.applies(id)) return false;
+    if (!STEP[id].after.every((a) => this.isDone(a) || !this.applies(a))) return false;
+    /* the relaxant is reversed once the last seizure is over and no restimulation is coming */
+    if (id === 'reversal') return this.isDone('sams') && (!this.needsRestim || this.isDone('reobserve'));
     /* the patient is recovered after the last seizure has been rated */
     if (id === 'recovery') return this.isDone('sams') && (!this.needsRestim || this.isDone('resams'));
     return true;
@@ -431,8 +501,9 @@ export class Procedure {
     if (id === 'pads') return since('skin', RUB_GEL);
     if (id === 'retreat') { const f = this.session.stimuli[0]; return f ? Math.max(0, f.at + RESTIM_FROM - this.t) : 0; }
     if (id === 'cuff' || id === 'biteBlock' || id === 'ventilate') return since('induction', INDUCTION_WAIT);
-    if (id === 'treat') return Math.max(since('relaxant', RELAXANT_WAIT), since('induction', HYPNOTIC_TO_STIMULUS));
-    if (id === 'recovery') return this.session.apnoeaLeft;
+    if (id === 'treat') return Math.max(this.relaxantDrug === 'succinylcholine' ? since('relaxant', RELAXANT_WAIT) : 0, since('induction', HYPNOTIC_TO_STIMULUS));
+    if (id === 'relaxometry') return this.session.anaesthesia.tofCount > TOF_FOR_STIMULUS ? 1 : 0;
+    if (id === 'recovery') return this.recovered ? 0 : 1;
     return 0;
   }
   /** the learner's steps that can be done now (open, in order) */
@@ -440,7 +511,9 @@ export class Procedure {
   /** the learner's next step: what the coach talks about */
   current(): StepId | null { return this.myOpen()[0] ?? null; }
   /** the treatment is over: the report is printed and the patient recovered */
-  get finished() { return this.isDone('report') && this.isDone('sams') && this.isDone('recovery') && (!this.needsRestim || this.isDone('resams')); }
+  get finished() { return this.isDone('report') && this.isDone('sams') && this.isDone('recovery') && (!this.needsRestim || this.isDone('resams')) && (!this.applies('reversal') || this.isDone('reversal')); }
+  /** the patient can be handed over: breathing, and after rocuronium the train of four back to a ratio of 0.9 */
+  get recovered(): boolean { const a = this.session.anaesthesia; return this.session.breathing && (this.relaxantDrug === 'succinylcholine' || a.tofRatio >= 0.9); }
   /** time may run faster: nothing is the learner's to do just now (they wait for the team, a drug or the seizure) */
   get canHurry(): boolean {
     if (this.open('observe') && this.isDone('treat')) return true;
@@ -468,7 +541,7 @@ export class Procedure {
     const r = this.room, session = this.session;
     switch (id) {
       case 'check': r.checked = true; break;
-      case 'restimAgree': if (!this.needsRestim) return; break;
+      case 'restimAgree': if (!this.needsRestim) return; session.topUp(DOSES.topUp); this.toppedUp = true; break;
       case 'sams': case 'resams': {
         const truth = this.samsTruth(); if (!truth) return;
         const mine = by === 'you' && opts.sams ? opts.sams : { points: truth.items.map((x) => x.point), band: truth.band };
@@ -491,7 +564,8 @@ export class Procedure {
         else if (!this.leadsPlaced) return;
         r.leads = true; session.monitoringCable = true; break;
       case 'oxygen': r.oxygen = true; session.oxygen(true); break;
-      case 'induction': r.induced = true; session.induce(); break;
+      case 'flumazenil': session.flumazenil(DOSES.flumazenil); break;
+      case 'induction': r.induced = true; session.induce({ propofol: DOSES.propofol, esketamine: DOSES.esketamine }); break;
       case 'cuff':
         /* the team pumps it well above the systolic pressure (a placement: the source asks only for "high enough" to keep
            the relaxant out); the learner has pumped it themselves and says it is up */
@@ -504,7 +578,9 @@ export class Procedure {
         if (!r.cuff) this.err('no-cuff', id);
         else if (r.cuffMmHg <= this.systolic) this.err('cuff-low', id);
         else if (r.cuffMmHg < CUFF_LOW || r.cuffMmHg > CUFF_HIGH) this.err('cuff-range', id);
-        r.relaxed = true; session.relax(r.cuff && r.cuffMmHg > this.systolic); break;
+        r.relaxed = true; session.relax(r.cuff && r.cuffMmHg > this.systolic, this.relaxantDrug, DOSES[this.relaxantDrug]); break;
+      case 'relaxometry': if (session.anaesthesia.tofCount > TOF_FOR_STIMULUS) return; break;
+      case 'reversal': if (!session.stimuli.length) this.err('early-reversal', id); session.reverse(DOSES.sugammadex); break;
       case 'ventilate': r.ventilating = true; session.bag(true); break;
       case 'recovery': r.recovered = true; r.ventilating = false; r.cuffMmHg = 0; r.cuffOn = false; session.bag(false); break;
     }
@@ -553,6 +629,8 @@ export class Procedure {
       const imp = d.lastStaticAt >= t0 && d.baseline === 'ready' && d.lastStatic != null && d.lastStatic > ECT.staticLow && d.lastStatic < ECT.staticHigh;
       if (strip && imp) this.finish('precheck', by('precheck'));
     }
+    /* the hypnotic wearing off before the stimulus with the muscles blocked: awake and paralysed */
+    if (!this.wokeChecked && this.room.relaxed && !session.stimuli.length && session.anaesthesia.woken && session.anaesthesia.t1 < 0.9) { this.wokeChecked = true; this.err('woke-blocked', 'treat'); }
     /* the stimulus: check the room at the moment it starts */
     if (session.stimuli.length > this.stimulusSeen) { this.stimulusSeen = session.stimuli.length; if (this.stimulusSeen === 1) this.checkStimulus(); else this.checkRestim(); }
     /* the restimulation: the dose step, the second stimulus, its seizure and report */
@@ -579,6 +657,7 @@ export class Procedure {
     if (!this.samsResult.sams) { this.err('restim-unrated', 'sams'); if (gap < RESTIM_FROM || gap > RESTIM_TO) timing(); return; }
     if (!this.restimIndicated) { this.err('restim-unneeded', 'retreat'); return; }
     if (!this.isDone('restimAgree')) this.err('restim-unagreed', 'restimAgree');
+    if (!this.toppedUp) this.err('no-top-up', 'restimAgree');
     if (!second.baseline) this.err('restim-baseline', 'restimDose');
     if (!this.restimDoseOk(second.percent)) this.err('restim-dose', 'restimDose');
     if (gap < RESTIM_FROM || gap > RESTIM_TO) timing();
@@ -587,7 +666,9 @@ export class Procedure {
     const r = this.room, d = this.session.device;
     if (!r.induced) this.err('awake-stimulus', 'treat');
     else if (!r.relaxed) this.err('unmodified', 'treat');
-    else { const at = this.stamps.get('relaxant'); if (at != null && this.t - at < RELAXANT_WAIT) this.err('early-stimulus', 'treat'); }
+    else if (this.session.anaesthesia.tofCount > TOF_FOR_STIMULUS) this.err('not-relaxed', 'relaxometry');
+    else if (this.relaxantDrug === 'succinylcholine') { const at = this.stamps.get('relaxant'); if (at != null && this.t - at < RELAXANT_WAIT) this.err('early-stimulus', 'treat'); }
+    if (this.order.benzoPerDay && !this.isDone('flumazenil')) this.err('no-flumazenil', 'flumazenil');
     if (!r.biteBlock) this.err('no-bite-block', 'treat');
     if (d.lastStatic == null || d.baseline !== 'ready' && !this.isDone('impedance')) this.err('no-impedance', 'treat');
     else if (d.lastStatic <= ECT.staticLow || d.lastStatic >= ECT.staticHigh) this.err('impedance-out', 'treat');

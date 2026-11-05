@@ -256,7 +256,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
   const run = (order, mode, roles, learner = () => {}, opts = {}) => {
     const s = new S.EctSession({ placement: order.placement, prepared: true, skin: opts.skin ?? 0, seed: 7 });
     const p = new S.Procedure(s, order, mode, roles);
-    for (let k = 0; k < 900 / 0.05 && !p.finished; k++) {   // the in-house procedure takes about 10 min
+    for (let k = 0; k < 1500 / 0.05 && !p.finished; k++) {   // the in-house procedure takes about 10 min, the recovery after sugammadex 7 more
       s.advance(0.05); p.tick(0.05); learner(p, s);
       if (p.waitingForNext) p.next();
     }
@@ -264,20 +264,47 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
   };
   /* the learner's hands put every lead where the manual's montage has it */
   const placeAll = (p) => { S.STANDARD_MONTAGE.ch.forEach((l, ch) => { p.placeLead({ ch, pole: 'black' }, l.black); p.placeLead({ ch, pole: 'red' }, l.red); }); p.placeLead('ground', S.STANDARD_MONTAGE.ground); };
-  const inOrder = (p) => S.STEPS.every((st) => !p.done.has(st.id) || st.after.every((a) => p.done.has(a) && p.done.get(a).at <= p.done.get(st.id).at));
+  const inOrder = (p) => S.STEPS.every((st) => !p.done.has(st.id) || st.after.every((a) => (!p.applies(a) && !p.done.has(a)) || (p.done.has(a) && p.done.get(a).at <= p.done.get(st.id).at)));
   for (const order of S.ECT_ORDERS) {
     const { s, p } = run(order, 'watch', []);
     const r = s.lastReport();
     ok(`watch (${order.id}): the team does every step, each after the steps it follows, without a mistake, and the report has its EEG endpoint`,
-      p.finished && p.done.size === S.STEPS.length - (p.needsRestim ? 0 : S.RESTIM_STEPS.length) && inOrder(p) && !p.errors.length && r?.eegEndpoint != null && s.patient.placement === order.placement, J({ done: p.done.size, errors: p.errors.map((e) => e.code), eeg: r?.eegEndpoint }));
+      p.finished && p.done.size === S.STEPS.filter((x) => p.applies(x.id)).length && inOrder(p) && !p.errors.length && r?.eegEndpoint != null && s.patient.placement === order.placement, J({ done: p.done.size, errors: p.errors.map((e) => e.code), eeg: r?.eegEndpoint }));
   }
   {
     /* the learner is the anaesthetist and does the anaesthetic steps as soon as each is open and its wait is over */
     const order = S.ECT_ORDERS[0];
     const { p } = run(order, 'practise', ['anaesthetist'], (q) => { const c = q.current(); if (c && q.waitFor(c) <= 0) q.act(c); });
-    const mine = S.STEPS.filter((x) => x.role === 'anaesthetist').every((x) => p.done.get(x.id)?.by === 'you');
-    const theirs = S.STEPS.filter((x) => x.role !== 'anaesthetist' && (p.needsRestim || !S.RESTIM_STEPS.includes(x.id))).every((x) => p.done.get(x.id)?.by === x.role);
+    const mine = S.STEPS.filter((x) => x.role === 'anaesthetist' && p.applies(x.id)).every((x) => p.done.get(x.id)?.by === 'you');
+    const theirs = S.STEPS.filter((x) => x.role !== 'anaesthetist' && p.applies(x.id)).every((x) => p.done.get(x.id)?.by === x.role);
     ok('practise as the anaesthetist: your steps are yours, the psychiatrist works the device and the patient’s skin, in order, without a mistake', p.finished && mine && theirs && inOrder(p) && !p.errors.length, J({ errors: p.errors.map((e) => e.code), log: p.log.map((l) => `${l.who}:${l.step}`) }));
+  }
+  {
+    /* the anaesthetist's mistakes with the hospital's anaesthetic: the learner is the anaesthetist, the team the psychiatrist */
+    const bt = S.ECT_ORDERS.find((o) => o.id === 'bt');
+    const anaes = (order, slip) => run(order, 'practise', ['anaesthetist'], (q, s) => {
+      const c = q.current(); if (!c || q.waitFor(c) > 0) {
+        /* relaxometry skipped: the learner calls it relaxed at once */
+        if (slip === 'no-relaxometry' && c === 'relaxometry') { q.done.set('relaxometry', { at: q.t, by: 'you' }); q.stamps?.set?.('relaxometry', q.t); }
+        return;
+      }
+      if (slip === 'reverse-early' && c === 'biteBlock') { q.act('biteBlock'); s.reverse(152); return; }
+      if (slip === 'no-flumazenil' && c === 'flumazenil') { const o = q.myOpen().find((x) => x !== 'flumazenil' && q.waitFor(x) <= 0); if (o) q.act(o); else if (q.isDone('oxygen') && !q.isDone('induction') && q.waitFor('induction') <= 0) q.act('induction'); return; }
+      q.act(c);
+    });
+    const codes = (x) => x.p.errors.map((e) => e.code);
+    const nr = anaes(bt, 'no-relaxometry');
+    ok('stimulating before the rocuronium has set in (relaxometry skipped) is noticed: the convulsion was not modified', codes(nr).includes('not-relaxed') && nr.p.finished, J(codes(nr)));
+    const er = anaes(bt, 'reverse-early');
+    ok('sugammadex before the stimulus is noticed (the syringe swap of Uludag Yanaral 2026), and the convulsion comes unmodified', codes(er).includes('not-relaxed') && er.p.finished, J(codes(er)));
+    const bz = S.ECT_ORDERS.find((o) => o.id === 'benzo'), nf = anaes(bz, 'no-flumazenil');
+    ok('a patient on lorazepam stimulated without flumazenil is noticed', codes(nf).includes('no-flumazenil') && nf.p.finished, J(codes(nf)));
+    /* the hypnotic wearing off before the stimulus, the rocuronium still acting: induced, cuffed, ventilated, relaxed, and no
+       stimulus for 8 min */
+    const late = new S.Procedure(new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }), bt, 'practise', [...S.ECT_ROLES]);
+    late.act('check'); late.act('oxygen'); late.act('induction'); late.cuffOn(); for (let k = 0; k < 12; k++) late.squeeze(); late.act('cuff'); late.act('ventilate'); late.act('relaxant');
+    for (let k = 0; k < 480 / 0.1; k++) { late.session.advance(0.1); late.tick(0.1); }
+    ok('the hypnotic wearing off before the stimulus, the muscles still blocked, is noticed: awake and paralysed', late.errors.some((e) => e.code === 'woke-blocked'), J(late.errors.map((e) => e.code)));
   }
   {
     /* the learner does everything but stimulates as soon as the device is ready: before the anaesthetic */
@@ -400,29 +427,78 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const order = S.ECT_ORDERS.find((o) => o.id === 'rul');
     const s = new S.EctSession({ placement: order.placement, prepared: true, skin: 0, seed: 7 });
     const p = new S.Procedure(s, order, 'watch', []);
-    let minSpo2 = 100, back = null; const et = [];
-    for (let k = 0; k < 900 / 0.05 && !p.finished; k++) {
+    let minSpo2 = 100, back = null, stopped = false; const et = [];
+    for (let k = 0; k < 1500 / 0.05 && !p.finished; k++) {
       s.advance(0.05); p.tick(0.05); if (p.waitingForNext) p.next();
       minSpo2 = Math.min(minSpo2, s.spo2);
-      if (s.inducedAt != null && back == null && s.breathing) back = s.t - s.inducedAt;
+      if (s.inducedAt != null && !s.breathing) stopped = true;
+      if (stopped && back == null && s.breathing) back = s.t;
       if (p.room.ventilating && !p.isDone('recovery') && p.isDone('treat') === false && s.etco2 != null) et.push(s.etco2);
     }
     const r = s.lastReport();
-    ok('the induction stops the breathing and it returns 5 min later, as Deng 2026 measured (induction to spontaneous breathing, 5 (4–6) min); the recovery waits for it', back != null && Math.abs(back - 300) < 1 && p.done.get('recovery').at >= s.inducedAt + 300, J({ back }));
+    const rev = p.done.get('reversal')?.at;
+    ok('the hospital’s anaesthetic: the induction stops the breathing; with rocuronium it returns only after the sugammadex, and the recovery waits for breathing and a TOF ratio of 0.9', back != null && rev != null && back > rev && p.done.get('recovery').at >= back && s.anaesthesia.tofRatio >= 0.9, J({ induced: s.inducedAt, reversal: rev, breathing: back, recovery: p.done.get('recovery')?.at }));
     ok('preoxygenated and bagged with 100 % oxygen, the lowest SpO₂ is at least 95 % (Deng 2026, facemask: lowest 97 %, IQR 97–98)', minSpo2 >= 95 && !p.errors.length, J({ minSpo2, errors: p.errors.map((e) => e.code) }));
     ok('with the cuff above systolic, the arm keeps its motor seizure: the EMG endpoint is found', r?.emgEndpoint != null && r?.eegEndpoint != null, J({ emg: r?.emgEndpoint, eeg: r?.eegEndpoint }));
     const mean = et.reduce((a, b) => a + b, 0) / Math.max(1, et.length);
     gap('bagged at 20/min before the stimulus, the end-tidal CO₂ is in the range the hyperventilation trials targeted (18–35 mmHg, Shen 2025) — known gap 72', mean >= 18 && mean <= 35, `${mean.toFixed(1)} mmHg: with the lab’s bag-mask breath (0.5 L, 30 % mask leak, both assumed) 20/min is ordinary ventilation (alveolar about 4 L/min); the anaesthetic’s lower CO₂ production is not modelled`);
     /* no oxygen, no breaths: the patient desaturates during the apnoea */
     const q = new S.Procedure(new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }), order, 'practise', [...S.ECT_ROLES]);
-    q.act('check'); q.act('induction');
+    q.act('check'); q.act('induction'); q.session.relax(false, 'rocuronium', 30);
     let low = 100; for (let k = 0; k < 290 / 0.1; k++) { q.session.advance(0.1); q.tick(0.1); low = Math.min(low, q.session.spo2); }
-    ok('induced on room air and not ventilated, the patient desaturates to 92 % or below within the 5 min apnoea, and the procedure notices', low <= 92 && q.errors.some((e) => e.code === 'desaturation'), J({ low, e: q.errors.map((e) => e.code) }));
+    ok('induced and relaxed on room air and not ventilated, the patient desaturates to 92 % or below within 5 min, and the procedure notices', low <= 92 && q.errors.some((e) => e.code === 'desaturation'), J({ low, e: q.errors.map((e) => e.code) }));
     /* the cuff too low: the relaxant reaches the arm and its EMG is flat */
     const w = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 });
     w.relax(false); w.advance(61);                     // the relaxant takes a minute to reach the arm
     const rr = S.scriptedTreatment(w, { program: 'LOW_05', percent: 30, after: 120 });   // past the EEG seizure's end (about 72 s)
     ok('with the cuff not above systolic, the relaxant reaches the arm: no EMG, while the EEG seizure is still seen', rr.emgEndpoint == null && rr.eegEndpoint != null && w.armRelaxed, J({ emg: rr.emgEndpoint, eeg: rr.eegEndpoint }));
+  }
+  {
+    /* the anaesthetic's pharmacology (part 2b, second half): published human models, one fit, the rest checked */
+    const P = S.ECT_PATIENT, A = (f) => { const a = new S.Anaesthesia(P); f(a); return a; };
+    let peak = 0, at = 0; { const a = A((a) => a.give('propofol', P.weightKg)); for (let t = 1; t <= 300; t++) { a.step(1); if (a.propofolCe > peak) { peak = a.propofolCe; at = t; } } }
+    ok('propofol (Schnider): the effect site peaks 1.5–2 min after a bolus (Schnider 1999: 1.6 min)', at >= 90 && at <= 120, `${at} s, ${f2(peak)} mg/L after 1 mg/kg`);
+    { const a = A((a) => { a.give('propofol', P.weightKg); a.give('esketamine', 0.5 * P.weightKg); }); a.step(240); const asleep = a.asleep; let woke = null; for (let t = 241; t < 900 && woke == null; t++) { a.step(1); if (a.woken) woke = t; }
+      ok('the hospital’s induction (propofol 1 + esketamine 0.5 mg/kg) is still asleep at the stimulus 4 min later, and wakes some minutes after it (return of consciousness at 1.8 mg/L, Iwakiri 2005)', asleep && woke != null && woke > 300, J({ woke })); }
+    { const a = A((a) => { a.give('propofol', 1.75 * P.weightKg); a.give('succinylcholine', P.weightKg); }); let b = null, gone = null; for (let t = 1; t < 900 && b == null; t++) { a.step(1); if (gone == null && !a.breathes) gone = t; if (gone != null && a.breathes) b = t; }
+      ok('propofol 1.75 mg/kg with succinylcholine: the breathing stops within a minute and is back within Deng 2026’s 4–6 min (the apnoea level is taken from their dose at 5 min; the diaphragm must be free too)', gone != null && gone <= 60 && b != null && b >= 240 && b <= 360, `stops ${gone} s, back ${b} s`); }
+    const onset = (mgkg) => { const a = A((a) => a.give('rocuronium', mgkg * P.weightKg)); let t1 = 1, t5 = null, c1 = null; for (let t = 1; t < 900; t++) { a.step(1); t1 = Math.min(t1, a.t1); if (t5 == null && a.t1 <= 0.05) t5 = t; if (c1 == null && a.tofCount <= 1) c1 = t; } return { t1, t5, c1 }; };
+    const r6 = onset(0.6), r3 = onset(0.3), r4 = onset(0.4);
+    gap('rocuronium 0.6 mg/kg: the first twitch down to 5 % within Pühringer’s onset (100 ± 39 s) — known gap 74', r6.t5 != null && r6.t5 <= 139, `${r6.t5} s (Magorian’s pharmacokinetics with Vega’s effect model)`);
+    gap('rocuronium 0.3 mg/kg: at least 95 % block, as for its ED95 — known gap 74', r3.t1 <= 0.05, `the first twitch down to ${f2(r3.t1)} only`);
+    ok('rocuronium 0.4 mg/kg (the station’s dose): at most one twitch of the train of four within 4 min', r4.c1 != null && r4.c1 <= 240, `${r4.c1} s`);
+    { const a = A((a) => { a.give('propofol', P.weightKg); a.give('rocuronium', 0.6 * P.weightKg); }); a.step(180); a.give('sugammadex', 8 * P.weightKg); let tof = null; for (let t = 1; t < 900 && tof == null; t++) { a.step(1); if (a.tofRatio >= 0.9) tof = t; }
+      gap('sugammadex 3 min after rocuronium 0.6 mg/kg: TOF ratio 0.9 within Kadoi 2013’s young patients (403 ± 37 s; ± 2 SD) — known gap 75', tof != null && Math.abs(tof - 403) <= 2 * 37, `${tof} s: the effect site empties at its own rate`); }
+    { const br = (sd) => { const a = A((a) => { a.give('propofol', P.weightKg); a.give('rocuronium', 0.4 * P.weightKg); }); a.step(240); a.give('sugammadex', sd * P.weightKg); for (let t = 1; t < 900; t++) { a.step(1); if (a.breathes) return t; } return null; };
+      const b2 = br(2), b3 = br(3);
+      gap('sugammadex 2 or 3 mg/kg after rocuronium 0.4 mg/kg: breathing back as Arslan 2024 measured (308 ± 26 and 281 ± 39 s) — known gap 75', b2 != null && Math.abs(b2 - 308) <= 52 && Math.abs(b3 - 281) <= 78, `${b2} and ${b3} s`); }
+    { const a = A((a) => { a.benzoPerDay = 2.5; }); const l0 = a.load; a.give('flumazenil', 0.5);
+      ok('a regular benzodiazepine adds to the anticonvulsant load; flumazenil 0.5 mg takes it away (Krystal 1998: 0.4–1.0 mg)', l0 > 0 && a.load === 0, `${f2(l0)} → ${f2(a.load)}`); }
+  }
+  {
+    /* the anaesthetic on the seizure: the reference treatment with the drugs given before the stimulus */
+    const seizureWith = (give, delay) => {
+      const s = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }), d = s.device;
+      d.settings.percentIndex = S.PERCENT_STEPS.indexOf(30);
+      d.power(true); s.advance(6); d.impedanceButton(true); s.advance(1.5); d.impedanceButton(false);
+      while (d.baseline !== 'ready') s.advance(0.5);
+      give(s); s.advance(delay);
+      d.treatButton(true); while (d.treat !== 'done') s.advance(0.05); d.treatButton(false);
+      s.advance(150); d.startStop(); s.advance(0.1);
+      return s.lastReport().eegEndpoint;
+    };
+    const W = S.ECT_PATIENT.weightKg;
+    const none = seizureWith(() => {}, 120), p1 = seizureWith((s) => s.anaesthesia.give('propofol', W), 120);
+    const p075 = seizureWith((s) => s.anaesthesia.give('propofol', 0.75 * W), 120), p15 = seizureWith((s) => s.anaesthesia.give('propofol', 1.5 * W), 120);
+    ok('fitted: propofol 1.0 mg/kg 120 s before the stimulus shortens the EEG seizure to 0.65 of none (Avramov 1995: 50 against 77 s with etomidate; ± 0.03)', none != null && p1 != null && Math.abs(p1 / none - 0.649) <= 0.03, `${f1(p1)} / ${f1(none)} = ${f2(p1 / none)}`);
+    ok('…0.75 mg/kg within 10 % of Avramov’s 56 s (0.727 of etomidate’s)', p075 != null && Math.abs(p075 / none - 0.727) <= 0.0727, `${f2(p075 / none)}`);
+    gap('…1.5 mg/kg within 15 % of Avramov’s 33 s (0.429 of etomidate’s) — known gap 73', p15 != null && Math.abs(p15 / none - 0.429) <= 0.064, `${f2(p15 / none)}: the model’s dose–response is flatter`);
+    ok('the dose and the timing matter: more propofol, or the stimulus sooner after it, gives a shorter seizure', p15 < p1 && p1 < p075 && seizureWith((s) => s.anaesthesia.give('propofol', W), 240) > p1, '');
+    const ketofol = seizureWith((s) => { s.anaesthesia.give('propofol', 0.5 * W); s.anaesthesia.give('esketamine', 0.5 * W); }, 120);
+    gap('ketofol (propofol 0.5 + ketamine 0.5 mg/kg) against propofol 1 mg/kg: within 15 % of Kayhan 2012’s ratio (41 / 38 s = 1.08)', ketofol != null && Math.abs(ketofol / p1 - 1.08) <= 0.16, `${f2(ketofol / p1)}: esketamine has no effect of its own on the seizure in the model, so the halved propofol decides`);
+    const hosp = (flu) => seizureWith((s) => { s.anaesthesia.benzoPerDay = 2.5; if (flu) s.flumazenil(0.5); s.anaesthesia.give('propofol', W); s.anaesthesia.give('esketamine', 0.5 * W); }, 240);
+    const off = hosp(false), on = hosp(true);
+    ok('fitted: lorazepam 2.5 mg/day, reversed by flumazenil, the seizure 10.5 s longer (Gistelinck 2024; ± 2 s)', off != null && on != null && Math.abs(on - off - 10.5) <= 2, `${f1(off)} → ${f1(on)} s`);
   }
   {
     /* the awake patient's fist checks the EMG leads; under anaesthesia there is none */

@@ -13,6 +13,7 @@ import { siteVector, type Site } from '../measurements/ecg.ts';
 import { Ventilator } from '../physiology/lung/ventilation.ts';
 import { BARO } from '../evidence/circulation.ts';
 import type { DrugId } from '../physiology/drugs/drugs.ts';
+import { Anaesthesia, ECT_PATIENT } from '../physiology/drugs/anaesthetics.ts';
 
 /* ===========================================================================
    A treatment session at the ECT device (ECT station, part 1): the device,
@@ -176,6 +177,8 @@ export class EctSession {
   private breathingOff = false;
   /** the awake patient's fist (the voluntary contraction that checks the EMG leads): until when */
   private fistFrom = -Infinity;
+  /** the anaesthetic: propofol, esketamine, the relaxant and its reversal, a benzodiazepine and flumazenil */
+  readonly anaesthesia = new Anaesthesia(ECT_PATIENT);
   /** the stimulus pads on the head (the procedure starts without them; part 1's sessions have them on) */
   padsOn = true;
   private startedAt = 0;
@@ -240,10 +243,26 @@ export class EctSession {
   private fistEnvelope() { const x = this.t - this.fistFrom; return x < 0 || x > 2 ? 0 : Math.min(1, x / 0.2, (2 - x) / 0.3); }
   /** the mask on with oxygen flowing (or off: room air) */
   oxygen(on: boolean) { this.setResp((r) => { r.FiO2 = on ? ECT.maskFiO2 : 0.21; }); }
-  /** the induction agent: the patient stops breathing (ECT.apnoeaAfterInduction until it returns) */
-  induce() { if (this.inducedAt != null) return; this.inducedAt = this.t; this.breathingOff = true; this.setResp((r) => { r.drive = 0; }); }
-  /** succinylcholine: every muscle it reaches relaxes; the cuffed arm only if the cuff was not above the systolic pressure */
-  relax(armSpared: boolean) { if (this.relaxedAt != null) return; this.relaxedAt = this.t; this.armSpared = armSpared; }
+  /** the induction: the hypnotics (mg; the station's standard is the hospital's propofol 1 mg/kg with esketamine
+      0.5 mg/kg). The patient stops breathing until the propofol falls below the apnoea level and the diaphragm is free. */
+  induce(o: { propofol: number; esketamine?: number } = { propofol: ECT_PATIENT.weightKg, esketamine: 0.5 * ECT_PATIENT.weightKg }) {
+    if (this.inducedAt != null) return;
+    this.inducedAt = this.t;
+    this.anaesthesia.give('propofol', o.propofol); if (o.esketamine) this.anaesthesia.give('esketamine', o.esketamine);
+    /* the breathing stops once the propofol reaches the apnoea level (stepBody) */
+  }
+  /** a top-up of the hypnotic (mg propofol), e.g. before a restimulation */
+  topUp(mg: number) { this.anaesthesia.give('propofol', mg); }
+  /** the relaxant (rocuronium, the hospital's standard, or succinylcholine): every muscle it reaches relaxes as its block
+      sets in; the cuffed arm only if the cuff was not above the systolic pressure */
+  relax(armSpared: boolean, drug: 'rocuronium' | 'succinylcholine' = 'succinylcholine', mg = drug === 'rocuronium' ? 0.4 * ECT_PATIENT.weightKg : ECT_PATIENT.weightKg) {
+    if (this.relaxedAt != null) return;
+    this.relaxedAt = this.t; this.armSpared = armSpared; this.anaesthesia.give(drug, mg);
+  }
+  /** sugammadex (mg): binds the rocuronium */
+  reverse(mg: number) { this.anaesthesia.give('sugammadex', mg); }
+  /** flumazenil (mg): reverses a regular benzodiazepine's share of the anticonvulsant load */
+  flumazenil(mg: number) { this.anaesthesia.give('flumazenil', mg); }
   /** breaths given by bag and mask at ECT.bagRate, or none */
   bag(on: boolean) {
     if (!on) { this.body.run.setVentilator(null); return; }
@@ -251,10 +270,12 @@ export class EctSession {
   }
   /** the patient breathing on their own (not under the anaesthetic's apnoea) */
   get breathing() { return !this.breathingOff; }
-  /** seconds until the breathing returns (0 if it has) */
-  get apnoeaLeft() { return this.breathingOff && this.inducedAt != null ? Math.max(0, this.inducedAt + ECT.apnoeaAfterInduction - this.t) : 0; }
+  /** 0 once the breathing has returned, 1 while the patient is apnoeic (when it returns depends on the drugs) */
+  get apnoeaLeft() { return this.breathingOff && this.inducedAt != null ? 1 : 0; }
+  /** how far the relaxant lets each arm move (the first twitch, 1 free): the cuffed arm is spared if the cuff held */
+  armFree(side: 'R' | 'L') { return side === 'R' && this.armSpared ? 1 : this.anaesthesia.t1; }
   /** the cuffed arm relaxed: the relaxant reached it */
-  get armRelaxed() { return this.relaxedAt != null && !this.armSpared && this.t >= this.relaxedAt + ECT.relaxantOnset; }
+  get armRelaxed() { return this.armFree('R') < 0.1; }
   /** SpO₂ (%) and end-tidal CO₂ (mmHg; null without breaths, as a capnograph shows nothing) */
   get spo2(): number { const r = this.body.snap.resp as unknown as { SaO2?: number } | undefined; return 100 * (r?.SaO2 ?? 0.97); }
   get etco2(): number | null {
@@ -304,14 +325,14 @@ export class EctSession {
     const pot = (el: string) => { let x = 0; for (let r = 0; r < e.length; r++) x += f[r][el] * e[r]; return x; };
     /* each arm's surface EMG: the right (cuffed) driven by the left motor cortex, the left by the right; a relaxed arm gives
        only the noise. Drawn only for the arms the montage records, so the manual's montage draws the noise as before. */
-    const leftRelaxed = this.relaxedAt != null && this.t >= this.relaxedAt + ECT.relaxantOnset;
+    /* the relaxant scales the muscles' response by the first twitch that is left (a free arm 1) */
     const emgOf = (side: 'R' | 'L') => {
       if (side === 'R') {
         const env = this.inducedAt == null ? this.fistEnvelope() : 0;
         const voluntary = env > 0 ? ECT.voluntaryEmg * env * this.emgNoise() : 0;
-        return emgSample(this.armRelaxed ? 0 : a[this.lcentral], this.emgNoise) + voluntary;
+        return emgSample(a[this.lcentral], this.emgNoise, ECT.emgThreshold, ECT.emgPerFiring * this.armFree('R')) + voluntary;
       }
-      return emgSample(leftRelaxed ? 0 : a[this.rcentral], this.emgNoise);
+      return emgSample(a[this.rcentral], this.emgNoise, ECT.emgThreshold, ECT.emgPerFiring * this.armFree('L'));
     };
     const hum = this.montage.ground ? 0 : ECT.mainsHum * Math.sin(2 * Math.PI * 50 * this.t);
     const channel = (l: Lead): number => {
@@ -403,8 +424,15 @@ export class EctSession {
     /* the discharge acts while the current flows and fades with the vagal efferent time constant */
     this.vagal = delivering ? target : this.vagal * Math.exp(-dt / BARO.tauP);
     this.adrenergic += (ECT.seizureSympathetic * ictalIntensity(this.brain) - this.adrenergic) * (1 - Math.exp(-dt / BARO.tauS));
-    /* the breathing returns when the anaesthetic's apnoea is over */
-    if (this.breathingOff && this.apnoeaLeft <= 0) { this.breathingOff = false; this.setResp((r) => { r.drive = 1; }); }
+    /* the anaesthetic: its levels move on; its anticonvulsant load hastens the end of a seizure; the breathing returns
+       when the propofol has fallen below the apnoea level and the diaphragm is free (and stops again if it is not) */
+    this.anaesthesia.step(dt);
+    const term = this.anaesthesia.termination; for (const r of this.brain.regions) r.termination = term;
+    if (this.inducedAt != null) {
+      const breathes = this.anaesthesia.breathes;
+      if (this.breathingOff && breathes) { this.breathingOff = false; this.setResp((r) => { r.drive = 1; }); }
+      else if (!this.breathingOff && !breathes) { this.breathingOff = true; this.setResp((r) => { r.drive = 0; }); }
+    }
     const ext = this.body.run.external;
     ext.vagalStim = this.vagal; ext.adrenergic = this.adrenergic;
     const heart = this.body.run.heart, before = this.body.samples;
