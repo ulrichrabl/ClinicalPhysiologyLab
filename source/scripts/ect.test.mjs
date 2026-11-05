@@ -535,6 +535,29 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     const hosp = (flu) => seizureWith((s) => { s.anaesthesia.benzoPerDay = 2.5; if (flu) s.flumazenil(0.5); s.anaesthesia.give('propofol', W); s.anaesthesia.give('esketamine', 0.5 * W); }, 240);
     const off = hosp(false), on = hosp(true);
     ok('fitted: lorazepam 2.5 mg/day, reversed by flumazenil, the seizure 10.5 s longer (Gistelinck 2024; ± 2 s)', off != null && on != null && Math.abs(on - off - 10.5) <= 2, `${f1(off)} → ${f1(on)} s`);
+    /* the pressure (Gaddam 2022's protocol, as scripts/fit-ect-anaesthesia.mjs pressure): the change after the induction
+       and the highest reading at 0–5 min after the shock, as % of the baseline before glycopyrrolate */
+    const pressureWith = (ind) => {
+      const s = new S.EctSession({ placement: 'BT', prepared: true, skin: 0, seed: 7 }), d = s.device;
+      const sys = (a, b) => { const x = s.pressure.filter((p) => p.t >= a && p.t < b); return x.reduce((u, p) => u + p.sys, 0) / x.length; };
+      d.settings.percentIndex = S.PERCENT_STEPS.indexOf(30);
+      d.power(true); s.advance(6); d.impedanceButton(true); s.advance(1.5); d.impedanceButton(false);
+      while (d.baseline !== 'ready') s.advance(0.5);
+      s.advance(30); const t0 = s.pressure.at(-1).t, base = sys(t0 - 30, t0 + 1);
+      s.give('glycopyrrolate', 0.004 * W); s.advance(120);
+      const ti = s.pressure.at(-1).t; s.induce(ind); s.relax(false, 'succinylcholine', 0.75 * W); s.advance(120);
+      const induction = sys(ti + 60, ti + 90);
+      d.treatButton(true); while (d.treat !== 'done') s.advance(0.05); d.treatButton(false);
+      const te = s.stimuli[0].end; s.advance(310);
+      const shock = Math.max(...[0, 1, 2, 3, 4, 5].map((m) => sys(te + 60 * m, te + 60 * m + 5)));
+      return { induction: 100 * (induction / base - 1), shock: 100 * (shock / base - 1) };
+    };
+    const bpP = pressureWith({ propofol: W }), bpK = pressureWith({ propofol: 0.5 * W, esketamine: 0.25 * W });
+    ok('fitted: propofol 1 mg/kg lowers the systolic pressure after the induction by 4.84 % (Gaddam 2022; ± 0.5)', Math.abs(bpP.induction + 4.84) <= 0.5, `${f2(bpP.induction)} %`);
+    ok('fitted: ketofol (propofol 0.5 + racemic ketamine 0.5 mg/kg, as esketamine 0.25) lowers it by 1.13 % (Gaddam 2022; ± 0.5)', Math.abs(bpK.induction + 1.13) <= 0.5, `${f2(bpK.induction)} %`);
+    ok('…after the shock with propofol, the highest systolic within 5 points of Gaddam’s +9.8 %', Math.abs(bpP.shock - 9.8) <= 5, `${f1(bpP.shock)} %`);
+    ok('…and higher with ketofol than with propofol, as measured', bpK.shock > bpP.shock, `${f1(bpK.shock)} against ${f1(bpP.shock)} %`);
+    gap('…with ketofol within 5 points of Gaddam’s +19.7 % — known gap 76', Math.abs(bpK.shock - 19.7) <= 5, `${f1(bpK.shock)} %`);
   }
   {
     /* the awake patient's fist checks the EMG leads; under anaesthesia there is none */
@@ -608,7 +631,7 @@ console.log('\nThe treatment as a procedure (roles, order, the team)');
     s.stimuli[0].percent = 15; const fifteen = [p.restimDoseOk(22), p.restimDoseOk(23), p.restimDoseOk(25)];
     ok('restimulation at 1.5 times the first dose, as near as the dial allows: 30 % → 45 %; 15 % → 22 or 23 %', thirty[0] === 45 && thirty[1] && !thirty[2] && fifteen[0] && fifteen[1] && !fifteen[2], J({ thirty, fifteen }));
   }
-  const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
+  const texts = [...S.STEPS.flatMap((x) => [x.title, x.how, x.why, x.says]), ...S.ECT_ORDERS.flatMap((o) => [o.title, o.doseNote, ...S.orderLines(o), ...S.orderLines(o, 2)]), ...Object.values(S.ROLE_NAME), ...Object.values(S.MODE_NAME)];
   ok('every step, order, role and mode text exists in English and German', texts.every((x) => x.en && x.de && x.en !== x.de || ['Coach'].includes(x.en)), J(texts.filter((x) => !(x.en && x.de && x.en !== x.de)).map((x) => x.en)));
 }
 

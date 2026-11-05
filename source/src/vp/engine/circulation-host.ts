@@ -72,8 +72,9 @@ export interface CirculationRun {
   arrest: MyocardialState;
   /** Drive from outside the body's own reflexes, set by a host (the ECT station): `adrenergic` adds central sympathetic
       and catecholamine drive (in the units of the chemoreflex drive it joins); `vagalStim` is a direct vagal discharge on the
-      pacemakers (HeartElectrical.vagalStim). Both 0 otherwise. */
-  external: { adrenergic: number; vagalStim: number };
+      pacemakers (HeartElectrical.vagalStim). Both 0 otherwise. `resistanceMult` scales the systemic resistance (an
+      anaesthetic's vasodilation; 1 otherwise). */
+  external: { adrenergic: number; vagalStim: number; resistanceMult: number };
   /** The coronary perfusion pressure the myocardium is getting now (mmHg, smoothed; between compressions in CPR). */
   coronaryPerfusion: () => number;
   /** Drugs given (ADR-018 step 4). */
@@ -123,7 +124,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     return { ...p, embRUL: p.embRUL * k, embRML: p.embRML * k, embRLL: p.embRLL * k, embLUL: p.embLUL * k, embLLL: p.embLLL * k };
   };
   const BRAIN_TAU_S = 3;
-  const external = { adrenergic: 0, vagalStim: 0 };
+  const external = { adrenergic: 0, vagalStim: 0, resistanceMult: 1 };
   const couple = () => {
     /* The lungs and the body see the circulation over a circulation time, not beat by beat: the mixed venous blood
        reaching the lungs is pooled from many beats, and the beats differ through each breath (the respiratory pump).
@@ -154,7 +155,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     sim.Rpul = model.circulation.Rpul * resp.rpulMult();
     /* Blood viscosity rises with haematocrit: anaemic blood flows more easily, so resistance falls and output rises.
        Angiotensin II and vasopressin constrict arterioles and capacitance veins. */
-    sim.Rsys = model.circulation.Rsys * (CIRC.viscosityFixed + (1 - CIRC.viscosityFixed) * Math.min(CIRC.viscosityCap, out.Hb / CIRC.viscosityHbRef)) * milieu.rsysMult() * drugs.resistanceMult();
+    sim.Rsys = model.circulation.Rsys * (CIRC.viscosityFixed + (1 - CIRC.viscosityFixed) * Math.min(CIRC.viscosityCap, out.Hb / CIRC.viscosityHbRef)) * milieu.rsysMult() * drugs.resistanceMult() * external.resistanceMult;
     sim.V0sv = model.circulation.V0sv * milieu.v0svMult();
     sim.Emax = model.circulation.Emax * milieu.contractility() * arrest.contractility() * drugs.cardiacDepression();
     /* Septic vessels respond poorly to sympathetic drive as well. */
@@ -222,7 +223,7 @@ export function createCirculation(m: PatientModel): CirculationRun {
     resp.setParams(lungParams(next.respiratory), body()); lysedSeen = drugs.lysed;
     sim.Rpul = c.Rpul * resp.rpulMult();
     sim.EmaxRv = c.EmaxRv * (1 - (sim.rvIschaemia ?? 0)) * arrest.contractility() * drugs.cardiacDepression();
-    sim.Rsys = c.Rsys * milieu.rsysMult() * drugs.resistanceMult();
+    sim.Rsys = c.Rsys * milieu.rsysMult() * drugs.resistanceMult() * external.resistanceMult;
     sim.V0sv = c.V0sv * milieu.v0svMult();
     sim.Emax = c.Emax * milieu.contractility() * arrest.contractility() * drugs.cardiacDepression();
     sim.gR = c.gR * (1 - INF.reflexResistanceLoss * milieu.vasoplegia()) * milieu.adrenergicResponse(); sim.gV = c.gV * (1 - INF.reflexVenousLoss * milieu.vasoplegia()) * milieu.adrenergicResponse();

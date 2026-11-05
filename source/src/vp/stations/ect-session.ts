@@ -1,3 +1,4 @@
+import { ANAES } from '../evidence/ect-anaesthesia.ts';
 import { ECT } from '../evidence/ect.ts';
 import { CT } from '../evidence/seizure.ts';
 import { Brain, REGIONS } from '../physiology/brain/corticothalamic.ts';
@@ -445,7 +446,11 @@ export class EctSession {
       else if (!this.breathingOff && !breathes) { this.breathingOff = true; this.setResp((r) => { r.drive = 0; }); }
     }
     const ext = this.body.run.external;
-    ext.vagalStim = this.vagal; ext.adrenergic = this.adrenergic;
+    /* the anaesthetic on the circulation: propofol widens the arterioles, esketamine adds sympathetic drive (both from
+       their effect-site levels; fitted to Gaddam 2022's two arms) */
+    const an = this.anaesthesia;
+    ext.vagalStim = this.vagal; ext.adrenergic = this.adrenergic + ANAES.esketamineSympathetic * an.esketamineCe;
+    ext.resistanceMult = 1 / (1 + ANAES.propofolVasodilation * an.propofolCe);
     const heart = this.body.run.heart, before = this.body.samples;
     this.body.advance(dt);
     /* the new ECG samples (500 Hz) onto the recording's 200 Hz */
